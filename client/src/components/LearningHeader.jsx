@@ -18,7 +18,7 @@ export default function LearningHeader() {
   };
 
   return (
-    <header className="bg-gradient-to-r from-blue-600 to-indigo-700 text-white shadow-md">
+    <header className="bg-gradient-to-r from-orange-500 to-amber-600 text-white shadow-md">
       <div className="container mx-auto px-4 py-4">
         <div className="flex items-center justify-between">
           {/* Logo */}
@@ -29,7 +29,7 @@ export default function LearningHeader() {
           >
             <div className="flex items-center">
               <div className="bg-white rounded-full p-1 mr-2">
-                <Brain className="text-blue-600 h-5 w-5" />
+                <Brain className="text-orange-600 h-5 w-5" />
               </div>
               <span className="text-xl font-bold">Learning How to Learn</span>
             </div>
@@ -41,7 +41,7 @@ export default function LearningHeader() {
             <div className="hidden md:flex items-center space-x-6">
               <Button 
                 variant="ghost" 
-                className="text-white hover:text-white hover:bg-blue-500 font-medium"
+                className="text-white hover:text-white hover:bg-amber-600 font-medium"
                 onClick={() => navigate('/')}
               >
                 <Book className="h-4 w-4 mr-2" />
@@ -51,8 +51,8 @@ export default function LearningHeader() {
               {isAuthenticated ? (
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
-                    <Button variant="ghost" className="flex items-center space-x-1 text-white hover:text-white hover:bg-blue-500">
-                      <div className="w-8 h-8 rounded-full bg-white flex items-center justify-center text-blue-600 font-medium">
+                    <Button variant="ghost" className="flex items-center space-x-1 text-white hover:text-white hover:bg-amber-600">
+                      <div className="w-8 h-8 rounded-full bg-white flex items-center justify-center text-orange-600 font-medium">
                         {user?.firstName?.[0] || user?.username?.[0] || "U"}
                       </div>
                       <span className="text-sm font-medium ml-2 hidden md:inline-block">
@@ -92,7 +92,7 @@ export default function LearningHeader() {
                     <div className="flex justify-between items-center mb-6">
                       <div className="flex items-center">
                         <div className="bg-white rounded-full p-1 mr-2">
-                          <Brain className="text-blue-600 h-5 w-5" />
+                          <Brain className="text-orange-600 h-5 w-5" />
                         </div>
                         <span className="text-xl font-bold">Learning</span>
                       </div>
