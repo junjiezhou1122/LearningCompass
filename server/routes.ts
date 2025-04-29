@@ -39,7 +39,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Check if subscriber already exists
       const existingSubscriber = await storage.getSubscriberByEmail(email);
       if (existingSubscriber) {
-        return res.status(200).json({ message: "You're already subscribed to our newsletter!" });
+        return res.status(200)
+          .header("Content-Type", "application/json")
+          .json({ message: "You're already subscribed to our newsletter!" });
       }
       
       // Create subscriber
@@ -51,10 +53,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       await storage.createSubscriber(subscriberData);
       
-      res.status(201).json({ message: "Successfully subscribed to the newsletter!" });
+      res.status(201)
+        .header("Content-Type", "application/json")
+        .json({ message: "Successfully subscribed to the newsletter!" });
     } catch (error) {
       console.error("Error subscribing to newsletter:", error);
-      res.status(500).json({ message: "Error processing subscription" });
+      res.status(500)
+        .header("Content-Type", "application/json")
+        .json({ message: "Error processing subscription" });
     }
   });
 

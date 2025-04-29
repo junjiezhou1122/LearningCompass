@@ -23,12 +23,30 @@ export default function Footer() {
     
     try {
       const response = await apiRequest("POST", "/api/subscribe", { email });
-      const data = await response.json();
+      
+      // Try to parse the response, but handle gracefully if not JSON
+      let data;
+      let message = "You've been subscribed to our newsletter!";
+      
+      try {
+        const contentType = response.headers.get("content-type");
+        if (contentType && contentType.includes("application/json")) {
+          data = await response.json();
+          if (data?.message) {
+            message = data.message;
+          }
+        } else {
+          // Not JSON, just use default message
+          console.log("Response is not JSON");
+        }
+      } catch (parseError) {
+        console.error("Error parsing response:", parseError);
+      }
       
       // Display success message
       toast({
         title: "Subscription Successful",
-        description: data?.message || "You've been subscribed to our newsletter!",
+        description: message,
       });
       
       setSubscriptionStatus("success");
