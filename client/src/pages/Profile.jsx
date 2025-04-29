@@ -68,14 +68,16 @@ export default function Profile() {
       
       return response.json();
     },
-    enabled: isAuthenticated
+    enabled: isAuthenticated,
+    // Add a short polling interval to ensure data is fresh
+    refetchInterval: 5000
   });
   
   // Listen for search history updates from other components
   useEffect(() => {
     // Function to handle the search history updated event
     const handleSearchHistoryUpdated = () => {
-      // Refetch search history data when the event is triggered
+      // Refetch search history data immediately when the event is triggered
       refetchSearchHistory();
     };
     
@@ -223,6 +225,9 @@ export default function Profile() {
       minute: "2-digit",
     }).format(date);
   };
+  
+  // State for showing all search history items
+  const [showAllSearchHistory, setShowAllSearchHistory] = useState(false);
 
   // Loading state
   if (isLoading) {
@@ -499,7 +504,8 @@ export default function Profile() {
                   </div>
                 ) : (
                   <div className="space-y-4">
-                    {searchHistory.slice(0, 10).map((item) => (
+                    {/* Display only 5 items initially, or all items if showAllSearchHistory is true */}
+                    {searchHistory.slice(0, showAllSearchHistory ? searchHistory.length : 5).map((item) => (
                       <div key={item.id} className="flex justify-between items-center p-3 bg-gray-50 rounded-md">
                         <div>
                           <p className="font-medium text-gray-800">{item.searchQuery}</p>
@@ -514,6 +520,19 @@ export default function Profile() {
                         </Button>
                       </div>
                     ))}
+                    
+                    {/* Show More/Less button if there are more than 5 items */}
+                    {searchHistory.length > 5 && (
+                      <div className="text-center mt-4">
+                        <Button 
+                          variant="outline" 
+                          size="sm" 
+                          onClick={() => setShowAllSearchHistory(!showAllSearchHistory)}
+                        >
+                          {showAllSearchHistory ? "Show Less" : "Show More"}
+                        </Button>
+                      </div>
+                    )}
                   </div>
                 )}
               </CardContent>
