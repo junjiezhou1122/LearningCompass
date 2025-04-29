@@ -15,17 +15,54 @@ export async function importData(storage: IStorage) {
   }
 }
 
+// Generate placeholder image for course
+function generatePlaceholderImage(category: string, subCategory?: string) {
+  // Clean up the text for use in the URL
+  const text = subCategory ? 
+    `${category}+${subCategory}`.replace(/\s+/g, '+') : 
+    category.replace(/\s+/g, '+');
+  
+  // Generate a unique color based on the category
+  const categoryColors: Record<string, string> = {
+    'Data Science': '4a6cf7',
+    'Business': '6c5ce7',
+    'Computer Science': '00b894',
+    'Information Technology': '0984e3',
+    'Arts and Humanities': 'd63031',
+    'Mathematics': '8e44ad',
+    'Health': '27ae60',
+    'Social Sciences': 'e84393',
+    'Engineering': 'f39c12',
+    'Language Learning': '2d3436'
+  };
+  
+  const color = categoryColors[category] || '4a6cf7';
+  
+  return `https://placehold.co/600x400/${color}/ffffff?text=${text}`;
+}
+
 // Helper function to import courses from CSV
 async function importCoursesFromCSV(storage: IStorage) {
   try {
     const filePath = path.resolve('./attached_assets/Online_Courses.csv');
+    if (!fs.existsSync(filePath)) {
+      console.error(`CSV file not found at ${filePath}`);
+      return;
+    }
+    
     const fileContent = fs.readFileSync(filePath, { encoding: 'utf-8' });
     
     // Parse CSV
-    const records = parse(fileContent, {
+    const allRecords = parse(fileContent, {
       columns: true,
-      skip_empty_lines: true
+      skip_empty_lines: true,
+      from_line: 2 // Skip header row
     });
+    
+    // Limit to first 100 courses for performance
+    const records = allRecords.slice(0, 100);
+    
+    console.log(`Found ${allRecords.length} courses, importing first ${records.length}`);
     
     // Process and import courses
     for (const record of records) {
@@ -40,15 +77,18 @@ async function importCoursesFromCSV(storage: IStorage) {
         subtitleLanguages: record['Subtitle Languages'],
         skills: record.Skills,
         instructors: record.Instructors,
-        rating: record.Rating ? parseFloat(record.Rating) : undefined,
-        numberOfViewers: record['Number of viewers'] ? parseInt(record['Number of viewers']) : undefined,
+        rating: record.Rating ? parseFloat(record.Rating.replace('stars', '')) : undefined,
+        numberOfViewers: record['Number of viewers'] ? 
+          parseInt(record['Number of viewers'].replace(/,/g, '').trim()) : undefined,
         duration: record.Duration,
         site: record.Site,
-        imageUrl: 'https://images.unsplash.com/photo-1516321318423-f06f85e504b3'
+        imageUrl: generatePlaceholderImage(record.Category || 'Online Course', record['Sub-Category'])
       };
       
       await storage.createCourse(courseData);
     }
+    
+    console.log('Courses imported successfully');
   } catch (error) {
     console.error('Error importing courses:', error);
     throw error;
