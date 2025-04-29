@@ -6,20 +6,16 @@ import bcrypt from "bcrypt";
 import { insertUserSchema, insertBookmarkSchema } from "@shared/schema";
 import { z, ZodError } from "zod";
 import { fromZodError } from "zod-validation-error";
-import { importCoursesFromCSV } from "./utils/courseParser";
+// Import data already complete
+// import { importCoursesFromCSV } from "./utils/courseParser";
 import { authenticateJWT, generateToken } from "./utils/auth";
 
 // JWT secret key
 const JWT_SECRET = process.env.JWT_SECRET || "your_jwt_secret_key";
 
 export async function registerRoutes(app: Express): Promise<Server> {
-  // Import courses data on server start
-  try {
-    await importCoursesFromCSV(storage);
-    console.log("Courses imported successfully");
-  } catch (error) {
-    console.error("Failed to import courses:", error);
-  }
+  // Skip import since courses are already in the database
+  console.log("Skipping course import as data is already in the database");
 
   // Auth routes
   app.post("/api/auth/register", async (req: Request, res: Response) => {

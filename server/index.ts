@@ -1,7 +1,8 @@
 import express, { type Request, Response, NextFunction } from "express";
 import { registerRoutes } from "./routes";
 import { setupVite, serveStatic, log } from "./vite";
-import { importData } from "./data-import";
+// Import already completed, no need to import again
+// import { importData } from "./data-import";
 import { storage } from "./storage";
 import { db } from "./db";
 import { courses } from "@shared/schema";
