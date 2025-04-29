@@ -89,6 +89,20 @@ export const insertSearchHistorySchema = createInsertSchema(searchHistory).pick(
   createdAt: true
 });
 
+// Subscribers schema
+export const subscribers = pgTable("subscribers", {
+  id: serial("id").primaryKey(),
+  email: text("email").notNull().unique(),
+  createdAt: text("created_at").notNull(),
+  status: text("status").notNull()
+});
+
+export const insertSubscriberSchema = createInsertSchema(subscribers).pick({
+  email: true,
+  createdAt: true,
+  status: true,
+});
+
 // Relations
 export const usersRelations = relations(users, ({ many }) => ({
   bookmarks: many(bookmarks),
@@ -129,3 +143,6 @@ export type InsertBookmark = typeof bookmarks.$inferInsert;
 
 export type SearchHistory = typeof searchHistory.$inferSelect;
 export type InsertSearchHistory = typeof searchHistory.$inferInsert;
+
+export type Subscriber = typeof subscribers.$inferSelect;
+export type InsertSubscriber = typeof subscribers.$inferInsert;

@@ -1,7 +1,7 @@
 import { 
-  User, Course, Bookmark, SearchHistory, 
-  InsertUser, InsertCourse, InsertBookmark, InsertSearchHistory,
-  users, courses, bookmarks, searchHistory 
+  User, Course, Bookmark, SearchHistory, Subscriber,
+  InsertUser, InsertCourse, InsertBookmark, InsertSearchHistory, InsertSubscriber,
+  users, courses, bookmarks, searchHistory, subscribers 
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, and, like, desc, asc, sql, or, inArray } from "drizzle-orm";
@@ -51,6 +51,11 @@ export interface IStorage {
   // Search history operations
   createSearchHistory(searchHistory: InsertSearchHistory): Promise<SearchHistory>;
   getSearchHistoryByUserId(userId: number): Promise<SearchHistory[]>;
+  
+  // Subscriber operations
+  getSubscriberByEmail(email: string): Promise<Subscriber | undefined>;
+  createSubscriber(subscriber: InsertSubscriber): Promise<Subscriber>;
+  getAllSubscribers(): Promise<Subscriber[]>;
 }
 
 export class DatabaseStorage implements IStorage {

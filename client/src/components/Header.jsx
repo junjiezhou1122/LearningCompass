@@ -95,7 +95,7 @@ export default function Header() {
           <Link href="/">
             <a className="flex items-center">
               <School className="text-primary-600 h-6 w-6 mr-2" />
-              <span className="text-xl font-bold text-gray-800">EduRecommend</span>
+              <span className="text-xl font-bold text-gray-800">ResourcesHub</span>
             </a>
           </Link>
 
