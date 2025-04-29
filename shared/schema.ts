@@ -1,6 +1,7 @@
-import { pgTable, text, serial, integer, boolean, doublePrecision } from "drizzle-orm/pg-core";
+import { pgTable, text, serial, integer, boolean, doublePrecision, timestamp } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
+import { relations } from "drizzle-orm";
 
 // User schema
 export const users = pgTable("users", {
@@ -87,6 +88,34 @@ export const insertSearchHistorySchema = createInsertSchema(searchHistory).pick(
   searchQuery: true,
   createdAt: true
 });
+
+// Relations
+export const usersRelations = relations(users, ({ many }) => ({
+  bookmarks: many(bookmarks),
+  searchHistory: many(searchHistory)
+}));
+
+export const coursesRelations = relations(courses, ({ many }) => ({
+  bookmarks: many(bookmarks)
+}));
+
+export const bookmarksRelations = relations(bookmarks, ({ one }) => ({
+  user: one(users, {
+    fields: [bookmarks.userId],
+    references: [users.id]
+  }),
+  course: one(courses, {
+    fields: [bookmarks.courseId],
+    references: [courses.id]
+  })
+}));
+
+export const searchHistoryRelations = relations(searchHistory, ({ one }) => ({
+  user: one(users, {
+    fields: [searchHistory.userId],
+    references: [users.id]
+  })
+}));
 
 // Type definitions
 export type User = typeof users.$inferSelect;

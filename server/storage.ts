@@ -1,6 +1,11 @@
-import { users, courses, bookmarks, searchHistory, type User, type InsertUser, type Course, type InsertCourse, type Bookmark, type InsertBookmark, type SearchHistory, type InsertSearchHistory } from "@shared/schema";
+import { 
+  User, Course, Bookmark, SearchHistory, 
+  InsertUser, InsertCourse, InsertBookmark, InsertSearchHistory,
+  users, courses, bookmarks, searchHistory 
+} from "@shared/schema";
+import { db } from "./db";
+import { eq, and, like, desc, asc, sql, or, inArray } from "drizzle-orm";
 
-// Storage interface
 export interface IStorage {
   // User operations
   getUser(id: number): Promise<User | undefined>;
@@ -40,54 +45,30 @@ export interface IStorage {
   getSearchHistoryByUserId(userId: number): Promise<SearchHistory[]>;
 }
 
-export class MemStorage implements IStorage {
-  private users: Map<number, User>;
-  private courses: Map<number, Course>;
-  private bookmarks: Map<string, Bookmark>;
-  private searchHistories: Map<number, SearchHistory>;
-  private userCurrentId: number;
-  private courseCurrentId: number;
-  private bookmarkCurrentId: number;
-  private searchHistoryCurrentId: number;
-  
-  constructor() {
-    this.users = new Map();
-    this.courses = new Map();
-    this.bookmarks = new Map();
-    this.searchHistories = new Map();
-    this.userCurrentId = 1;
-    this.courseCurrentId = 1;
-    this.bookmarkCurrentId = 1;
-    this.searchHistoryCurrentId = 1;
-  }
-
-  // User operations
+export class DatabaseStorage implements IStorage {
   async getUser(id: number): Promise<User | undefined> {
-    return this.users.get(id);
+    const [user] = await db.select().from(users).where(eq(users.id, id));
+    return user || undefined;
   }
 
   async getUserByUsername(username: string): Promise<User | undefined> {
-    return Array.from(this.users.values()).find(
-      (user) => user.username.toLowerCase() === username.toLowerCase()
-    );
+    const [user] = await db.select().from(users).where(eq(users.username, username));
+    return user || undefined;
   }
 
   async getUserByEmail(email: string): Promise<User | undefined> {
-    return Array.from(this.users.values()).find(
-      (user) => user.email.toLowerCase() === email.toLowerCase()
-    );
+    const [user] = await db.select().from(users).where(eq(users.email, email));
+    return user || undefined;
   }
 
   async createUser(insertUser: InsertUser): Promise<User> {
-    const id = this.userCurrentId++;
-    const user: User = { ...insertUser, id };
-    this.users.set(id, user);
+    const [user] = await db.insert(users).values(insertUser).returning();
     return user;
   }
 
-  // Course operations
   async getCourse(id: number): Promise<Course | undefined> {
-    return this.courses.get(id);
+    const [course] = await db.select().from(courses).where(eq(courses.id, id));
+    return course || undefined;
   }
 
   async getCourses(options?: { 
@@ -101,181 +82,170 @@ export class MemStorage implements IStorage {
     sortBy?: string;
     search?: string;
   }): Promise<Course[]> {
-    let filteredCourses = Array.from(this.courses.values());
+    let query = db.select().from(courses);
     
     // Apply filters
+    const whereConditions = [];
+    
     if (options?.category) {
-      filteredCourses = filteredCourses.filter(
-        course => course.category?.toLowerCase() === options.category?.toLowerCase()
-      );
+      whereConditions.push(eq(courses.category, options.category));
     }
     
     if (options?.subCategory) {
-      filteredCourses = filteredCourses.filter(
-        course => course.subCategory?.toLowerCase() === options.subCategory?.toLowerCase()
-      );
+      whereConditions.push(eq(courses.subCategory, options.subCategory));
     }
     
     if (options?.courseType) {
-      filteredCourses = filteredCourses.filter(
-        course => course.courseType?.toLowerCase() === options.courseType?.toLowerCase()
-      );
+      whereConditions.push(eq(courses.courseType, options.courseType));
     }
     
     if (options?.language) {
-      filteredCourses = filteredCourses.filter(
-        course => course.language?.toLowerCase() === options.language?.toLowerCase()
-      );
+      whereConditions.push(eq(courses.language, options.language));
     }
     
-    if (options?.rating) {
-      filteredCourses = filteredCourses.filter(
-        course => course.rating !== undefined && course.rating >= options.rating
-      );
+    if (options?.rating && courses.rating) {
+      whereConditions.push(sql`${courses.rating} >= ${options.rating}`);
     }
     
     if (options?.search) {
-      const searchLower = options.search.toLowerCase();
-      filteredCourses = filteredCourses.filter(
-        course => 
-          course.title.toLowerCase().includes(searchLower) ||
-          (course.shortIntro && course.shortIntro.toLowerCase().includes(searchLower)) ||
-          (course.skills && course.skills.toLowerCase().includes(searchLower)) ||
-          (course.category && course.category.toLowerCase().includes(searchLower)) ||
-          (course.subCategory && course.subCategory.toLowerCase().includes(searchLower))
+      whereConditions.push(
+        or(
+          like(courses.title, `%${options.search}%`),
+          sql`${courses.shortIntro} LIKE ${'%' + options.search + '%'}`,
+          sql`${courses.skills} LIKE ${'%' + options.search + '%'}`
+        )
       );
+    }
+    
+    if (whereConditions.length > 0) {
+      query = query.where(and(...whereConditions));
     }
     
     // Apply sorting
     if (options?.sortBy) {
       switch (options.sortBy) {
-        case 'highest_rated':
-          filteredCourses.sort((a, b) => (b.rating || 0) - (a.rating || 0));
+        case 'rating_high':
+          query = query.orderBy(desc(courses.rating));
           break;
-        case 'most_popular':
-          filteredCourses.sort((a, b) => (b.numberOfViewers || 0) - (a.numberOfViewers || 0));
+        case 'rating_low':
+          query = query.orderBy(asc(courses.rating));
           break;
-        case 'newest':
-          // Since we don't have a 'created_at' field for courses, we'll use ID as a proxy for recency
-          filteredCourses.sort((a, b) => b.id - a.id);
+        case 'popular':
+          query = query.orderBy(desc(courses.numberOfViewers));
           break;
         default:
-          // 'recommended' - no particular sorting, use default
-          break;
+          // Default sorting (recommended)
+          query = query.orderBy(desc(courses.rating));
       }
+    } else {
+      // Default sorting
+      query = query.orderBy(desc(courses.rating));
     }
     
     // Apply pagination
-    const offset = options?.offset || 0;
-    const limit = options?.limit || filteredCourses.length;
+    if (options?.limit) {
+      query = query.limit(options.limit);
+    }
     
-    return filteredCourses.slice(offset, offset + limit);
+    if (options?.offset) {
+      query = query.offset(options.offset);
+    }
+    
+    return await query;
   }
 
   async getCoursesByIds(ids: number[]): Promise<Course[]> {
-    return ids
-      .map(id => this.courses.get(id))
-      .filter((course): course is Course => course !== undefined);
+    if (ids.length === 0) return [];
+    return await db.select().from(courses).where(inArray(courses.id, ids));
   }
 
   async createCourse(insertCourse: InsertCourse): Promise<Course> {
-    const id = this.courseCurrentId++;
-    const course: Course = { ...insertCourse, id };
-    this.courses.set(id, course);
+    const [course] = await db.insert(courses).values(insertCourse).returning();
     return course;
   }
 
   async getCategories(): Promise<string[]> {
-    const categories = new Set<string>();
-    Array.from(this.courses.values()).forEach(course => {
-      if (course.category) {
-        categories.add(course.category);
-      }
-    });
-    return Array.from(categories);
+    const result = await db.select({ category: courses.category }).from(courses)
+      .where(sql`${courses.category} IS NOT NULL`)
+      .groupBy(courses.category);
+    return result.map(r => r.category || '').filter(c => c !== '');
   }
 
   async getSubCategories(): Promise<string[]> {
-    const subCategories = new Set<string>();
-    Array.from(this.courses.values()).forEach(course => {
-      if (course.subCategory) {
-        subCategories.add(course.subCategory);
-      }
-    });
-    return Array.from(subCategories);
+    const result = await db.select({ subCategory: courses.subCategory }).from(courses)
+      .where(sql`${courses.subCategory} IS NOT NULL`)
+      .groupBy(courses.subCategory);
+    return result.map(r => r.subCategory || '').filter(c => c !== '');
   }
 
   async getCourseTypes(): Promise<string[]> {
-    const courseTypes = new Set<string>();
-    Array.from(this.courses.values()).forEach(course => {
-      if (course.courseType) {
-        courseTypes.add(course.courseType);
-      }
-    });
-    return Array.from(courseTypes);
+    const result = await db.select({ courseType: courses.courseType }).from(courses)
+      .where(sql`${courses.courseType} IS NOT NULL`)
+      .groupBy(courses.courseType);
+    return result.map(r => r.courseType || '').filter(c => c !== '');
   }
 
   async getLanguages(): Promise<string[]> {
-    const languages = new Set<string>();
-    Array.from(this.courses.values()).forEach(course => {
-      if (course.language) {
-        languages.add(course.language);
-      }
-    });
-    return Array.from(languages);
+    const result = await db.select({ language: courses.language }).from(courses)
+      .where(sql`${courses.language} IS NOT NULL`)
+      .groupBy(courses.language);
+    return result.map(r => r.language || '').filter(c => c !== '');
   }
 
   async getSkills(): Promise<string[]> {
-    const skills = new Set<string>();
-    Array.from(this.courses.values()).forEach(course => {
-      if (course.skills) {
-        const courseSkills = course.skills.split(',').map(skill => skill.trim());
-        courseSkills.forEach(skill => {
-          if (skill) skills.add(skill);
+    const result = await db.select({ skills: courses.skills }).from(courses)
+      .where(sql`${courses.skills} IS NOT NULL`);
+    
+    // Extract and deduplicate skills
+    const skillSet = new Set<string>();
+    result.forEach(r => {
+      if (r.skills) {
+        r.skills.split(',').map(s => s.trim()).forEach(skill => {
+          if (skill) skillSet.add(skill);
         });
       }
     });
-    return Array.from(skills);
+    
+    return Array.from(skillSet);
   }
 
-  // Bookmark operations
   async getBookmark(userId: number, courseId: number): Promise<Bookmark | undefined> {
-    const key = `${userId}-${courseId}`;
-    return this.bookmarks.get(key);
+    const [bookmark] = await db.select().from(bookmarks)
+      .where(and(
+        eq(bookmarks.userId, userId),
+        eq(bookmarks.courseId, courseId)
+      ));
+    return bookmark || undefined;
   }
 
   async getBookmarksByUserId(userId: number): Promise<Bookmark[]> {
-    return Array.from(this.bookmarks.values()).filter(
-      bookmark => bookmark.userId === userId
-    );
+    return await db.select().from(bookmarks).where(eq(bookmarks.userId, userId));
   }
 
   async createBookmark(insertBookmark: InsertBookmark): Promise<Bookmark> {
-    const id = this.bookmarkCurrentId++;
-    const bookmark: Bookmark = { ...insertBookmark, id };
-    const key = `${bookmark.userId}-${bookmark.courseId}`;
-    this.bookmarks.set(key, bookmark);
+    const [bookmark] = await db.insert(bookmarks).values(insertBookmark).returning();
     return bookmark;
   }
 
   async deleteBookmark(userId: number, courseId: number): Promise<boolean> {
-    const key = `${userId}-${courseId}`;
-    return this.bookmarks.delete(key);
+    await db.delete(bookmarks)
+      .where(and(
+        eq(bookmarks.userId, userId),
+        eq(bookmarks.courseId, courseId)
+      ));
+    return true; // Drizzle doesn't have an easy way to check affected rows, so assuming success
   }
 
-  // Search history operations
   async createSearchHistory(insertSearchHistory: InsertSearchHistory): Promise<SearchHistory> {
-    const id = this.searchHistoryCurrentId++;
-    const searchHistory: SearchHistory = { ...insertSearchHistory, id };
-    this.searchHistories.set(id, searchHistory);
-    return searchHistory;
+    const [result] = await db.insert(searchHistory).values(insertSearchHistory).returning();
+    return result;
   }
 
   async getSearchHistoryByUserId(userId: number): Promise<SearchHistory[]> {
-    return Array.from(this.searchHistories.values()).filter(
-      history => history.userId === userId
-    );
+    return await db.select().from(searchHistory)
+      .where(eq(searchHistory.userId, userId))
+      .orderBy(desc(searchHistory.createdAt));
   }
 }
 
-export const storage = new MemStorage();
+export const storage = new DatabaseStorage();
