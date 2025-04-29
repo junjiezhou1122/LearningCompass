@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { useAuth } from "@/contexts/AuthContext";
+import { useAuth } from "../contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
 import CourseCard from "@/components/CourseCard";
 import { Button } from "@/components/ui/button";
