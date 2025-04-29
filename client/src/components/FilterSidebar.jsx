@@ -15,9 +15,8 @@ export default function FilterSidebar({
   // State for open/closed filter sections
   const [openSections, setOpenSections] = useState({
     category: true,
+    subCategory: true, // Now opened by default and shown right after category
     courseType: true,
-    skills: true, 
-    subCategory: false, // Less frequently used
   });
   
   // State for selected filters
@@ -206,7 +205,7 @@ export default function FilterSidebar({
               </div>
             ))
           ) : categories.length > 0 ? (
-            categories.slice(0, 6).map((category, index) => (
+            categories.map((category, index) => (
               <div key={index} className="flex items-center mb-2">
                 <Checkbox 
                   id={`category-${index}`}
@@ -225,17 +224,55 @@ export default function FilterSidebar({
           ) : (
             <p className="text-sm text-gray-500">No categories available</p>
           )}
-          
-          {categories.length > 6 && (
-            <button className="text-sm text-primary-600 hover:text-primary-700 mt-1">
-              Show more
-            </button>
+        </div>
+      </div>
+      
+      {/* Sub-Category Filter - Moved right after Category */}
+      <div className="mb-4">
+        <button 
+          className="flex items-center justify-between w-full text-left font-medium text-gray-700 mb-2"
+          onClick={() => toggleSection('subCategory')}
+        >
+          <span className="text-base font-semibold">Sub-Category</span>
+          {openSections.subCategory ? 
+            <ChevronUp className="h-5 w-5 text-gray-600" /> : 
+            <ChevronDown className="h-5 w-5 text-gray-600" />
+          }
+        </button>
+        
+        <div className={`pl-2 overflow-hidden transition-all duration-300 ${openSections.subCategory ? 'max-h-60 overflow-y-auto' : 'max-h-0'}`}>
+          {isLoadingSubCategories ? (
+            Array(4).fill(0).map((_, i) => (
+              <div key={i} className="flex items-center mb-2">
+                <Skeleton className="h-4 w-4 mr-2" />
+                <Skeleton className="h-4 w-32" />
+              </div>
+            ))
+          ) : subCategories.length > 0 ? (
+            subCategories.map((subCategory, index) => (
+              <div key={index} className="flex items-center mb-2">
+                <Checkbox 
+                  id={`subcategory-${index}`}
+                  checked={selectedFilters.subCategories.includes(subCategory)}
+                  onCheckedChange={(checked) => {
+                    if (checked) handleFilterChange('subCategories', subCategory);
+                    else handleFilterChange('subCategories', subCategory);
+                  }}
+                  className="mr-2"
+                />
+                <label htmlFor={`subcategory-${index}`} className="text-sm text-gray-700 cursor-pointer">
+                  {subCategory}
+                </label>
+              </div>
+            ))
+          ) : (
+            <p className="text-sm text-gray-500">No subcategories available</p>
           )}
         </div>
       </div>
       
       {/* Course Type Filter */}
-      <div className="mb-4">
+      <div className="mb-6">
         <button 
           className="flex items-center justify-between w-full text-left font-medium text-gray-700 mb-2"
           onClick={() => toggleSection('courseType')}
@@ -274,106 +311,6 @@ export default function FilterSidebar({
             ))
           ) : (
             <p className="text-sm text-gray-500">No course types available</p>
-          )}
-        </div>
-      </div>
-      
-      {/* Skills Filter */}
-      <div className="mb-6">
-        <button 
-          className="flex items-center justify-between w-full text-left font-medium text-gray-700 mb-2"
-          onClick={() => toggleSection('skills')}
-        >
-          <span className="text-base font-semibold">Skills</span>
-          {openSections.skills ? 
-            <ChevronUp className="h-5 w-5 text-gray-600" /> : 
-            <ChevronDown className="h-5 w-5 text-gray-600" />
-          }
-        </button>
-        
-        <div className={`pl-2 overflow-hidden transition-all duration-300 ${openSections.skills ? 'max-h-60 overflow-y-auto' : 'max-h-0'}`}>
-          {isLoadingSkills ? (
-            Array(4).fill(0).map((_, i) => (
-              <div key={i} className="flex items-center mb-2">
-                <Skeleton className="h-4 w-4 mr-2" />
-                <Skeleton className="h-4 w-32" />
-              </div>
-            ))
-          ) : skills.length > 0 ? (
-            skills.slice(0, 8).map((skill, index) => (
-              <div key={index} className="flex items-center mb-2">
-                <Checkbox 
-                  id={`skill-${index}`}
-                  checked={selectedFilters.skills.includes(skill)}
-                  onCheckedChange={(checked) => {
-                    if (checked) handleFilterChange('skills', skill);
-                    else handleFilterChange('skills', skill);
-                  }}
-                  className="mr-2"
-                />
-                <label htmlFor={`skill-${index}`} className="text-sm text-gray-700 cursor-pointer">
-                  {skill}
-                </label>
-              </div>
-            ))
-          ) : (
-            <p className="text-sm text-gray-500">No skills available</p>
-          )}
-          
-          {skills.length > 8 && (
-            <button className="text-sm text-primary-600 hover:text-primary-700 mt-1">
-              Show more
-            </button>
-          )}
-        </div>
-      </div>
-      
-      {/* Subcategory in collapsed state by default */}
-      <div className="mb-4">
-        <button 
-          className="flex items-center justify-between w-full text-left font-medium text-gray-700 mb-2"
-          onClick={() => toggleSection('subCategory')}
-        >
-          <span className="text-base font-semibold">Sub-Category</span>
-          {openSections.subCategory ? 
-            <ChevronUp className="h-5 w-5 text-gray-600" /> : 
-            <ChevronDown className="h-5 w-5 text-gray-600" />
-          }
-        </button>
-        
-        <div className={`pl-2 overflow-hidden transition-all duration-300 ${openSections.subCategory ? 'max-h-60 overflow-y-auto' : 'max-h-0'}`}>
-          {isLoadingSubCategories ? (
-            Array(4).fill(0).map((_, i) => (
-              <div key={i} className="flex items-center mb-2">
-                <Skeleton className="h-4 w-4 mr-2" />
-                <Skeleton className="h-4 w-32" />
-              </div>
-            ))
-          ) : subCategories.length > 0 ? (
-            subCategories.slice(0, 6).map((subCategory, index) => (
-              <div key={index} className="flex items-center mb-2">
-                <Checkbox 
-                  id={`subcategory-${index}`}
-                  checked={selectedFilters.subCategories.includes(subCategory)}
-                  onCheckedChange={(checked) => {
-                    if (checked) handleFilterChange('subCategories', subCategory);
-                    else handleFilterChange('subCategories', subCategory);
-                  }}
-                  className="mr-2"
-                />
-                <label htmlFor={`subcategory-${index}`} className="text-sm text-gray-700 cursor-pointer">
-                  {subCategory}
-                </label>
-              </div>
-            ))
-          ) : (
-            <p className="text-sm text-gray-500">No subcategories available</p>
-          )}
-          
-          {subCategories.length > 6 && (
-            <button className="text-sm text-primary-600 hover:text-primary-700 mt-1">
-              Show more
-            </button>
           )}
         </div>
       </div>
