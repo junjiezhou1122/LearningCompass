@@ -74,7 +74,7 @@ export default function Footer() {
           <div>
             <h3 className="text-lg font-semibold mb-4 flex items-center">
               <School className="mr-2" />
-              EduRecommend
+              RescourcesHub
             </h3>
             <p className="text-gray-400 text-sm">
               Personalized learning resource recommendations to help you advance your skills and career.
