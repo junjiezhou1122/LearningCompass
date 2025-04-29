@@ -52,9 +52,9 @@ export async function importCoursesFromCSV(storage: IStorage) {
       }
     });
     
-    // Limit to first 100 courses for better performance
-    const records = allRecords.slice(0, 100);
-    console.log(`Found ${allRecords.length} courses, importing first ${records.length}`);
+    // Use all courses from the CSV file
+    const records = allRecords;
+    console.log(`Found ${allRecords.length} courses, importing all of them`);
     
     // Process and import courses
     for (const record of records) {

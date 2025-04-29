@@ -64,33 +64,44 @@ async function importCoursesFromCSV(storage: IStorage) {
       relax_column_count: true
     });
     
-    // Limit to first 100 courses for performance
-    const records = allRecords.slice(0, 100);
+    // Use all courses from the CSV file
+    const records = allRecords;
     
-    console.log(`Found ${allRecords.length} courses, importing first ${records.length}`);
+    console.log(`Found ${allRecords.length} courses, importing all of them`);
     
-    // Process and import courses
-    for (const record of records) {
-      const courseData: InsertCourse = {
-        title: record.Title || 'Untitled Course',
-        url: record.URL || '#',
-        shortIntro: record['Short Intro'],
-        category: record.Category,
-        subCategory: record['Sub-Category'],
-        courseType: record['Course Type'],
-        language: record.Language,
-        subtitleLanguages: record['Subtitle Languages'],
-        skills: record.Skills,
-        instructors: record.Instructors,
-        rating: record.Rating ? parseFloat(record.Rating.replace('stars', '')) : undefined,
-        numberOfViewers: record['Number of viewers'] ? 
-          parseInt(record['Number of viewers'].replace(/,/g, '').trim()) : undefined,
-        duration: record.Duration,
-        site: record.Site,
-        imageUrl: generatePlaceholderImage(record.Category || 'Online Course', record['Sub-Category'])
-      };
+    // Process courses in batches of 100 for better performance
+    const batchSize = 100;
+    for (let i = 0; i < records.length; i += batchSize) {
+      const batch = records.slice(i, i + batchSize);
+      const courseBatch: InsertCourse[] = [];
       
-      await storage.createCourse(courseData);
+      // Prepare batch of courses
+      for (const record of batch) {
+        const courseData: InsertCourse = {
+          title: record.Title || 'Untitled Course',
+          url: record.URL || '#',
+          shortIntro: record['Short Intro'],
+          category: record.Category,
+          subCategory: record['Sub-Category'],
+          courseType: record['Course Type'],
+          language: record.Language,
+          subtitleLanguages: record['Subtitle Languages'],
+          skills: record.Skills,
+          instructors: record.Instructors,
+          rating: record.Rating ? parseFloat(record.Rating.replace('stars', '')) : undefined,
+          numberOfViewers: record['Number of viewers'] ? 
+            parseInt(record['Number of viewers'].replace(/,/g, '').trim()) : undefined,
+          duration: record.Duration,
+          site: record.Site,
+          imageUrl: generatePlaceholderImage(record.Category || 'Online Course', record['Sub-Category'])
+        };
+        
+        courseBatch.push(courseData);
+      }
+      
+      // Import batch of courses
+      await Promise.all(courseBatch.map(course => storage.createCourse(course)));
+      console.log(`Imported batch ${Math.floor(i/batchSize) + 1}/${Math.ceil(records.length/batchSize)} (${i} to ${Math.min(i + batchSize, records.length)} courses)`);
     }
     
     console.log('Courses imported successfully');

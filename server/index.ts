@@ -39,9 +39,24 @@ app.use((req, res, next) => {
 });
 
 (async () => {
+  // Skip full data import on regular startups
+  // To import all courses, set IMPORT_ALL_COURSES=true environment variable
+  const importAllCourses = process.env.IMPORT_ALL_COURSES === 'true';
+
   try {
-    // Import course data from CSV
-    await importData(storage);
+    // Check if we already have courses in the database
+    const existingCoursesCount = await db.select({ count: sql`count(*)` }).from(courses);
+    const count = Number(existingCoursesCount[0]?.count || 0);
+    console.log(`Database has ${count} courses`);
+    
+    // If we have some courses already and not explicitly importing all, skip the import
+    if (count > 0 && !importAllCourses) {
+      console.log('Skipping full data import since courses already exist in the database');
+    } else {
+      // Either no courses or explicit import requested
+      console.log('Starting course data import from CSV...');
+      await importData(storage);
+    }
   } catch (error) {
     console.error('Failed to import data:', error);
   }
