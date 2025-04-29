@@ -469,11 +469,15 @@ export default function FilterSidebar({
       <Separator className="my-4" />
       
       <div className="flex flex-wrap gap-2">
-        <Button onClick={applyFilters} className="bg-primary-600 hover:bg-primary-700 text-white">
+        <Button 
+          onClick={applyFilters} 
+          className="bg-primary-600 hover:bg-primary-700 text-white font-semibold py-2 px-4 w-full"
+          size="lg"
+        >
           Apply Filters
         </Button>
-        <Button variant="outline" onClick={resetFilters}>
-          Reset
+        <Button variant="outline" onClick={resetFilters} className="w-full" size="lg">
+          Reset Filters
         </Button>
       </div>
     </aside>
