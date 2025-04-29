@@ -16,25 +16,46 @@ export default function Home() {
   const itemsPerPage = 6;
   const { toast } = useToast();
 
-  // Extract search query from URL
+  // Extract search query from URL and listen for search events
   useEffect(() => {
-    const query = searchParams.get("search") || "";
-    const page = parseInt(searchParams.get("page") || "1", 10);
-    const sort = searchParams.get("sort") || "recommended";
+    // Function to update the search parameters
+    const updateSearch = () => {
+      const currentParams = new URLSearchParams(window.location.search);
+      const query = currentParams.get("search") || "";
+      const page = parseInt(currentParams.get("page") || "1", 10);
+      const sort = currentParams.get("sort") || "recommended";
+      
+      // Update state based on URL parameters
+      setCurrentPage(page);
+      setSortBy(sort);
+      setSearchParams(currentParams);
+      
+      // Update URL if parameters change
+      const newParams = new URLSearchParams();
+      if (query) newParams.append("search", query);
+      if (page > 1) newParams.append("page", page.toString());
+      if (sort !== "recommended") newParams.append("sort", sort);
+      
+      const newUrl = `${window.location.pathname}${newParams.toString() ? `?${newParams.toString()}` : ""}`;
+      window.history.replaceState({}, "", newUrl);
+    };
+
+    // Call once on initial load
+    updateSearch();
     
-    // Update state based on URL parameters
-    setCurrentPage(page);
-    setSortBy(sort);
+    // Listen for custom search event from Header component
+    const handleSearchEvent = (e) => {
+      updateSearch();
+    };
     
-    // Update URL if parameters change
-    const newParams = new URLSearchParams();
-    if (query) newParams.append("search", query);
-    if (page > 1) newParams.append("page", page.toString());
-    if (sort !== "recommended") newParams.append("sort", sort);
+    window.addEventListener('updateSearchParams', handleSearchEvent);
+    window.addEventListener('popstate', updateSearch);
     
-    const newUrl = `${window.location.pathname}${newParams.toString() ? `?${newParams.toString()}` : ""}`;
-    window.history.replaceState({}, "", newUrl);
-    
+    // Clean up event listeners
+    return () => {
+      window.removeEventListener('updateSearchParams', handleSearchEvent);
+      window.removeEventListener('popstate', updateSearch);
+    };
   }, []);
 
   // Get courses count for pagination

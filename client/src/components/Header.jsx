@@ -39,9 +39,21 @@ export default function Header() {
   const handleSearchSubmit = (e) => {
     e.preventDefault();
     if (searchQuery.trim()) {
-      // Replace the current URL and trigger a full page reload
-      // This ensures search parameters are properly processed
-      window.location.href = `/?search=${encodeURIComponent(searchQuery.trim())}`;
+      // Use wouter's navigate for SPA navigation (no page reload)
+      navigate(`/?search=${encodeURIComponent(searchQuery.trim())}`);
+      
+      // Need to also update the window URL using history API
+      // to ensure the URL changes properly for the whole application
+      window.history.pushState(
+        {}, 
+        '', 
+        `/?search=${encodeURIComponent(searchQuery.trim())}`
+      );
+      
+      // Force update of search params in Home component using a custom event
+      window.dispatchEvent(new CustomEvent('updateSearchParams', {
+        detail: { search: searchQuery.trim() }
+      }));
       
       // Add to search history if user is authenticated
       if (isAuthenticated) {
