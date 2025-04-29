@@ -23,6 +23,7 @@ import {
   Menu,
   History,
   Clock,
+  Brain,
 } from "lucide-react";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import { 
@@ -167,6 +168,9 @@ export default function Header() {
     };
   }, [isAuthenticated]);
   
+  // Check if current page is ResourcesHub (home page)
+  const isResourcesHub = location === '/' || location.startsWith('/?');
+  
   // Close mobile menu when location changes
   useEffect(() => {
     setMobileMenuOpen(false);
@@ -183,8 +187,8 @@ export default function Header() {
             onClick={() => navigate("/")}
           >
             <div className="flex items-center">
-              <School className="text-primary-600 h-6 w-6 mr-2" />
-              <span className="text-xl font-bold text-gray-800">ResourcesHub</span>
+              <Brain className="text-primary-600 h-6 w-6 mr-2" />
+              <span className="text-xl font-bold text-gray-800">Learning How to Learn</span>
             </div>
           </Button>
 
