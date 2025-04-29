@@ -53,14 +53,15 @@ export default function Pagination({
   };
   
   return (
-    <nav className="flex justify-center mt-8">
-      <div className="flex items-center space-x-1">
+    <nav className="flex justify-center">
+      <div className="flex items-center space-x-2">
         <Button
           variant="outline"
           size="icon"
           onClick={() => handlePageChange(currentPage - 1)}
           disabled={currentPage === 1}
           aria-label="Previous page"
+          className="h-9 w-9 rounded-md border-gray-300 text-gray-700 hover:bg-gray-50 disabled:opacity-60"
         >
           <ChevronLeft className="h-4 w-4" />
         </Button>
@@ -72,7 +73,9 @@ export default function Pagination({
             <Button
               key={page}
               variant={currentPage === page ? "default" : "outline"}
-              className={currentPage === page ? "bg-primary-600 text-white" : "text-gray-700"}
+              className={currentPage === page 
+                ? "bg-[#4264f0] hover:bg-[#3755d6] text-white h-9 w-9 rounded-md" 
+                : "text-gray-700 h-9 w-9 rounded-md border-gray-300 hover:bg-gray-50"}
               onClick={() => handlePageChange(page)}
             >
               {page}
@@ -86,6 +89,7 @@ export default function Pagination({
           onClick={() => handlePageChange(currentPage + 1)}
           disabled={currentPage === totalPages}
           aria-label="Next page"
+          className="h-9 w-9 rounded-md border-gray-300 text-gray-700 hover:bg-gray-50 disabled:opacity-60"
         >
           <ChevronRight className="h-4 w-4" />
         </Button>
