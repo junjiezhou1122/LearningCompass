@@ -40,6 +40,23 @@ export default function Header() {
     e.preventDefault();
     if (searchQuery.trim()) {
       navigate(`/?search=${encodeURIComponent(searchQuery.trim())}`);
+      // Add to search history if user is authenticated
+      if (isAuthenticated) {
+        fetch('/api/search-history', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ query: searchQuery.trim() }),
+        }).catch(error => console.error('Error saving search history:', error));
+      }
+    }
+  };
+  
+  // Handle key press for search input
+  const handleSearchKeyPress = (e) => {
+    if (e.key === 'Enter') {
+      handleSearchSubmit(e);
     }
   };
 
@@ -69,15 +86,24 @@ export default function Header() {
           {/* Desktop Search */}
           <div className="hidden md:block relative w-1/3">
             <form onSubmit={handleSearchSubmit}>
-              <div className="relative">
-                <Search className="absolute left-3 top-2.5 h-4 w-4 text-gray-400" />
-                <Input
-                  type="text"
-                  placeholder="Search courses..."
-                  className="w-full pl-10 pr-4 py-2"
-                  value={searchQuery}
-                  onChange={handleSearchChange}
-                />
+              <div className="relative flex">
+                <div className="relative flex-grow">
+                  <Search className="absolute left-3 top-2.5 h-4 w-4 text-gray-400" />
+                  <Input
+                    type="text"
+                    placeholder="Search courses..."
+                    className="w-full pl-10 pr-4 py-2 rounded-r-none"
+                    value={searchQuery}
+                    onChange={handleSearchChange}
+                    onKeyDown={handleSearchKeyPress}
+                  />
+                </div>
+                <Button 
+                  type="submit" 
+                  className="rounded-l-none bg-blue-600 hover:bg-blue-700"
+                >
+                  <Search className="h-4 w-4 text-white" />
+                </Button>
               </div>
             </form>
           </div>
@@ -154,15 +180,24 @@ export default function Header() {
                   <div className="flex flex-col h-full py-6">
                     <div className="mb-6">
                       <form onSubmit={handleSearchSubmit}>
-                        <div className="relative">
-                          <Search className="absolute left-3 top-2.5 h-4 w-4 text-gray-400" />
-                          <Input
-                            type="text"
-                            placeholder="Search courses..."
-                            className="w-full pl-10 pr-4 py-2"
-                            value={searchQuery}
-                            onChange={handleSearchChange}
-                          />
+                        <div className="relative flex">
+                          <div className="relative flex-grow">
+                            <Search className="absolute left-3 top-2.5 h-4 w-4 text-gray-400" />
+                            <Input
+                              type="text"
+                              placeholder="Search courses..."
+                              className="w-full pl-10 pr-4 py-2 rounded-r-none"
+                              value={searchQuery}
+                              onChange={handleSearchChange}
+                              onKeyDown={handleSearchKeyPress}
+                            />
+                          </div>
+                          <Button 
+                            type="submit" 
+                            className="rounded-l-none bg-blue-600 hover:bg-blue-700"
+                          >
+                            <Search className="h-4 w-4 text-white" />
+                          </Button>
                         </div>
                       </form>
                     </div>
@@ -209,15 +244,24 @@ export default function Header() {
         {/* Mobile Search */}
         <div className="md:hidden mt-3">
           <form onSubmit={handleSearchSubmit}>
-            <div className="relative">
-              <Search className="absolute left-3 top-2.5 h-4 w-4 text-gray-400" />
-              <Input
-                type="text"
-                placeholder="Search courses..."
-                className="w-full pl-10 pr-4 py-2"
-                value={searchQuery}
-                onChange={handleSearchChange}
-              />
+            <div className="relative flex">
+              <div className="relative flex-grow">
+                <Search className="absolute left-3 top-2.5 h-4 w-4 text-gray-400" />
+                <Input
+                  type="text"
+                  placeholder="Search courses..."
+                  className="w-full pl-10 pr-4 py-2 rounded-r-none"
+                  value={searchQuery}
+                  onChange={handleSearchChange}
+                  onKeyDown={handleSearchKeyPress}
+                />
+              </div>
+              <Button 
+                type="submit" 
+                className="rounded-l-none bg-blue-600 hover:bg-blue-700"
+              >
+                <Search className="h-4 w-4 text-white" />
+              </Button>
             </div>
           </form>
         </div>
