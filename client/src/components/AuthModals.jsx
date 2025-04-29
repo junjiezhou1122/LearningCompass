@@ -10,7 +10,7 @@ import { School, Mail, Lock, User, Facebook, LogIn, UserPlus } from "lucide-reac
 import { useToast } from "@/hooks/use-toast";
 import { FcGoogle } from "react-icons/fc";
 
-export function AuthModals() {
+export default function AuthModals() {
   const [isLoginOpen, setIsLoginOpen] = useState(false);
   const [isRegisterOpen, setIsRegisterOpen] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
