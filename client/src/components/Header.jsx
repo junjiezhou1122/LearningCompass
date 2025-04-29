@@ -41,6 +41,9 @@ export default function Header() {
   const [isSearchPopoverOpen, setIsSearchPopoverOpen] = useState(false);
   const searchInputRef = useRef(null);
 
+  // Check if current page is ResourcesHub (home page)
+  const isResourcesHub = location === '/' || location.startsWith('/?');
+
   // Handle search input change
   const handleSearchChange = (e) => {
     setSearchQuery(e.target.value);
@@ -168,9 +171,6 @@ export default function Header() {
     };
   }, [isAuthenticated]);
   
-  // Check if current page is ResourcesHub (home page)
-  const isResourcesHub = location === '/' || location.startsWith('/?');
-  
   // Close mobile menu when location changes
   useEffect(() => {
     setMobileMenuOpen(false);
@@ -192,86 +192,88 @@ export default function Header() {
             </div>
           </Button>
 
-          {/* Desktop Search */}
-          <div className="hidden md:block relative w-1/3">
-            <form onSubmit={handleSearchSubmit}>
-              <div className="relative flex">
-                <div className="relative flex-grow">
-                  <Search className="absolute left-3 top-2.5 h-4 w-4 text-gray-400" />
-                  <Input
-                    ref={searchInputRef}
-                    type="text"
-                    placeholder="Search courses..."
-                    className="w-full pl-10 pr-4 py-2 rounded-r-none"
-                    value={searchQuery}
-                    onChange={handleSearchChange}
-                    onKeyDown={handleSearchKeyPress}
-                  />
-                  {/* History button that appears only when user is logged in and has search history */}
-                  {isAuthenticated && recentSearches.length > 0 && (
-                    <div 
-                      className="absolute right-2 top-1/2 transform -translate-y-1/2 cursor-pointer"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        setIsSearchPopoverOpen(!isSearchPopoverOpen);
-                      }}
-                    >
-                      <History 
-                        className={`h-4 w-4 ${isSearchPopoverOpen ? 'text-primary-600' : 'text-gray-400'} hover:text-primary-600 transition-colors`} 
-                      />
-                    </div>
-                  )}
+          {/* Desktop Search - only shown on ResourcesHub */}
+          {isResourcesHub && (
+            <div className="hidden md:block relative w-1/3">
+              <form onSubmit={handleSearchSubmit}>
+                <div className="relative flex">
+                  <div className="relative flex-grow">
+                    <Search className="absolute left-3 top-2.5 h-4 w-4 text-gray-400" />
+                    <Input
+                      ref={searchInputRef}
+                      type="text"
+                      placeholder="Search courses..."
+                      className="w-full pl-10 pr-4 py-2 rounded-r-none"
+                      value={searchQuery}
+                      onChange={handleSearchChange}
+                      onKeyDown={handleSearchKeyPress}
+                    />
+                    {/* History button that appears only when user is logged in and has search history */}
+                    {isAuthenticated && recentSearches.length > 0 && (
+                      <div 
+                        className="absolute right-2 top-1/2 transform -translate-y-1/2 cursor-pointer"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setIsSearchPopoverOpen(!isSearchPopoverOpen);
+                        }}
+                      >
+                        <History 
+                          className={`h-4 w-4 ${isSearchPopoverOpen ? 'text-primary-600' : 'text-gray-400'} hover:text-primary-600 transition-colors`} 
+                        />
+                      </div>
+                    )}
+                  </div>
+                  <Button 
+                    type="submit" 
+                    className="rounded-l-none bg-blue-600 hover:bg-blue-700"
+                  >
+                    <Search className="h-4 w-4 text-white" />
+                  </Button>
                 </div>
-                <Button 
-                  type="submit" 
-                  className="rounded-l-none bg-blue-600 hover:bg-blue-700"
+              </form>
+              
+              {/* Separate popover that's controlled by the history button */}
+              {isAuthenticated && recentSearches.length > 0 && (
+                <div 
+                  className={`absolute top-full left-0 mt-1 w-full bg-white rounded-md shadow-md border z-50 ${isSearchPopoverOpen ? 'block' : 'hidden'}`}
                 >
-                  <Search className="h-4 w-4 text-white" />
-                </Button>
-              </div>
-            </form>
-            
-            {/* Separate popover that's controlled by the history button */}
-            {isAuthenticated && recentSearches.length > 0 && (
-              <div 
-                className={`absolute top-full left-0 mt-1 w-full bg-white rounded-md shadow-md border z-50 ${isSearchPopoverOpen ? 'block' : 'hidden'}`}
-              >
-                <div className="py-2">
-                  <div className="flex items-center justify-between px-3 py-2 text-sm font-medium text-gray-600 bg-gray-50">
-                    <div className="flex items-center">
-                      <History className="h-4 w-4 mr-2" />
-                      <span>Recent Searches</span>
+                  <div className="py-2">
+                    <div className="flex items-center justify-between px-3 py-2 text-sm font-medium text-gray-600 bg-gray-50">
+                      <div className="flex items-center">
+                        <History className="h-4 w-4 mr-2" />
+                        <span>Recent Searches</span>
+                      </div>
+                      <button 
+                        className="text-gray-400 hover:text-gray-600"
+                        onClick={() => setIsSearchPopoverOpen(false)}
+                      >
+                        ✕
+                      </button>
                     </div>
-                    <button 
-                      className="text-gray-400 hover:text-gray-600"
-                      onClick={() => setIsSearchPopoverOpen(false)}
-                    >
-                      ✕
-                    </button>
-                  </div>
-                  <div className="max-h-[300px] overflow-y-auto">
-                    <div className="py-1">
-                      {recentSearches.map((item) => (
-                        <button
-                          key={item.id}
-                          className="flex items-center justify-between w-full px-3 py-2 text-sm text-gray-700 hover:bg-gray-100"
-                          onClick={() => handleRecentSearchClick(item.searchQuery)}
-                        >
-                          <div className="flex items-center">
-                            <Clock className="h-3.5 w-3.5 mr-2 text-gray-400" />
-                            <span>{item.searchQuery}</span>
-                          </div>
-                          <span className="text-xs text-gray-400">
-                            {formatDate(item.createdAt)}
-                          </span>
-                        </button>
-                      ))}
+                    <div className="max-h-[300px] overflow-y-auto">
+                      <div className="py-1">
+                        {recentSearches.map((item) => (
+                          <button
+                            key={item.id}
+                            className="flex items-center justify-between w-full px-3 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                            onClick={() => handleRecentSearchClick(item.searchQuery)}
+                          >
+                            <div className="flex items-center">
+                              <Clock className="h-3.5 w-3.5 mr-2 text-gray-400" />
+                              <span>{item.searchQuery}</span>
+                            </div>
+                            <span className="text-xs text-gray-400">
+                              {formatDate(item.createdAt)}
+                            </span>
+                          </button>
+                        ))}
+                      </div>
                     </div>
                   </div>
                 </div>
-              </div>
-            )}
-          </div>
+              )}
+            </div>
+          )}
 
           {/* Navigation */}
           <div className="flex items-center">
@@ -352,43 +354,46 @@ export default function Header() {
                 </SheetTrigger>
                 <SheetContent side="right">
                   <div className="flex flex-col h-full py-6">
-                    <div className="mb-6">
-                      <form onSubmit={handleSearchSubmit}>
-                        <div className="relative flex">
-                          <div className="relative flex-grow">
-                            <Search className="absolute left-3 top-2.5 h-4 w-4 text-gray-400" />
-                            <Input
-                              type="text"
-                              placeholder="Search courses..."
-                              className="w-full pl-10 pr-4 py-2 rounded-r-none"
-                              value={searchQuery}
-                              onChange={handleSearchChange}
-                              onKeyDown={handleSearchKeyPress}
-                            />
-                            {/* History icon for the mobile menu */}
-                            {isAuthenticated && recentSearches.length > 0 && (
-                              <div 
-                                className="absolute right-2 top-1/2 transform -translate-y-1/2 cursor-pointer"
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  setIsSearchPopoverOpen(!isSearchPopoverOpen);
-                                }}
-                              >
-                                <History 
-                                  className={`h-4 w-4 ${isSearchPopoverOpen ? 'text-primary-600' : 'text-gray-400'} hover:text-primary-600 transition-colors`} 
-                                />
-                              </div>
-                            )}
+                    {/* Mobile search - only shown on ResourcesHub */}
+                    {isResourcesHub && (
+                      <div className="mb-6">
+                        <form onSubmit={handleSearchSubmit}>
+                          <div className="relative flex">
+                            <div className="relative flex-grow">
+                              <Search className="absolute left-3 top-2.5 h-4 w-4 text-gray-400" />
+                              <Input
+                                type="text"
+                                placeholder="Search courses..."
+                                className="w-full pl-10 pr-4 py-2 rounded-r-none"
+                                value={searchQuery}
+                                onChange={handleSearchChange}
+                                onKeyDown={handleSearchKeyPress}
+                              />
+                              {/* History icon for the mobile menu */}
+                              {isAuthenticated && recentSearches.length > 0 && (
+                                <div 
+                                  className="absolute right-2 top-1/2 transform -translate-y-1/2 cursor-pointer"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    setIsSearchPopoverOpen(!isSearchPopoverOpen);
+                                  }}
+                                >
+                                  <History 
+                                    className={`h-4 w-4 ${isSearchPopoverOpen ? 'text-primary-600' : 'text-gray-400'} hover:text-primary-600 transition-colors`} 
+                                  />
+                                </div>
+                              )}
+                            </div>
+                            <Button 
+                              type="submit" 
+                              className="rounded-l-none bg-blue-600 hover:bg-blue-700"
+                            >
+                              <Search className="h-4 w-4 text-white" />
+                            </Button>
                           </div>
-                          <Button 
-                            type="submit" 
-                            className="rounded-l-none bg-blue-600 hover:bg-blue-700"
-                          >
-                            <Search className="h-4 w-4 text-white" />
-                          </Button>
-                        </div>
-                      </form>
-                    </div>
+                        </form>
+                      </div>
+                    )}
 
                     <div className="space-y-4 flex-grow">
                       <Button
@@ -444,96 +449,98 @@ export default function Header() {
           </div>
         </div>
 
-        {/* Mobile Search */}
-        <div className="md:hidden mt-3">
-          <form onSubmit={handleSearchSubmit}>
-            <div className="relative flex">
-              <div className="relative flex-grow">
-                <Search className="absolute left-3 top-2.5 h-4 w-4 text-gray-400" />
-                <Input
-                  type="text"
-                  placeholder="Search courses..."
-                  className="w-full pl-10 pr-4 py-2 rounded-r-none"
-                  value={searchQuery}
-                  onChange={handleSearchChange}
-                  onKeyDown={handleSearchKeyPress}
-                />
-                {/* History icon for main mobile search box */}
-                {isAuthenticated && recentSearches.length > 0 && (
-                  <div 
-                    className="absolute right-2 top-1/2 transform -translate-y-1/2 cursor-pointer"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      setIsSearchPopoverOpen(!isSearchPopoverOpen);
-                    }}
-                  >
-                    <History 
-                      className={`h-4 w-4 ${isSearchPopoverOpen ? 'text-primary-600' : 'text-gray-400'} hover:text-primary-600 transition-colors`} 
-                    />
+        {/* Mobile Search - only shown on ResourcesHub */}
+        {isResourcesHub && (
+          <div className="md:hidden mt-3">
+            <form onSubmit={handleSearchSubmit}>
+              <div className="relative flex">
+                <div className="relative flex-grow">
+                  <Search className="absolute left-3 top-2.5 h-4 w-4 text-gray-400" />
+                  <Input
+                    type="text"
+                    placeholder="Search courses..."
+                    className="w-full pl-10 pr-4 py-2 rounded-r-none"
+                    value={searchQuery}
+                    onChange={handleSearchChange}
+                    onKeyDown={handleSearchKeyPress}
+                  />
+                  {/* History icon for main mobile search box */}
+                  {isAuthenticated && recentSearches.length > 0 && (
+                    <div 
+                      className="absolute right-2 top-1/2 transform -translate-y-1/2 cursor-pointer"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setIsSearchPopoverOpen(!isSearchPopoverOpen);
+                      }}
+                    >
+                      <History 
+                        className={`h-4 w-4 ${isSearchPopoverOpen ? 'text-primary-600' : 'text-gray-400'} hover:text-primary-600 transition-colors`} 
+                      />
+                    </div>
+                  )}
+                </div>
+                <Button 
+                  type="submit" 
+                  className="rounded-l-none bg-blue-600 hover:bg-blue-700"
+                >
+                  <Search className="h-4 w-4 text-white" />
+                </Button>
+              </div>
+            </form>
+            
+            {/* Mobile search history button */}
+            {isAuthenticated && recentSearches.length > 0 && (
+              <div className="mt-2">
+                <Button 
+                  variant="outline" 
+                  size="sm" 
+                  className="w-full flex justify-center items-center"
+                  onClick={() => setIsSearchPopoverOpen(!isSearchPopoverOpen)}
+                >
+                  <History className="h-4 w-4 mr-2" />
+                  <span>{isSearchPopoverOpen ? "Hide" : "Show"} Recent Searches</span>
+                </Button>
+                
+                {/* Mobile Recent Searches dropdown */}
+                {isSearchPopoverOpen && (
+                  <div className="mt-2 bg-white rounded-md shadow-sm border">
+                    <div className="flex items-center justify-between px-3 py-2 text-sm font-medium text-gray-600 bg-gray-50 rounded-t-md">
+                      <div className="flex items-center">
+                        <History className="h-4 w-4 mr-2" />
+                        <span>Recent Searches</span>
+                      </div>
+                      <button 
+                        className="text-gray-400 hover:text-gray-600"
+                        onClick={() => setIsSearchPopoverOpen(false)}
+                      >
+                        ✕
+                      </button>
+                    </div>
+                    <div className="max-h-[200px] overflow-y-auto">
+                      <div className="py-1">
+                        {recentSearches.slice(0, 5).map((item) => (
+                          <button
+                            key={item.id}
+                            className="flex items-center justify-between w-full px-3 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                            onClick={() => handleRecentSearchClick(item.searchQuery)}
+                          >
+                            <div className="flex items-center">
+                              <Clock className="h-3.5 w-3.5 mr-2 text-gray-400" />
+                              <span>{item.searchQuery}</span>
+                            </div>
+                            <span className="text-xs text-gray-400">
+                              {formatDate(item.createdAt)}
+                            </span>
+                          </button>
+                        ))}
+                      </div>
+                    </div>
                   </div>
                 )}
               </div>
-              <Button 
-                type="submit" 
-                className="rounded-l-none bg-blue-600 hover:bg-blue-700"
-              >
-                <Search className="h-4 w-4 text-white" />
-              </Button>
-            </div>
-          </form>
-          
-          {/* Mobile search history button */}
-          {isAuthenticated && recentSearches.length > 0 && (
-            <div className="mt-2">
-              <Button 
-                variant="outline" 
-                size="sm" 
-                className="w-full flex justify-center items-center"
-                onClick={() => setIsSearchPopoverOpen(!isSearchPopoverOpen)}
-              >
-                <History className="h-4 w-4 mr-2" />
-                <span>{isSearchPopoverOpen ? "Hide" : "Show"} Recent Searches</span>
-              </Button>
-              
-              {/* Mobile Recent Searches dropdown */}
-              {isSearchPopoverOpen && (
-                <div className="mt-2 bg-white rounded-md shadow-sm border">
-                  <div className="flex items-center justify-between px-3 py-2 text-sm font-medium text-gray-600 bg-gray-50 rounded-t-md">
-                    <div className="flex items-center">
-                      <History className="h-4 w-4 mr-2" />
-                      <span>Recent Searches</span>
-                    </div>
-                    <button 
-                      className="text-gray-400 hover:text-gray-600"
-                      onClick={() => setIsSearchPopoverOpen(false)}
-                    >
-                      ✕
-                    </button>
-                  </div>
-                  <div className="max-h-[200px] overflow-y-auto">
-                    <div className="py-1">
-                      {recentSearches.slice(0, 5).map((item) => (
-                        <button
-                          key={item.id}
-                          className="flex items-center justify-between w-full px-3 py-2 text-sm text-gray-700 hover:bg-gray-100"
-                          onClick={() => handleRecentSearchClick(item.searchQuery)}
-                        >
-                          <div className="flex items-center">
-                            <Clock className="h-3.5 w-3.5 mr-2 text-gray-400" />
-                            <span>{item.searchQuery}</span>
-                          </div>
-                          <span className="text-xs text-gray-400">
-                            {formatDate(item.createdAt)}
-                          </span>
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-                </div>
-              )}
-            </div>
-          )}
-        </div>
+            )}
+          </div>
+        )}
       </div>
     </header>
   );
