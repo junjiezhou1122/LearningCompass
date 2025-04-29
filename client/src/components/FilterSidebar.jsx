@@ -15,11 +15,11 @@ export default function FilterSidebar({
   // State for open/closed filter sections
   const [openSections, setOpenSections] = useState({
     category: true,
-    subCategory: false,
-    courseType: false,
-    language: false,
-    rating: false,
-    skills: false
+    rating: true,
+    language: true,
+    courseType: false, // Less frequently used
+    subCategory: false, // Less frequently used
+    skills: false // Less frequently used
   });
   
   // State for selected filters
@@ -184,55 +184,41 @@ export default function FilterSidebar({
   
   return (
     <aside className="lg:w-full bg-white rounded-lg shadow-sm p-4 h-fit sticky top-24">
-      <h2 className="text-lg font-semibold text-gray-800 mb-4">Filters</h2>
+      <h2 className="text-xl font-semibold text-gray-800 mb-4">Filter Courses</h2>
       
-      {/* Category Filter */}
+      {/* Rating Filter - Most important filter first */}
       <div className="mb-4">
         <button 
           className="flex items-center justify-between w-full text-left font-medium text-gray-700 mb-2"
-          onClick={() => toggleSection('category')}
+          onClick={() => toggleSection('rating')}
         >
-          <span>Category</span>
-          {openSections.category ? 
+          <span className="text-base">Course Rating</span>
+          {openSections.rating ? 
             <ChevronUp className="h-4 w-4 text-gray-400" /> : 
             <ChevronDown className="h-4 w-4 text-gray-400" />
           }
         </button>
         
-        <div className={`pl-2 overflow-hidden transition-all duration-300 ${openSections.category ? 'max-h-60 overflow-y-auto' : 'max-h-0'}`}>
-          {isLoadingCategories ? (
-            Array(4).fill(0).map((_, i) => (
-              <div key={i} className="flex items-center mb-2">
-                <Skeleton className="h-4 w-4 mr-2" />
-                <Skeleton className="h-4 w-32" />
-              </div>
-            ))
-          ) : categories.length > 0 ? (
-            categories.map((category, index) => (
-              <div key={index} className="flex items-center mb-2">
-                <Checkbox 
-                  id={`category-${index}`}
-                  checked={selectedFilters.categories.includes(category)}
-                  onCheckedChange={(checked) => {
-                    if (checked) handleFilterChange('categories', category);
-                    else handleFilterChange('categories', category);
-                  }}
-                  className="mr-2"
-                />
-                <label htmlFor={`category-${index}`} className="text-sm text-gray-700 cursor-pointer">
-                  {category}
-                </label>
-              </div>
-            ))
-          ) : (
-            <p className="text-sm text-gray-500">No categories available</p>
-          )}
-          
-          {categories.length > 4 && (
-            <button className="text-sm text-primary-600 hover:text-primary-700 mt-1">
-              Show more
-            </button>
-          )}
+        <div className={`pl-2 overflow-hidden transition-all duration-300 ${openSections.rating ? 'max-h-60 overflow-y-auto' : 'max-h-0'}`}>
+          {ratingOptions.map((option, index) => (
+            <div key={index} className="flex items-center mb-2">
+              <Checkbox 
+                id={`rating-${index}`}
+                checked={selectedFilters.ratings.includes(option.value)}
+                onCheckedChange={(checked) => {
+                  if (checked) handleRatingFilterChange(option.value);
+                  else handleRatingFilterChange(option.value);
+                }}
+                className="mr-2"
+              />
+              <label htmlFor={`rating-${index}`} className="text-sm text-gray-700 cursor-pointer flex items-center">
+                <div className="flex items-center text-yellow-400 mr-1">
+                  <StarRating rating={option.value} />
+                </div>
+                <span className="ml-1">{option.label}</span>
+              </label>
+            </div>
+          ))}
         </div>
       </div>
       
@@ -330,39 +316,53 @@ export default function FilterSidebar({
         </div>
       </div>
       
-      {/* Rating Filter */}
+      {/* Category Filter */}
       <div className="mb-4">
         <button 
           className="flex items-center justify-between w-full text-left font-medium text-gray-700 mb-2"
-          onClick={() => toggleSection('rating')}
+          onClick={() => toggleSection('category')}
         >
-          <span>Rating</span>
-          {openSections.rating ? 
+          <span className="text-base">Category</span>
+          {openSections.category ? 
             <ChevronUp className="h-4 w-4 text-gray-400" /> : 
             <ChevronDown className="h-4 w-4 text-gray-400" />
           }
         </button>
         
-        <div className={`pl-2 overflow-hidden transition-all duration-300 ${openSections.rating ? 'max-h-60 overflow-y-auto' : 'max-h-0'}`}>
-          {ratingOptions.map((option, index) => (
-            <div key={index} className="flex items-center mb-2">
-              <Checkbox 
-                id={`rating-${index}`}
-                checked={selectedFilters.ratings.includes(option.value)}
-                onCheckedChange={(checked) => {
-                  if (checked) handleRatingFilterChange(option.value);
-                  else handleRatingFilterChange(option.value);
-                }}
-                className="mr-2"
-              />
-              <label htmlFor={`rating-${index}`} className="text-sm text-gray-700 cursor-pointer flex items-center">
-                <div className="flex items-center text-yellow-400 mr-1">
-                  <StarRating rating={option.value} />
-                </div>
-                <span className="ml-1">{option.label}</span>
-              </label>
-            </div>
-          ))}
+        <div className={`pl-2 overflow-hidden transition-all duration-300 ${openSections.category ? 'max-h-60 overflow-y-auto' : 'max-h-0'}`}>
+          {isLoadingCategories ? (
+            Array(4).fill(0).map((_, i) => (
+              <div key={i} className="flex items-center mb-2">
+                <Skeleton className="h-4 w-4 mr-2" />
+                <Skeleton className="h-4 w-32" />
+              </div>
+            ))
+          ) : categories.length > 0 ? (
+            categories.map((category, index) => (
+              <div key={index} className="flex items-center mb-2">
+                <Checkbox 
+                  id={`category-${index}`}
+                  checked={selectedFilters.categories.includes(category)}
+                  onCheckedChange={(checked) => {
+                    if (checked) handleFilterChange('categories', category);
+                    else handleFilterChange('categories', category);
+                  }}
+                  className="mr-2"
+                />
+                <label htmlFor={`category-${index}`} className="text-sm text-gray-700 cursor-pointer">
+                  {category}
+                </label>
+              </div>
+            ))
+          ) : (
+            <p className="text-sm text-gray-500">No categories available</p>
+          )}
+          
+          {categories.length > 4 && (
+            <button className="text-sm text-primary-600 hover:text-primary-700 mt-1">
+              Show more
+            </button>
+          )}
         </div>
       </div>
       
@@ -372,7 +372,7 @@ export default function FilterSidebar({
           className="flex items-center justify-between w-full text-left font-medium text-gray-700 mb-2"
           onClick={() => toggleSection('language')}
         >
-          <span>Language</span>
+          <span className="text-base">Language</span>
           {openSections.language ? 
             <ChevronUp className="h-4 w-4 text-gray-400" /> : 
             <ChevronDown className="h-4 w-4 text-gray-400" />
@@ -468,16 +468,16 @@ export default function FilterSidebar({
       
       <Separator className="my-4" />
       
-      <div className="flex flex-wrap gap-2">
+      <div className="flex flex-col gap-3">
         <Button 
           onClick={applyFilters} 
-          className="bg-primary-600 hover:bg-primary-700 text-white font-semibold py-2 px-4 w-full"
+          className="bg-primary-600 hover:bg-primary-700 text-white font-semibold py-4 text-lg"
           size="lg"
         >
           Apply Filters
         </Button>
-        <Button variant="outline" onClick={resetFilters} className="w-full" size="lg">
-          Reset Filters
+        <Button variant="outline" onClick={resetFilters} size="default">
+          Reset All Filters
         </Button>
       </div>
     </aside>
