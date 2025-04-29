@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useLocation } from 'wouter';
-import { School, BookOpen, Compass, Users, Settings, BookMarked, Lightbulb } from 'lucide-react';
+import { School, BookOpen, Compass, Users, Settings, BookMarked, Lightbulb, Brain, GraduationCap, Sparkles } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Separator } from '@/components/ui/separator';
@@ -300,10 +300,104 @@ const ScientificResearchTab = () => (
 );
 
 export default function LearningHowToLearn() {
-  const [activeTab, setActiveTab] = useState("resources");
+  const [activeTab, setActiveTab] = useState("overview");
+  
+  // Introduction component for the overview tab
+  const OverviewTab = () => (
+    <div className="space-y-8">
+      <div className="bg-gradient-to-r from-blue-50 to-indigo-50 rounded-xl p-8 border border-blue-100">
+        <div className="flex flex-col md:flex-row items-center gap-6">
+          <div className="md:w-1/4 flex justify-center">
+            <div className="relative">
+              <div className="absolute inset-0 bg-blue-200 rounded-full opacity-20 blur-xl transform scale-150"></div>
+              <div className="relative">
+                <Brain className="h-24 w-24 text-primary-600" />
+              </div>
+            </div>
+          </div>
+          <div className="md:w-3/4">
+            <h2 className="text-3xl font-bold mb-4 text-gray-800">Welcome to Learning How to Learn</h2>
+            <p className="text-lg text-gray-600 mb-4">
+              This platform is designed to help you master the art and science of effective learning. 
+              Discover resources, techniques, tools, and scientific insights that will 
+              transform how you acquire and retain knowledge.
+            </p>
+            <p className="text-gray-600">
+              Our mission is to empower learners with the skills to learn anything effectively and efficiently. 
+              Explore the different sections using the sidebar navigation to discover how to optimize your learning journey.
+            </p>
+          </div>
+        </div>
+      </div>
+      
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <Card className="flex flex-col">
+          <CardHeader>
+            <div className="flex items-center gap-3">
+              <div className="bg-primary-100 p-2 rounded-full">
+                <GraduationCap className="h-6 w-6 text-primary-600" />
+              </div>
+              <CardTitle>Why Learn How to Learn?</CardTitle>
+            </div>
+          </CardHeader>
+          <CardContent className="flex-grow">
+            <p className="text-gray-600">
+              In today's fast-changing world, the ability to learn quickly and effectively is perhaps 
+              the most valuable skill you can develop. By mastering learning techniques, you'll be able to:
+            </p>
+            <ul className="mt-4 space-y-2 text-gray-600 list-disc list-inside">
+              <li>Acquire new skills in less time</li>
+              <li>Improve memory retention and recall</li>
+              <li>Reduce stress and frustration during learning</li>
+              <li>Adapt to changing demands in your career</li>
+              <li>Develop lifelong learning habits</li>
+            </ul>
+          </CardContent>
+        </Card>
+        
+        <Card className="flex flex-col">
+          <CardHeader>
+            <div className="flex items-center gap-3">
+              <div className="bg-primary-100 p-2 rounded-full">
+                <Sparkles className="h-6 w-6 text-primary-600" />
+              </div>
+              <CardTitle>How This Platform Helps</CardTitle>
+            </div>
+          </CardHeader>
+          <CardContent className="flex-grow">
+            <p className="text-gray-600">
+              Our platform offers a comprehensive approach to improving your learning capabilities:
+            </p>
+            <ul className="mt-4 space-y-2 text-gray-600 list-disc list-inside">
+              <li><strong>ResourcesHub:</strong> Access curated learning materials on any subject</li>
+              <li><strong>Learning Techniques:</strong> Master proven methods to enhance learning efficiency</li>
+              <li><strong>Learning Tools:</strong> Discover digital tools to support your learning journey</li>
+              <li><strong>Scientific Research:</strong> Understand the cognitive science behind effective learning</li>
+            </ul>
+          </CardContent>
+        </Card>
+      </div>
+      
+      <div className="bg-white rounded-xl border p-6 text-center">
+        <h3 className="text-xl font-semibold mb-4">Ready to transform how you learn?</h3>
+        <p className="mb-6 text-gray-600">
+          Explore the different sections using the sidebar navigation. Start with our curated 
+          ResourcesHub to discover learning materials tailored to your interests.
+        </p>
+        <Button
+          className="bg-primary-600 hover:bg-primary-700"
+          onClick={() => setActiveTab("resources")}
+        >
+          <School className="mr-2 h-5 w-5" />
+          Explore ResourcesHub
+        </Button>
+      </div>
+    </div>
+  );
   
   // Sidebar navigation items
   const sidebarItems = [
+    { id: "overview", label: "Overview", icon: Brain },
     { id: "resources", label: "ResourcesHub", icon: School },
     { id: "techniques", label: "Learning Techniques", icon: Lightbulb },
     { id: "tools", label: "Learning Tools", icon: Compass },
@@ -319,7 +413,7 @@ export default function LearningHowToLearn() {
       <div className="flex flex-col md:flex-row gap-8">
         {/* Sidebar */}
         <div className="md:w-1/4 lg:w-1/5">
-          <div className="bg-white rounded-xl shadow-sm p-4">
+          <div className="bg-white rounded-xl shadow-sm p-4 sticky top-20">
             <div className="space-y-2">
               {sidebarItems.map((item) => {
                 const Icon = item.icon;
@@ -346,6 +440,7 @@ export default function LearningHowToLearn() {
         {/* Main Content */}
         <div className="md:w-3/4 lg:w-4/5">
           <div className="bg-white rounded-xl shadow-sm p-6">
+            {activeTab === "overview" && <OverviewTab />}
             {activeTab === "resources" && <ResourcesHubTab />}
             {activeTab === "techniques" && <TechniquesTab />}
             {activeTab === "tools" && <ToolsTab />}

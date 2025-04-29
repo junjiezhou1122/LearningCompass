@@ -177,12 +177,16 @@ export default function Header() {
       <div className="container mx-auto px-4 py-3">
         <div className="flex items-center justify-between">
           {/* Logo */}
-          <Link href="/">
-            <a className="flex items-center">
+          <Button 
+            variant="ghost" 
+            className="p-0 h-auto hover:bg-transparent" 
+            onClick={() => navigate("/")}
+          >
+            <div className="flex items-center">
               <School className="text-primary-600 h-6 w-6 mr-2" />
               <span className="text-xl font-bold text-gray-800">ResourcesHub</span>
-            </a>
-          </Link>
+            </div>
+          </Button>
 
           {/* Desktop Search */}
           <div className="hidden md:block relative w-1/3">
