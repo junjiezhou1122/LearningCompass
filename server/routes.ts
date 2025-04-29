@@ -375,6 +375,173 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.status(500).json({ message: "Error fetching search history" });
     }
   });
+  
+  // Comment routes
+  app.get("/api/courses/:courseId/comments", async (req: Request, res: Response) => {
+    try {
+      const courseId = parseInt(req.params.courseId);
+      if (isNaN(courseId)) {
+        return res.status(400).json({ message: "Invalid course ID" });
+      }
+      
+      // Check if the course exists
+      const course = await storage.getCourse(courseId);
+      if (!course) {
+        return res.status(404).json({ message: "Course not found" });
+      }
+      
+      const comments = await storage.getCommentsByCourseId(courseId);
+      
+      // For each comment, get the user data but remove sensitive information
+      const commentsWithUserData = await Promise.all(comments.map(async (comment) => {
+        const user = await storage.getUser(comment.userId);
+        if (!user) {
+          return {
+            ...comment,
+            user: { username: "Unknown User" }
+          };
+        }
+        
+        const { password, ...userWithoutPassword } = user;
+        return {
+          ...comment,
+          user: userWithoutPassword
+        };
+      }));
+      
+      res.json(commentsWithUserData);
+    } catch (error) {
+      console.error("Error fetching comments:", error);
+      res.status(500).json({ message: "Error fetching comments" });
+    }
+  });
+  
+  app.post("/api/courses/:courseId/comments", authenticateJWT, async (req: Request, res: Response) => {
+    try {
+      const userId = (req as any).user.id;
+      const courseId = parseInt(req.params.courseId);
+      
+      if (isNaN(courseId)) {
+        return res.status(400).json({ message: "Invalid course ID" });
+      }
+      
+      // Validate input
+      const { content, rating } = req.body;
+      if (!content) {
+        return res.status(400).json({ message: "Comment content is required" });
+      }
+      
+      // Check if the course exists
+      const course = await storage.getCourse(courseId);
+      if (!course) {
+        return res.status(404).json({ message: "Course not found" });
+      }
+      
+      // Create comment
+      const commentData = insertCommentSchema.parse({
+        userId,
+        courseId,
+        content,
+        rating: rating || null,
+        createdAt: new Date().toISOString(),
+      });
+      
+      const comment = await storage.createComment(commentData);
+      
+      // Get user data
+      const user = await storage.getUser(userId);
+      if (!user) {
+        return res.status(500).json({ message: "User not found" });
+      }
+      
+      // Return comment with user data
+      const { password, ...userWithoutPassword } = user;
+      res.status(201).json({
+        ...comment,
+        user: userWithoutPassword
+      });
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ message: fromZodError(error).message });
+      }
+      console.error("Error creating comment:", error);
+      res.status(500).json({ message: "Error creating comment" });
+    }
+  });
+  
+  app.put("/api/comments/:id", authenticateJWT, async (req: Request, res: Response) => {
+    try {
+      const userId = (req as any).user.id;
+      const commentId = parseInt(req.params.id);
+      
+      if (isNaN(commentId)) {
+        return res.status(400).json({ message: "Invalid comment ID" });
+      }
+      
+      // Validate input
+      const { content, rating } = req.body;
+      if (!content) {
+        return res.status(400).json({ message: "Comment content is required" });
+      }
+      
+      // Check if the comment exists and belongs to the user
+      const comment = await storage.getCommentById(commentId);
+      if (!comment) {
+        return res.status(404).json({ message: "Comment not found" });
+      }
+      
+      if (comment.userId !== userId) {
+        return res.status(403).json({ message: "You don't have permission to update this comment" });
+      }
+      
+      // Update comment
+      const updatedComment = await storage.updateComment(commentId, content, rating);
+      if (!updatedComment) {
+        return res.status(500).json({ message: "Failed to update comment" });
+      }
+      
+      // Get user data
+      const user = await storage.getUser(userId);
+      if (!user) {
+        return res.status(500).json({ message: "User not found" });
+      }
+      
+      // Return updated comment with user data
+      const { password, ...userWithoutPassword } = user;
+      res.json({
+        ...updatedComment,
+        user: userWithoutPassword
+      });
+    } catch (error) {
+      console.error("Error updating comment:", error);
+      res.status(500).json({ message: "Error updating comment" });
+    }
+  });
+  
+  app.delete("/api/comments/:id", authenticateJWT, async (req: Request, res: Response) => {
+    try {
+      const userId = (req as any).user.id;
+      const commentId = parseInt(req.params.id);
+      
+      if (isNaN(commentId)) {
+        return res.status(400).json({ message: "Invalid comment ID" });
+      }
+      
+      // Attempt to delete the comment
+      const success = await storage.deleteComment(commentId, userId);
+      
+      if (success) {
+        return res.status(204).send();
+      } else {
+        return res.status(404).json({ 
+          message: "Comment not found or you don't have permission to delete it" 
+        });
+      }
+    } catch (error) {
+      console.error("Error deleting comment:", error);
+      res.status(500).json({ message: "Error deleting comment" });
+    }
+  });
 
   const httpServer = createServer(app);
   return httpServer;

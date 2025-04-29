@@ -103,14 +103,36 @@ export const insertSubscriberSchema = createInsertSchema(subscribers).pick({
   status: true,
 });
 
+// Comments schema
+export const comments = pgTable("comments", {
+  id: serial("id").primaryKey(),
+  userId: integer("user_id").notNull(),
+  courseId: integer("course_id").notNull(),
+  content: text("content").notNull(),
+  rating: integer("rating"),
+  createdAt: text("created_at").notNull(),
+  updatedAt: text("updated_at")
+});
+
+export const insertCommentSchema = createInsertSchema(comments).pick({
+  userId: true,
+  courseId: true,
+  content: true,
+  rating: true,
+  createdAt: true,
+  updatedAt: true
+});
+
 // Relations
 export const usersRelations = relations(users, ({ many }) => ({
   bookmarks: many(bookmarks),
-  searchHistory: many(searchHistory)
+  searchHistory: many(searchHistory),
+  comments: many(comments)
 }));
 
 export const coursesRelations = relations(courses, ({ many }) => ({
-  bookmarks: many(bookmarks)
+  bookmarks: many(bookmarks),
+  comments: many(comments)
 }));
 
 export const bookmarksRelations = relations(bookmarks, ({ one }) => ({
@@ -131,6 +153,17 @@ export const searchHistoryRelations = relations(searchHistory, ({ one }) => ({
   })
 }));
 
+export const commentsRelations = relations(comments, ({ one }) => ({
+  user: one(users, {
+    fields: [comments.userId],
+    references: [users.id]
+  }),
+  course: one(courses, {
+    fields: [comments.courseId],
+    references: [courses.id]
+  })
+}));
+
 // Type definitions
 export type User = typeof users.$inferSelect;
 export type InsertUser = typeof users.$inferInsert;
@@ -146,3 +179,6 @@ export type InsertSearchHistory = typeof searchHistory.$inferInsert;
 
 export type Subscriber = typeof subscribers.$inferSelect;
 export type InsertSubscriber = typeof subscribers.$inferInsert;
+
+export type Comment = typeof comments.$inferSelect;
+export type InsertComment = typeof comments.$inferInsert;

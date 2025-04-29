@@ -1,7 +1,7 @@
 import { 
-  User, Course, Bookmark, SearchHistory, Subscriber,
-  InsertUser, InsertCourse, InsertBookmark, InsertSearchHistory, InsertSubscriber,
-  users, courses, bookmarks, searchHistory, subscribers 
+  User, Course, Bookmark, SearchHistory, Subscriber, Comment,
+  InsertUser, InsertCourse, InsertBookmark, InsertSearchHistory, InsertSubscriber, InsertComment,
+  users, courses, bookmarks, searchHistory, subscribers, comments
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, and, like, desc, asc, sql, or, inArray } from "drizzle-orm";
@@ -56,6 +56,13 @@ export interface IStorage {
   getSubscriberByEmail(email: string): Promise<Subscriber | undefined>;
   createSubscriber(subscriber: InsertSubscriber): Promise<Subscriber>;
   getAllSubscribers(): Promise<Subscriber[]>;
+  
+  // Comment operations
+  getCommentsByCourseId(courseId: number): Promise<Comment[]>;
+  getCommentById(id: number): Promise<Comment | undefined>;
+  createComment(comment: InsertComment): Promise<Comment>;
+  updateComment(id: number, content: string, rating?: number): Promise<Comment | undefined>;
+  deleteComment(id: number, userId: number): Promise<boolean>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -331,6 +338,72 @@ export class DatabaseStorage implements IStorage {
 
   async getAllSubscribers(): Promise<Subscriber[]> {
     return await db.select().from(subscribers).orderBy(desc(subscribers.createdAt));
+  }
+  
+  // Comment operations
+  async getCommentsByCourseId(courseId: number): Promise<Comment[]> {
+    return await db.select().from(comments)
+      .where(eq(comments.courseId, courseId))
+      .orderBy(desc(comments.createdAt));
+  }
+  
+  async getCommentById(id: number): Promise<Comment | undefined> {
+    const [comment] = await db.select().from(comments).where(eq(comments.id, id));
+    return comment || undefined;
+  }
+  
+  async createComment(insertComment: InsertComment): Promise<Comment> {
+    // Ensure createdAt is properly set
+    const comment = {
+      ...insertComment,
+      createdAt: insertComment.createdAt || new Date().toISOString()
+    };
+    
+    const [result] = await db.insert(comments).values(comment).returning();
+    return result;
+  }
+  
+  async updateComment(id: number, content: string, rating?: number): Promise<Comment | undefined> {
+    // First check if comment exists
+    const existingComment = await this.getCommentById(id);
+    if (!existingComment) {
+      return undefined;
+    }
+    
+    // Prepare update data
+    const updateData: Partial<Comment> = {
+      content,
+      updatedAt: new Date().toISOString()
+    };
+    
+    if (rating !== undefined) {
+      updateData.rating = rating;
+    }
+    
+    // Update comment
+    const [updated] = await db.update(comments)
+      .set(updateData)
+      .where(eq(comments.id, id))
+      .returning();
+      
+    return updated;
+  }
+  
+  async deleteComment(id: number, userId: number): Promise<boolean> {
+    // First check if comment exists and belongs to the user
+    const [comment] = await db.select().from(comments)
+      .where(and(
+        eq(comments.id, id),
+        eq(comments.userId, userId)
+      ));
+      
+    if (!comment) {
+      return false;
+    }
+    
+    // Delete comment
+    await db.delete(comments).where(eq(comments.id, id));
+    return true;
   }
 }
 
