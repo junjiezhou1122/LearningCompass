@@ -180,7 +180,7 @@ export default function FilterSidebar({
   ];
   
   return (
-    <aside className="w-full bg-white rounded-xl shadow-sm p-6 h-fit sticky top-24">
+    <aside className="w-full bg-white rounded-xl border border-gray-100 p-6 h-fit sticky top-24">
       <h2 className="text-xl font-semibold text-gray-800 mb-6">Filter Courses</h2>
       
       {/* Category Filter */}
@@ -191,12 +191,12 @@ export default function FilterSidebar({
         >
           <span className="text-base font-medium text-gray-800">Category</span>
           {openSections.category ? 
-            <ChevronUp className="h-5 w-5 text-gray-500" /> : 
-            <ChevronDown className="h-5 w-5 text-gray-500" />
+            <ChevronUp className="h-4 w-4 text-gray-500" /> : 
+            <ChevronDown className="h-4 w-4 text-gray-500" />
           }
         </button>
         
-        <div className={`pl-1 overflow-hidden transition-all duration-300 ${openSections.category ? 'max-h-60 overflow-y-auto' : 'max-h-0'}`}>
+        <div className={`pl-1 overflow-hidden transition-all duration-300 ${openSections.category ? 'max-h-60 overflow-y-auto pr-1' : 'max-h-0'}`}>
           {isLoadingCategories ? (
             Array(4).fill(0).map((_, i) => (
               <div key={i} className="flex items-center mb-3">
@@ -214,9 +214,9 @@ export default function FilterSidebar({
                     if (checked) handleFilterChange('categories', category);
                     else handleFilterChange('categories', category);
                   }}
-                  className="mr-3 border-gray-400 data-[state=checked]:bg-[#4264f0] data-[state=checked]:border-[#4264f0]"
+                  className="mr-3 border-gray-300 data-[state=checked]:bg-[#4264f0] data-[state=checked]:border-[#4264f0]"
                 />
-                <label htmlFor={`category-${index}`} className="text-sm text-gray-700 cursor-pointer hover:text-gray-900">
+                <label htmlFor={`category-${index}`} className="text-sm text-gray-600 cursor-pointer hover:text-gray-800">
                   {category}
                 </label>
               </div>
@@ -235,12 +235,12 @@ export default function FilterSidebar({
         >
           <span className="text-base font-medium text-gray-800">Sub-Category</span>
           {openSections.subCategory ? 
-            <ChevronUp className="h-5 w-5 text-gray-500" /> : 
-            <ChevronDown className="h-5 w-5 text-gray-500" />
+            <ChevronUp className="h-4 w-4 text-gray-500" /> : 
+            <ChevronDown className="h-4 w-4 text-gray-500" />
           }
         </button>
         
-        <div className={`pl-1 overflow-hidden transition-all duration-300 ${openSections.subCategory ? 'max-h-60 overflow-y-auto' : 'max-h-0'}`}>
+        <div className={`pl-1 overflow-hidden transition-all duration-300 ${openSections.subCategory ? 'max-h-60 overflow-y-auto pr-1' : 'max-h-0'}`}>
           {isLoadingSubCategories ? (
             Array(4).fill(0).map((_, i) => (
               <div key={i} className="flex items-center mb-3">
@@ -258,9 +258,9 @@ export default function FilterSidebar({
                     if (checked) handleFilterChange('subCategories', subCategory);
                     else handleFilterChange('subCategories', subCategory);
                   }}
-                  className="mr-3 border-gray-400 data-[state=checked]:bg-[#4264f0] data-[state=checked]:border-[#4264f0]"
+                  className="mr-3 border-gray-300 data-[state=checked]:bg-[#4264f0] data-[state=checked]:border-[#4264f0]"
                 />
-                <label htmlFor={`subcategory-${index}`} className="text-sm text-gray-700 cursor-pointer hover:text-gray-900">
+                <label htmlFor={`subcategory-${index}`} className="text-sm text-gray-600 cursor-pointer hover:text-gray-800">
                   {subCategory}
                 </label>
               </div>
@@ -279,12 +279,12 @@ export default function FilterSidebar({
         >
           <span className="text-base font-medium text-gray-800">Course Type</span>
           {openSections.courseType ? 
-            <ChevronUp className="h-5 w-5 text-gray-500" /> : 
-            <ChevronDown className="h-5 w-5 text-gray-500" />
+            <ChevronUp className="h-4 w-4 text-gray-500" /> : 
+            <ChevronDown className="h-4 w-4 text-gray-500" />
           }
         </button>
         
-        <div className={`pl-1 overflow-hidden transition-all duration-300 ${openSections.courseType ? 'max-h-60 overflow-y-auto' : 'max-h-0'}`}>
+        <div className={`pl-1 overflow-hidden transition-all duration-300 ${openSections.courseType ? 'max-h-60 overflow-y-auto pr-1' : 'max-h-0'}`}>
           {isLoadingCourseTypes ? (
             Array(3).fill(0).map((_, i) => (
               <div key={i} className="flex items-center mb-3">
@@ -302,9 +302,9 @@ export default function FilterSidebar({
                     if (checked) handleFilterChange('courseTypes', courseType);
                     else handleFilterChange('courseTypes', courseType);
                   }}
-                  className="mr-3 border-gray-400 data-[state=checked]:bg-[#4264f0] data-[state=checked]:border-[#4264f0]"
+                  className="mr-3 border-gray-300 data-[state=checked]:bg-[#4264f0] data-[state=checked]:border-[#4264f0]"
                 />
-                <label htmlFor={`course-type-${index}`} className="text-sm text-gray-700 cursor-pointer hover:text-gray-900">
+                <label htmlFor={`course-type-${index}`} className="text-sm text-gray-600 cursor-pointer hover:text-gray-800">
                   {courseType}
                 </label>
               </div>
@@ -315,19 +315,19 @@ export default function FilterSidebar({
         </div>
       </div>
       
-      <Separator className="my-6 bg-gray-200" />
+      <Separator className="my-6 bg-gray-100" />
       
       <div className="flex flex-col gap-3">
         <Button 
           onClick={applyFilters} 
-          className="bg-[#4264f0] hover:bg-[#3755d6] text-white font-semibold py-6 px-4 rounded-lg text-base h-auto shadow-sm"
+          className="bg-[#4264f0] hover:bg-[#3755d6] text-white font-medium py-5 px-4 rounded-md text-sm h-auto"
         >
           Apply Filters
         </Button>
         <Button 
           variant="outline" 
           onClick={resetFilters} 
-          className="border-gray-300 text-gray-700 font-medium hover:bg-gray-50 rounded-lg py-2 h-auto"
+          className="border-gray-200 text-gray-600 font-normal hover:bg-gray-50 rounded-md py-2 h-auto"
         >
           Reset All Filters
         </Button>

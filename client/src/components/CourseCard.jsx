@@ -119,34 +119,34 @@ export default function CourseCard({ course, bookmarked = false, onBookmarkChang
 
   return (
     <Card 
-      className={`course-card overflow-hidden h-full flex flex-col transition-all duration-300 hover:shadow-md hover:-translate-y-1 rounded-xl ${isBookmarked ? 'border-[#4264f0]/20 shadow-md shadow-[#4264f0]/10' : 'border-gray-200'}`}
+      className={`course-card overflow-hidden h-full flex flex-col transition-all duration-300 hover:shadow-sm hover:-translate-y-1 rounded-xl ${isBookmarked ? 'border-[#4264f0]/20 shadow-sm' : 'border-gray-100'}`}
       onClick={handleCardClick}
     >
       <div className="relative">
         <img 
           src={course.imageUrl || "https://images.unsplash.com/photo-1516321318423-f06f85e504b3?ixlib=rb-4.0.3&ixid=MnwxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8&auto=format&fit=crop&w=400&h=225&q=80"} 
           alt={course.title} 
-          className="w-full h-48 object-cover"
+          className="w-full h-44 object-cover"
         />
         <Button
           size="icon"
           variant={isBookmarked ? "default" : "ghost"}
-          className={`absolute top-3 right-3 rounded-full h-9 w-9 z-10 transition-all duration-300 hover:scale-110 
+          className={`absolute top-3 right-3 rounded-full h-8 w-8 z-10 transition-all duration-300 
                     ${isBookmarked 
-                      ? 'bg-[#4264f0] text-white shadow-lg hover:bg-[#3755d6]' 
-                      : 'bg-white/90 backdrop-blur-sm hover:bg-white border border-gray-200'}`}
+                      ? 'bg-[#4264f0] text-white shadow-sm hover:bg-[#3755d6]' 
+                      : 'bg-white/90 backdrop-blur-sm hover:bg-gray-50 border border-gray-100'}`}
           onClick={handleBookmarkToggle}
           disabled={isPending}
         >
           <Bookmark 
-            className={`h-4 w-4 ${isBookmarked ? 'fill-white text-white' : 'text-gray-600'}`} 
+            className={`h-4 w-4 ${isBookmarked ? 'fill-white text-white' : 'text-gray-500'}`} 
           />
           {isPending && <span className="absolute inset-0 flex items-center justify-center">
             <span className="w-3 h-3 border-2 border-white border-t-transparent rounded-full animate-spin"></span>
           </span>}
         </Button>
         {course.courseType && (
-          <div className="absolute bottom-3 left-3 bg-black/70 text-white text-xs font-medium px-3 py-1.5 rounded-md backdrop-blur-sm">
+          <div className="absolute bottom-3 left-3 bg-white/90 text-gray-800 text-xs font-medium px-3 py-1.5 rounded-md backdrop-blur-sm shadow-sm border border-gray-100">
             {course.courseType}
           </div>
         )}
@@ -155,18 +155,18 @@ export default function CourseCard({ course, bookmarked = false, onBookmarkChang
       <CardContent className="p-5 flex-grow">
         <div className="flex flex-wrap gap-2 mb-3">
           {course.category && (
-            <Badge variant="secondary" className="bg-[#EEF2FF] text-[#4264f0] hover:bg-[#E0E7FF] border-0">
+            <Badge variant="secondary" className="bg-[#f8fafc] text-[#4264f0] hover:bg-[#EEF2FF] border border-[#EEF2FF]">
               {course.category}
             </Badge>
           )}
           {course.subCategory && (
-            <Badge variant="secondary" className="bg-gray-100 text-gray-700 hover:bg-gray-200 border-0">
+            <Badge variant="secondary" className="bg-[#f8fafc] text-gray-600 hover:bg-gray-100 border border-gray-100">
               {course.subCategory}
             </Badge>
           )}
         </div>
         
-        <h3 className="text-lg font-bold text-gray-900 mb-2 line-clamp-2 leading-tight">
+        <h3 className="text-lg font-bold text-gray-800 mb-2 line-clamp-2 leading-tight">
           {course.title}
         </h3>
         
@@ -179,7 +179,7 @@ export default function CourseCard({ course, bookmarked = false, onBookmarkChang
         {course.instructors && (
           <div className="flex items-center text-sm text-gray-500 mb-2">
             <User className="h-4 w-4 mr-2 text-gray-400" />
-            <span className="font-medium">{truncateText(course.instructors, 30)}</span>
+            <span>{truncateText(course.instructors, 30)}</span>
           </div>
         )}
         
@@ -199,10 +199,10 @@ export default function CourseCard({ course, bookmarked = false, onBookmarkChang
         </div>
       </CardContent>
       
-      <CardFooter className="border-t border-gray-100 px-5 py-4 bg-gray-50 flex items-center justify-between">
+      <CardFooter className="border-t border-gray-100 px-5 py-3 bg-[#f8fafc] flex items-center justify-between">
         <div className="flex items-center">
           <StarRating rating={course.rating || 0} />
-          <span className="ml-2 text-sm font-medium text-gray-700">
+          <span className="ml-2 text-sm text-gray-700">
             {course.rating?.toFixed(1) || "N/A"}
           </span>
           {course.numberOfViewers && (
@@ -213,7 +213,7 @@ export default function CourseCard({ course, bookmarked = false, onBookmarkChang
         </div>
         
         {course.site && (
-          <div className="text-sm font-semibold text-[#4264f0]">
+          <div className="text-sm text-[#4264f0]">
             {course.site}
           </div>
         )}

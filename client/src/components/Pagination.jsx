@@ -54,28 +54,28 @@ export default function Pagination({
   
   return (
     <nav className="flex justify-center">
-      <div className="flex items-center space-x-2">
+      <div className="flex items-center space-x-1.5">
         <Button
           variant="outline"
           size="icon"
           onClick={() => handlePageChange(currentPage - 1)}
           disabled={currentPage === 1}
           aria-label="Previous page"
-          className="h-9 w-9 rounded-md border-gray-300 text-gray-700 hover:bg-gray-50 disabled:opacity-60"
+          className="h-8 w-8 rounded-md border-gray-200 text-gray-600 hover:bg-gray-50 disabled:opacity-40"
         >
           <ChevronLeft className="h-4 w-4" />
         </Button>
         
         {pageNumbers.map((page, index) => 
           page === "ellipsis" ? (
-            <span key={`ellipsis-${index}`} className="px-3 py-2 text-gray-500">...</span>
+            <span key={`ellipsis-${index}`} className="px-3 py-1.5 text-gray-400">...</span>
           ) : (
             <Button
               key={page}
               variant={currentPage === page ? "default" : "outline"}
               className={currentPage === page 
-                ? "bg-[#4264f0] hover:bg-[#3755d6] text-white h-9 w-9 rounded-md" 
-                : "text-gray-700 h-9 w-9 rounded-md border-gray-300 hover:bg-gray-50"}
+                ? "bg-[#4264f0] hover:bg-[#3755d6] text-white h-8 w-8 rounded-md font-medium text-sm" 
+                : "text-gray-600 h-8 w-8 rounded-md border-gray-200 hover:bg-gray-50 font-normal text-sm"}
               onClick={() => handlePageChange(page)}
             >
               {page}
@@ -89,7 +89,7 @@ export default function Pagination({
           onClick={() => handlePageChange(currentPage + 1)}
           disabled={currentPage === totalPages}
           aria-label="Next page"
-          className="h-9 w-9 rounded-md border-gray-300 text-gray-700 hover:bg-gray-50 disabled:opacity-60"
+          className="h-8 w-8 rounded-md border-gray-200 text-gray-600 hover:bg-gray-50 disabled:opacity-40"
         >
           <ChevronRight className="h-4 w-4" />
         </Button>
