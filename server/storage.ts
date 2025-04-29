@@ -310,6 +310,28 @@ export class DatabaseStorage implements IStorage {
       .where(eq(searchHistory.userId, userId))
       .orderBy(desc(searchHistory.createdAt));
   }
+
+  // Subscriber operations
+  async getSubscriberByEmail(email: string): Promise<Subscriber | undefined> {
+    const [subscriber] = await db.select().from(subscribers).where(eq(subscribers.email, email));
+    return subscriber || undefined;
+  }
+
+  async createSubscriber(insertSubscriber: InsertSubscriber): Promise<Subscriber> {
+    // Set default values before inserting
+    const subscriber = {
+      ...insertSubscriber,
+      createdAt: new Date().toISOString(),
+      status: 'active'
+    };
+    
+    const [result] = await db.insert(subscribers).values(subscriber).returning();
+    return result;
+  }
+
+  async getAllSubscribers(): Promise<Subscriber[]> {
+    return await db.select().from(subscribers).orderBy(desc(subscribers.createdAt));
+  }
 }
 
 export const storage = new DatabaseStorage();

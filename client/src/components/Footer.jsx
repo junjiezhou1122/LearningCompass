@@ -1,13 +1,57 @@
+import { useState } from "react";
 import { Link } from "wouter";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Separator } from "@/components/ui/separator";
-import { School, Send, Facebook, Twitter, Linkedin } from "lucide-react";
+import { School, Send, Facebook, Twitter, Linkedin, CheckCircle, AlertCircle } from "lucide-react";
+import { useToast } from "@/hooks/use-toast";
+import { apiRequest } from "@/lib/queryClient";
 
 export default function Footer() {
-  const handleSubscribe = (e) => {
+  const [email, setEmail] = useState("");
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [subscriptionStatus, setSubscriptionStatus] = useState(null); // 'success', 'error', or null
+  const { toast } = useToast();
+
+  const handleSubscribe = async (e) => {
     e.preventDefault();
-    // Handle newsletter subscription logic here
+    
+    if (!email) return;
+    
+    setIsSubmitting(true);
+    setSubscriptionStatus(null);
+    
+    try {
+      const response = await apiRequest("/api/subscribe", {
+        method: "POST",
+        body: JSON.stringify({ email }),
+        headers: {
+          "Content-Type": "application/json",
+        },
+      });
+      
+      // Display success message
+      toast({
+        title: "Subscription Successful",
+        description: response.message || "You've been subscribed to our newsletter!",
+      });
+      
+      setSubscriptionStatus("success");
+      setEmail(""); // Clear the input field
+    } catch (error) {
+      console.error("Subscription error:", error);
+      
+      // Display error message
+      toast({
+        title: "Subscription Failed",
+        description: error.message || "There was an error subscribing to the newsletter.",
+        variant: "destructive",
+      });
+      
+      setSubscriptionStatus("error");
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (
@@ -92,16 +136,43 @@ export default function Footer() {
             <p className="text-gray-400 text-sm mb-4">
               Subscribe to our newsletter for updates on new courses and features.
             </p>
-            <form onSubmit={handleSubscribe} className="flex">
-              <Input 
-                type="email" 
-                placeholder="Your email" 
-                className="bg-gray-700 border-gray-600 text-white placeholder:text-gray-400 focus:border-primary-500 rounded-r-none"
-                required
-              />
-              <Button type="submit" className="bg-primary-600 hover:bg-primary-700 rounded-l-none">
-                <Send className="h-4 w-4" />
-              </Button>
+            <form onSubmit={handleSubscribe} className="space-y-2">
+              <div className="flex">
+                <Input 
+                  type="email" 
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  placeholder="Your email" 
+                  className="bg-gray-700 border-gray-600 text-white placeholder:text-gray-400 focus:border-primary-500 rounded-r-none"
+                  disabled={isSubmitting}
+                  required
+                />
+                <Button 
+                  type="submit" 
+                  className="bg-primary-600 hover:bg-primary-700 rounded-l-none"
+                  disabled={isSubmitting}
+                >
+                  {isSubmitting ? (
+                    <div className="h-4 w-4 border-2 border-t-transparent border-white rounded-full animate-spin"></div>
+                  ) : (
+                    <Send className="h-4 w-4" />
+                  )}
+                </Button>
+              </div>
+              
+              {subscriptionStatus === "success" && (
+                <div className="flex items-center text-green-400 text-sm mt-2">
+                  <CheckCircle className="h-4 w-4 mr-1" />
+                  <span>Successfully subscribed!</span>
+                </div>
+              )}
+              
+              {subscriptionStatus === "error" && (
+                <div className="flex items-center text-red-400 text-sm mt-2">
+                  <AlertCircle className="h-4 w-4 mr-1" />
+                  <span>Subscription failed. Please try again.</span>
+                </div>
+              )}
             </form>
           </div>
         </div>

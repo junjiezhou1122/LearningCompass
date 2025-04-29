@@ -3,7 +3,7 @@ import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import jwt from "jsonwebtoken";
 import bcrypt from "bcrypt";
-import { insertUserSchema, insertBookmarkSchema } from "@shared/schema";
+import { insertUserSchema, insertBookmarkSchema, insertSubscriberSchema } from "@shared/schema";
 import { z, ZodError } from "zod";
 import { fromZodError } from "zod-validation-error";
 // Import data already complete
@@ -16,6 +16,47 @@ const JWT_SECRET = process.env.JWT_SECRET || "your_jwt_secret_key";
 export async function registerRoutes(app: Express): Promise<Server> {
   // Skip import since courses are already in the database
   console.log("Skipping course import as data is already in the database");
+
+  // Newsletter subscription route
+  app.post("/api/subscribe", async (req: Request, res: Response) => {
+    try {
+      const { email } = req.body;
+      
+      // Validate email
+      if (!email) {
+        return res.status(400).json({ message: "Email is required" });
+      }
+      
+      const emailSchema = z.string().email();
+      try {
+        emailSchema.parse(email);
+      } catch (error) {
+        if (error instanceof z.ZodError) {
+          return res.status(400).json({ message: "Invalid email format" });
+        }
+      }
+      
+      // Check if subscriber already exists
+      const existingSubscriber = await storage.getSubscriberByEmail(email);
+      if (existingSubscriber) {
+        return res.status(200).json({ message: "You're already subscribed to our newsletter!" });
+      }
+      
+      // Create subscriber
+      const subscriberData = insertSubscriberSchema.parse({
+        email,
+        createdAt: new Date().toISOString(),
+        status: 'active'
+      });
+      
+      await storage.createSubscriber(subscriberData);
+      
+      res.status(201).json({ message: "Successfully subscribed to the newsletter!" });
+    } catch (error) {
+      console.error("Error subscribing to newsletter:", error);
+      res.status(500).json({ message: "Error processing subscription" });
+    }
+  });
 
   // Auth routes
   app.post("/api/auth/register", async (req: Request, res: Response) => {
