@@ -102,30 +102,72 @@ export default function CourseDetail() {
     try {
       setIsBookmarking(true);
 
+      // Get the authentication token
+      const storedToken = localStorage.getItem("token");
+      
+      if (!storedToken) {
+        toast({
+          title: "Authentication required",
+          description: "Please login again to bookmark courses",
+          variant: "destructive",
+        });
+        return;
+      }
+
       if (isBookmarked) {
         // Remove bookmark
-        await apiRequest("DELETE", `/api/bookmarks/${course.id}`, undefined, token);
-        setIsBookmarked(false);
-        toast({
-          title: "Bookmark removed",
-          description: `${course.title} has been removed from your bookmarks`,
-        });
+        const response = await apiRequest("DELETE", `/api/bookmarks/${course.id}`, undefined, storedToken);
         
-        // Invalidate bookmarks query to refresh the list
-        queryClient.invalidateQueries(["/api/bookmarks"]);
+        if (response.status === 204) {
+          setIsBookmarked(false);
+          toast({
+            title: "Bookmark removed",
+            description: `${course.title} has been removed from your bookmarks`,
+          });
+          
+          // Invalidate bookmarks query to refresh the list
+          queryClient.invalidateQueries(["/api/bookmarks"]);
+        } else if (response.status === 404) {
+          // Bookmark not found
+          setIsBookmarked(false);
+          toast({
+            title: "Already removed",
+            description: "This course was already removed from your bookmarks",
+          });
+          
+          // Invalidate bookmarks query to refresh the list
+          queryClient.invalidateQueries(["/api/bookmarks"]);
+        } else {
+          throw new Error("Failed to remove bookmark");
+        }
       } else {
         // Add bookmark
-        await apiRequest("POST", "/api/bookmarks", {
+        const response = await apiRequest("POST", "/api/bookmarks", {
           courseId: course.id,
-        }, token);
-        setIsBookmarked(true);
-        toast({
-          title: "Bookmark added",
-          description: `${course.title} has been added to your bookmarks`,
-        });
+        }, storedToken);
         
-        // Invalidate bookmarks query to refresh the list
-        queryClient.invalidateQueries(["/api/bookmarks"]);
+        if (response.status === 201) {
+          setIsBookmarked(true);
+          toast({
+            title: "Bookmark added",
+            description: `${course.title} has been added to your bookmarks`,
+          });
+          
+          // Invalidate bookmarks query to refresh the list
+          queryClient.invalidateQueries(["/api/bookmarks"]);
+        } else if (response.status === 409) {
+          // Bookmark already exists
+          setIsBookmarked(true);
+          toast({
+            title: "Already bookmarked",
+            description: `${course.title} is already in your bookmarks`,
+          });
+          
+          // Invalidate bookmarks query to refresh the list
+          queryClient.invalidateQueries(["/api/bookmarks"]);
+        } else {
+          throw new Error("Failed to add bookmark");
+        }
       }
     } catch (error) {
       console.error("Bookmark error:", error);
@@ -449,16 +491,24 @@ export default function CourseDetail() {
                 
                 <div className="flex gap-2">
                   <Button
-                    variant={isBookmarked ? "secondary" : "outline"}
-                    className={`flex-1 ${isBookmarked ? 'bg-accent-100 text-accent-700 border-accent-300 hover:bg-accent-200' : ''}`}
+                    variant={isBookmarked ? "default" : "outline"}
+                    className={`flex-1 ${
+                      isBookmarked 
+                        ? 'bg-primary-600 hover:bg-primary-700 text-white shadow-md' 
+                        : 'border-gray-300 hover:bg-gray-50'
+                    }`}
                     onClick={handleBookmarkToggle}
                     disabled={isBookmarking}
                   >
-                    <Bookmark
-                      className={`h-4 w-4 mr-2 ${
-                        isBookmarked ? "fill-accent-500 text-accent-500" : ""
-                      }`}
-                    />
+                    {isBookmarking ? (
+                      <span className="mr-2 w-4 h-4 border-2 border-current border-t-transparent rounded-full animate-spin" />
+                    ) : (
+                      <Bookmark
+                        className={`h-4 w-4 mr-2 ${
+                          isBookmarked ? "fill-white text-white" : "text-gray-600"
+                        }`}
+                      />
+                    )}
                     {isBookmarked ? "Bookmarked" : "Bookmark"}
                   </Button>
                   

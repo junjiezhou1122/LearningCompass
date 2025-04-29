@@ -53,27 +53,49 @@ export default function CourseCard({ course, bookmarked = false, onBookmarkChang
       
       if (isBookmarked) {
         // Remove bookmark
-        await apiRequest("DELETE", `/api/bookmarks/${course.id}`, null, token);
-        setIsBookmarked(false);
-        toast({
-          title: "Bookmark removed",
-          description: `${course.title} has been removed from your bookmarks`,
-        });
+        const response = await apiRequest("DELETE", `/api/bookmarks/${course.id}`, null, token);
+        
+        if (response.status === 204) {
+          setIsBookmarked(false);
+          toast({
+            title: "Bookmark removed",
+            description: `${course.title} has been removed from your bookmarks`,
+          });
+          
+          // Call the callback if provided
+          if (onBookmarkChange) {
+            onBookmarkChange(course.id, false);
+          }
+        } else {
+          throw new Error("Failed to remove bookmark");
+        }
       } else {
         // Add bookmark
-        await apiRequest("POST", "/api/bookmarks", {
+        const response = await apiRequest("POST", "/api/bookmarks", {
           courseId: course.id
         }, token);
-        setIsBookmarked(true);
-        toast({
-          title: "Bookmark added",
-          description: `${course.title} has been added to your bookmarks`,
-        });
-      }
-      
-      // Call the callback if provided
-      if (onBookmarkChange) {
-        onBookmarkChange(course.id, !isBookmarked);
+        
+        if (response.status === 201) {
+          setIsBookmarked(true);
+          toast({
+            title: "Bookmark added",
+            description: `${course.title} has been added to your bookmarks`,
+          });
+          
+          // Call the callback if provided
+          if (onBookmarkChange) {
+            onBookmarkChange(course.id, true);
+          }
+        } else if (response.status === 409) {
+          // Bookmark already exists
+          setIsBookmarked(true);
+          toast({
+            title: "Already bookmarked",
+            description: `${course.title} is already in your bookmarks`,
+          });
+        } else {
+          throw new Error("Failed to add bookmark");
+        }
       }
     } catch (error) {
       console.error("Bookmark error:", error);
@@ -97,7 +119,7 @@ export default function CourseCard({ course, bookmarked = false, onBookmarkChang
 
   return (
     <Card 
-      className={`course-card overflow-hidden h-full flex flex-col transition-all duration-300 hover:shadow-md hover:-translate-y-1 ${isBookmarked ? 'ring-2 ring-accent-500 ring-opacity-50' : ''}`}
+      className={`course-card overflow-hidden h-full flex flex-col transition-all duration-300 hover:shadow-md hover:-translate-y-1 ${isBookmarked ? 'border-accent-300 shadow-lg shadow-accent-100' : ''}`}
       onClick={handleCardClick}
     >
       <div className="relative">
@@ -108,17 +130,20 @@ export default function CourseCard({ course, bookmarked = false, onBookmarkChang
         />
         <Button
           size="icon"
-          variant={isBookmarked ? "secondary" : "ghost"}
-          className={`absolute top-2 right-2 rounded-full h-8 w-8 shadow-md transition-all duration-300 hover:scale-110 
+          variant={isBookmarked ? "default" : "ghost"}
+          className={`absolute top-2 right-2 rounded-full h-9 w-9 z-10 transition-all duration-300 hover:scale-110 
                     ${isBookmarked 
-                      ? 'bg-accent-100 border-accent-300 hover:bg-accent-200' 
-                      : 'bg-white hover:bg-gray-100'}`}
+                      ? 'bg-primary-600 text-white shadow-lg hover:bg-primary-700' 
+                      : 'bg-white/90 backdrop-blur-sm hover:bg-white border border-gray-200'}`}
           onClick={handleBookmarkToggle}
           disabled={isPending}
         >
           <Bookmark 
-            className={`h-4 w-4 ${isBookmarked ? 'fill-accent-500 text-accent-500' : 'text-gray-400'}`} 
+            className={`h-4 w-4 ${isBookmarked ? 'fill-white text-white' : 'text-gray-600'}`} 
           />
+          {isPending && <span className="absolute inset-0 flex items-center justify-center">
+            <span className="w-3 h-3 border-2 border-white border-t-transparent rounded-full animate-spin"></span>
+          </span>}
         </Button>
         {course.courseType && (
           <div className="absolute bottom-0 left-0 bg-primary-600 text-white text-xs font-bold px-2 py-1">
