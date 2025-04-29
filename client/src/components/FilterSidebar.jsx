@@ -113,10 +113,21 @@ export default function FilterSidebar({
           [filterType]: currentFilters.filter(item => item !== value)
         };
       } else {
-        return {
-          ...prev,
-          [filterType]: [...currentFilters, value]
-        };
+        // For single-select filters (categories, subCategory, courseType, language)
+        // replace the current selection instead of adding to the array
+        if (filterType === 'categories' || filterType === 'subCategories' || 
+            filterType === 'courseTypes' || filterType === 'languages') {
+          return {
+            ...prev,
+            [filterType]: [value] // Replace with single value
+          };
+        } else {
+          // For multi-select filters (skills), add to the array
+          return {
+            ...prev,
+            [filterType]: [...currentFilters, value]
+          };
+        }
       }
     });
   };
@@ -132,9 +143,10 @@ export default function FilterSidebar({
           ratings: currentRatings.filter(r => r !== rating)
         };
       } else {
+        // Rating should be single-select - use only one rating filter at a time
         return {
           ...prev,
-          ratings: [...currentRatings, rating]
+          ratings: [rating] // Replace instead of adding
         };
       }
     });
