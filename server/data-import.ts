@@ -52,11 +52,16 @@ async function importCoursesFromCSV(storage: IStorage) {
     
     const fileContent = fs.readFileSync(filePath, { encoding: 'utf-8' });
     
-    // Parse CSV
+    // Parse CSV - the first field is an index column without a header name
     const allRecords = parse(fileContent, {
-      columns: true,
+      columns: (header) => {
+        // The first column doesn't have a header name, so we'll explicitly name it "index"
+        header[0] = "index";
+        return header;
+      },
       skip_empty_lines: true,
-      from_line: 2 // Skip header row
+      from_line: 1, // Start from the first line (header)
+      relax_column_count: true
     });
     
     // Limit to first 100 courses for performance
