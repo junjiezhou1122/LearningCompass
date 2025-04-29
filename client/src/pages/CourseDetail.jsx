@@ -28,6 +28,7 @@ import {
   Users,
 } from "lucide-react";
 import StarRating from "@/components/StarRating";
+import CommentSection from "@/components/CommentSection";
 
 export default function CourseDetail() {
   const { id } = useParams();
@@ -534,6 +535,11 @@ export default function CourseDetail() {
             </CardFooter>
           </Card>
         </div>
+      </div>
+      
+      {/* Comments Section */}
+      <div className="mt-8">
+        <CommentSection courseId={id} />
       </div>
     </div>
   );

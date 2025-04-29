@@ -3,7 +3,7 @@ import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import jwt from "jsonwebtoken";
 import bcrypt from "bcrypt";
-import { insertUserSchema, insertBookmarkSchema, insertSubscriberSchema } from "@shared/schema";
+import { insertUserSchema, insertBookmarkSchema, insertSubscriberSchema, insertCommentSchema, insertSearchHistorySchema } from "@shared/schema";
 import { z, ZodError } from "zod";
 import { fromZodError } from "zod-validation-error";
 // Import data already complete
