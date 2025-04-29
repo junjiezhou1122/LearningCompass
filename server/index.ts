@@ -3,6 +3,9 @@ import { registerRoutes } from "./routes";
 import { setupVite, serveStatic, log } from "./vite";
 import { importData } from "./data-import";
 import { storage } from "./storage";
+import { db } from "./db";
+import { courses } from "@shared/schema";
+import { sql } from "drizzle-orm";
 
 const app = express();
 app.use(express.json());
@@ -39,28 +42,10 @@ app.use((req, res, next) => {
 });
 
 (async () => {
-  // Skip full data import on regular startups
-  // To import all courses, set IMPORT_ALL_COURSES=true environment variable
-  const importAllCourses = process.env.IMPORT_ALL_COURSES === 'true';
-
-  try {
-    // Check if we already have courses in the database
-    const existingCoursesCount = await db.select({ count: sql`count(*)` }).from(courses);
-    const count = Number(existingCoursesCount[0]?.count || 0);
-    console.log(`Database has ${count} courses`);
-    
-    // If we have some courses already and not explicitly importing all, skip the import
-    if (count > 0 && !importAllCourses) {
-      console.log('Skipping full data import since courses already exist in the database');
-    } else {
-      // Either no courses or explicit import requested
-      console.log('Starting course data import from CSV...');
-      await importData(storage);
-    }
-  } catch (error) {
-    console.error('Failed to import data:', error);
-  }
+  // We'll skip importing courses for now since you already have many courses in the database
+  console.log('Starting server without course import');
   
+  // Register API routes
   const server = await registerRoutes(app);
 
   app.use((err: any, _req: Request, res: Response, _next: NextFunction) => {

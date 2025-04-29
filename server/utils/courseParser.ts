@@ -54,7 +54,7 @@ export async function importCoursesFromCSV(storage: IStorage) {
     
     // Use all courses from the CSV file
     const records = allRecords;
-    console.log(`Found ${allRecords.length} courses, importing all of them`);
+    console.log(`Found ${allRecords.length} courses in CSV file ready for import`);
     
     // Process and import courses
     for (const record of records) {

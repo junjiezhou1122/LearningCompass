@@ -239,6 +239,7 @@ export default function Home() {
             searchQuery={searchParams.get("search") || ""}
             sortBy={sortBy}
             limit={itemsPerPage}
+            page={currentPage}
           />
           
           {/* Pagination */}

@@ -7,7 +7,8 @@ export default function CourseList({
   filters = {}, 
   searchQuery = "", 
   sortBy = "recommended",
-  limit = 6
+  limit = 6,
+  page = 1
 }) {
   const { isAuthenticated, token } = useAuth();
   
@@ -49,6 +50,12 @@ export default function CourseList({
       params.append("limit", limit.toString());
     }
     
+    // Calculate offset based on page number and limit
+    if (page > 1) {
+      const offset = (page - 1) * limit;
+      params.append("offset", offset.toString());
+    }
+    
     // Add filter parameters
     if (filters.category) {
       params.append("category", filters.category);
@@ -75,9 +82,10 @@ export default function CourseList({
 
   // Fetch courses based on filters, search, and sort
   const { data: courses = [], isLoading, error } = useQuery({
-    queryKey: [`/api/courses?${buildQueryParams()}`],
-    queryFn: async ({ queryKey }) => {
-      const response = await fetch(queryKey[0]);
+    // Use array format for query key to properly handle cache invalidation
+    queryKey: ['/api/courses', page, limit, sortBy, searchQuery, ...Object.values(filters)],
+    queryFn: async () => {
+      const response = await fetch(`/api/courses?${buildQueryParams()}`);
       
       if (!response.ok) {
         throw new Error("Failed to fetch courses");
