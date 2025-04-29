@@ -256,11 +256,11 @@ export default function Home() {
   return (
     <div className="min-h-screen bg-gray-50">
       {/* Hero Section */}
-      <div className="w-full px-4 sm:px-6 lg:px-8 py-6 max-w-7xl mx-auto">
+      <div className="w-full px-4 sm:px-6 lg:px-8 pt-6 pb-2 max-w-7xl mx-auto">
         <Hero />
       </div>
       
-      <div className="w-full px-4 sm:px-6 lg:px-8 py-6 max-w-7xl mx-auto">
+      <div className="w-full px-4 sm:px-6 lg:px-8 pt-2 max-w-7xl mx-auto">
         <div className="flex flex-col lg:flex-row gap-8">
           {/* Filter Sidebar */}
           <div className="lg:w-1/4">
