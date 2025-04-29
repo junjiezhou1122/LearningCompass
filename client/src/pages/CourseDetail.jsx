@@ -481,21 +481,21 @@ export default function CourseDetail() {
               {/* Action Buttons */}
               <div className="pt-2">
                 <Button
-                  className="w-full mb-3 bg-primary-600 hover:bg-primary-700"
+                  className="w-full mb-3 bg-primary-600 hover:bg-primary-700 text-white shadow-md font-medium border-primary-700"
                   size="lg"
                   onClick={() => window.open(course.url, '_blank')}
                 >
                   <ExternalLink className="h-4 w-4 mr-2" />
-                  Go to Course
+                  <span>Go to Course</span>
                 </Button>
                 
                 <div className="flex gap-2">
                   <Button
                     variant={isBookmarked ? "default" : "outline"}
-                    className={`flex-1 ${
+                    className={`flex-1 font-medium ${
                       isBookmarked 
-                        ? 'bg-primary-600 hover:bg-primary-700 text-white shadow-md' 
-                        : 'border-gray-300 hover:bg-gray-50'
+                        ? 'bg-primary-600 hover:bg-primary-700 text-white shadow-md border-primary-700' 
+                        : 'border-gray-300 hover:bg-gray-50 text-gray-700'
                     }`}
                     onClick={handleBookmarkToggle}
                     disabled={isBookmarking}
@@ -509,12 +509,18 @@ export default function CourseDetail() {
                         }`}
                       />
                     )}
-                    {isBookmarked ? "Bookmarked" : "Bookmark"}
+                    <span className={isBookmarked ? "text-white" : "text-gray-700"}>
+                      {isBookmarked ? "Bookmarked" : "Bookmark"}
+                    </span>
                   </Button>
                   
-                  <Button variant="outline" onClick={handleShare}>
-                    <Share2 className="h-4 w-4 mr-2" />
-                    Share
+                  <Button 
+                    variant="outline" 
+                    onClick={handleShare}
+                    className="font-medium border-gray-300 hover:bg-gray-50 text-gray-700"
+                  >
+                    <Share2 className="h-4 w-4 mr-2 text-gray-600" />
+                    <span className="text-gray-700">Share</span>
                   </Button>
                 </div>
               </div>
