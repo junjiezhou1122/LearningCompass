@@ -39,13 +39,17 @@ export default function Header() {
   const handleSearchSubmit = (e) => {
     e.preventDefault();
     if (searchQuery.trim()) {
-      navigate(`/?search=${encodeURIComponent(searchQuery.trim())}`);
+      // Replace the current URL and trigger a full page reload
+      // This ensures search parameters are properly processed
+      window.location.href = `/?search=${encodeURIComponent(searchQuery.trim())}`;
+      
       // Add to search history if user is authenticated
       if (isAuthenticated) {
         fetch('/api/search-history', {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
+            'Authorization': `Bearer ${localStorage.getItem('token')}`
           },
           body: JSON.stringify({ query: searchQuery.trim() }),
         }).catch(error => console.error('Error saving search history:', error));
