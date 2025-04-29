@@ -38,15 +38,47 @@ export default function Home() {
   }, []);
 
   // Get courses count for pagination
-  const { data: coursesCount = 0 } = useQuery({
-    queryKey: ['/api/courses/count'],
+  const { data: courseCountData = { count: 0 } } = useQuery({
+    queryKey: ['/api/courses/count', filters],
     queryFn: async () => {
-      // Since this endpoint might not exist, we'll estimate based on the data
-      return 100; // Placeholder value
+      // Build query params for count
+      const params = new URLSearchParams();
+      
+      if (searchParams.get("search")) {
+        params.append("search", searchParams.get("search"));
+      }
+      
+      if (filters.category) {
+        params.append("category", filters.category);
+      }
+      
+      if (filters.subCategory) {
+        params.append("subCategory", filters.subCategory);
+      }
+      
+      if (filters.courseType) {
+        params.append("courseType", filters.courseType);
+      }
+      
+      if (filters.language) {
+        params.append("language", filters.language);
+      }
+      
+      if (filters.rating) {
+        params.append("rating", filters.rating.toString());
+      }
+      
+      const response = await fetch(`/api/courses/count?${params.toString()}`);
+      
+      if (!response.ok) {
+        throw new Error("Failed to fetch course count");
+      }
+      
+      return response.json();
     }
   });
 
-  const totalPages = Math.ceil(coursesCount / itemsPerPage);
+  const totalPages = Math.ceil(courseCountData.count / itemsPerPage);
 
   // Handle page change
   const handlePageChange = (page) => {
