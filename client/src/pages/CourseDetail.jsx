@@ -104,27 +104,34 @@ export default function CourseDetail() {
 
       if (isBookmarked) {
         // Remove bookmark
-        await apiRequest("DELETE", `/api/bookmarks/${course.id}`);
+        await apiRequest("DELETE", `/api/bookmarks/${course.id}`, undefined, token);
         setIsBookmarked(false);
         toast({
           title: "Bookmark removed",
           description: `${course.title} has been removed from your bookmarks`,
         });
+        
+        // Invalidate bookmarks query to refresh the list
+        queryClient.invalidateQueries(["/api/bookmarks"]);
       } else {
         // Add bookmark
         await apiRequest("POST", "/api/bookmarks", {
           courseId: course.id,
-        });
+        }, token);
         setIsBookmarked(true);
         toast({
           title: "Bookmark added",
           description: `${course.title} has been added to your bookmarks`,
         });
+        
+        // Invalidate bookmarks query to refresh the list
+        queryClient.invalidateQueries(["/api/bookmarks"]);
       }
     } catch (error) {
+      console.error("Bookmark error:", error);
       toast({
         title: "Error",
-        description: "Failed to update bookmark",
+        description: "Failed to update bookmark. Please try again.",
         variant: "destructive",
       });
     } finally {

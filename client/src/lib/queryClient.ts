@@ -11,10 +11,26 @@ export async function apiRequest(
   method: string,
   url: string,
   data?: unknown | undefined,
+  token?: string | null,
 ): Promise<Response> {
+  // Get token from localStorage if not provided
+  const authToken = token || localStorage.getItem('token');
+  
+  const headers: Record<string, string> = {};
+  
+  // Add Content-Type header if we have data
+  if (data) {
+    headers["Content-Type"] = "application/json";
+  }
+  
+  // Add Authorization header if we have a token
+  if (authToken) {
+    headers["Authorization"] = `Bearer ${authToken}`;
+  }
+  
   const res = await fetch(url, {
     method,
-    headers: data ? { "Content-Type": "application/json" } : {},
+    headers,
     body: data ? JSON.stringify(data) : undefined,
     credentials: "include",
   });

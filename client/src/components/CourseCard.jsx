@@ -39,9 +39,21 @@ export default function CourseCard({ course, bookmarked = false, onBookmarkChang
     try {
       setIsPending(true);
       
+      // Get the authentication token from localStorage
+      const token = localStorage.getItem("token");
+      
+      if (!token) {
+        toast({
+          title: "Authentication required",
+          description: "Please login again to bookmark courses",
+          variant: "destructive",
+        });
+        return;
+      }
+      
       if (isBookmarked) {
         // Remove bookmark
-        await apiRequest("DELETE", `/api/bookmarks/${course.id}`);
+        await apiRequest("DELETE", `/api/bookmarks/${course.id}`, null, token);
         setIsBookmarked(false);
         toast({
           title: "Bookmark removed",
@@ -51,7 +63,7 @@ export default function CourseCard({ course, bookmarked = false, onBookmarkChang
         // Add bookmark
         await apiRequest("POST", "/api/bookmarks", {
           courseId: course.id
-        });
+        }, token);
         setIsBookmarked(true);
         toast({
           title: "Bookmark added",
@@ -64,9 +76,10 @@ export default function CourseCard({ course, bookmarked = false, onBookmarkChang
         onBookmarkChange(course.id, !isBookmarked);
       }
     } catch (error) {
+      console.error("Bookmark error:", error);
       toast({
         title: "Error",
-        description: "Failed to update bookmark",
+        description: "Failed to update bookmark. Please try again.",
         variant: "destructive",
       });
     } finally {
