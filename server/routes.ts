@@ -119,7 +119,26 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.get("/api/courses/:id", async (req: Request, res: Response) => {
+  // Order matters here - specific routes must come before parameterized routes
+  app.get("/api/courses/count", async (req: Request, res: Response) => {
+    try {
+      const options = {
+        category: req.query.category as string | undefined,
+        subCategory: req.query.subCategory as string | undefined,
+        courseType: req.query.courseType as string | undefined,
+        language: req.query.language as string | undefined,
+        rating: req.query.rating ? parseFloat(req.query.rating as string) : undefined,
+        search: req.query.search as string | undefined,
+      };
+      
+      const count = await storage.getCoursesCount(options);
+      res.json({ count });
+    } catch (error) {
+      res.status(500).json({ message: "Error fetching course count" });
+    }
+  });
+
+  app.get("/api/courses/:id([0-9]+)", async (req: Request, res: Response) => {
     try {
       const id = parseInt(req.params.id);
       const course = await storage.getCourse(id);

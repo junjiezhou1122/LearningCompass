@@ -26,6 +26,14 @@ export interface IStorage {
     sortBy?: string;
     search?: string;
   }): Promise<Course[]>;
+  getCoursesCount(options?: { 
+    category?: string;
+    subCategory?: string;
+    courseType?: string;
+    language?: string;
+    rating?: number;
+    search?: string;
+  }): Promise<number>;
   getCoursesByIds(ids: number[]): Promise<Course[]>;
   createCourse(course: InsertCourse): Promise<Course>;
   getCategories(): Promise<string[]>;
@@ -152,6 +160,57 @@ export class DatabaseStorage implements IStorage {
     }
     
     return await query;
+  }
+
+  async getCoursesCount(options?: { 
+    category?: string;
+    subCategory?: string;
+    courseType?: string;
+    language?: string;
+    rating?: number;
+    search?: string;
+  }): Promise<number> {
+    let query = db.select({ count: sql`count(*)` }).from(courses);
+    
+    // Apply filters
+    const whereConditions = [];
+    
+    if (options?.category) {
+      whereConditions.push(eq(courses.category, options.category));
+    }
+    
+    if (options?.subCategory) {
+      whereConditions.push(eq(courses.subCategory, options.subCategory));
+    }
+    
+    if (options?.courseType) {
+      whereConditions.push(eq(courses.courseType, options.courseType));
+    }
+    
+    if (options?.language) {
+      whereConditions.push(eq(courses.language, options.language));
+    }
+    
+    if (options?.rating && courses.rating) {
+      whereConditions.push(sql`${courses.rating} >= ${options.rating}`);
+    }
+    
+    if (options?.search) {
+      whereConditions.push(
+        or(
+          like(courses.title, `%${options.search}%`),
+          sql`${courses.shortIntro} LIKE ${'%' + options.search + '%'}`,
+          sql`${courses.skills} LIKE ${'%' + options.search + '%'}`
+        )
+      );
+    }
+    
+    if (whereConditions.length > 0) {
+      query = query.where(and(...whereConditions));
+    }
+    
+    const result = await query;
+    return Number(result[0]?.count || 0);
   }
 
   async getCoursesByIds(ids: number[]): Promise<Course[]> {
