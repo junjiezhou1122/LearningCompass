@@ -8,7 +8,7 @@ export default function LearningFooter() {
   const [, navigate] = useLocation();
 
   return (
-    <footer className="bg-gradient-to-r from-blue-700 to-indigo-800 text-white py-10 mt-12">
+    <footer className="bg-gradient-to-r from-orange-500 to-amber-600 text-white py-10 mt-12">
       <div className="container mx-auto px-4">
         <div className="grid grid-cols-1 md:grid-cols-4 gap-8">
           <div className="md:col-span-2">
@@ -23,13 +23,13 @@ export default function LearningFooter() {
               tools, and resources that will transform your learning capabilities.
             </p>
             <div className="flex space-x-3">
-              <Button variant="outline" size="icon" className="rounded-full border-blue-300 text-white hover:bg-blue-600 hover:text-white">
+              <Button variant="outline" size="icon" className="rounded-full border-blue-300 text-black hover:bg-blue-600 hover:text-white">
                 <Twitter className="h-4 w-4" />
               </Button>
-              <Button variant="outline" size="icon" className="rounded-full border-blue-300 text-white hover:bg-blue-600 hover:text-white">
+              <Button variant="outline" size="icon" className="rounded-full border-blue-300 text-black hover:bg-blue-600 hover:text-white">
                 <Linkedin className="h-4 w-4" />
               </Button>
-              <Button variant="outline" size="icon" className="rounded-full border-blue-300 text-white hover:bg-blue-600 hover:text-white">
+              <Button variant="outline" size="icon" className="rounded-full border-blue-300 text-black hover:bg-blue-600 hover:text-white">
                 <Github className="h-4 w-4" />
               </Button>
             </div>
