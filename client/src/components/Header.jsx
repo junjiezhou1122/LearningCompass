@@ -269,6 +269,13 @@ export default function Header() {
           <div className="flex items-center">
             {/* Desktop Navigation */}
             <div className="hidden md:flex items-center">
+              {/* Learning How to Learn Link (always visible) */}
+              <Link href="/learning-how-to-learn">
+                <a className="text-gray-700 hover:text-primary-600 font-medium mr-6">
+                  Learning How to Learn
+                </a>
+              </Link>
+              
               {isAuthenticated ? (
                 <>
                   <Button variant="ghost" size="icon" className="relative mr-2 text-gray-600 hover:text-primary-600">
@@ -376,6 +383,11 @@ export default function Header() {
                     <div className="space-y-4 flex-grow">
                       <Link href="/">
                         <a className="block py-2 text-gray-700 hover:text-primary-600">Home</a>
+                      </Link>
+                      <Link href="/learning-how-to-learn">
+                        <a className="block py-2 text-gray-700 hover:text-primary-600">
+                          Learning How to Learn
+                        </a>
                       </Link>
                       {isAuthenticated && (
                         <>
