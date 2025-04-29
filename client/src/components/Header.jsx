@@ -186,73 +186,83 @@ export default function Header() {
 
           {/* Desktop Search */}
           <div className="hidden md:block relative w-1/3">
-            <Popover 
-              open={isSearchPopoverOpen && isAuthenticated && recentSearches.length > 0} 
-              onOpenChange={setIsSearchPopoverOpen}
-            >
-              <PopoverTrigger asChild>
-                <form onSubmit={handleSearchSubmit}>
-                  <div className="relative flex">
-                    <div className="relative flex-grow">
-                      <Search className="absolute left-3 top-2.5 h-4 w-4 text-gray-400" />
-                      <Input
-                        ref={searchInputRef}
-                        type="text"
-                        placeholder="Search courses..."
-                        className="w-full pl-10 pr-4 py-2 rounded-r-none"
-                        value={searchQuery}
-                        onChange={handleSearchChange}
-                        onKeyDown={handleSearchKeyPress}
-                        onFocus={() => setIsSearchPopoverOpen(true)}
+            <form onSubmit={handleSearchSubmit}>
+              <div className="relative flex">
+                <div className="relative flex-grow">
+                  <Search className="absolute left-3 top-2.5 h-4 w-4 text-gray-400" />
+                  <Input
+                    ref={searchInputRef}
+                    type="text"
+                    placeholder="Search courses..."
+                    className="w-full pl-10 pr-4 py-2 rounded-r-none"
+                    value={searchQuery}
+                    onChange={handleSearchChange}
+                    onKeyDown={handleSearchKeyPress}
+                  />
+                  {/* History button that appears only when user is logged in and has search history */}
+                  {isAuthenticated && recentSearches.length > 0 && (
+                    <div 
+                      className="absolute right-2 top-1/2 transform -translate-y-1/2 cursor-pointer"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setIsSearchPopoverOpen(!isSearchPopoverOpen);
+                      }}
+                    >
+                      <History 
+                        className={`h-4 w-4 ${isSearchPopoverOpen ? 'text-primary-600' : 'text-gray-400'} hover:text-primary-600 transition-colors`} 
                       />
                     </div>
-                    <Button 
-                      type="submit" 
-                      className="rounded-l-none bg-blue-600 hover:bg-blue-700"
-                    >
-                      <Search className="h-4 w-4 text-white" />
-                    </Button>
-                  </div>
-                </form>
-              </PopoverTrigger>
-              <PopoverContent 
-                className="w-[330px] p-0" 
-                align="start" 
-                sideOffset={4}
+                  )}
+                </div>
+                <Button 
+                  type="submit" 
+                  className="rounded-l-none bg-blue-600 hover:bg-blue-700"
+                >
+                  <Search className="h-4 w-4 text-white" />
+                </Button>
+              </div>
+            </form>
+            
+            {/* Separate popover that's controlled by the history button */}
+            {isAuthenticated && recentSearches.length > 0 && (
+              <div 
+                className={`absolute top-full left-0 mt-1 w-full bg-white rounded-md shadow-md border z-50 ${isSearchPopoverOpen ? 'block' : 'hidden'}`}
               >
                 <div className="py-2">
-                  <div className="flex items-center px-3 py-2 text-sm font-medium text-gray-600 bg-gray-50">
-                    <History className="h-4 w-4 mr-2" />
-                    <span>Recent Searches</span>
+                  <div className="flex items-center justify-between px-3 py-2 text-sm font-medium text-gray-600 bg-gray-50">
+                    <div className="flex items-center">
+                      <History className="h-4 w-4 mr-2" />
+                      <span>Recent Searches</span>
+                    </div>
+                    <button 
+                      className="text-gray-400 hover:text-gray-600"
+                      onClick={() => setIsSearchPopoverOpen(false)}
+                    >
+                      ✕
+                    </button>
                   </div>
                   <div className="max-h-[300px] overflow-y-auto">
-                    {recentSearches.length > 0 ? (
-                      <div className="py-1">
-                        {recentSearches.map((item) => (
-                          <button
-                            key={item.id}
-                            className="flex items-center justify-between w-full px-3 py-2 text-sm text-gray-700 hover:bg-gray-100"
-                            onClick={() => handleRecentSearchClick(item.searchQuery)}
-                          >
-                            <div className="flex items-center">
-                              <Clock className="h-3.5 w-3.5 mr-2 text-gray-400" />
-                              <span>{item.searchQuery}</span>
-                            </div>
-                            <span className="text-xs text-gray-400">
-                              {formatDate(item.createdAt)}
-                            </span>
-                          </button>
-                        ))}
-                      </div>
-                    ) : (
-                      <div className="px-3 py-2 text-sm text-gray-500 text-center">
-                        No recent searches
-                      </div>
-                    )}
+                    <div className="py-1">
+                      {recentSearches.map((item) => (
+                        <button
+                          key={item.id}
+                          className="flex items-center justify-between w-full px-3 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                          onClick={() => handleRecentSearchClick(item.searchQuery)}
+                        >
+                          <div className="flex items-center">
+                            <Clock className="h-3.5 w-3.5 mr-2 text-gray-400" />
+                            <span>{item.searchQuery}</span>
+                          </div>
+                          <span className="text-xs text-gray-400">
+                            {formatDate(item.createdAt)}
+                          </span>
+                        </button>
+                      ))}
+                    </div>
                   </div>
                 </div>
-              </PopoverContent>
-            </Popover>
+              </div>
+            )}
           </div>
 
           {/* Navigation */}
@@ -338,6 +348,20 @@ export default function Header() {
                               onChange={handleSearchChange}
                               onKeyDown={handleSearchKeyPress}
                             />
+                            {/* History icon for the mobile menu */}
+                            {isAuthenticated && recentSearches.length > 0 && (
+                              <div 
+                                className="absolute right-2 top-1/2 transform -translate-y-1/2 cursor-pointer"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setIsSearchPopoverOpen(!isSearchPopoverOpen);
+                                }}
+                              >
+                                <History 
+                                  className={`h-4 w-4 ${isSearchPopoverOpen ? 'text-primary-600' : 'text-gray-400'} hover:text-primary-600 transition-colors`} 
+                                />
+                              </div>
+                            )}
                           </div>
                           <Button 
                             type="submit" 
@@ -402,6 +426,20 @@ export default function Header() {
                   onChange={handleSearchChange}
                   onKeyDown={handleSearchKeyPress}
                 />
+                {/* History icon for main mobile search box */}
+                {isAuthenticated && recentSearches.length > 0 && (
+                  <div 
+                    className="absolute right-2 top-1/2 transform -translate-y-1/2 cursor-pointer"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setIsSearchPopoverOpen(!isSearchPopoverOpen);
+                    }}
+                  >
+                    <History 
+                      className={`h-4 w-4 ${isSearchPopoverOpen ? 'text-primary-600' : 'text-gray-400'} hover:text-primary-600 transition-colors`} 
+                    />
+                  </div>
+                )}
               </div>
               <Button 
                 type="submit" 
@@ -412,32 +450,55 @@ export default function Header() {
             </div>
           </form>
           
-          {/* Mobile Recent Searches (if authenticated and has search history) */}
+          {/* Mobile search history button */}
           {isAuthenticated && recentSearches.length > 0 && (
-            <div className="mt-2 bg-white rounded-md shadow-sm border">
-              <div className="flex items-center px-3 py-2 text-sm font-medium text-gray-600 bg-gray-50 rounded-t-md">
+            <div className="mt-2">
+              <Button 
+                variant="outline" 
+                size="sm" 
+                className="w-full flex justify-center items-center"
+                onClick={() => setIsSearchPopoverOpen(!isSearchPopoverOpen)}
+              >
                 <History className="h-4 w-4 mr-2" />
-                <span>Recent Searches</span>
-              </div>
-              <div className="max-h-[200px] overflow-y-auto">
-                <div className="py-1">
-                  {recentSearches.slice(0, 3).map((item) => (
-                    <button
-                      key={item.id}
-                      className="flex items-center justify-between w-full px-3 py-2 text-sm text-gray-700 hover:bg-gray-100"
-                      onClick={() => handleRecentSearchClick(item.searchQuery)}
+                <span>{isSearchPopoverOpen ? "Hide" : "Show"} Recent Searches</span>
+              </Button>
+              
+              {/* Mobile Recent Searches dropdown */}
+              {isSearchPopoverOpen && (
+                <div className="mt-2 bg-white rounded-md shadow-sm border">
+                  <div className="flex items-center justify-between px-3 py-2 text-sm font-medium text-gray-600 bg-gray-50 rounded-t-md">
+                    <div className="flex items-center">
+                      <History className="h-4 w-4 mr-2" />
+                      <span>Recent Searches</span>
+                    </div>
+                    <button 
+                      className="text-gray-400 hover:text-gray-600"
+                      onClick={() => setIsSearchPopoverOpen(false)}
                     >
-                      <div className="flex items-center">
-                        <Clock className="h-3.5 w-3.5 mr-2 text-gray-400" />
-                        <span>{item.searchQuery}</span>
-                      </div>
-                      <span className="text-xs text-gray-400">
-                        {formatDate(item.createdAt)}
-                      </span>
+                      ✕
                     </button>
-                  ))}
+                  </div>
+                  <div className="max-h-[200px] overflow-y-auto">
+                    <div className="py-1">
+                      {recentSearches.slice(0, 5).map((item) => (
+                        <button
+                          key={item.id}
+                          className="flex items-center justify-between w-full px-3 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                          onClick={() => handleRecentSearchClick(item.searchQuery)}
+                        >
+                          <div className="flex items-center">
+                            <Clock className="h-3.5 w-3.5 mr-2 text-gray-400" />
+                            <span>{item.searchQuery}</span>
+                          </div>
+                          <span className="text-xs text-gray-400">
+                            {formatDate(item.createdAt)}
+                          </span>
+                        </button>
+                      ))}
+                    </div>
+                  </div>
                 </div>
-              </div>
+              )}
             </div>
           )}
         </div>
