@@ -63,8 +63,14 @@ export default function Header() {
             'Content-Type': 'application/json',
             'Authorization': `Bearer ${localStorage.getItem('token')}`
           },
-          body: JSON.stringify({ query: searchQuery.trim() }),
-        }).catch(error => console.error('Error saving search history:', error));
+          body: JSON.stringify({ searchQuery: searchQuery.trim() }),
+        })
+        .then(response => {
+          if (!response.ok) {
+            console.error('Failed to save search history:', response.status);
+          }
+        })
+        .catch(error => console.error('Error saving search history:', error));
       }
     }
   };
