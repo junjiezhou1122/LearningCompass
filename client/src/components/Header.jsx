@@ -270,11 +270,13 @@ export default function Header() {
             {/* Desktop Navigation */}
             <div className="hidden md:flex items-center">
               {/* Learning How to Learn Link (always visible) */}
-              <Link href="/learning-how-to-learn">
-                <a className="text-gray-700 hover:text-primary-600 font-medium mr-6">
-                  Learning How to Learn
-                </a>
-              </Link>
+              <Button 
+                variant="ghost" 
+                className="text-gray-700 hover:text-primary-600 font-medium mr-6"
+                onClick={() => navigate('/learning-how-to-learn')}
+              >
+                Learning How to Learn
+              </Button>
               
               {isAuthenticated ? (
                 <>
@@ -381,26 +383,36 @@ export default function Header() {
                     </div>
 
                     <div className="space-y-4 flex-grow">
-                      <Link href="/">
-                        <a className="block py-2 text-gray-700 hover:text-primary-600">Home</a>
-                      </Link>
-                      <Link href="/learning-how-to-learn">
-                        <a className="block py-2 text-gray-700 hover:text-primary-600">
-                          Learning How to Learn
-                        </a>
-                      </Link>
+                      <Button
+                        variant="ghost"
+                        className="w-full justify-start text-gray-700 hover:text-primary-600 py-2 h-auto font-normal"
+                        onClick={() => navigate("/")}
+                      >
+                        Home
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        className="w-full justify-start text-gray-700 hover:text-primary-600 py-2 h-auto font-normal"
+                        onClick={() => navigate("/learning-how-to-learn")}
+                      >
+                        Learning How to Learn
+                      </Button>
                       {isAuthenticated && (
                         <>
-                          <Link href="/bookmarks">
-                            <a className="block py-2 text-gray-700 hover:text-primary-600">
-                              Bookmarks
-                            </a>
-                          </Link>
-                          <Link href="/profile">
-                            <a className="block py-2 text-gray-700 hover:text-primary-600">
-                              Profile
-                            </a>
-                          </Link>
+                          <Button
+                            variant="ghost"
+                            className="w-full justify-start text-gray-700 hover:text-primary-600 py-2 h-auto font-normal"
+                            onClick={() => navigate("/bookmarks")}
+                          >
+                            Bookmarks
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            className="w-full justify-start text-gray-700 hover:text-primary-600 py-2 h-auto font-normal"
+                            onClick={() => navigate("/profile")}
+                          >
+                            Profile
+                          </Button>
                         </>
                       )}
                     </div>
