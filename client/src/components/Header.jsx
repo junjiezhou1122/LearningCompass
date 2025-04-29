@@ -68,6 +68,9 @@ export default function Header() {
         .then(response => {
           if (!response.ok) {
             console.error('Failed to save search history:', response.status);
+          } else {
+            // Dispatch a custom event to notify components to refresh search history data
+            window.dispatchEvent(new CustomEvent('searchHistoryUpdated'));
           }
         })
         .catch(error => console.error('Error saving search history:', error));

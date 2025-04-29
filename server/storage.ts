@@ -315,7 +315,8 @@ export class DatabaseStorage implements IStorage {
   async getSearchHistoryByUserId(userId: number): Promise<SearchHistory[]> {
     return await db.select().from(searchHistory)
       .where(eq(searchHistory.userId, userId))
-      .orderBy(desc(searchHistory.createdAt));
+      .orderBy(desc(searchHistory.createdAt))
+      .limit(200); // Limit to 200 most recent searches
   }
 
   // Subscriber operations

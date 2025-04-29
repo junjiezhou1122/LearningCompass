@@ -50,7 +50,7 @@ export default function Profile() {
   });
 
   // Fetch user's search history
-  const { data: searchHistory = [] } = useQuery({
+  const { data: searchHistory = [], refetch: refetchSearchHistory } = useQuery({
     queryKey: ['/api/search-history'],
     queryFn: async ({ queryKey }) => {
       if (!isAuthenticated) return [];
@@ -70,6 +70,23 @@ export default function Profile() {
     },
     enabled: isAuthenticated
   });
+  
+  // Listen for search history updates from other components
+  useEffect(() => {
+    // Function to handle the search history updated event
+    const handleSearchHistoryUpdated = () => {
+      // Refetch search history data when the event is triggered
+      refetchSearchHistory();
+    };
+    
+    // Add event listener
+    window.addEventListener('searchHistoryUpdated', handleSearchHistoryUpdated);
+    
+    // Clean up event listener on component unmount
+    return () => {
+      window.removeEventListener('searchHistoryUpdated', handleSearchHistoryUpdated);
+    };
+  }, [refetchSearchHistory]);
 
   // Update profile form when profile data is loaded
   useEffect(() => {
