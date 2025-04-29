@@ -119,21 +119,21 @@ export default function CourseCard({ course, bookmarked = false, onBookmarkChang
 
   return (
     <Card 
-      className={`course-card overflow-hidden h-full flex flex-col transition-all duration-300 hover:shadow-md hover:-translate-y-1 ${isBookmarked ? 'border-accent-300 shadow-lg shadow-accent-100' : ''}`}
+      className={`course-card overflow-hidden h-full flex flex-col transition-all duration-300 hover:shadow-md hover:-translate-y-1 rounded-xl ${isBookmarked ? 'border-[#4264f0]/20 shadow-md shadow-[#4264f0]/10' : 'border-gray-200'}`}
       onClick={handleCardClick}
     >
       <div className="relative">
         <img 
           src={course.imageUrl || "https://images.unsplash.com/photo-1516321318423-f06f85e504b3?ixlib=rb-4.0.3&ixid=MnwxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8&auto=format&fit=crop&w=400&h=225&q=80"} 
           alt={course.title} 
-          className="w-full h-40 object-cover"
+          className="w-full h-48 object-cover"
         />
         <Button
           size="icon"
           variant={isBookmarked ? "default" : "ghost"}
-          className={`absolute top-2 right-2 rounded-full h-9 w-9 z-10 transition-all duration-300 hover:scale-110 
+          className={`absolute top-3 right-3 rounded-full h-9 w-9 z-10 transition-all duration-300 hover:scale-110 
                     ${isBookmarked 
-                      ? 'bg-primary-600 text-white shadow-lg hover:bg-primary-700' 
+                      ? 'bg-[#4264f0] text-white shadow-lg hover:bg-[#3755d6]' 
                       : 'bg-white/90 backdrop-blur-sm hover:bg-white border border-gray-200'}`}
           onClick={handleBookmarkToggle}
           disabled={isPending}
@@ -146,64 +146,63 @@ export default function CourseCard({ course, bookmarked = false, onBookmarkChang
           </span>}
         </Button>
         {course.courseType && (
-          <div className="absolute bottom-0 left-0 bg-primary-600 text-white text-xs font-bold px-2 py-1">
+          <div className="absolute bottom-3 left-3 bg-black/70 text-white text-xs font-medium px-3 py-1.5 rounded-md backdrop-blur-sm">
             {course.courseType}
           </div>
         )}
       </div>
       
-      <CardContent className="p-4 flex-grow">
-        <div className="flex flex-wrap gap-2 mb-2">
+      <CardContent className="p-5 flex-grow">
+        <div className="flex flex-wrap gap-2 mb-3">
           {course.category && (
-            <Badge variant="secondary" className="bg-gray-100 text-gray-800 hover:bg-gray-200">
+            <Badge variant="secondary" className="bg-[#EEF2FF] text-[#4264f0] hover:bg-[#E0E7FF] border-0">
               {course.category}
             </Badge>
           )}
           {course.subCategory && (
-            <Badge variant="secondary" className="bg-gray-100 text-gray-800 hover:bg-gray-200">
+            <Badge variant="secondary" className="bg-gray-100 text-gray-700 hover:bg-gray-200 border-0">
               {course.subCategory}
             </Badge>
           )}
         </div>
         
-        <h3 className="text-lg font-semibold text-gray-900 mb-1 line-clamp-2">
+        <h3 className="text-lg font-bold text-gray-900 mb-2 line-clamp-2 leading-tight">
           {course.title}
         </h3>
         
         {course.shortIntro && (
-          <p className="text-sm text-gray-600 mb-3 line-clamp-2">
+          <p className="text-sm text-gray-600 mb-4 line-clamp-2">
             {truncateText(course.shortIntro, 100)}
           </p>
         )}
         
         {course.instructors && (
           <div className="flex items-center text-sm text-gray-500 mb-2">
-            <User className="h-4 w-4 mr-1 text-gray-400" />
-            <span>{truncateText(course.instructors, 30)}</span>
+            <User className="h-4 w-4 mr-2 text-gray-400" />
+            <span className="font-medium">{truncateText(course.instructors, 30)}</span>
           </div>
         )}
         
         <div className="flex items-center text-sm text-gray-500 mb-3">
           {course.duration && (
-            <>
-              <Clock className="h-4 w-4 mr-1 text-gray-400" />
+            <div className="flex items-center mr-4">
+              <Clock className="h-4 w-4 mr-2 text-gray-400" />
               <span>{course.duration}</span>
-              <span className="mx-2">•</span>
-            </>
+            </div>
           )}
           {course.language && (
-            <>
-              <Globe className="h-4 w-4 mr-1 text-gray-400" />
+            <div className="flex items-center">
+              <Globe className="h-4 w-4 mr-2 text-gray-400" />
               <span>{course.language}</span>
-            </>
+            </div>
           )}
         </div>
       </CardContent>
       
-      <CardFooter className="border-t border-gray-100 px-4 py-3 bg-gray-50 flex items-center justify-between">
+      <CardFooter className="border-t border-gray-100 px-5 py-4 bg-gray-50 flex items-center justify-between">
         <div className="flex items-center">
           <StarRating rating={course.rating || 0} />
-          <span className="ml-1 text-sm font-medium text-gray-700">
+          <span className="ml-2 text-sm font-medium text-gray-700">
             {course.rating?.toFixed(1) || "N/A"}
           </span>
           {course.numberOfViewers && (
@@ -214,7 +213,7 @@ export default function CourseCard({ course, bookmarked = false, onBookmarkChang
         </div>
         
         {course.site && (
-          <div className="text-sm font-medium text-gray-900">
+          <div className="text-sm font-semibold text-[#4264f0]">
             {course.site}
           </div>
         )}

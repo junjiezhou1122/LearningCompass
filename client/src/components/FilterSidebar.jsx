@@ -180,33 +180,33 @@ export default function FilterSidebar({
   ];
   
   return (
-    <aside className="lg:w-full bg-white rounded-lg shadow-sm p-4 h-fit sticky top-24">
-      <h2 className="text-xl font-semibold text-gray-800 mb-4">Filter Courses</h2>
+    <aside className="w-full bg-white rounded-xl shadow-sm p-6 h-fit sticky top-24">
+      <h2 className="text-xl font-semibold text-gray-800 mb-6">Filter Courses</h2>
       
       {/* Category Filter */}
-      <div className="mb-4">
+      <div className="mb-6">
         <button 
-          className="flex items-center justify-between w-full text-left font-medium text-gray-700 mb-2"
+          className="flex items-center justify-between w-full text-left font-medium text-gray-700 mb-3"
           onClick={() => toggleSection('category')}
         >
-          <span className="text-base font-semibold">Category</span>
+          <span className="text-base font-medium text-gray-800">Category</span>
           {openSections.category ? 
-            <ChevronUp className="h-5 w-5 text-gray-600" /> : 
-            <ChevronDown className="h-5 w-5 text-gray-600" />
+            <ChevronUp className="h-5 w-5 text-gray-500" /> : 
+            <ChevronDown className="h-5 w-5 text-gray-500" />
           }
         </button>
         
-        <div className={`pl-2 overflow-hidden transition-all duration-300 ${openSections.category ? 'max-h-60 overflow-y-auto' : 'max-h-0'}`}>
+        <div className={`pl-1 overflow-hidden transition-all duration-300 ${openSections.category ? 'max-h-60 overflow-y-auto' : 'max-h-0'}`}>
           {isLoadingCategories ? (
             Array(4).fill(0).map((_, i) => (
-              <div key={i} className="flex items-center mb-2">
-                <Skeleton className="h-4 w-4 mr-2" />
+              <div key={i} className="flex items-center mb-3">
+                <Skeleton className="h-4 w-4 mr-3" />
                 <Skeleton className="h-4 w-32" />
               </div>
             ))
           ) : categories.length > 0 ? (
             categories.map((category, index) => (
-              <div key={index} className="flex items-center mb-2">
+              <div key={index} className="flex items-center mb-3">
                 <Checkbox 
                   id={`category-${index}`}
                   checked={selectedFilters.categories.includes(category)}
@@ -214,9 +214,9 @@ export default function FilterSidebar({
                     if (checked) handleFilterChange('categories', category);
                     else handleFilterChange('categories', category);
                   }}
-                  className="mr-2"
+                  className="mr-3 border-gray-400 data-[state=checked]:bg-[#4264f0] data-[state=checked]:border-[#4264f0]"
                 />
-                <label htmlFor={`category-${index}`} className="text-sm text-gray-700 cursor-pointer">
+                <label htmlFor={`category-${index}`} className="text-sm text-gray-700 cursor-pointer hover:text-gray-900">
                   {category}
                 </label>
               </div>
@@ -227,30 +227,30 @@ export default function FilterSidebar({
         </div>
       </div>
       
-      {/* Sub-Category Filter - Moved right after Category */}
-      <div className="mb-4">
+      {/* Sub-Category Filter */}
+      <div className="mb-6">
         <button 
-          className="flex items-center justify-between w-full text-left font-medium text-gray-700 mb-2"
+          className="flex items-center justify-between w-full text-left font-medium text-gray-700 mb-3"
           onClick={() => toggleSection('subCategory')}
         >
-          <span className="text-base font-semibold">Sub-Category</span>
+          <span className="text-base font-medium text-gray-800">Sub-Category</span>
           {openSections.subCategory ? 
-            <ChevronUp className="h-5 w-5 text-gray-600" /> : 
-            <ChevronDown className="h-5 w-5 text-gray-600" />
+            <ChevronUp className="h-5 w-5 text-gray-500" /> : 
+            <ChevronDown className="h-5 w-5 text-gray-500" />
           }
         </button>
         
-        <div className={`pl-2 overflow-hidden transition-all duration-300 ${openSections.subCategory ? 'max-h-60 overflow-y-auto' : 'max-h-0'}`}>
+        <div className={`pl-1 overflow-hidden transition-all duration-300 ${openSections.subCategory ? 'max-h-60 overflow-y-auto' : 'max-h-0'}`}>
           {isLoadingSubCategories ? (
             Array(4).fill(0).map((_, i) => (
-              <div key={i} className="flex items-center mb-2">
-                <Skeleton className="h-4 w-4 mr-2" />
+              <div key={i} className="flex items-center mb-3">
+                <Skeleton className="h-4 w-4 mr-3" />
                 <Skeleton className="h-4 w-32" />
               </div>
             ))
           ) : subCategories.length > 0 ? (
             subCategories.map((subCategory, index) => (
-              <div key={index} className="flex items-center mb-2">
+              <div key={index} className="flex items-center mb-3">
                 <Checkbox 
                   id={`subcategory-${index}`}
                   checked={selectedFilters.subCategories.includes(subCategory)}
@@ -258,9 +258,9 @@ export default function FilterSidebar({
                     if (checked) handleFilterChange('subCategories', subCategory);
                     else handleFilterChange('subCategories', subCategory);
                   }}
-                  className="mr-2"
+                  className="mr-3 border-gray-400 data-[state=checked]:bg-[#4264f0] data-[state=checked]:border-[#4264f0]"
                 />
-                <label htmlFor={`subcategory-${index}`} className="text-sm text-gray-700 cursor-pointer">
+                <label htmlFor={`subcategory-${index}`} className="text-sm text-gray-700 cursor-pointer hover:text-gray-900">
                   {subCategory}
                 </label>
               </div>
@@ -274,27 +274,27 @@ export default function FilterSidebar({
       {/* Course Type Filter */}
       <div className="mb-6">
         <button 
-          className="flex items-center justify-between w-full text-left font-medium text-gray-700 mb-2"
+          className="flex items-center justify-between w-full text-left font-medium text-gray-700 mb-3"
           onClick={() => toggleSection('courseType')}
         >
-          <span className="text-base font-semibold">Course Type</span>
+          <span className="text-base font-medium text-gray-800">Course Type</span>
           {openSections.courseType ? 
-            <ChevronUp className="h-5 w-5 text-gray-600" /> : 
-            <ChevronDown className="h-5 w-5 text-gray-600" />
+            <ChevronUp className="h-5 w-5 text-gray-500" /> : 
+            <ChevronDown className="h-5 w-5 text-gray-500" />
           }
         </button>
         
-        <div className={`pl-2 overflow-hidden transition-all duration-300 ${openSections.courseType ? 'max-h-60 overflow-y-auto' : 'max-h-0'}`}>
+        <div className={`pl-1 overflow-hidden transition-all duration-300 ${openSections.courseType ? 'max-h-60 overflow-y-auto' : 'max-h-0'}`}>
           {isLoadingCourseTypes ? (
             Array(3).fill(0).map((_, i) => (
-              <div key={i} className="flex items-center mb-2">
-                <Skeleton className="h-4 w-4 mr-2" />
+              <div key={i} className="flex items-center mb-3">
+                <Skeleton className="h-4 w-4 mr-3" />
                 <Skeleton className="h-4 w-32" />
               </div>
             ))
           ) : courseTypes.length > 0 ? (
             courseTypes.map((courseType, index) => (
-              <div key={index} className="flex items-center mb-2">
+              <div key={index} className="flex items-center mb-3">
                 <Checkbox 
                   id={`course-type-${index}`}
                   checked={selectedFilters.courseTypes.includes(courseType)}
@@ -302,9 +302,9 @@ export default function FilterSidebar({
                     if (checked) handleFilterChange('courseTypes', courseType);
                     else handleFilterChange('courseTypes', courseType);
                   }}
-                  className="mr-2"
+                  className="mr-3 border-gray-400 data-[state=checked]:bg-[#4264f0] data-[state=checked]:border-[#4264f0]"
                 />
-                <label htmlFor={`course-type-${index}`} className="text-sm text-gray-700 cursor-pointer">
+                <label htmlFor={`course-type-${index}`} className="text-sm text-gray-700 cursor-pointer hover:text-gray-900">
                   {courseType}
                 </label>
               </div>
@@ -315,17 +315,20 @@ export default function FilterSidebar({
         </div>
       </div>
       
-      <Separator className="my-4" />
+      <Separator className="my-6 bg-gray-200" />
       
       <div className="flex flex-col gap-3">
         <Button 
           onClick={applyFilters} 
-          className="bg-blue-600 hover:bg-blue-700 text-white font-bold py-4 text-lg"
-          size="lg"
+          className="bg-[#4264f0] hover:bg-[#3755d6] text-white font-semibold py-6 px-4 rounded-lg text-base h-auto shadow-sm"
         >
           Apply Filters
         </Button>
-        <Button variant="outline" onClick={resetFilters} className="border-gray-300" size="default">
+        <Button 
+          variant="outline" 
+          onClick={resetFilters} 
+          className="border-gray-300 text-gray-700 font-medium hover:bg-gray-50 rounded-lg py-2 h-auto"
+        >
           Reset All Filters
         </Button>
       </div>

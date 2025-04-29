@@ -26,13 +26,13 @@ export default function CourseListHeader({
   };
   
   return (
-    <div className="bg-white rounded-lg shadow-sm p-4 mb-6">
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between">
-        <h1 className="text-xl font-bold text-gray-800 mb-2 sm:mb-0">{title}</h1>
-        <div className="flex items-center">
-          <span className="text-sm text-gray-600 mr-2">Sort by:</span>
+    <div>
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-6">
+        <h1 className="text-2xl font-bold text-gray-800 mb-2 sm:mb-0">{title}</h1>
+        <div className="flex items-center mt-2 sm:mt-0">
+          <span className="text-sm font-medium text-gray-600 mr-3">Sort by:</span>
           <Select value={sortOption} onValueChange={handleSortChange}>
-            <SelectTrigger className="w-[180px]">
+            <SelectTrigger className="w-[180px] bg-white border-gray-300 rounded-lg shadow-sm text-gray-700">
               <SelectValue placeholder="Sort by" />
             </SelectTrigger>
             <SelectContent>
@@ -46,19 +46,19 @@ export default function CourseListHeader({
       </div>
       
       {activeFilters && activeFilters.length > 0 && (
-        <div className="flex flex-wrap gap-2 mt-4">
+        <div className="flex flex-wrap gap-2 mb-6">
           {activeFilters.map((filter) => (
             <Badge 
               key={filter.id} 
               variant="secondary"
-              className="bg-primary-100 text-primary-800 hover:bg-primary-200"
+              className="bg-[#EEF2FF] text-[#4264f0] hover:bg-[#E0E7FF] py-1.5 px-3 rounded-md text-sm font-medium border-0"
             >
               {filter.label}
               <button 
-                className="ml-1 text-primary-600 hover:text-primary-800" 
+                className="ml-2 text-[#4264f0] hover:text-[#3755d6] focus:outline-none" 
                 onClick={() => onRemoveFilter && onRemoveFilter(filter.id)}
               >
-                <X className="h-3 w-3" />
+                <X className="h-3.5 w-3.5" />
               </button>
             </Badge>
           ))}

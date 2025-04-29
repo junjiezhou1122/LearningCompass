@@ -254,53 +254,65 @@ export default function Home() {
   };
 
   return (
-    <div className="container mx-auto px-4 py-6">
+    <div className="min-h-screen bg-gray-50">
       {/* Hero Section */}
-      <Hero />
+      <div className="w-full px-4 sm:px-6 lg:px-8 py-6 max-w-7xl mx-auto">
+        <Hero />
+      </div>
       
-      <div className="flex flex-col lg:flex-row gap-6">
-        {/* Filter Sidebar */}
-        <div className="lg:w-1/4">
-          <FilterSidebar
-            onApplyFilters={handleApplyFilters}
-            onResetFilters={handleResetFilters}
-            initialFilters={{
-              categories: activeFilters.filter(f => f.type === 'category').map(f => f.value),
-              subCategories: activeFilters.filter(f => f.type === 'subCategory').map(f => f.value),
-              courseTypes: activeFilters.filter(f => f.type === 'courseType').map(f => f.value),
-              languages: activeFilters.filter(f => f.type === 'language').map(f => f.value),
-              ratings: activeFilters.filter(f => f.type === 'rating').map(f => f.value),
-              skills: activeFilters.filter(f => f.type === 'skill').map(f => f.value),
-            }}
-          />
-        </div>
-        
-        {/* Course Content */}
-        <div className="lg:w-3/4">
-          {/* Course List Header */}
-          <CourseListHeader
-            title={searchParams.get("search") ? `Search Results: "${searchParams.get("search")}"` : "Recommended Courses"}
-            activeFilters={activeFilters}
-            onRemoveFilter={handleRemoveFilter}
-            sortBy={sortBy}
-            onSortChange={handleSortChange}
-          />
+      <div className="w-full px-4 sm:px-6 lg:px-8 py-6 max-w-7xl mx-auto">
+        <div className="flex flex-col lg:flex-row gap-8">
+          {/* Filter Sidebar */}
+          <div className="lg:w-1/4">
+            <FilterSidebar
+              onApplyFilters={handleApplyFilters}
+              onResetFilters={handleResetFilters}
+              initialFilters={{
+                categories: activeFilters.filter(f => f.type === 'category').map(f => f.value),
+                subCategories: activeFilters.filter(f => f.type === 'subCategory').map(f => f.value),
+                courseTypes: activeFilters.filter(f => f.type === 'courseType').map(f => f.value),
+                languages: activeFilters.filter(f => f.type === 'language').map(f => f.value),
+                ratings: activeFilters.filter(f => f.type === 'rating').map(f => f.value),
+                skills: activeFilters.filter(f => f.type === 'skill').map(f => f.value),
+              }}
+            />
+          </div>
           
-          {/* Course List */}
-          <CourseList
-            filters={filters}
-            searchQuery={searchParams.get("search") || ""}
-            sortBy={sortBy}
-            limit={itemsPerPage}
-            page={currentPage}
-          />
-          
-          {/* Pagination */}
-          <Pagination
-            currentPage={currentPage}
-            totalPages={totalPages}
-            onPageChange={handlePageChange}
-          />
+          {/* Course Content */}
+          <div className="lg:w-3/4">
+            {/* Course List Header */}
+            <div className="bg-white rounded-xl shadow-sm p-6 mb-6">
+              <CourseListHeader
+                title={searchParams.get("search") 
+                  ? `Search Results: "${searchParams.get("search")}"`
+                  : "Recommended Courses"}
+                activeFilters={activeFilters}
+                onRemoveFilter={handleRemoveFilter}
+                sortBy={sortBy}
+                onSortChange={handleSortChange}
+              />
+            </div>
+            
+            {/* Course List */}
+            <div className="bg-white rounded-xl shadow-sm p-6 mb-6">
+              <CourseList
+                filters={filters}
+                searchQuery={searchParams.get("search") || ""}
+                sortBy={sortBy}
+                limit={itemsPerPage}
+                page={currentPage}
+              />
+              
+              {/* Pagination */}
+              <div className="mt-8">
+                <Pagination
+                  currentPage={currentPage}
+                  totalPages={totalPages}
+                  onPageChange={handlePageChange}
+                />
+              </div>
+            </div>
+          </div>
         </div>
       </div>
     </div>
