@@ -22,18 +22,13 @@ export default function Footer() {
     setSubscriptionStatus(null);
     
     try {
-      const response = await apiRequest("/api/subscribe", {
-        method: "POST",
-        body: JSON.stringify({ email }),
-        headers: {
-          "Content-Type": "application/json",
-        },
-      });
+      const response = await apiRequest("POST", "/api/subscribe", { email });
+      const data = await response.json();
       
       // Display success message
       toast({
         title: "Subscription Successful",
-        description: response.message || "You've been subscribed to our newsletter!",
+        description: data?.message || "You've been subscribed to our newsletter!",
       });
       
       setSubscriptionStatus("success");
