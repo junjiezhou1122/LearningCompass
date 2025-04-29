@@ -481,7 +481,7 @@ export default function CourseDetail() {
               {/* Action Buttons */}
               <div className="pt-2">
                 <Button
-                  className="w-full mb-3 bg-blue-600 hover:bg-blue-700 shadow-md"
+                  className="w-full mb-3 bg-primary-600 hover:bg-primary-700 text-white shadow-md font-medium"
                   size="lg"
                   onClick={() => window.open(course.url, '_blank')}
                 >
@@ -494,7 +494,7 @@ export default function CourseDetail() {
                     variant={isBookmarked ? "default" : "outline"}
                     className={`flex-1 font-medium ${
                       isBookmarked 
-                        ? 'bg-green-600 hover:bg-green-700 shadow-md border-0' 
+                        ? 'bg-primary-600 hover:bg-primary-700 shadow-md border-0' 
                         : 'border border-gray-300 hover:bg-gray-50 text-gray-700'
                     }`}
                     onClick={handleBookmarkToggle}
@@ -517,7 +517,7 @@ export default function CourseDetail() {
                   <Button 
                     variant="outline" 
                     onClick={handleShare}
-                    className="font-medium border border-gray-300 hover:bg-gray-50"
+                    className="font-medium border-gray-300 hover:bg-gray-50 text-gray-700"
                   >
                     <Share2 className="h-4 w-4 mr-2 text-gray-600" />
                     <span className="text-gray-700">Share</span>
