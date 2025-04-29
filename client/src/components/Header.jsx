@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Link, useLocation } from "wouter";
 import { useAuth } from "../contexts/AuthContext";
 import { AuthModals } from "./AuthModals";
@@ -21,14 +21,24 @@ import {
   ChevronDown,
   LogOut,
   Menu,
+  History,
+  Clock,
 } from "lucide-react";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
+import { 
+  Popover, 
+  PopoverContent, 
+  PopoverTrigger 
+} from "@/components/ui/popover";
 
 export default function Header() {
   const [searchQuery, setSearchQuery] = useState("");
   const [location, navigate] = useLocation();
   const { isAuthenticated, user, logout } = useAuth();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [recentSearches, setRecentSearches] = useState([]);
+  const [isSearchPopoverOpen, setIsSearchPopoverOpen] = useState(false);
+  const searchInputRef = useRef(null);
 
   // Handle search input change
   const handleSearchChange = (e) => {
@@ -91,6 +101,72 @@ export default function Header() {
     navigate("/");
   };
 
+  // Format date string
+  const formatDate = (dateString) => {
+    if (!dateString) return "";
+    
+    const date = new Date(dateString);
+    return new Intl.DateTimeFormat("en-US", {
+      year: "numeric",
+      month: "short",
+      day: "numeric",
+      hour: "2-digit",
+      minute: "2-digit",
+    }).format(date);
+  };
+  
+  // Fetch recent searches
+  const fetchRecentSearches = () => {
+    if (isAuthenticated) {
+      fetch('/api/search-history', {
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('token')}`
+        }
+      })
+      .then(response => {
+        if (response.ok) {
+          return response.json();
+        }
+        return [];
+      })
+      .then(data => {
+        setRecentSearches(data.slice(0, 5)); // Show only 5 most recent searches
+      })
+      .catch(error => {
+        console.error('Error fetching recent searches:', error);
+      });
+    }
+  };
+  
+  // Handle click on a recent search
+  const handleRecentSearchClick = (query) => {
+    setSearchQuery(query);
+    setIsSearchPopoverOpen(false);
+    
+    // Trigger search with the selected query
+    navigate(`/?search=${encodeURIComponent(query)}`);
+    window.history.pushState({}, '', `/?search=${encodeURIComponent(query)}`);
+    window.dispatchEvent(new CustomEvent('updateSearchParams', {
+      detail: { search: query }
+    }));
+  };
+  
+  // Fetch recent searches on component mount and when search history is updated
+  useEffect(() => {
+    fetchRecentSearches();
+    
+    // Listen for search history updates
+    const handleSearchHistoryUpdated = () => {
+      fetchRecentSearches();
+    };
+    
+    window.addEventListener('searchHistoryUpdated', handleSearchHistoryUpdated);
+    
+    return () => {
+      window.removeEventListener('searchHistoryUpdated', handleSearchHistoryUpdated);
+    };
+  }, [isAuthenticated]);
+  
   // Close mobile menu when location changes
   useEffect(() => {
     setMobileMenuOpen(false);
@@ -110,27 +186,73 @@ export default function Header() {
 
           {/* Desktop Search */}
           <div className="hidden md:block relative w-1/3">
-            <form onSubmit={handleSearchSubmit}>
-              <div className="relative flex">
-                <div className="relative flex-grow">
-                  <Search className="absolute left-3 top-2.5 h-4 w-4 text-gray-400" />
-                  <Input
-                    type="text"
-                    placeholder="Search courses..."
-                    className="w-full pl-10 pr-4 py-2 rounded-r-none"
-                    value={searchQuery}
-                    onChange={handleSearchChange}
-                    onKeyDown={handleSearchKeyPress}
-                  />
+            <Popover 
+              open={isSearchPopoverOpen && isAuthenticated && recentSearches.length > 0} 
+              onOpenChange={setIsSearchPopoverOpen}
+            >
+              <PopoverTrigger asChild>
+                <form onSubmit={handleSearchSubmit}>
+                  <div className="relative flex">
+                    <div className="relative flex-grow">
+                      <Search className="absolute left-3 top-2.5 h-4 w-4 text-gray-400" />
+                      <Input
+                        ref={searchInputRef}
+                        type="text"
+                        placeholder="Search courses..."
+                        className="w-full pl-10 pr-4 py-2 rounded-r-none"
+                        value={searchQuery}
+                        onChange={handleSearchChange}
+                        onKeyDown={handleSearchKeyPress}
+                        onFocus={() => setIsSearchPopoverOpen(true)}
+                      />
+                    </div>
+                    <Button 
+                      type="submit" 
+                      className="rounded-l-none bg-blue-600 hover:bg-blue-700"
+                    >
+                      <Search className="h-4 w-4 text-white" />
+                    </Button>
+                  </div>
+                </form>
+              </PopoverTrigger>
+              <PopoverContent 
+                className="w-[330px] p-0" 
+                align="start" 
+                sideOffset={4}
+              >
+                <div className="py-2">
+                  <div className="flex items-center px-3 py-2 text-sm font-medium text-gray-600 bg-gray-50">
+                    <History className="h-4 w-4 mr-2" />
+                    <span>Recent Searches</span>
+                  </div>
+                  <div className="max-h-[300px] overflow-y-auto">
+                    {recentSearches.length > 0 ? (
+                      <div className="py-1">
+                        {recentSearches.map((item) => (
+                          <button
+                            key={item.id}
+                            className="flex items-center justify-between w-full px-3 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                            onClick={() => handleRecentSearchClick(item.searchQuery)}
+                          >
+                            <div className="flex items-center">
+                              <Clock className="h-3.5 w-3.5 mr-2 text-gray-400" />
+                              <span>{item.searchQuery}</span>
+                            </div>
+                            <span className="text-xs text-gray-400">
+                              {formatDate(item.createdAt)}
+                            </span>
+                          </button>
+                        ))}
+                      </div>
+                    ) : (
+                      <div className="px-3 py-2 text-sm text-gray-500 text-center">
+                        No recent searches
+                      </div>
+                    )}
+                  </div>
                 </div>
-                <Button 
-                  type="submit" 
-                  className="rounded-l-none bg-blue-600 hover:bg-blue-700"
-                >
-                  <Search className="h-4 w-4 text-white" />
-                </Button>
-              </div>
-            </form>
+              </PopoverContent>
+            </Popover>
           </div>
 
           {/* Navigation */}
@@ -289,6 +411,35 @@ export default function Header() {
               </Button>
             </div>
           </form>
+          
+          {/* Mobile Recent Searches (if authenticated and has search history) */}
+          {isAuthenticated && recentSearches.length > 0 && (
+            <div className="mt-2 bg-white rounded-md shadow-sm border">
+              <div className="flex items-center px-3 py-2 text-sm font-medium text-gray-600 bg-gray-50 rounded-t-md">
+                <History className="h-4 w-4 mr-2" />
+                <span>Recent Searches</span>
+              </div>
+              <div className="max-h-[200px] overflow-y-auto">
+                <div className="py-1">
+                  {recentSearches.slice(0, 3).map((item) => (
+                    <button
+                      key={item.id}
+                      className="flex items-center justify-between w-full px-3 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                      onClick={() => handleRecentSearchClick(item.searchQuery)}
+                    >
+                      <div className="flex items-center">
+                        <Clock className="h-3.5 w-3.5 mr-2 text-gray-400" />
+                        <span>{item.searchQuery}</span>
+                      </div>
+                      <span className="text-xs text-gray-400">
+                        {formatDate(item.createdAt)}
+                      </span>
+                    </button>
+                  ))}
+                </div>
+              </div>
+            </div>
+          )}
         </div>
       </div>
     </header>
