@@ -97,7 +97,7 @@ export default function CourseCard({ course, bookmarked = false, onBookmarkChang
 
   return (
     <Card 
-      className="course-card overflow-hidden h-full flex flex-col transition-all duration-300 hover:shadow-md hover:-translate-y-1"
+      className={`course-card overflow-hidden h-full flex flex-col transition-all duration-300 hover:shadow-md hover:-translate-y-1 ${isBookmarked ? 'ring-2 ring-accent-500 ring-opacity-50' : ''}`}
       onClick={handleCardClick}
     >
       <div className="relative">
@@ -108,8 +108,11 @@ export default function CourseCard({ course, bookmarked = false, onBookmarkChang
         />
         <Button
           size="icon"
-          variant="ghost"
-          className="absolute top-2 right-2 bg-white rounded-full h-8 w-8 shadow-md transition-transform duration-300 hover:scale-110"
+          variant={isBookmarked ? "secondary" : "ghost"}
+          className={`absolute top-2 right-2 rounded-full h-8 w-8 shadow-md transition-all duration-300 hover:scale-110 
+                    ${isBookmarked 
+                      ? 'bg-accent-100 border-accent-300 hover:bg-accent-200' 
+                      : 'bg-white hover:bg-gray-100'}`}
           onClick={handleBookmarkToggle}
           disabled={isPending}
         >

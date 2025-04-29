@@ -449,8 +449,8 @@ export default function CourseDetail() {
                 
                 <div className="flex gap-2">
                   <Button
-                    variant="outline"
-                    className="flex-1"
+                    variant={isBookmarked ? "secondary" : "outline"}
+                    className={`flex-1 ${isBookmarked ? 'bg-accent-100 text-accent-700 border-accent-300 hover:bg-accent-200' : ''}`}
                     onClick={handleBookmarkToggle}
                     disabled={isBookmarking}
                   >
