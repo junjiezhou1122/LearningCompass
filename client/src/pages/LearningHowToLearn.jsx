@@ -423,8 +423,8 @@ export default function LearningHowToLearn() {
                     variant={activeTab === item.id ? "default" : "ghost"}
                     className={`w-full justify-start ${
                       activeTab === item.id 
-                        ? "bg-primary-600 text-white hover:bg-primary-700" 
-                        : "text-gray-600 hover:text-primary-600"
+                        ? "bg-primary-600 text-white hover:bg-primary-700 hover:text-white" 
+                        : "text-gray-600 hover:bg-primary-600 hover:text-white hover:bg-primary-600"
                     }`}
                     onClick={() => setActiveTab(item.id)}
                   >
