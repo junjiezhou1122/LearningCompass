@@ -184,7 +184,7 @@ export default function Header() {
           <Button 
             variant="ghost" 
             className="p-0 h-auto hover:bg-transparent" 
-            onClick={() => navigate("/")}
+            onClick={() => navigate("/learning-how-to-learn")}
           >
             <div className="flex items-center">
               <Brain className="text-primary-600 h-6 w-6 mr-2" />
@@ -283,9 +283,9 @@ export default function Header() {
               <Button 
                 variant="ghost" 
                 className="text-gray-700 hover:text-primary-600 font-medium mr-6"
-                onClick={() => navigate('/learning-how-to-learn')}
+                onClick={() => navigate('/')}
               >
-                Learning How to Learn
+                ResourcesHub
               </Button>
               
               {isAuthenticated ? (
@@ -401,7 +401,7 @@ export default function Header() {
                         className="w-full justify-start text-gray-700 hover:text-primary-600 py-2 h-auto font-normal"
                         onClick={() => navigate("/")}
                       >
-                        Home
+                        ResourcesHub
                       </Button>
                       <Button
                         variant="ghost"
