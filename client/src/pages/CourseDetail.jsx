@@ -481,12 +481,12 @@ export default function CourseDetail() {
               {/* Action Buttons */}
               <div className="pt-2">
                 <Button
-                  className="w-full mb-3 bg-primary-600 hover:bg-primary-700 text-white shadow-md font-medium border-primary-700"
+                  className="w-full mb-3 bg-primary-600 hover:bg-primary-700 text-white shadow-md font-medium"
                   size="lg"
                   onClick={() => window.open(course.url, '_blank')}
                 >
-                  <ExternalLink className="h-4 w-4 mr-2" />
-                  <span>Go to Course</span>
+                  <ExternalLink className="h-4 w-4 mr-2 text-white" />
+                  <span className="text-white font-medium">Go to Course</span>
                 </Button>
                 
                 <div className="flex gap-2">
@@ -494,8 +494,8 @@ export default function CourseDetail() {
                     variant={isBookmarked ? "default" : "outline"}
                     className={`flex-1 font-medium ${
                       isBookmarked 
-                        ? 'bg-primary-600 hover:bg-primary-700 text-white shadow-md border-primary-700' 
-                        : 'border-gray-300 hover:bg-gray-50 text-gray-700'
+                        ? 'bg-primary-600 hover:bg-primary-700 shadow-md border-0' 
+                        : 'border border-gray-300 hover:bg-gray-50 text-gray-700'
                     }`}
                     onClick={handleBookmarkToggle}
                     disabled={isBookmarking}
@@ -509,7 +509,7 @@ export default function CourseDetail() {
                         }`}
                       />
                     )}
-                    <span className={isBookmarked ? "text-white" : "text-gray-700"}>
+                    <span className={isBookmarked ? "text-white font-medium" : "text-gray-700"}>
                       {isBookmarked ? "Bookmarked" : "Bookmark"}
                     </span>
                   </Button>
