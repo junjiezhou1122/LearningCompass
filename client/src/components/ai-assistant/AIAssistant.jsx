@@ -432,8 +432,11 @@ const AIAssistant = () => {
           <TabsTrigger value="chat" className="flex items-center justify-center data-[state=active]:bg-white data-[state=active]:text-orange-700 data-[state=active]:shadow-sm">
             <Bot className="mr-2 h-4 w-4" /> Chat
           </TabsTrigger>
-          <TabsTrigger value="saved" className="flex items-center justify-center data-[state=active]:bg-white data-[state=active]:text-orange-700 data-[state=active]:shadow-sm"
-            onClick={(e) => {
+          <TabsTrigger 
+            value="saved" 
+            className="flex items-center justify-center data-[state=active]:bg-white data-[state=active]:text-orange-700 data-[state=active]:shadow-sm"
+            onPointerDown={(e) => {
+              // Use onPointerDown instead of onClick to avoid needing double-click
               e.preventDefault();
               setShowConversations(true);
               // Don't change the active tab
