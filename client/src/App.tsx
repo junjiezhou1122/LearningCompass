@@ -10,6 +10,7 @@ import CourseDetail from "@/pages/CourseDetail";
 import Bookmarks from "@/pages/Bookmarks";
 import Profile from "@/pages/Profile";
 import LearningHowToLearn from "@/pages/LearningHowToLearn";
+import Share from "@/pages/Share";
 import Header from "@/components/Header";
 import Footer from "@/components/Footer";
 import LearningHeader from "@/components/LearningHeader";
@@ -17,7 +18,7 @@ import LearningFooter from "@/components/LearningFooter";
 
 function Router() {
   const [location] = useLocation();
-  const isLearningPage = location === "/learning-how-to-learn";
+  const isLearningPage = location === "/learning-how-to-learn" || location === "/share";
   
   return (
     <div className="min-h-screen flex flex-col">
@@ -29,6 +30,7 @@ function Router() {
           <Route path="/bookmarks" component={Bookmarks} />
           <Route path="/profile" component={Profile} />
           <Route path="/learning-how-to-learn" component={LearningHowToLearn} />
+          <Route path="/share" component={Share} />
           <Route component={NotFound} />
         </Switch>
       </main>

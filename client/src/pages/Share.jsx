@@ -1,31 +1,37 @@
 import React, { useState } from 'react';
 import { useLocation } from 'wouter';
 import { useAuth } from '@/contexts/AuthContext';
+import { Button } from '@/components/ui/button';
 import { 
-  Button, 
   Card, 
   CardContent, 
   CardDescription, 
   CardFooter, 
   CardHeader, 
-  CardTitle,
-  Textarea,
-  Input,
+  CardTitle 
+} from '@/components/ui/card';
+import { Textarea } from '@/components/ui/textarea';
+import { Input } from '@/components/ui/input';
+import { 
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
-  SelectValue,
-  Separator,
+  SelectValue 
+} from '@/components/ui/select';
+import { Separator } from '@/components/ui/separator';
+import { 
   Tabs,
   TabsContent,
   TabsList,
-  TabsTrigger,
-  Badge,
+  TabsTrigger 
+} from '@/components/ui/tabs';
+import { Badge } from '@/components/ui/badge';
+import { 
   Avatar,
   AvatarFallback,
-  AvatarImage
-} from '@/components/ui';
+  AvatarImage 
+} from '@/components/ui/avatar';
 import { 
   Heart, 
   MessageSquare, 
@@ -103,7 +109,7 @@ const initialComments = {
         name: 'Chris Smith',
         avatar: null,
       },
-      content: 'I've found that modifying the traditional Pomodoro to 35 minute work and 10 minute rest periods works better for me. Have you tried any variations?',
+      content: "I've found that modifying the traditional Pomodoro to 35 minute work and 10 minute rest periods works better for me. Have you tried any variations?",
       timestamp: '1 hour ago',
     },
     {
@@ -125,7 +131,7 @@ const initialComments = {
         name: 'Jamie Wilson',
         avatar: null,
       },
-      content: 'This is exactly what I needed! I've been trying to memorize vocabulary for my language studies and traditional flashcards weren't cutting it.',
+      content: "This is exactly what I needed! I've been trying to memorize vocabulary for my language studies and traditional flashcards weren't cutting it.",
       timestamp: '12 hours ago',
     }
   ],
