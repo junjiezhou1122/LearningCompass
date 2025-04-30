@@ -21,11 +21,11 @@ import LearningFooter from "@/components/LearningFooter";
 function Router() {
   const [location] = useLocation();
   const isCoursesPage = location === "/courses" || location === "/course" || location.startsWith("/course/");
-  // We've flipped the logic - now the learning pages are the default, and courses is a special case
+  const useLearningHeader = !isCoursesPage || location.startsWith("/users/");
   
   return (
     <div className="min-h-screen flex flex-col">
-      {isCoursesPage ? <Header /> : <LearningHeader />}
+      {useLearningHeader ? <LearningHeader /> : <Header />}
       <main className="flex-grow">
         <Switch>
           <Route path="/" component={LearningHowToLearn} />
