@@ -149,19 +149,25 @@ export default function Share() {
     setCommentCounts(commentCountsObj);
   };
   
-  // Fetch like counts for posts
+  // Fetch like counts for posts - consistent endpoint
   const fetchLikeCounts = async (posts) => {
     for (const post of posts) {
       try {
+        // Use a consistent endpoint for like counts
         const response = await fetch(`/api/learning-posts/${post.id}/like/count`);
         if (response.ok) {
           const data = await response.json();
           // Update the post object directly to ensure it has the latest count
           post.likeCount = data.count || 0;
+          post.likes = data.count || 0; // Set both properties for consistency
         }
       } catch (error) {
         console.error(`Error fetching like count for post ${post.id}:`, error);
-        post.likeCount = 0;
+        // Don't reset to 0 on error to prevent flickering of UI
+        if (!post.likeCount && !post.likes) {
+          post.likeCount = 0;
+          post.likes = 0;
+        }
       }
     }
   };
@@ -185,14 +191,13 @@ export default function Share() {
         
         if (likeResponse.ok) {
           const likeData = await likeResponse.json();
-          likedObj[post.id] = !!likeData;
+          // Store the liked status (true/false)
+          likedObj[post.id] = likeData.liked === true;
           
-          // Fetch current likes count for the post
-          const likesCountResponse = await fetch(`/api/learning-posts/${post.id}/likes-count`);
-          
-          if (likesCountResponse.ok) {
-            const likesCountData = await likesCountResponse.json();
-            post.likes = likesCountData.count || 0;
+          // Store the like count directly from the like status response
+          if (likeData.count !== undefined) {
+            post.likeCount = likeData.count;
+            post.likes = likeData.count;
           }
         }
         
@@ -205,7 +210,7 @@ export default function Share() {
         
         if (bookmarkResponse.ok) {
           const bookmarkData = await bookmarkResponse.json();
-          bookmarkedObj[post.id] = !!bookmarkData;
+          bookmarkedObj[post.id] = bookmarkData.bookmarked === true;
         }
       } catch (error) {
         console.error(`Error checking status for post ${post.id}:`, error);
@@ -384,14 +389,18 @@ export default function Share() {
       }
       
       const result = await response.json();
+      
+      // The API might return different formats, handle both possibilities
       return { 
         postId, 
-        liked: !likedPosts[postId],
+        // If result.liked is defined, use it directly, otherwise infer from current state
+        liked: result.liked !== undefined ? result.liked : !likedPosts[postId],
         count: result.count || 0 
       };
     },
     onSuccess: (data) => {
       if (data) {
+        // Update liked state
         setLikedPosts(prev => ({
           ...prev,
           [data.postId]: data.liked
@@ -402,7 +411,8 @@ export default function Share() {
           if (post.id === data.postId) {
             return {
               ...post,
-              likes: data.count
+              likes: data.count,
+              likeCount: data.count // Update both properties for consistency
             };
           }
           return post;
@@ -411,12 +421,20 @@ export default function Share() {
         // Update the posts in the cache
         queryClient.setQueryData(['/api/learning-posts'], updatedPosts);
         
+        // Also invalidate the query to ensure fresh data on next fetch
+        setTimeout(() => {
+          queryClient.invalidateQueries({ queryKey: ['/api/learning-posts'] });
+        }, 300);
+        
         toast({
           description: data.liked ? "Post liked" : "Post unliked",
         });
       }
     },
     onError: (error) => {
+      // Also invalidate the query on error to refresh the data
+      queryClient.invalidateQueries({ queryKey: ['/api/learning-posts'] });
+      
       toast({
         title: "Error",
         description: error.message || "Failed to like post. Please try again.",
@@ -455,18 +473,27 @@ export default function Share() {
       }
       
       const result = await response.json();
+      
+      // The API might return different formats, handle both possibilities
       return { 
         postId, 
-        bookmarked: !bookmarkedPosts[postId],
+        // If result.bookmarked is defined, use it directly, otherwise infer from current state
+        bookmarked: result.bookmarked !== undefined ? result.bookmarked : !bookmarkedPosts[postId],
         bookmarkId: result.bookmarkId 
       };
     },
     onSuccess: (data) => {
       if (data) {
+        // Update bookmarked state
         setBookmarkedPosts(prev => ({
           ...prev,
           [data.postId]: data.bookmarked
         }));
+        
+        // Also invalidate the query to ensure fresh data on next fetch
+        setTimeout(() => {
+          queryClient.invalidateQueries({ queryKey: ['/api/learning-posts'] });
+        }, 300);
         
         toast({
           description: data.bookmarked ? "Post saved to bookmarks" : "Post removed from bookmarks",
@@ -474,6 +501,9 @@ export default function Share() {
       }
     },
     onError: (error) => {
+      // Also invalidate the query on error to refresh the data
+      queryClient.invalidateQueries({ queryKey: ['/api/learning-posts'] });
+      
       toast({
         title: "Error",
         description: error.message || "Failed to bookmark post. Please try again.",
