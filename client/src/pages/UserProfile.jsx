@@ -85,11 +85,11 @@ export default function UserProfile() {
     data: isFollowingData,
     isLoading: isFollowingStatusLoading 
   } = useQuery({
-    queryKey: [`/api/users/${userId}/following/${currentUser?.id}`],
+    queryKey: [`/api/users/${userId}/following`],
     enabled: !!userId && !!currentUser && currentUser.id !== parseInt(userId),
   });
   // Extract the actual boolean value from the response
-  const isFollowing = isFollowingData?.isFollowing || false;
+  const isFollowing = isFollowingData?.following || false;
 
   // Follow user mutation
   const followMutation = useMutation({
@@ -112,7 +112,7 @@ export default function UserProfile() {
     onSuccess: () => {
       // Invalidate relevant queries to refresh data
       queryClient.invalidateQueries({ queryKey: [`/api/users/${userId}/followers/count`] });
-      queryClient.invalidateQueries({ queryKey: [`/api/users/${userId}/following/${currentUser?.id}`] });
+      queryClient.invalidateQueries({ queryKey: [`/api/users/${userId}/following`] });
       
       toast({
         title: "Success",
@@ -149,7 +149,7 @@ export default function UserProfile() {
     onSuccess: () => {
       // Invalidate relevant queries to refresh data
       queryClient.invalidateQueries({ queryKey: [`/api/users/${userId}/followers/count`] });
-      queryClient.invalidateQueries({ queryKey: [`/api/users/${userId}/following/${currentUser?.id}`] });
+      queryClient.invalidateQueries({ queryKey: [`/api/users/${userId}/following`] });
       
       toast({
         title: "Success",
@@ -399,8 +399,15 @@ export default function UserProfile() {
 
 // Component to show post like status and count
 function PostLikeStatus({ postId }) {
+  const { isAuthenticated } = useAuth();
   const { data: likeData } = useQuery({
     queryKey: [`/api/learning-posts/${postId}/like`],
+    enabled: !!postId && isAuthenticated,
+  });
+  
+  // Get post likes count separately - this endpoint doesn't require authentication
+  const { data: likesCountData } = useQuery({
+    queryKey: [`/api/learning-posts/${postId}/like/count`],
     enabled: !!postId,
   });
 
@@ -411,7 +418,7 @@ function PostLikeStatus({ postId }) {
         className={likeData?.liked ? "text-red-500" : ""} 
         fill={likeData?.liked ? "currentColor" : "none"} 
       />
-      <span>{likeData?.count || 0}</span>
+      <span>{likesCountData?.count || (likeData?.count || 0)}</span>
     </div>
   );
 }
