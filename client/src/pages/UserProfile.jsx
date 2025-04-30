@@ -170,7 +170,7 @@ export default function UserProfile() {
     data: isFollowingData,
     isLoading: isFollowingStatusLoading 
   } = useQuery({
-    queryKey: [`/api/users/${userId}/following`],
+    queryKey: [`/api/users/${userId}/following/${currentUser?.id}`],
     enabled: !!userId && !!currentUser && currentUser.id !== parseInt(userId),
   });
   // Extract the actual boolean value from the response
@@ -198,9 +198,10 @@ export default function UserProfile() {
       // Invalidate relevant queries to refresh data
       queryClient.invalidateQueries({ queryKey: [`/api/users/${userId}/followers/count`] });
       queryClient.invalidateQueries({ queryKey: [`/api/users/${userId}/following`] });
+      queryClient.invalidateQueries({ queryKey: [`/api/users/${userId}/following/${currentUser?.id}`] });
       
       // Force update the isFollowing state directly
-      queryClient.setQueryData([`/api/users/${userId}/following`], { following: true });
+      queryClient.setQueryData([`/api/users/${userId}/following/${currentUser?.id}`], { following: true });
       
       toast({
         title: "Success",
@@ -240,7 +241,7 @@ export default function UserProfile() {
       queryClient.invalidateQueries({ queryKey: [`/api/users/${userId}/following`] });
       
       // Force update the isFollowing state directly
-      queryClient.setQueryData([`/api/users/${userId}/following`], { following: false });
+      queryClient.setQueryData([`/api/users/${userId}/following/${currentUser?.id}`], { following: false });
       
       toast({
         title: "Success",
