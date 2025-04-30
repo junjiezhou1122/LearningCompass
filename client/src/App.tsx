@@ -12,6 +12,7 @@ import Profile from "@/pages/Profile";
 import LearningHowToLearn from "@/pages/LearningHowToLearn";
 import Share from "@/pages/Share";
 import PostDetail from "@/pages/PostDetail";
+import UserProfile from "./pages/UserProfile";
 import Header from "@/components/Header";
 import Footer from "@/components/Footer";
 import LearningHeader from "@/components/LearningHeader";
@@ -34,6 +35,7 @@ function Router() {
           <Route path="/profile" component={Profile} />
           <Route path="/share" component={Share} />
           <Route path="/post/:id" component={PostDetail} />
+          <Route path="/users/:userId" component={UserProfile} />
           <Route component={NotFound} />
         </Switch>
       </main>

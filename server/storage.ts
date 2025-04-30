@@ -5,7 +5,9 @@ import {
   // Learning post schemas and types
   learningPosts, learningPostComments, learningPostLikes, learningPostBookmarks,
   LearningPost, InsertLearningPost, LearningPostComment, InsertLearningPostComment,
-  LearningPostLike, InsertLearningPostLike, LearningPostBookmark, InsertLearningPostBookmark
+  LearningPostLike, InsertLearningPostLike, LearningPostBookmark, InsertLearningPostBookmark,
+  // User follows schemas and types
+  userFollows, UserFollow, InsertUserFollow
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, and, like, desc, asc, sql, or, inArray, arrayContains } from "drizzle-orm";
@@ -136,6 +138,89 @@ export class DatabaseStorage implements IStorage {
   async createUser(insertUser: InsertUser): Promise<User> {
     const [user] = await db.insert(users).values(insertUser).returning();
     return user;
+  }
+  
+  async getUserPosts(userId: number): Promise<LearningPost[]> {
+    return await db.select().from(learningPosts)
+      .where(eq(learningPosts.userId, userId))
+      .orderBy(desc(learningPosts.createdAt));
+  }
+  
+  async getFollowers(userId: number): Promise<User[]> {
+    const followers = await db.select({
+      user: users
+    })
+    .from(userFollows)
+    .innerJoin(users, eq(userFollows.followerId, users.id))
+    .where(eq(userFollows.followingId, userId));
+    
+    return followers.map(f => f.user);
+  }
+  
+  async getFollowing(userId: number): Promise<User[]> {
+    const following = await db.select({
+      user: users
+    })
+    .from(userFollows)
+    .innerJoin(users, eq(userFollows.followingId, users.id))
+    .where(eq(userFollows.followerId, userId));
+    
+    return following.map(f => f.user);
+  }
+  
+  async getFollowersCount(userId: number): Promise<number> {
+    const result = await db.select({
+      count: sql`count(*)`
+    })
+    .from(userFollows)
+    .where(eq(userFollows.followingId, userId));
+    
+    return Number(result[0]?.count || 0);
+  }
+  
+  async getFollowingCount(userId: number): Promise<number> {
+    const result = await db.select({
+      count: sql`count(*)`
+    })
+    .from(userFollows)
+    .where(eq(userFollows.followerId, userId));
+    
+    return Number(result[0]?.count || 0);
+  }
+  
+  async isFollowing(followerId: number, followingId: number): Promise<boolean> {
+    const [relation] = await db.select()
+      .from(userFollows)
+      .where(and(
+        eq(userFollows.followerId, followerId),
+        eq(userFollows.followingId, followingId)
+      ));
+    
+    return !!relation;
+  }
+  
+  async createFollow(follow: InsertUserFollow): Promise<UserFollow> {
+    // Check if already following
+    const existing = await this.isFollowing(follow.followerId, follow.followingId);
+    if (existing) {
+      throw new Error("Already following this user");
+    }
+    
+    const [result] = await db.insert(userFollows)
+      .values(follow)
+      .returning();
+      
+    return result;
+  }
+  
+  async deleteFollow(followerId: number, followingId: number): Promise<boolean> {
+    const result = await db.delete(userFollows)
+      .where(and(
+        eq(userFollows.followerId, followerId),
+        eq(userFollows.followingId, followingId)
+      ));
+      
+    return result.rowCount > 0;
   }
 
   async getCourse(id: number): Promise<Course | undefined> {

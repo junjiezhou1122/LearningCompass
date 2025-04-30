@@ -1018,7 +1018,15 @@ export default function Share() {
                       <CardHeader className="pb-3 transition-colors duration-300 group-hover:bg-orange-50/50">
                         <div className="flex justify-between items-start">
                           <div className="flex items-start space-x-4">
-                            <Avatar className="border-2 border-orange-100 transition-all duration-300 group-hover:border-orange-300 group-hover:shadow-md">
+                            <Avatar 
+                              className="border-2 border-orange-100 transition-all duration-300 group-hover:border-orange-300 group-hover:shadow-md cursor-pointer"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                if (post.userId) {
+                                  navigate(`/users/${post.userId}`);
+                                }
+                              }}
+                            >
                               <AvatarFallback className="bg-orange-100 text-orange-800 font-semibold transition-colors duration-300 group-hover:bg-orange-200">
                                 {post.user?.username?.charAt(0).toUpperCase() || 'U'}
                               </AvatarFallback>
@@ -1026,7 +1034,17 @@ export default function Share() {
                             <div>
                               <CardTitle className="text-lg transition-colors duration-300 group-hover:text-orange-700">{post.title}</CardTitle>
                               <CardDescription className="flex items-center mt-1">
-                                <span className="font-medium">{post.user?.username || 'Anonymous'}</span>
+                                <span 
+                                  className="font-medium hover:text-orange-600 cursor-pointer"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    if (post.userId) {
+                                      navigate(`/users/${post.userId}`);
+                                    }
+                                  }}
+                                >
+                                  {post.user?.username || 'Anonymous'}
+                                </span>
                                 <span className="inline-block mx-2">•</span>
                                 <Calendar size={14} className="mr-1 opacity-70" />
                                 <span>{new Date(post.createdAt).toLocaleDateString()}</span>
@@ -1186,7 +1204,15 @@ export default function Share() {
                             ) : commentsData[post.id]?.length > 0 ? (
                               commentsData[post.id].map(comment => (
                                 <div key={comment.id} className="flex space-x-3">
-                                  <Avatar className="h-8 w-8">
+                                  <Avatar 
+                                    className="h-8 w-8 cursor-pointer"
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      if (comment.userId) {
+                                        navigate(`/users/${comment.userId}`);
+                                      }
+                                    }}
+                                  >
                                     <AvatarFallback className="text-xs bg-gray-100">
                                       {comment.user?.username?.[0]?.toUpperCase() || 'U'}
                                     </AvatarFallback>
@@ -1194,7 +1220,15 @@ export default function Share() {
                                   <div className="flex-1">
                                     <div className="bg-gray-50 p-3 rounded-lg">
                                       <div className="flex justify-between items-center mb-1">
-                                        <span className="font-medium text-sm">
+                                        <span 
+                                          className="font-medium text-sm hover:text-orange-600 cursor-pointer"
+                                          onClick={(e) => {
+                                            e.stopPropagation();
+                                            if (comment.userId) {
+                                              navigate(`/users/${comment.userId}`);
+                                            }
+                                          }}
+                                        >
                                           {comment.user?.username || 'Anonymous'}
                                         </span>
                                         <div className="flex items-center gap-2">
@@ -1264,7 +1298,15 @@ export default function Share() {
                         {/* Add new comment */}
                         {isAuthenticated && (
                           <div className="flex items-start space-x-3 pt-2">
-                            <Avatar className="h-8 w-8">
+                            <Avatar 
+                              className="h-8 w-8 cursor-pointer"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                if (user?.id) {
+                                  navigate(`/users/${user.id}`);
+                                }
+                              }}
+                            >
                               <AvatarFallback className="text-xs">
                                 {user?.firstName?.[0] || user?.username?.[0] || 'U'}
                               </AvatarFallback>

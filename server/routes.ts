@@ -348,6 +348,205 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.status(500).json({ message: "Error fetching profile" });
     }
   });
+  
+  // Get user by ID for profile view
+  app.get("/api/users/:userId", async (req: Request, res: Response) => {
+    try {
+      const userId = parseInt(req.params.userId);
+      
+      if (isNaN(userId)) {
+        return res.status(400).json({ message: "Invalid user ID" });
+      }
+      
+      const user = await storage.getUser(userId);
+      
+      if (!user) {
+        return res.status(404).json({ message: "User not found" });
+      }
+      
+      // Return user data without password
+      const { password, ...userWithoutPassword } = user;
+      res.json(userWithoutPassword);
+    } catch (error) {
+      console.error("Error fetching user:", error);
+      res.status(500).json({ message: "Error fetching user data" });
+    }
+  });
+  
+  // Get user's posts
+  app.get("/api/users/:userId/posts", async (req: Request, res: Response) => {
+    try {
+      const userId = parseInt(req.params.userId);
+      
+      if (isNaN(userId)) {
+        return res.status(400).json({ message: "Invalid user ID" });
+      }
+      
+      const posts = await storage.getUserPosts(userId);
+      res.json(posts);
+    } catch (error) {
+      console.error("Error fetching user posts:", error);
+      res.status(500).json({ message: "Error fetching user posts" });
+    }
+  });
+  
+  // Get user's followers
+  app.get("/api/users/:userId/followers", async (req: Request, res: Response) => {
+    try {
+      const userId = parseInt(req.params.userId);
+      
+      if (isNaN(userId)) {
+        return res.status(400).json({ message: "Invalid user ID" });
+      }
+      
+      const followers = await storage.getFollowers(userId);
+      
+      // Remove sensitive data
+      const safeFollowers = followers.map(follower => {
+        const { password, ...safeData } = follower;
+        return safeData;
+      });
+      
+      res.json(safeFollowers);
+    } catch (error) {
+      console.error("Error fetching followers:", error);
+      res.status(500).json({ message: "Error fetching followers" });
+    }
+  });
+  
+  // Get user's following
+  app.get("/api/users/:userId/following", async (req: Request, res: Response) => {
+    try {
+      const userId = parseInt(req.params.userId);
+      
+      if (isNaN(userId)) {
+        return res.status(400).json({ message: "Invalid user ID" });
+      }
+      
+      const following = await storage.getFollowing(userId);
+      
+      // Remove sensitive data
+      const safeFollowing = following.map(followedUser => {
+        const { password, ...safeData } = followedUser;
+        return safeData;
+      });
+      
+      res.json(safeFollowing);
+    } catch (error) {
+      console.error("Error fetching following:", error);
+      res.status(500).json({ message: "Error fetching following" });
+    }
+  });
+  
+  // Get user's followers count
+  app.get("/api/users/:userId/followers/count", async (req: Request, res: Response) => {
+    try {
+      const userId = parseInt(req.params.userId);
+      
+      if (isNaN(userId)) {
+        return res.status(400).json({ message: "Invalid user ID" });
+      }
+      
+      const count = await storage.getFollowersCount(userId);
+      res.json({ count });
+    } catch (error) {
+      console.error("Error fetching followers count:", error);
+      res.status(500).json({ message: "Error fetching followers count" });
+    }
+  });
+  
+  // Get user's following count
+  app.get("/api/users/:userId/following/count", async (req: Request, res: Response) => {
+    try {
+      const userId = parseInt(req.params.userId);
+      
+      if (isNaN(userId)) {
+        return res.status(400).json({ message: "Invalid user ID" });
+      }
+      
+      const count = await storage.getFollowingCount(userId);
+      res.json({ count });
+    } catch (error) {
+      console.error("Error fetching following count:", error);
+      res.status(500).json({ message: "Error fetching following count" });
+    }
+  });
+  
+  // Check if current user is following another user
+  app.get("/api/users/:userId/following/:targetId", authenticateJWT, async (req: Request, res: Response) => {
+    try {
+      const userId = (req as any).user.id;
+      const targetId = parseInt(req.params.targetId);
+      
+      if (isNaN(targetId)) {
+        return res.status(400).json({ message: "Invalid target user ID" });
+      }
+      
+      const isFollowing = await storage.isFollowing(userId, targetId);
+      res.json({ following: isFollowing });
+    } catch (error) {
+      console.error("Error checking follow status:", error);
+      res.status(500).json({ message: "Error checking follow status" });
+    }
+  });
+  
+  // Follow a user
+  app.post("/api/users/:userId/follow", authenticateJWT, async (req: Request, res: Response) => {
+    try {
+      const followerId = (req as any).user.id;
+      const followingId = parseInt(req.params.userId);
+      
+      if (isNaN(followingId)) {
+        return res.status(400).json({ message: "Invalid user ID" });
+      }
+      
+      if (followerId === followingId) {
+        return res.status(400).json({ message: "You cannot follow yourself" });
+      }
+      
+      // Check if target user exists
+      const targetUser = await storage.getUser(followingId);
+      if (!targetUser) {
+        return res.status(404).json({ message: "User to follow not found" });
+      }
+      
+      const follow = await storage.createFollow({
+        followerId,
+        followingId
+      });
+      
+      res.status(201).json(follow);
+    } catch (error) {
+      console.error("Error following user:", error);
+      if (error.message === "Already following this user") {
+        return res.status(400).json({ message: error.message });
+      }
+      res.status(500).json({ message: "Error following user" });
+    }
+  });
+  
+  // Unfollow a user
+  app.delete("/api/users/:userId/follow", authenticateJWT, async (req: Request, res: Response) => {
+    try {
+      const followerId = (req as any).user.id;
+      const followingId = parseInt(req.params.userId);
+      
+      if (isNaN(followingId)) {
+        return res.status(400).json({ message: "Invalid user ID" });
+      }
+      
+      const result = await storage.deleteFollow(followerId, followingId);
+      
+      if (!result) {
+        return res.status(404).json({ message: "Follow relationship not found" });
+      }
+      
+      res.status(200).json({ success: true });
+    } catch (error) {
+      console.error("Error unfollowing user:", error);
+      res.status(500).json({ message: "Error unfollowing user" });
+    }
+  });
 
   // Search history routes (protected)
   app.post("/api/search-history", authenticateJWT, async (req: Request, res: Response) => {
