@@ -462,7 +462,7 @@ const AIAssistant = () => {
               <CardHeader className="pb-2">
                 <CardTitle className="text-orange-700 text-lg flex items-center">
                   <HelpCircle className="h-5 w-5 mr-2 text-orange-500" />
-                  Welcome to AI Assistant
+                  {t('chatWithAI')}
                 </CardTitle>
               </CardHeader>
               <CardContent>
@@ -560,7 +560,7 @@ const AIAssistant = () => {
                   value={input}
                   onChange={(e) => setInput(e.target.value)}
                   onKeyDown={handleKeyDown}
-                  placeholder="Ask a question..."
+                  placeholder={t('typeYourMessage')}
                   className="flex-grow rounded-full border-orange-200 focus:border-orange-300 focus:ring-orange-200 shadow-sm input-focus-effect"
                   disabled={(isTyping || !savedApiSettings)}
                 />
@@ -595,7 +595,7 @@ const AIAssistant = () => {
             className="text-gray-500 hover:text-orange-600 mb-2"
             size="sm"
           >
-            <span className="text-xs">← Back to chat</span>
+            <span className="text-xs">← {t('chat')}</span>
           </Button>
           
           <APIConfiguration 
@@ -612,7 +612,7 @@ const AIAssistant = () => {
             <div className="p-4 border-b flex items-center justify-between bg-gradient-to-r from-orange-50 to-amber-50">
               <h3 className="text-lg font-semibold text-orange-700 flex items-center">
                 <BookOpen className="h-5 w-5 mr-2 text-orange-600" />
-                Your Saved Conversations
+                {t('conversations')}
               </h3>
               <Button
                 variant="ghost"
@@ -639,8 +639,8 @@ const AIAssistant = () => {
               {!isLoadingConversations && savedConversations.length === 0 && dbConversations.length === 0 && (
                 <div className="text-center py-8 text-gray-500 flex flex-col items-center">
                   <Bot className="h-12 w-12 text-gray-300 mb-2" />
-                  <p>No saved conversations yet.</p>
-                  <p className="text-sm mt-2">Have a chat and click the save button to store your conversations.</p>
+                  <p>{t('noConversations')}</p>
+                  <p className="text-sm mt-2">{t('startChatting')}</p>
                 </div>
               )}
               
@@ -793,7 +793,7 @@ const AIAssistant = () => {
                 onClick={() => setShowConversations(false)}
                 className="w-full"
               >
-                Close
+                {t('cancel')}
               </Button>
             </div>
           </div>

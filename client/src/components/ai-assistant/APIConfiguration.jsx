@@ -20,8 +20,10 @@ import { Label } from '@/components/ui/label';
 import { Slider } from '@/components/ui/slider';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { HelpCircle, Bot, KeyRound, Save, Globe, Thermometer, Sigma } from 'lucide-react';
+import { useLanguage } from '@/contexts/LanguageContext';
 
 const APIConfiguration = ({ initialSettings, onSave }) => {
+  const { t } = useLanguage();
   const [settings, setSettings] = useState(initialSettings || {
     provider: 'openai',
     apiKey: '',
@@ -80,10 +82,10 @@ const APIConfiguration = ({ initialSettings, onSave }) => {
       <CardHeader className="bg-gradient-to-r from-orange-50 to-amber-50">
         <div className="flex items-center">
           <KeyRound className="h-5 w-5 mr-2 text-orange-600" />
-          <CardTitle className="text-xl text-orange-700">AI Provider Settings</CardTitle>
+          <CardTitle className="text-xl text-orange-700">{t('apiSettings')}</CardTitle>
         </div>
         <CardDescription>
-          Configure your AI provider credentials and preferences
+          {t('provider') === 'Provider' ? 'Configure your AI provider credentials and preferences' : '配置您的AI提供商凭证和首选项'}
         </CardDescription>
       </CardHeader>
       
