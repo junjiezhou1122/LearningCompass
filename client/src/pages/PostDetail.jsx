@@ -432,7 +432,14 @@ export default function PostDetail() {
           <CardHeader className="pb-3 transition-colors duration-300 group-hover:bg-orange-50/50">
             <div className="flex justify-between items-start">
               <div className="flex items-start space-x-4">
-                <Avatar className="h-12 w-12 border-2 border-orange-100 transition-all duration-300 group-hover:border-orange-300 group-hover:shadow-md">
+                <Avatar 
+                  className="h-12 w-12 border-2 border-orange-100 transition-all duration-300 group-hover:border-orange-300 group-hover:shadow-md cursor-pointer"
+                  onClick={() => {
+                    if (post.userId) {
+                      navigate(`/users/${post.userId}`);
+                    }
+                  }}
+                >
                   <AvatarFallback className="bg-orange-100 text-orange-800 text-lg font-semibold transition-colors duration-300 group-hover:bg-orange-200">
                     {post.user?.username?.charAt(0).toUpperCase() || 'U'}
                   </AvatarFallback>
@@ -440,7 +447,16 @@ export default function PostDetail() {
                 <div>
                   <CardTitle className="text-2xl font-bold transition-colors duration-300 group-hover:text-orange-700">{post.title}</CardTitle>
                   <CardDescription className="flex flex-wrap items-center mt-1 gap-x-2">
-                    <span className="font-medium">{post.user?.username || 'Anonymous'}</span>
+                    <span 
+                      className="font-medium hover:text-orange-600 cursor-pointer"
+                      onClick={() => {
+                        if (post.userId) {
+                          navigate(`/users/${post.userId}`);
+                        }
+                      }}
+                    >
+                      {post.user?.username || 'Anonymous'}
+                    </span>
                     <span className="inline-block mx-1">•</span>
                     <div className="flex items-center">
                       <Calendar size={14} className="mr-1 text-orange-400" />
@@ -569,7 +585,14 @@ export default function PostDetail() {
           
           {isAuthenticated ? (
             <div className="mb-6 flex space-x-3 group">
-              <Avatar className="h-10 w-10 mt-1 hidden sm:block border-2 border-orange-100 group-focus-within:border-orange-300 transition-colors duration-300">
+              <Avatar 
+                className="h-10 w-10 mt-1 hidden sm:block border-2 border-orange-100 group-focus-within:border-orange-300 transition-colors duration-300 cursor-pointer"
+                onClick={() => {
+                  if (user?.id) {
+                    navigate(`/users/${user.id}`);
+                  }
+                }}
+              >
                 <AvatarFallback className="bg-orange-100 text-orange-800 group-focus-within:bg-orange-200 transition-colors duration-300">
                   {user?.username?.charAt(0).toUpperCase() || 'U'}
                 </AvatarFallback>
@@ -618,13 +641,29 @@ export default function PostDetail() {
                 <div key={comment.id} className="p-4 border border-gray-100 rounded-lg hover:border-orange-200 transition-all duration-300 hover:shadow-sm group">
                   <div className="flex justify-between">
                     <div className="flex items-center mb-2">
-                      <Avatar className="h-8 w-8 mr-2 border border-orange-100 group-hover:border-orange-300 transition-all duration-300">
+                      <Avatar 
+                        className="h-8 w-8 mr-2 border border-orange-100 group-hover:border-orange-300 transition-all duration-300 cursor-pointer"
+                        onClick={() => {
+                          if (comment.userId) {
+                            navigate(`/users/${comment.userId}`);
+                          }
+                        }}
+                      >
                         <AvatarFallback className="bg-gray-100 text-gray-800 group-hover:bg-orange-100 transition-colors duration-300">
                           {comment.user?.username?.charAt(0).toUpperCase() || 'U'}
                         </AvatarFallback>
                       </Avatar>
                       <div>
-                        <p className="font-medium group-hover:text-orange-700 transition-colors duration-300">{comment.user?.username || 'Anonymous'}</p>
+                        <p 
+                          className="font-medium group-hover:text-orange-700 transition-colors duration-300 hover:text-orange-600 cursor-pointer"
+                          onClick={() => {
+                            if (comment.userId) {
+                              navigate(`/users/${comment.userId}`);
+                            }
+                          }}
+                        >
+                          {comment.user?.username || 'Anonymous'}
+                        </p>
                         <p className="text-xs text-gray-500 flex items-center gap-1">
                           <Calendar size={10} className="inline text-orange-400 opacity-75" />
                           {new Date(comment.createdAt).toLocaleDateString()} at {new Date(comment.createdAt).toLocaleTimeString()}
