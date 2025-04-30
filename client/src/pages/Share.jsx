@@ -104,10 +104,14 @@ export default function Share() {
         if (response.ok) {
           const comments = await response.json();
           commentCountsObj[post.id] = comments.length;
+          
+          // Update the post object directly to ensure it has the latest count
+          post.comments = comments.length;
         }
       } catch (error) {
         console.error(`Error fetching comments for post ${post.id}:`, error);
         commentCountsObj[post.id] = 0;
+        post.comments = 0;
       }
     }
     
@@ -134,6 +138,14 @@ export default function Share() {
         if (likeResponse.ok) {
           const likeData = await likeResponse.json();
           likedObj[post.id] = !!likeData;
+          
+          // Fetch current likes count for the post
+          const likesCountResponse = await fetch(`/api/learning-posts/${post.id}/likes-count`);
+          
+          if (likesCountResponse.ok) {
+            const likesCountData = await likesCountResponse.json();
+            post.likes = likesCountData.count || 0;
+          }
         }
         
         // Check bookmarks
@@ -244,9 +256,33 @@ export default function Share() {
       
       return await response.json();
     },
-    onSuccess: (_, variables) => {
+    onSuccess: (data, variables) => {
+      // Invalidate the comments query for this post
       queryClient.invalidateQueries({ queryKey: ['/api/learning-posts', variables.postId, 'comments'] });
+      
+      // Update the comment count in our local state
+      setCommentCounts(prev => ({
+        ...prev,
+        [variables.postId]: (prev[variables.postId] || 0) + 1
+      }));
+      
+      // Update the comment count in the post itself
+      const updatedPosts = posts.map(post => {
+        if (post.id === variables.postId) {
+          return {
+            ...post,
+            comments: (post.comments || 0) + 1
+          };
+        }
+        return post;
+      });
+      
+      // Update the posts in the cache
+      queryClient.setQueryData(['/api/learning-posts'], updatedPosts);
+      
+      // Reset the new comment field
       setNewComment('');
+      
       toast({
         description: "Comment added successfully",
       });
@@ -289,7 +325,12 @@ export default function Share() {
         throw new Error(errorData.message || 'Failed to like post');
       }
       
-      return { postId, liked: !likedPosts[postId] };
+      const result = await response.json();
+      return { 
+        postId, 
+        liked: !likedPosts[postId],
+        count: result.count || 0 
+      };
     },
     onSuccess: (data) => {
       if (data) {
@@ -298,7 +339,19 @@ export default function Share() {
           [data.postId]: data.liked
         }));
         
-        queryClient.invalidateQueries({ queryKey: ['/api/learning-posts'] });
+        // Update the likes count directly in the current posts data
+        const updatedPosts = posts.map(post => {
+          if (post.id === data.postId) {
+            return {
+              ...post,
+              likes: data.count
+            };
+          }
+          return post;
+        });
+        
+        // Update the posts in the cache
+        queryClient.setQueryData(['/api/learning-posts'], updatedPosts);
         
         toast({
           description: data.liked ? "Post liked" : "Post unliked",
@@ -343,7 +396,12 @@ export default function Share() {
         throw new Error(errorData.message || 'Failed to bookmark post');
       }
       
-      return { postId, bookmarked: !bookmarkedPosts[postId] };
+      const result = await response.json();
+      return { 
+        postId, 
+        bookmarked: !bookmarkedPosts[postId],
+        bookmarkId: result.bookmarkId 
+      };
     },
     onSuccess: (data) => {
       if (data) {
@@ -361,6 +419,52 @@ export default function Share() {
       toast({
         title: "Error",
         description: error.message || "Failed to bookmark post. Please try again.",
+        variant: "destructive",
+      });
+    }
+  });
+  
+  // Mutation for deleting a post
+  const deletePostMutation = useMutation({
+    mutationFn: async (postId) => {
+      if (!isAuthenticated) {
+        toast({
+          title: "Authentication Required",
+          description: "Please sign in to delete posts",
+          variant: "destructive",
+        });
+        return;
+      }
+      
+      // Get auth token from localStorage
+      const token = localStorage.getItem('token');
+      
+      const response = await fetch(`/api/learning-posts/${postId}`, {
+        method: 'DELETE',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+      });
+      
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || 'Failed to delete post');
+      }
+      
+      return { postId };
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/learning-posts'] });
+      
+      toast({
+        description: "Post deleted successfully",
+      });
+    },
+    onError: (error) => {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to delete post. Please try again.",
         variant: "destructive",
       });
     }
@@ -626,14 +730,30 @@ export default function Share() {
                             </CardDescription>
                           </div>
                         </div>
-                        <Badge variant={post.type === 'thought' ? 'secondary' : 'outline'}>
-                          {post.type === 'thought' ? (
-                            <Lightbulb size={14} className="mr-1 text-amber-500" />
-                          ) : (
-                            <BookOpen size={14} className="mr-1 text-blue-500" />
+                        <div className="flex items-start space-x-2">
+                          {isAuthenticated && user?.id === post.userId && (
+                            <Button 
+                              variant="ghost" 
+                              size="sm"
+                              className="h-8 w-8 p-0 rounded-full text-gray-400 hover:text-red-500 hover:bg-gray-100"
+                              onClick={() => {
+                                if (window.confirm("Are you sure you want to delete this post? This action cannot be undone.")) {
+                                  deletePostMutation.mutate(post.id);
+                                }
+                              }}
+                            >
+                              <Trash size={16} />
+                            </Button>
                           )}
-                          {post.type === 'thought' ? 'Thought' : 'Resource'}
-                        </Badge>
+                          <Badge variant={post.type === 'thought' ? 'secondary' : 'outline'}>
+                            {post.type === 'thought' ? (
+                              <Lightbulb size={14} className="mr-1 text-amber-500" />
+                            ) : (
+                              <BookOpen size={14} className="mr-1 text-blue-500" />
+                            )}
+                            {post.type === 'thought' ? 'Thought' : 'Resource'}
+                          </Badge>
+                        </div>
                       </div>
                     </CardHeader>
                     <CardContent>
