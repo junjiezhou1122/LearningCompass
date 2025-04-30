@@ -129,9 +129,20 @@ export default function Share() {
     }
   });
   
-  // Fetch comments data once at the component level
-  const { data: commentsData = {} } = useQuery({
-    queryKey: ['/api/learning-post-comments'],
+  // Fetch comments for the expanded post
+  const { data: commentsData = {}, isLoading: isCommentsLoading } = useQuery({
+    queryKey: ['/api/learning-posts', expandedPostId, 'comments'],
+    queryFn: async () => {
+      if (!expandedPostId) return {};
+      
+      const response = await fetch(`/api/learning-posts/${expandedPostId}/comments`);
+      if (!response.ok) {
+        throw new Error('Failed to fetch comments');
+      }
+      
+      const comments = await response.json();
+      return { [expandedPostId]: comments };
+    },
     enabled: expandedPostId !== null,
     staleTime: 1000 * 60, // 1 minute
   });
@@ -159,7 +170,7 @@ export default function Share() {
       return await response.json();
     },
     onSuccess: (_, variables) => {
-      queryClient.invalidateQueries({ queryKey: [`/api/learning-posts/${variables.postId}/comments`] });
+      queryClient.invalidateQueries({ queryKey: ['/api/learning-posts', variables.postId, 'comments'] });
       setNewComment('');
       toast({
         description: "Comment added successfully",
@@ -572,38 +583,42 @@ export default function Share() {
                       </CardHeader>
                       <CardContent className="space-y-4">
                         {/* Comment fetching logic now handled at component level */}
-                        {expandedPostId === post.id && commentsData[post.id] ? (
-                          commentsData[post.id].length > 0 ? (
-                            commentsData[post.id].map(comment => (
-                              <div key={comment.id} className="flex space-x-3">
-                                <Avatar className="h-8 w-8">
-                                  <AvatarFallback className="text-xs bg-gray-100">
-                                    {comment.user?.username?.[0]?.toUpperCase() || 'U'}
-                                  </AvatarFallback>
-                                </Avatar>
-                                <div className="flex-1">
-                                  <div className="bg-gray-50 p-3 rounded-lg">
-                                    <div className="flex justify-between items-center mb-1">
-                                      <span className="font-medium text-sm">
-                                        {comment.user?.username || 'Anonymous'}
-                                      </span>
-                                      <span className="text-xs text-gray-500">
-                                        {new Date(comment.createdAt).toLocaleDateString()}
-                                      </span>
+                        {expandedPostId === post.id && (
+                          <>
+                            {isCommentsLoading ? (
+                              <div className="flex justify-center py-4">
+                                <p className="text-center text-gray-500 text-sm">Loading comments...</p>
+                              </div>
+                            ) : commentsData[post.id]?.length > 0 ? (
+                              commentsData[post.id].map(comment => (
+                                <div key={comment.id} className="flex space-x-3">
+                                  <Avatar className="h-8 w-8">
+                                    <AvatarFallback className="text-xs bg-gray-100">
+                                      {comment.user?.username?.[0]?.toUpperCase() || 'U'}
+                                    </AvatarFallback>
+                                  </Avatar>
+                                  <div className="flex-1">
+                                    <div className="bg-gray-50 p-3 rounded-lg">
+                                      <div className="flex justify-between items-center mb-1">
+                                        <span className="font-medium text-sm">
+                                          {comment.user?.username || 'Anonymous'}
+                                        </span>
+                                        <span className="text-xs text-gray-500">
+                                          {new Date(comment.createdAt).toLocaleDateString()}
+                                        </span>
+                                      </div>
+                                      <p className="text-sm text-gray-700">{comment.content}</p>
                                     </div>
-                                    <p className="text-sm text-gray-700">{comment.content}</p>
                                   </div>
                                 </div>
-                              </div>
-                            ))
-                          ) : (
-                            <p className="text-center text-gray-500 text-sm py-4">
-                              No comments yet. Be the first to comment!
-                            </p>
-                          )
-                        ) : expandedPostId === post.id ? (
-                          <p className="text-center text-gray-500 text-sm py-4">Loading comments...</p>
-                        ) : null}
+                              ))
+                            ) : (
+                              <p className="text-center text-gray-500 text-sm py-4">
+                                No comments yet. Be the first to comment!
+                              </p>
+                            )}
+                          </>
+                        )}
                         
                         {/* Add new comment */}
                         {isAuthenticated && (
