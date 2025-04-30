@@ -594,6 +594,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ message: "Post not found" });
       }
       
+      // Increment view count asynchronously
+      // We don't need to wait for this to complete before sending the response
+      storage.incrementLearningPostViews(id).catch(err => {
+        console.error("Error incrementing view count:", err);
+      });
+      
       // Get user data
       const user = await storage.getUser(post.userId);
       if (!user) {

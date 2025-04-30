@@ -533,6 +533,14 @@ export class DatabaseStorage implements IStorage {
     await db.delete(learningPosts).where(eq(learningPosts.id, id));
     return true;
   }
+  
+  async incrementLearningPostViews(id: number): Promise<void> {
+    await db.update(learningPosts)
+      .set({ 
+        views: sql`${learningPosts.views} + 1` 
+      })
+      .where(eq(learningPosts.id, id));
+  }
 
   // Learning post comment operations
   async getLearningPostComment(id: number): Promise<LearningPostComment | undefined> {
