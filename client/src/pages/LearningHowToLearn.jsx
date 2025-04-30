@@ -22,7 +22,7 @@ const ResourcesHubTab = () => {
           </p>
           <Button 
             onClick={() => navigate('/')} 
-            className="bg-primary-600 hover:bg-primary-700"
+            className="bg-primary-600 bg-gray-50 text-black hover:bg-primary-700"
           >
             Explore ResourcesHub
           </Button>
@@ -385,7 +385,7 @@ export default function LearningHowToLearn() {
           ResourcesHub to discover learning materials tailored to your interests.
         </p>
         <Button
-          className="bg-primary-600 hover:bg-primary-700"
+          className="bg-primary-600 text-black hover:bg-primary-700"
           onClick={() => setActiveTab("resources")}
         >
           <School className="mr-2 h-5 w-5" />
@@ -423,7 +423,7 @@ export default function LearningHowToLearn() {
                     variant={activeTab === item.id ? "default" : "ghost"}
                     className={`w-full justify-start ${
                       activeTab === item.id 
-                        ? "bg-primary-600 text-white hover:bg-primary-700" 
+                        ? "bg-primary-600 text-blue-500 font-semibold hover:bg-primary-700"  
                         : "text-gray-600 hover:text-primary-600"
                     }`}
                     onClick={() => setActiveTab(item.id)}

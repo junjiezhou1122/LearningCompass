@@ -83,11 +83,11 @@ export default function LearningHeader() {
             <div className="md:hidden">
               <Sheet open={mobileMenuOpen} onOpenChange={setMobileMenuOpen}>
                 <SheetTrigger asChild>
-                  <Button variant="ghost" size="icon" className="text-white hover:bg-blue-500">
+                  <Button variant="ghost" size="icon" className="text-white hover:bg-amber-600">
                     <Menu className="h-6 w-6" />
                   </Button>
                 </SheetTrigger>
-                <SheetContent side="right" className="bg-blue-700 text-white border-blue-600">
+                <SheetContent side="right" className="bg-orange-600 text-white border-amber-500">
                   <div className="flex flex-col h-full py-6">
                     <div className="flex justify-between items-center mb-6">
                       <div className="flex items-center">
@@ -96,7 +96,7 @@ export default function LearningHeader() {
                         </div>
                         <span className="text-xl font-bold">Learning</span>
                       </div>
-                      <Button variant="ghost" size="icon" className="text-white hover:bg-blue-600" onClick={() => setMobileMenuOpen(false)}>
+                      <Button variant="ghost" size="icon" className="text-white hover:bg-amber-700" onClick={() => setMobileMenuOpen(false)}>
                         <X className="h-6 w-6" />
                       </Button>
                     </div>
@@ -104,7 +104,7 @@ export default function LearningHeader() {
                     <div className="space-y-4 flex-grow">
                       <Button
                         variant="ghost"
-                        className="w-full justify-start text-white hover:bg-blue-600 py-2 h-auto font-normal"
+                        className="w-full justify-start text-white hover:bg-amber-700 py-2 h-auto font-normal"
                         onClick={() => {
                           navigate("/");
                           setMobileMenuOpen(false);
@@ -115,7 +115,7 @@ export default function LearningHeader() {
                       </Button>
                       <Button
                         variant="ghost"
-                        className="w-full justify-start text-white hover:bg-blue-600 py-2 h-auto font-normal"
+                        className="w-full justify-start text-white hover:bg-amber-700 py-2 h-auto font-normal"
                         onClick={() => {
                           navigate("/learning-how-to-learn");
                           setMobileMenuOpen(false);
@@ -124,10 +124,21 @@ export default function LearningHeader() {
                         <Brain className="h-5 w-5 mr-2" />
                         Learning How to Learn
                       </Button>
+                      <Button
+                        variant="ghost"
+                        className="w-full justify-start text-white hover:bg-amber-700 py-2 h-auto font-normal"
+                        onClick={() => {
+                          navigate("/share");
+                          setMobileMenuOpen(false);
+                        }}
+                      >
+                        <MessageSquare className="h-5 w-5 mr-2" />
+                        Share & Connect
+                      </Button>
                       {isAuthenticated && (
                         <Button
                           variant="ghost"
-                          className="w-full justify-start text-white hover:bg-blue-600 py-2 h-auto font-normal"
+                          className="w-full justify-start text-white hover:bg-amber-700 py-2 h-auto font-normal"
                           onClick={() => {
                             navigate("/profile");
                             setMobileMenuOpen(false);
@@ -141,7 +152,7 @@ export default function LearningHeader() {
 
                     <div className="mt-auto">
                       {isAuthenticated ? (
-                        <Button onClick={handleLogout} variant="outline" className="w-full justify-start text-white border-white hover:bg-blue-600">
+                        <Button onClick={handleLogout} variant="outline" className="w-full justify-start text-white border-white hover:bg-amber-700">
                           <LogOut className="mr-2 h-4 w-4" />
                           Sign Out
                         </Button>

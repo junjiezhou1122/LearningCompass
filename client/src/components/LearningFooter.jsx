@@ -14,44 +14,44 @@ export default function LearningFooter() {
           <div className="md:col-span-2">
             <div className="flex items-center mb-4">
               <div className="bg-white rounded-full p-1 mr-2">
-                <Brain className="text-blue-600 h-5 w-5" />
+                <Brain className="text-orange-600 h-5 w-5" />
               </div>
               <h3 className="text-xl font-bold">Learning How to Learn</h3>
             </div>
-            <p className="text-blue-100 mb-6">
+            <p className="text-amber-100 mb-6">
               Master the art and science of effective learning with research-backed techniques, 
               tools, and resources that will transform your learning capabilities.
             </p>
             <div className="flex space-x-3">
-              <Button variant="outline" size="icon" className="rounded-full border-blue-300 text-black hover:bg-blue-600 hover:text-white">
+              <Button variant="outline" size="icon" className="rounded-full border-amber-300 bg-white text-orange-600 hover:bg-amber-600 hover:text-white">
                 <Twitter className="h-4 w-4" />
               </Button>
-              <Button variant="outline" size="icon" className="rounded-full border-blue-300 text-black hover:bg-blue-600 hover:text-white">
+              <Button variant="outline" size="icon" className="rounded-full border-amber-300 bg-white text-orange-600 hover:bg-amber-600 hover:text-white">
                 <Linkedin className="h-4 w-4" />
               </Button>
-              <Button variant="outline" size="icon" className="rounded-full border-blue-300 text-black hover:bg-blue-600 hover:text-white">
+              <Button variant="outline" size="icon" className="rounded-full border-amber-300 bg-white text-orange-600 hover:bg-amber-600 hover:text-white">
                 <Github className="h-4 w-4" />
               </Button>
             </div>
           </div>
           
           <div>
-            <h4 className="text-lg font-semibold mb-4">Learning Sections</h4>
+            <h4 className="text-lg font-semibold mb-4">Navigation</h4>
             <ul className="space-y-3">
               <li>
                 <Button 
                   variant="link" 
-                  className="p-0 h-auto text-blue-100 hover:text-white"
+                  className="p-0 h-auto text-amber-100 hover:text-white"
                   onClick={() => navigate("/learning-how-to-learn")}
                 >
                   <Brain className="h-4 w-4 mr-2" />
-                  Overview
+                  Learning Platform
                 </Button>
               </li>
               <li>
                 <Button 
                   variant="link" 
-                  className="p-0 h-auto text-blue-100 hover:text-white"
+                  className="p-0 h-auto text-amber-100 hover:text-white"
                   onClick={() => navigate("/")}
                 >
                   <BookOpen className="h-4 w-4 mr-2" />
@@ -61,65 +61,55 @@ export default function LearningFooter() {
               <li>
                 <Button 
                   variant="link" 
-                  className="p-0 h-auto text-blue-100 hover:text-white"
-                  onClick={() => navigate("/learning-how-to-learn")}
+                  className="p-0 h-auto text-amber-100 hover:text-white"
+                  onClick={() => navigate("/share")}
                 >
-                  <Lightbulb className="h-4 w-4 mr-2" />
-                  Learning Techniques
-                </Button>
-              </li>
-              <li>
-                <Button 
-                  variant="link" 
-                  className="p-0 h-auto text-blue-100 hover:text-white"
-                  onClick={() => navigate("/learning-how-to-learn")}
-                >
-                  <Compass className="h-4 w-4 mr-2" />
-                  Learning Tools
+                  <MessageSquare className="h-4 w-4 mr-2" />
+                  Share & Connect
                 </Button>
               </li>
             </ul>
           </div>
           
           <div>
-            <h4 className="text-lg font-semibold mb-4">Resources</h4>
+            <h4 className="text-lg font-semibold mb-4">Community</h4>
             <ul className="space-y-3">
               <li>
-                <Button variant="link" className="p-0 h-auto text-blue-100 hover:text-white">
-                  Free Learning Guides
+                <Button variant="link" className="p-0 h-auto text-amber-100 hover:text-white">
+                  Success Stories
                 </Button>
               </li>
               <li>
-                <Button variant="link" className="p-0 h-auto text-blue-100 hover:text-white">
-                  Cognitive Science Research
+                <Button variant="link" className="p-0 h-auto text-amber-100 hover:text-white">
+                  Learning Groups
                 </Button>
               </li>
               <li>
-                <Button variant="link" className="p-0 h-auto text-blue-100 hover:text-white">
-                  Memory Improvement
+                <Button variant="link" className="p-0 h-auto text-amber-100 hover:text-white">
+                  Events & Workshops
                 </Button>
               </li>
               <li>
-                <Button variant="link" className="p-0 h-auto text-blue-100 hover:text-white">
-                  Study Techniques
+                <Button variant="link" className="p-0 h-auto text-amber-100 hover:text-white">
+                  Join Discussion
                 </Button>
               </li>
             </ul>
           </div>
         </div>
         
-        <Separator className="my-8 bg-blue-600/50" />
+        <Separator className="my-8 bg-amber-600/50" />
         
-        <div className="flex flex-col md:flex-row items-center justify-between text-blue-200 text-sm">
+        <div className="flex flex-col md:flex-row items-center justify-between text-amber-200 text-sm">
           <p>&copy; {new Date().getFullYear()} Learning How to Learn. All rights reserved.</p>
           <div className="flex space-x-6 mt-4 md:mt-0">
-            <Button variant="link" className="p-0 h-auto text-blue-200 hover:text-white">
+            <Button variant="link" className="p-0 h-auto text-amber-200 hover:text-white">
               Privacy Policy
             </Button>
-            <Button variant="link" className="p-0 h-auto text-blue-200 hover:text-white">
+            <Button variant="link" className="p-0 h-auto text-amber-200 hover:text-white">
               Terms of Service
             </Button>
-            <Button variant="link" className="p-0 h-auto text-blue-200 hover:text-white">
+            <Button variant="link" className="p-0 h-auto text-amber-200 hover:text-white">
               Contact Us
             </Button>
           </div>
