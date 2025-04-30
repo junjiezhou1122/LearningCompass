@@ -84,9 +84,10 @@ export default function Share() {
     queryKey: ['/api/learning-posts'],
     staleTime: 1000 * 60, // 1 minute
     onSuccess: (posts) => {
-      // For each post, fetch comment counts
+      // For each post, fetch comment counts and like counts
       if (posts && posts.length > 0) {
         fetchCommentCounts(posts);
+        fetchLikeCounts(posts);
         if (isAuthenticated) {
           checkLikedAndBookmarkedPosts(posts);
         }
@@ -106,16 +107,33 @@ export default function Share() {
           commentCountsObj[post.id] = comments.length;
           
           // Update the post object directly to ensure it has the latest count
-          post.comments = comments.length;
+          post.commentCount = comments.length;
         }
       } catch (error) {
         console.error(`Error fetching comments for post ${post.id}:`, error);
         commentCountsObj[post.id] = 0;
-        post.comments = 0;
+        post.commentCount = 0;
       }
     }
     
     setCommentCounts(commentCountsObj);
+  };
+  
+  // Fetch like counts for posts
+  const fetchLikeCounts = async (posts) => {
+    for (const post of posts) {
+      try {
+        const response = await fetch(`/api/learning-posts/${post.id}/like/count`);
+        if (response.ok) {
+          const data = await response.json();
+          // Update the post object directly to ensure it has the latest count
+          post.likeCount = data.count || 0;
+        }
+      } catch (error) {
+        console.error(`Error fetching like count for post ${post.id}:`, error);
+        post.likeCount = 0;
+      }
+    }
   };
   
   // Check which posts the user has liked and bookmarked
@@ -783,60 +801,78 @@ export default function Share() {
                         ))}
                       </div>
                     </CardContent>
-                    <CardFooter className="border-t pt-4 flex flex-wrap items-center gap-4">
-                      <Button 
-                        variant="ghost" 
-                        size="sm" 
-                        className={`${likedPosts[post.id] ? 'text-red-500' : 'text-gray-500'} hover:text-red-500`}
-                        onClick={() => likePostMutation.mutate(post.id)}
-                      >
-                        <Heart size={18} className="mr-1" fill={likedPosts[post.id] ? 'currentColor' : 'none'} />
-                        {post.likes || 0}
-                      </Button>
-                      <Button 
-                        variant="ghost" 
-                        size="sm" 
-                        className="text-gray-500 hover:text-amber-500"
-                        onClick={() => toggleComments(post.id)}
-                      >
-                        <MessageSquare size={18} className="mr-1" />
-                        {commentCounts[post.id] || 0}
-                      </Button>
-                      <Button 
-                        variant="ghost" 
-                        size="sm" 
-                        className="text-gray-500 hover:text-green-500"
-                        onClick={() => {
-                          if (navigator.share) {
-                            navigator.share({
-                              title: post.title,
-                              text: post.content.substring(0, 100) + '...',
-                              url: window.location.href
-                            }).catch(err => console.error('Share failed:', err));
-                          } else {
-                            navigator.clipboard.writeText(window.location.href);
-                            toast({
-                              description: "Link copied to clipboard"
-                            });
-                          }
-                        }}
-                      >
-                        <Share2 size={18} className="mr-1" />
-                        Share
-                      </Button>
-                      <Button 
-                        variant="ghost" 
-                        size="sm" 
-                        className={`${bookmarkedPosts[post.id] ? 'text-blue-500' : 'text-gray-500'} hover:text-blue-500`}
-                        onClick={() => bookmarkPostMutation.mutate(post.id)}
-                      >
-                        {bookmarkedPosts[post.id] ? (
-                          <Bookmark size={18} className="mr-1" fill="currentColor" />
-                        ) : (
-                          <BookmarkPlus size={18} className="mr-1" />
+                    <CardFooter className="border-t pt-4 flex flex-wrap items-center gap-4 justify-between">
+                      <div className="flex flex-wrap items-center gap-4">
+                        <Button 
+                          variant="ghost" 
+                          size="sm" 
+                          className={`${likedPosts[post.id] ? 'text-red-500' : 'text-gray-500'} hover:text-red-500`}
+                          onClick={() => likePostMutation.mutate(post.id)}
+                        >
+                          <Heart size={18} className="mr-1" fill={likedPosts[post.id] ? 'currentColor' : 'none'} />
+                          {post.likeCount || post.likes || 0}
+                        </Button>
+                        <Button 
+                          variant="ghost" 
+                          size="sm" 
+                          className="text-gray-500 hover:text-amber-500"
+                          onClick={() => toggleComments(post.id)}
+                        >
+                          <MessageSquare size={18} className="mr-1" />
+                          {commentCounts[post.id] || 0}
+                        </Button>
+                        <Button 
+                          variant="ghost" 
+                          size="sm" 
+                          className="text-gray-500 hover:text-green-500"
+                          onClick={() => {
+                            if (navigator.share) {
+                              navigator.share({
+                                title: post.title,
+                                text: post.content.substring(0, 100) + '...',
+                                url: window.location.href
+                              }).catch(err => console.error('Share failed:', err));
+                            } else {
+                              navigator.clipboard.writeText(window.location.href);
+                              toast({
+                                description: "Link copied to clipboard"
+                              });
+                            }
+                          }}
+                        >
+                          <Share2 size={18} className="mr-1" />
+                          Share
+                        </Button>
+                        <Button 
+                          variant="ghost" 
+                          size="sm" 
+                          className={`${bookmarkedPosts[post.id] ? 'text-blue-500' : 'text-gray-500'} hover:text-blue-500`}
+                          onClick={() => bookmarkPostMutation.mutate(post.id)}
+                        >
+                          {bookmarkedPosts[post.id] ? (
+                            <Bookmark size={18} className="mr-1" fill="currentColor" />
+                          ) : (
+                            <BookmarkPlus size={18} className="mr-1" />
+                          )}
+                          Save
+                        </Button>
+                      </div>
+                      <div>
+                        {isAuthenticated && user?.id === post.userId && (
+                          <Button 
+                            variant="ghost" 
+                            size="sm"
+                            className="h-8 w-8 p-0 rounded-full text-gray-400 hover:text-red-500 hover:bg-gray-100"
+                            onClick={() => {
+                              if (window.confirm("Are you sure you want to delete this post? This action cannot be undone.")) {
+                                deletePostMutation.mutate(post.id);
+                              }
+                            }}
+                          >
+                            <Trash size={16} />
+                          </Button>
                         )}
-                        Save
-                      </Button>
+                      </div>
                     </CardFooter>
                   </Card>
                   
