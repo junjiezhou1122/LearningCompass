@@ -210,6 +210,11 @@ export async function handleChatRequest(req: Request, res: Response) {
         if (!body.baseUrl || !body.baseUrl.includes('openrouter.ai')) {
           body.baseUrl = 'https://openrouter.ai/api/v1';
         }
+        // Use environment API key if available (overrides user-provided key)
+        if (process.env.OPENROUTER_API_KEY) {
+          console.log('Using OpenRouter API key from environment');
+          body.apiKey = process.env.OPENROUTER_API_KEY;
+        }
         responseMessage = await handleCustomAPIChat(body);
         break;
       case 'custom':

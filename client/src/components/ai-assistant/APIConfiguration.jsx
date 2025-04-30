@@ -126,20 +126,26 @@ const APIConfiguration = ({ initialSettings, onSave }) => {
               <div className="space-y-2">
                 <Label htmlFor="apiKey" className="flex items-center">
                   API Key
-                  <span className="ml-1 text-orange-600 text-xs bg-orange-50 px-1.5 py-0.5 rounded-full">Required</span>
+                  {settings.provider !== 'openrouter' && (
+                    <span className="ml-1 text-orange-600 text-xs bg-orange-50 px-1.5 py-0.5 rounded-full">Required</span>
+                  )}
+                  {settings.provider === 'openrouter' && (
+                    <span className="ml-1 text-green-600 text-xs bg-green-50 px-1.5 py-0.5 rounded-full">Pre-configured</span>
+                  )}
                 </Label>
                 <Input
                   id="apiKey"
                   type="password"
                   value={settings.apiKey}
                   onChange={(e) => handleChange('apiKey', e.target.value)}
-                  placeholder={`Your ${settings.provider} API key`}
+                  placeholder={settings.provider === 'openrouter' ? 'Using pre-configured API key (optional)' : `Your ${settings.provider} API key`}
                   className="font-mono"
+                  disabled={settings.provider === 'openrouter'}
                 />
                 <p className="text-xs text-gray-500 mt-1">
                   {settings.provider === 'openai' ? 'Get your API key from OpenAI dashboard' : 
                    settings.provider === 'anthropic' ? 'Get your API key from Anthropic console' :
-                   settings.provider === 'openrouter' ? 'Get your API key from OpenRouter dashboard' :
+                   settings.provider === 'openrouter' ? 'OpenRouter is pre-configured with an API key. Just select your model below.' :
                    'Enter the API key for your custom service'}
                 </p>
               </div>
@@ -326,7 +332,7 @@ const APIConfiguration = ({ initialSettings, onSave }) => {
         <Button 
           onClick={handleSave}
           className="bg-gradient-to-r from-orange-500 to-amber-600 text-white hover:from-orange-600 hover:to-amber-700"
-          disabled={!settings.apiKey || (settings.provider === 'custom' && !settings.baseUrl)}
+          disabled={(settings.provider !== 'openrouter' && !settings.apiKey) || (settings.provider === 'custom' && !settings.baseUrl)}
         >
           <Save className="mr-2 h-4 w-4" />
           Save Settings
