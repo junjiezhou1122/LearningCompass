@@ -1,10 +1,27 @@
 import { useState } from 'react';
 import { useLocation } from 'wouter';
-import { School, BookOpen, Compass, Users, Settings, BookMarked, Lightbulb, Brain, GraduationCap, Sparkles } from 'lucide-react';
+import { 
+  School, 
+  BookOpen, 
+  Compass, 
+  Users, 
+  Settings, 
+  BookMarked, 
+  Lightbulb, 
+  Brain, 
+  GraduationCap, 
+  Sparkles, 
+  Send, 
+  CheckCircle,
+  AlertCircle
+} from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Separator } from '@/components/ui/separator';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Input } from '@/components/ui/input';
+import { apiRequest } from '@/lib/queryClient';
+import { useToast } from '@/hooks/use-toast';
 
 // Tab content components
 const ResourcesHubTab = () => {
@@ -299,6 +316,129 @@ const ScientificResearchTab = () => (
   </div>
 );
 
+// Newsletter component
+const Newsletter = () => {
+  const [email, setEmail] = useState("");
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [subscriptionStatus, setSubscriptionStatus] = useState(null); // 'success', 'error', or null
+  const { toast } = useToast();
+
+  const handleSubscribe = async (e) => {
+    e.preventDefault();
+    
+    if (!email) return;
+    
+    setIsSubmitting(true);
+    setSubscriptionStatus(null);
+    
+    try {
+      const response = await apiRequest("POST", "/api/subscribe", { email });
+      
+      // Try to parse the response, but handle gracefully if not JSON
+      let data;
+      let message = "You've been subscribed to our newsletter!";
+      
+      try {
+        const contentType = response.headers.get("content-type");
+        if (contentType && contentType.includes("application/json")) {
+          data = await response.json();
+          if (data?.message) {
+            message = data.message;
+          }
+        } else {
+          // Not JSON, just use default message
+          console.log("Response is not JSON");
+        }
+      } catch (parseError) {
+        console.error("Error parsing response:", parseError);
+      }
+      
+      // Display success message
+      toast({
+        title: "Subscription Successful",
+        description: message,
+      });
+      
+      setSubscriptionStatus("success");
+      setEmail(""); // Clear the input field
+    } catch (error) {
+      console.error("Subscription error:", error);
+      
+      // Display error message
+      toast({
+        title: "Subscription Failed",
+        description: error.message || "There was an error subscribing to the newsletter.",
+        variant: "destructive",
+      });
+      
+      setSubscriptionStatus("error");
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  return (
+    <div className="mt-12 bg-gradient-to-r from-orange-50 to-amber-50 rounded-xl p-8 border border-amber-100">
+      <div className="flex flex-col md:flex-row items-center gap-8">
+        <div className="md:w-2/3">
+          <h2 className="text-2xl font-bold text-orange-600 mb-3">Subscribe to Learning Updates</h2>
+          <p className="text-gray-700 mb-4">
+            Join our newsletter to receive the latest learning science research, new techniques, and exclusive resources 
+            to help you master the art of learning anything effectively.
+          </p>
+          <form onSubmit={handleSubscribe} className="mt-4 space-y-4">
+            <div className="flex max-w-md">
+              <Input 
+                type="email" 
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                placeholder="Your email address" 
+                className="rounded-r-none border-amber-200 focus-visible:ring-amber-400"
+                disabled={isSubmitting}
+                required
+              />
+              <Button 
+                type="submit" 
+                className="rounded-l-none bg-gradient-to-r from-orange-500 to-amber-600 hover:from-orange-600 hover:to-amber-700 transition-all duration-300"
+                disabled={isSubmitting}
+              >
+                {isSubmitting ? (
+                  <div className="h-4 w-4 border-2 border-t-transparent border-white rounded-full animate-spin mr-2"></div>
+                ) : (
+                  <Send className="h-4 w-4 mr-2" />
+                )}
+                Subscribe
+              </Button>
+            </div>
+            
+            {subscriptionStatus === "success" && (
+              <div className="flex items-center text-green-600 text-sm mt-2">
+                <CheckCircle className="h-4 w-4 mr-1" />
+                <span>Successfully subscribed! Look out for learning insights in your inbox.</span>
+              </div>
+            )}
+            
+            {subscriptionStatus === "error" && (
+              <div className="flex items-center text-red-600 text-sm mt-2">
+                <AlertCircle className="h-4 w-4 mr-1" />
+                <span>Subscription failed. Please try again or contact support.</span>
+              </div>
+            )}
+          </form>
+        </div>
+        <div className="md:w-1/3 flex justify-center">
+          <div className="relative">
+            <div className="absolute inset-0 bg-amber-300 rounded-full opacity-20 blur-xl transform scale-150"></div>
+            <div className="relative bg-white p-6 rounded-full shadow-md">
+              <Brain className="h-20 w-20 text-orange-500" />
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
+
 export default function LearningHowToLearn() {
   const [activeTab, setActiveTab] = useState("overview");
   
@@ -423,8 +563,8 @@ export default function LearningHowToLearn() {
                     variant={activeTab === item.id ? "default" : "ghost"}
                     className={`w-full justify-start ${
                       activeTab === item.id 
-                        ? "bg-primary-600 text-blue-500 font-semibold hover:bg-primary-700"  
-                        : "text-gray-600 hover:text-primary-600"
+                        ? "bg-gradient-to-r from-orange-500 to-amber-600 text-white font-semibold hover:from-orange-600 hover:to-amber-700"  
+                        : "text-gray-600 hover:text-amber-600"
                     }`}
                     onClick={() => setActiveTab(item.id)}
                   >
@@ -446,6 +586,9 @@ export default function LearningHowToLearn() {
             {activeTab === "tools" && <ToolsTab />}
             {activeTab === "research" && <ScientificResearchTab />}
           </div>
+          
+          {/* Newsletter Section */}
+          <Newsletter />
         </div>
       </div>
     </div>
