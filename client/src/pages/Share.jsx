@@ -102,16 +102,16 @@ export default function Share() {
     
     for (const post of posts) {
       try {
-        const response = await fetch(`/api/learning-posts/${post.id}/comments`);
+        const response = await fetch(`/api/learning-posts/${post.id}/comments/count`);
         if (response.ok) {
-          const comments = await response.json();
-          commentCountsObj[post.id] = comments.length;
+          const data = await response.json();
+          commentCountsObj[post.id] = data.count;
           
           // Update the post object directly to ensure it has the latest count
-          post.commentCount = comments.length;
+          post.commentCount = data.count;
         }
       } catch (error) {
-        console.error(`Error fetching comments for post ${post.id}:`, error);
+        console.error(`Error fetching comment count for post ${post.id}:`, error);
         commentCountsObj[post.id] = 0;
         post.commentCount = 0;
       }
@@ -275,29 +275,39 @@ export default function Share() {
       
       return await response.json();
     },
-    onSuccess: (data, variables) => {
+    onSuccess: async (data, variables) => {
       // Invalidate the comments query for this post
       queryClient.invalidateQueries({ queryKey: ['/api/learning-posts', variables.postId, 'comments'] });
       
-      // Update the comment count in our local state
-      setCommentCounts(prev => ({
-        ...prev,
-        [variables.postId]: (prev[variables.postId] || 0) + 1
-      }));
-      
-      // Update the comment count in the post itself
-      const updatedPosts = posts.map(post => {
-        if (post.id === variables.postId) {
-          return {
-            ...post,
-            comments: (post.comments || 0) + 1
-          };
+      // Fetch the updated comment count from the server
+      try {
+        const response = await fetch(`/api/learning-posts/${variables.postId}/comments/count`);
+        if (response.ok) {
+          const countData = await response.json();
+          
+          // Update the comment count in our local state
+          setCommentCounts(prev => ({
+            ...prev,
+            [variables.postId]: countData.count
+          }));
+          
+          // Update the comment count in the post itself
+          const updatedPosts = posts.map(post => {
+            if (post.id === variables.postId) {
+              return {
+                ...post,
+                commentCount: countData.count
+              };
+            }
+            return post;
+          });
+          
+          // Update the posts in the cache
+          queryClient.setQueryData(['/api/learning-posts'], updatedPosts);
         }
-        return post;
-      });
-      
-      // Update the posts in the cache
-      queryClient.setQueryData(['/api/learning-posts'], updatedPosts);
+      } catch (error) {
+        console.error('Error fetching updated comment count:', error);
+      }
       
       // Reset the new comment field
       setNewComment('');
@@ -691,19 +701,23 @@ export default function Share() {
                       ))}
                     </div>
                     <div className="flex space-x-2">
-                      <Select value={currentTag} onValueChange={setCurrentTag}>
-                        <SelectTrigger className="flex-1">
-                          <SelectValue placeholder="Select or create a tag" />
-                        </SelectTrigger>
-                        <SelectContent>
+                      <div className="flex-1">
+                        <Input 
+                          value={currentTag}
+                          onChange={(e) => setCurrentTag(e.target.value)}
+                          placeholder="Create or search for a tag" 
+                          list="tag-options"
+                        />
+                        <datalist id="tag-options">
                           {tagOptions
-                            .filter(tag => !newPost.tags.includes(tag))
+                            .filter(tag => !newPost.tags.includes(tag) && 
+                                         tag.toLowerCase().includes(currentTag.toLowerCase()))
                             .map(tag => (
-                              <SelectItem key={tag} value={tag}>{tag}</SelectItem>
+                              <option key={tag} value={tag}>{tag}</option>
                             ))
                           }
-                        </SelectContent>
-                      </Select>
+                        </datalist>
+                      </div>
                       <Button variant="outline" onClick={handleAddTag}>
                         <Tag size={16} className="mr-2" />
                         Add
