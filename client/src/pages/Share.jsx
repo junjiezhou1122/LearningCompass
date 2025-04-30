@@ -274,10 +274,23 @@ export default function Share() {
     });
   };
   
+  // Loading state
+  if (isPostsLoading) {
+    return (
+      <div className="container mx-auto px-4 py-8">
+        <div className="max-w-5xl mx-auto">
+          <div className="flex justify-center items-center py-10">
+            <p>Loading posts...</p>
+          </div>
+        </div>
+      </div>
+    );
+  }
+  
   // Filter posts by type and tag
   const filteredPosts = posts.filter(post => {
     if (activeTab !== 'all' && post.type !== activeTab) return false;
-    if (filterTag && filterTag !== 'all-tags' && !post.tags.includes(filterTag)) return false;
+    if (filterTag && filterTag !== 'all-tags' && Array.isArray(post.tags) && !post.tags.includes(filterTag)) return false;
     return true;
   });
 
@@ -463,15 +476,15 @@ export default function Share() {
                         <div className="flex items-start space-x-4">
                           <Avatar>
                             <AvatarFallback className="bg-orange-100 text-orange-800">
-                              {post.author.name.charAt(0).toUpperCase()}
+                              {post.user?.username?.charAt(0).toUpperCase() || 'U'}
                             </AvatarFallback>
                           </Avatar>
                           <div>
                             <CardTitle className="text-lg">{post.title}</CardTitle>
                             <CardDescription className="flex items-center mt-1">
-                              <span>{post.author.name}</span>
+                              <span>{post.user?.username || 'Anonymous'}</span>
                               <span className="inline-block mx-2">•</span>
-                              <span>{post.timestamp}</span>
+                              <span>{new Date(post.createdAt).toLocaleDateString()}</span>
                             </CardDescription>
                           </div>
                         </div>
@@ -524,7 +537,7 @@ export default function Share() {
                         onClick={() => toggleComments(post.id)}
                       >
                         <MessageSquare size={18} className="mr-1" />
-                        {comments[post.id]?.length || 0}
+                        0
                       </Button>
                       <Button variant="ghost" size="sm" className="text-gray-500 hover:text-green-500">
                         <Share2 size={18} className="mr-1" />
@@ -544,34 +557,47 @@ export default function Share() {
                         <CardTitle className="text-sm text-gray-600">Comments</CardTitle>
                       </CardHeader>
                       <CardContent className="space-y-4">
-                        {comments[post.id]?.length > 0 ? (
-                          comments[post.id].map(comment => (
-                            <div key={comment.id} className="flex space-x-3">
-                              <Avatar className="h-8 w-8">
-                                <AvatarFallback className="text-xs bg-gray-100">
-                                  {comment.author.name.charAt(0).toUpperCase()}
-                                </AvatarFallback>
-                              </Avatar>
-                              <div className="flex-1">
-                                <div className="bg-gray-50 p-3 rounded-lg">
-                                  <div className="flex justify-between items-center mb-1">
-                                    <span className="font-medium text-sm">
-                                      {comment.author.name}
-                                    </span>
-                                    <span className="text-xs text-gray-500">
-                                      {comment.timestamp}
-                                    </span>
+                        {(() => {
+                          if (expandedPostId === post.id) {
+                            const { data: postComments = [], isLoading } = getComments(post.id);
+                            
+                            if (isLoading) {
+                              return <p className="text-center text-gray-500 text-sm py-4">Loading comments...</p>;
+                            }
+                            
+                            if (postComments.length > 0) {
+                              return postComments.map(comment => (
+                                <div key={comment.id} className="flex space-x-3">
+                                  <Avatar className="h-8 w-8">
+                                    <AvatarFallback className="text-xs bg-gray-100">
+                                      {comment.user?.username?.[0]?.toUpperCase() || 'U'}
+                                    </AvatarFallback>
+                                  </Avatar>
+                                  <div className="flex-1">
+                                    <div className="bg-gray-50 p-3 rounded-lg">
+                                      <div className="flex justify-between items-center mb-1">
+                                        <span className="font-medium text-sm">
+                                          {comment.user?.username || 'Anonymous'}
+                                        </span>
+                                        <span className="text-xs text-gray-500">
+                                          {new Date(comment.createdAt).toLocaleDateString()}
+                                        </span>
+                                      </div>
+                                      <p className="text-sm text-gray-700">{comment.content}</p>
+                                    </div>
                                   </div>
-                                  <p className="text-sm text-gray-700">{comment.content}</p>
                                 </div>
-                              </div>
-                            </div>
-                          ))
-                        ) : (
-                          <p className="text-center text-gray-500 text-sm py-4">
-                            No comments yet. Be the first to comment!
-                          </p>
-                        )}
+                              ));
+                            }
+                            
+                            return (
+                              <p className="text-center text-gray-500 text-sm py-4">
+                                No comments yet. Be the first to comment!
+                              </p>
+                            );
+                          }
+                          return null;
+                        })()}
                         
                         {/* Add new comment */}
                         {isAuthenticated && (
