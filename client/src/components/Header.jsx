@@ -215,7 +215,7 @@ export default function Header() {
                     <Input
                       ref={searchInputRef}
                       type="text"
-                      placeholder="Search courses..."
+                      placeholder={t('searchPlaceholder')}
                       className="w-full pl-10 pr-4 py-2 rounded-r-none border-0 focus-visible:ring-amber-400 text-gray-800"
                       value={searchQuery}
                       onChange={handleSearchChange}
@@ -299,7 +299,7 @@ export default function Header() {
                 onClick={() => navigate('/')}
               >
                 <BookOpen className="h-4 w-4 mr-2" />
-                ResourcesHub
+                {t('resourcesHub')}
               </Button>
               
               <Button 
@@ -308,8 +308,11 @@ export default function Header() {
                 onClick={() => navigate('/share')}
               >
                 <MessageSquare className="h-4 w-4 mr-2" />
-                Share & Connect
+                {t('shareConnect')}
               </Button>
+              
+              {/* Language Switcher */}
+              <LanguageSwitcher />
               
               {isAuthenticated ? (
                 <>
@@ -396,7 +399,7 @@ export default function Header() {
                               <Search className="absolute left-3 top-2.5 h-4 w-4 text-gray-500" />
                               <Input
                                 type="text"
-                                placeholder="Search courses..."
+                                placeholder={t('searchPlaceholder')}
                                 className="w-full pl-10 pr-4 py-2 rounded-r-none border-0 focus-visible:ring-amber-400 bg-white text-gray-800"
                                 value={searchQuery}
                                 onChange={handleSearchChange}
@@ -505,7 +508,7 @@ export default function Header() {
                   <Search className="absolute left-3 top-2.5 h-4 w-4 text-gray-500" />
                   <Input
                     type="text"
-                    placeholder="Search courses..."
+                    placeholder={t('searchPlaceholder')}
                     className="w-full pl-10 pr-4 py-2 rounded-r-none border-0 focus-visible:ring-amber-400 text-gray-800"
                     value={searchQuery}
                     onChange={handleSearchChange}

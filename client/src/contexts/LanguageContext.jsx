@@ -1,21 +1,129 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 
-// Available languages
+// Define available languages
 export const LANGUAGES = {
   ENGLISH: 'en',
-  CHINESE: 'zh'
+  CHINESE: 'zh',
 };
 
-// Create the language context
-const LanguageContext = createContext({
-  language: LANGUAGES.ENGLISH,
-  setLanguage: () => {},
-  t: (key) => key // Translation function
-});
+// Define translations
+const translations = {
+  [LANGUAGES.ENGLISH]: {
+    searchPlaceholder: 'Search courses...',
+    resourcesHub: 'ResourcesHub',
+    shareConnect: 'Share & Connect',
+    recentSearches: 'Recent Searches',
+    profile: 'Profile',
+    bookmarks: 'Bookmarks',
+    signOut: 'Sign Out',
+    myAccount: 'My Account',
+    hide: 'Hide',
+    show: 'Show',
+    english: 'English',
+    chinese: 'Chinese',
+    learningHowToLearn: 'Learning How to Learn',
+    // AI Assistant related translations
+    chatWithAI: 'Chat with AI',
+    sendMessage: 'Send Message',
+    typeYourMessage: 'Type your message...',
+    newChat: 'New Chat',
+    history: 'History',
+    apiSettings: 'API Settings',
+    selectModel: 'Select Model',
+    temperature: 'Temperature',
+    maxTokens: 'Max Tokens',
+    provider: 'Provider',
+    openAI: 'OpenAI',
+    anthropic: 'Anthropic',
+    openRouter: 'OpenRouter',
+    apiKey: 'API Key',
+    baseUrl: 'Base URL (Optional)',
+    customModelId: 'Custom Model ID',
+    save: 'Save',
+    cancel: 'Cancel',
+    configure: 'Configure',
+    openAIModels: 'OpenAI Models',
+    anthropicModels: 'Anthropic Models',
+    openRouterModels: 'OpenRouter Models',
+    settings: 'Settings',
+    assistant: 'Assistant',
+    saveConversation: 'Save Conversation',
+    deleteConversation: 'Delete Conversation',
+    conversations: 'Conversations',
+    noConversations: 'No conversations yet',
+    startChatting: 'Start chatting now!',
+    conversationTitle: 'Conversation Title',
+    renameConversation: 'Rename Conversation',
+    loadingModels: 'Loading models...',
+    // Errors
+    errorOccurred: 'An error occurred',
+    pleaseEnterMessage: 'Please enter a message',
+    pleaseEnterAPIKey: 'Please enter an API Key',
+    pleaseSelectProvider: 'Please select a provider',
+    pleaseSelectModel: 'Please select a model',
+  },
+  [LANGUAGES.CHINESE]: {
+    searchPlaceholder: '搜索课程...',
+    resourcesHub: '资源中心',
+    shareConnect: '分享与连接',
+    recentSearches: '最近搜索',
+    profile: '个人资料',
+    bookmarks: '收藏',
+    signOut: '退出登录',
+    myAccount: '我的账户',
+    hide: '隐藏',
+    show: '显示',
+    english: '英语',
+    chinese: '中文',
+    learningHowToLearn: '学习如何学习',
+    // AI Assistant related translations
+    chatWithAI: '与AI聊天',
+    sendMessage: '发送消息',
+    typeYourMessage: '输入您的消息...',
+    newChat: '新对话',
+    history: '历史记录',
+    apiSettings: 'API设置',
+    selectModel: '选择模型',
+    temperature: '温度',
+    maxTokens: '最大令牌数',
+    provider: '提供商',
+    openAI: 'OpenAI',
+    anthropic: 'Anthropic',
+    openRouter: 'OpenRouter',
+    apiKey: 'API密钥',
+    baseUrl: '基础URL（可选）',
+    customModelId: '自定义模型ID',
+    save: '保存',
+    cancel: '取消',
+    configure: '配置',
+    openAIModels: 'OpenAI模型',
+    anthropicModels: 'Anthropic模型',
+    openRouterModels: 'OpenRouter模型',
+    settings: '设置',
+    assistant: '助手',
+    saveConversation: '保存对话',
+    deleteConversation: '删除对话',
+    conversations: '对话列表',
+    noConversations: '暂无对话',
+    startChatting: '立即开始聊天！',
+    conversationTitle: '对话标题',
+    renameConversation: '重命名对话',
+    loadingModels: '加载模型中...',
+    // Errors
+    errorOccurred: '发生错误',
+    pleaseEnterMessage: '请输入消息',
+    pleaseEnterAPIKey: '请输入API密钥',
+    pleaseSelectProvider: '请选择提供商',
+    pleaseSelectModel: '请选择模型',
+  },
+};
+
+// Create the context
+const LanguageContext = createContext();
 
 // Create a provider component
-export const LanguageProvider = ({ children }) => {
-  // Initialize language from localStorage or default to English
+export function LanguageProvider({ children }) {
+  // Get the language from localStorage or default to English
   const [language, setLanguage] = useState(() => {
     const savedLanguage = localStorage.getItem('language');
     return savedLanguage || LANGUAGES.ENGLISH;
@@ -24,161 +132,34 @@ export const LanguageProvider = ({ children }) => {
   // Update localStorage when language changes
   useEffect(() => {
     localStorage.setItem('language', language);
+    // Update document language attribute
+    document.documentElement.lang = language;
   }, [language]);
 
-  // Translations
-  const translations = {
-    [LANGUAGES.ENGLISH]: {
-      // Header
-      'resourcesHub': 'ResourcesHub',
-      'share': 'Share & Connect',
-      'searchPlaceholder': 'Search courses...',
-      'recentSearches': 'Recent Searches',
-      'profile': 'Profile',
-      'bookmarks': 'Bookmarks', 
-      'signOut': 'Sign Out',
-      'myAccount': 'My Account',
-      'signIn': 'Sign In',
-      'register': 'Register',
-      'showRecentSearches': 'Show Recent Searches',
-      'hideRecentSearches': 'Hide Recent Searches',
-      
-      // Footer
-      'aboutUs': 'About Us',
-      'contactUs': 'Contact Us',
-      'privacyPolicy': 'Privacy Policy',
-      'termsOfService': 'Terms of Service',
-      'copyright': '© 2024 Learning How to Learn. All rights reserved.',
-      
-      // Home/LearningHowToLearn
-      'welcomeTitle': 'Welcome to Learning How to Learn',
-      'welcomeSubtitle': 'Discover effective learning techniques and resources',
-      'featuredCourses': 'Featured Courses',
-      'popularCategories': 'Popular Categories',
-      'viewAll': 'View All',
-      'trendingTopics': 'Trending Topics',
-      'latestPosts': 'Latest Posts',
-      
-      // AI Assistant
-      'aiAssistant': 'AI Assistant',
-      'sendMessage': 'Send message',
-      'typeYourMessage': 'Type your message here...',
-      'newChat': 'New Chat',
-      'history': 'History',
-      'settings': 'Settings',
-      'apiConfiguration': 'API Configuration',
-      'apiKey': 'API Key',
-      'provider': 'Provider',
-      'model': 'Model',
-      'temperature': 'Temperature',
-      'maxTokens': 'Max Tokens',
-      'save': 'Save',
-      'cancel': 'Cancel',
-      
-      // General UI
-      'loading': 'Loading...',
-      'noResults': 'No results found',
-      'showMore': 'Show More',
-      'language': 'Language',
-      'english': 'English',
-      'chinese': 'Chinese',
-      'error': 'Error',
-      'success': 'Success',
-    },
-    
-    [LANGUAGES.CHINESE]: {
-      // Header
-      'resourcesHub': '资源中心',
-      'share': '分享与连接',
-      'searchPlaceholder': '搜索课程...',
-      'recentSearches': '最近搜索',
-      'profile': '个人资料',
-      'bookmarks': '收藏', 
-      'signOut': '退出登录',
-      'myAccount': '我的账户',
-      'signIn': '登录',
-      'register': '注册',
-      'showRecentSearches': '显示最近搜索',
-      'hideRecentSearches': '隐藏最近搜索',
-      
-      // Footer
-      'aboutUs': '关于我们',
-      'contactUs': '联系我们',
-      'privacyPolicy': '隐私政策',
-      'termsOfService': '服务条款',
-      'copyright': '© 2024 学习如何学习。保留所有权利。',
-      
-      // Home/LearningHowToLearn
-      'welcomeTitle': '欢迎来到学习如何学习',
-      'welcomeSubtitle': '发现有效的学习技巧和资源',
-      'featuredCourses': '精选课程',
-      'popularCategories': '热门类别',
-      'viewAll': '查看全部',
-      'trendingTopics': '热门话题',
-      'latestPosts': '最新帖子',
-      
-      // AI Assistant
-      'aiAssistant': 'AI 助手',
-      'sendMessage': '发送消息',
-      'typeYourMessage': '在此输入您的消息...',
-      'newChat': '新对话',
-      'history': '历史记录',
-      'settings': '设置',
-      'apiConfiguration': 'API 配置',
-      'apiKey': 'API 密钥',
-      'provider': '提供商',
-      'model': '模型',
-      'temperature': '温度',
-      'maxTokens': '最大令牌数',
-      'save': '保存',
-      'cancel': '取消',
-      
-      // General UI
-      'loading': '加载中...',
-      'noResults': '未找到结果',
-      'showMore': '显示更多',
-      'language': '语言',
-      'english': '英文',
-      'chinese': '中文',
-      'error': '错误',
-      'success': '成功',
-    }
-  };
-
   // Translation function
-  const translate = (key) => {
-    if (!translations[language]) {
-      console.warn(`No translations found for language: ${language}`);
-      return key;
-    }
-    
-    if (!translations[language][key]) {
-      console.warn(`No translation found for key: ${key} in language: ${language}`);
-      return key;
-    }
-    
-    return translations[language][key];
+  const t = (key) => {
+    return translations[language][key] || key;
   };
 
   // Context value
-  const contextValue = {
+  const value = {
     language,
     setLanguage,
-    t: translate // Alias for translate function
+    t,
   };
 
   return (
-    <LanguageContext.Provider value={contextValue}>
+    <LanguageContext.Provider value={value}>
       {children}
     </LanguageContext.Provider>
   );
-};
+}
 
-// Custom hook for using the language context
-export const useLanguage = () => {
+// Custom hook to use the language context
+export function useLanguage() {
   const context = useContext(LanguageContext);
-  if (!context) {
+  if (context === undefined) {
     throw new Error('useLanguage must be used within a LanguageProvider');
   }
   return context;
-};
+}
