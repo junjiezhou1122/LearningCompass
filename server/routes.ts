@@ -11,7 +11,9 @@ import {
   insertLearningPostSchema, insertLearningPostCommentSchema,
   insertLearningPostLikeSchema, insertLearningPostBookmarkSchema,
   // AI conversation schema
-  insertAiConversationSchema
+  insertAiConversationSchema,
+  // Method application schema
+  insertMethodApplicationSchema
 } from "@shared/schema";
 import { z, ZodError } from "zod";
 import { fromZodError } from "zod-validation-error";
@@ -1569,6 +1571,222 @@ export async function registerRoutes(app: Express): Promise<Server> {
       console.error("Error deleting AI conversation:", error);
       res.status(500).json({ 
         message: "Error deleting AI conversation", 
+        error: error instanceof Error ? error.message : String(error)
+      });
+    }
+  });
+
+  // Method Applications Endpoints
+  
+  // Check if a user has applied a method
+  app.get("/api/methods/:methodId/application", authenticateJWT, async (req: Request, res: Response) => {
+    try {
+      const userId = (req as any).user.id;
+      const methodId = parseInt(req.params.methodId);
+      
+      const application = await storage.getMethodApplicationByUserAndMethod(userId, methodId);
+      
+      res.json({
+        applied: !!application,
+        application: application || null
+      });
+    } catch (error) {
+      console.error("Error checking method application:", error);
+      res.status(500).json({ 
+        message: "Failed to check method application",
+        error: error instanceof Error ? error.message : String(error)
+      });
+    }
+  });
+  
+  // Apply a method (create a method application)
+  app.post("/api/methods/:methodId/apply", authenticateJWT, async (req: Request, res: Response) => {
+    try {
+      const userId = (req as any).user.id;
+      const methodId = parseInt(req.params.methodId);
+      
+      // Check if method post exists and is a method type
+      const methodPost = await storage.getLearningPost(methodId);
+      
+      if (!methodPost) {
+        return res.status(404).json({ message: "Method not found" });
+      }
+      
+      if (methodPost.type !== 'method') {
+        return res.status(400).json({ message: "This post is not a method" });
+      }
+      
+      // Check if user already applied this method
+      const existingApplication = await storage.getMethodApplicationByUserAndMethod(userId, methodId);
+      
+      if (existingApplication) {
+        return res.status(400).json({ message: "You have already applied this method" });
+      }
+      
+      // Create new application
+      const applicationData = insertMethodApplicationSchema.parse({
+        methodPostId: methodId,
+        userId,
+        status: 'active',
+        startDate: new Date(),
+        progress: req.body.progress || '{}',
+      });
+      
+      const newApplication = await storage.createMethodApplication(applicationData);
+      
+      res.status(201).json(newApplication);
+    } catch (error) {
+      console.error("Error applying method:", error);
+      res.status(500).json({ 
+        message: "Failed to apply method",
+        error: error instanceof Error ? error.message : String(error)
+      });
+    }
+  });
+  
+  // Get all method applications for a user
+  app.get("/api/methods/applications", authenticateJWT, async (req: Request, res: Response) => {
+    try {
+      const userId = (req as any).user.id;
+      const applications = await storage.getMethodApplicationsByUserId(userId);
+      
+      // For each application, get the related method post
+      const applicationsWithMethodData = await Promise.all(
+        applications.map(async (app) => {
+          const methodPost = await storage.getLearningPost(app.methodPostId);
+          return {
+            ...app,
+            methodPost: methodPost || null
+          };
+        })
+      );
+      
+      res.json(applicationsWithMethodData);
+    } catch (error) {
+      console.error("Error fetching method applications:", error);
+      res.status(500).json({ 
+        message: "Failed to fetch method applications",
+        error: error instanceof Error ? error.message : String(error)
+      });
+    }
+  });
+  
+  // Get active method applications for a user
+  app.get("/api/methods/applications/active", authenticateJWT, async (req: Request, res: Response) => {
+    try {
+      const userId = (req as any).user.id;
+      const applications = await storage.getActiveMethodApplicationsByUserId(userId);
+      
+      // For each application, get the related method post
+      const applicationsWithMethodData = await Promise.all(
+        applications.map(async (app) => {
+          const methodPost = await storage.getLearningPost(app.methodPostId);
+          return {
+            ...app,
+            methodPost: methodPost || null
+          };
+        })
+      );
+      
+      res.json(applicationsWithMethodData);
+    } catch (error) {
+      console.error("Error fetching active method applications:", error);
+      res.status(500).json({ 
+        message: "Failed to fetch active method applications",
+        error: error instanceof Error ? error.message : String(error)
+      });
+    }
+  });
+  
+  // Update method application status and add user feedback
+  app.put("/api/methods/applications/:id", authenticateJWT, async (req: Request, res: Response) => {
+    try {
+      const userId = (req as any).user.id;
+      const applicationId = parseInt(req.params.id);
+      
+      const application = await storage.getMethodApplication(applicationId);
+      
+      if (!application) {
+        return res.status(404).json({ message: "Method application not found" });
+      }
+      
+      if (application.userId !== userId) {
+        return res.status(403).json({ message: "You don't have permission to update this application" });
+      }
+      
+      const { status, feedback, rating, progress, endDate } = req.body;
+      
+      const updateData: any = {
+        updatedAt: new Date()
+      };
+      
+      if (status) updateData.status = status;
+      if (feedback) updateData.feedback = feedback;
+      if (rating) updateData.rating = rating;
+      if (progress) updateData.progress = progress;
+      
+      // If status is completed and no endDate is provided, set it to now
+      if (status === 'completed' && !endDate) {
+        updateData.endDate = new Date();
+      } else if (endDate) {
+        updateData.endDate = new Date(endDate);
+      }
+      
+      const updatedApplication = await storage.updateMethodApplication(applicationId, updateData);
+      
+      res.json(updatedApplication);
+    } catch (error) {
+      console.error("Error updating method application:", error);
+      res.status(500).json({ 
+        message: "Failed to update method application",
+        error: error instanceof Error ? error.message : String(error)
+      });
+    }
+  });
+  
+  // Delete a method application
+  app.delete("/api/methods/applications/:id", authenticateJWT, async (req: Request, res: Response) => {
+    try {
+      const userId = (req as any).user.id;
+      const applicationId = parseInt(req.params.id);
+      
+      const application = await storage.getMethodApplication(applicationId);
+      
+      if (!application) {
+        return res.status(404).json({ message: "Method application not found" });
+      }
+      
+      if (application.userId !== userId) {
+        return res.status(403).json({ message: "You don't have permission to delete this application" });
+      }
+      
+      const success = await storage.deleteMethodApplication(applicationId, userId);
+      
+      if (success) {
+        res.status(204).send();
+      } else {
+        res.status(404).json({ message: "Method application not found or already deleted" });
+      }
+    } catch (error) {
+      console.error("Error deleting method application:", error);
+      res.status(500).json({ 
+        message: "Failed to delete method application",
+        error: error instanceof Error ? error.message : String(error)
+      });
+    }
+  });
+  
+  // Get method application count for a method
+  app.get("/api/methods/:methodId/applications/count", async (req: Request, res: Response) => {
+    try {
+      const methodId = parseInt(req.params.methodId);
+      const count = await storage.getMethodApplicationsCount(methodId);
+      
+      res.json({ count });
+    } catch (error) {
+      console.error("Error getting method application count:", error);
+      res.status(500).json({ 
+        message: "Failed to get method application count",
         error: error instanceof Error ? error.message : String(error)
       });
     }
