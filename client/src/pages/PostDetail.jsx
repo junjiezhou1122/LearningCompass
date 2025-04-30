@@ -86,7 +86,22 @@ export default function PostDetail() {
       return await response.json();
     },
     enabled: !!params?.id,
+    staleTime: 5000, // Only consider data fresh for 5 seconds
+    refetchOnWindowFocus: true, // Refetch when window gets focus
   });
+  
+  // Auto-refresh comments periodically
+  useEffect(() => {
+    if (params?.id) {
+      const intervalId = setInterval(() => {
+        // Refresh post and comments data
+        queryClient.invalidateQueries({ queryKey: ['/api/learning-posts', parseInt(params.id)] });
+        queryClient.invalidateQueries({ queryKey: ['/api/learning-posts', parseInt(params.id), 'comments'] });
+      }, 10000); // Refresh every 10 seconds
+      
+      return () => clearInterval(intervalId);
+    }
+  }, [params?.id, queryClient]);
   
   // Check if the post is liked by the user
   useEffect(() => {
@@ -269,9 +284,24 @@ export default function PostDetail() {
       
       return await response.json();
     },
-    onSuccess: () => {
+    onSuccess: (newComment) => {
+      // Invalidate the comments query for this post's detail view
       queryClient.invalidateQueries({ queryKey: ['/api/learning-posts', parseInt(params?.id), 'comments'] });
+      
+      // Also invalidate the main post list to update comment counts there
+      queryClient.invalidateQueries({ queryKey: ['/api/learning-posts'] });
+      
+      // Reset the new comment field
       setNewComment('');
+      
+      // If we have existing comments data, optimistically update it
+      if (comments && Array.isArray(comments)) {
+        const updatedComments = [...comments, newComment];
+        queryClient.setQueryData(
+          ['/api/learning-posts', parseInt(params?.id), 'comments'], 
+          updatedComments
+        );
+      }
       
       toast({
         description: "Comment added successfully",
@@ -315,8 +345,21 @@ export default function PostDetail() {
       
       return { commentId };
     },
-    onSuccess: () => {
+    onSuccess: (data) => {
+      // Refresh comments in the post detail view
       queryClient.invalidateQueries({ queryKey: ['/api/learning-posts', parseInt(params?.id), 'comments'] });
+      
+      // Also refresh the main post list to update comment counts there
+      queryClient.invalidateQueries({ queryKey: ['/api/learning-posts'] });
+      
+      // If we have existing comments data, optimistically remove the deleted comment
+      if (comments && Array.isArray(comments) && data && data.commentId) {
+        const updatedComments = comments.filter(comment => comment.id !== data.commentId);
+        queryClient.setQueryData(
+          ['/api/learning-posts', parseInt(params?.id), 'comments'], 
+          updatedComments
+        );
+      }
       
       toast({
         description: "Comment deleted successfully",

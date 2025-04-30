@@ -128,7 +128,7 @@ export default function Share() {
     }
   }, [posts, isAuthenticated]);
   
-  // Refresh data every 60 seconds
+  // Refresh data more frequently
   useEffect(() => {
     const intervalId = setInterval(() => {
       queryClient.invalidateQueries({ queryKey: ['/api/learning-posts'] });
@@ -139,10 +139,15 @@ export default function Share() {
           queryKey: ['/api/learning-posts', expandedPostId, 'comments'] 
         });
       }
-    }, 60000); // every 60 seconds
+      
+      // Always refresh comment counts
+      if (posts && posts.length > 0) {
+        fetchCommentCounts(posts);
+      }
+    }, 10000); // every 10 seconds for better synchronization
     
     return () => clearInterval(intervalId);
-  }, [queryClient, expandedPostId]);
+  }, [queryClient, expandedPostId, posts]);
   
   // Fetch comment counts for posts
   const fetchCommentCounts = async (posts) => {
@@ -303,7 +308,8 @@ export default function Share() {
       return { [expandedPostId]: comments };
     },
     enabled: expandedPostId !== null,
-    staleTime: 1000 * 60, // 1 minute
+    staleTime: 5000, // Consider data fresh for only 5 seconds
+    refetchOnWindowFocus: true, // Refetch when window gets focus
   });
   
   // Mutation for adding a comment
