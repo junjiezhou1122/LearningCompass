@@ -390,6 +390,66 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
   
+  app.get("/api/users/:userId/likes", async (req: Request, res: Response) => {
+    try {
+      const userId = parseInt(req.params.userId);
+      
+      if (isNaN(userId)) {
+        return res.status(400).json({ message: "Invalid user ID" });
+      }
+      
+      const likes = await storage.getLearningPostLikesByUserId(userId);
+      
+      // Get the full post details for each liked post
+      if (likes.length > 0) {
+        const postIds = likes.map(like => like.postId);
+        const posts = await Promise.all(postIds.map(postId => storage.getLearningPost(postId)));
+        const validPosts = posts.filter(post => post !== undefined) as LearningPost[];
+        return res.json(validPosts);
+      }
+      
+      res.json([]);
+    } catch (error) {
+      console.error("Error fetching user likes:", error);
+      res.status(500).json({ message: "Error fetching user likes" });
+    }
+  });
+  
+  app.get("/api/users/:userId/comments", async (req: Request, res: Response) => {
+    try {
+      const userId = parseInt(req.params.userId);
+      
+      if (isNaN(userId)) {
+        return res.status(400).json({ message: "Invalid user ID" });
+      }
+      
+      const comments = await storage.getLearningPostCommentsByUserId(userId);
+      
+      // Get the full post details for each commented post
+      if (comments.length > 0) {
+        const postIds = [...new Set(comments.map(comment => comment.postId))];
+        const posts = await Promise.all(postIds.map(postId => storage.getLearningPost(postId)));
+        const validPosts = posts.filter(post => post !== undefined) as LearningPost[];
+        
+        // Add the comment content to each post for display
+        const postsWithComments = validPosts.map(post => {
+          const postComments = comments.filter(comment => comment.postId === post.id);
+          return {
+            ...post,
+            userComments: postComments
+          };
+        });
+        
+        return res.json(postsWithComments);
+      }
+      
+      res.json([]);
+    } catch (error) {
+      console.error("Error fetching user comments:", error);
+      res.status(500).json({ message: "Error fetching user comments" });
+    }
+  });
+  
   // Get user's followers
   app.get("/api/users/:userId/followers", async (req: Request, res: Response) => {
     try {

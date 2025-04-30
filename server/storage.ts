@@ -651,6 +651,12 @@ export class DatabaseStorage implements IStorage {
       .orderBy(asc(learningPostComments.createdAt));
   }
   
+  async getLearningPostCommentsByUserId(userId: number): Promise<LearningPostComment[]> {
+    return await db.select().from(learningPostComments)
+      .where(eq(learningPostComments.userId, userId))
+      .orderBy(desc(learningPostComments.createdAt));
+  }
+  
   async getLearningPostCommentsCount(postId: number): Promise<number> {
     const result = await db.select({ count: sql`count(*)` }).from(learningPostComments)
       .where(eq(learningPostComments.postId, postId));
@@ -695,6 +701,12 @@ export class DatabaseStorage implements IStorage {
   async getLearningPostLikesByPostId(postId: number): Promise<LearningPostLike[]> {
     return await db.select().from(learningPostLikes)
       .where(eq(learningPostLikes.postId, postId));
+  }
+
+  async getLearningPostLikesByUserId(userId: number): Promise<LearningPostLike[]> {
+    return await db.select().from(learningPostLikes)
+      .where(eq(learningPostLikes.userId, userId))
+      .orderBy(desc(learningPostLikes.createdAt));
   }
 
   async createLearningPostLike(insertLike: InsertLearningPostLike): Promise<LearningPostLike> {
