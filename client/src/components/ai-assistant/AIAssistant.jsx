@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect } from 'react';
 import { useToast } from '@/hooks/use-toast';
-import { Send, Bot, Settings, HelpCircle, Sparkles } from 'lucide-react';
+import { Send, Bot, Settings, HelpCircle, Sparkles, Save, Trash2, BookOpen, X, Clock, RotateCcw, List } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -22,6 +22,8 @@ const AIAssistant = () => {
       content: 'Hello! I\'m your learning assistant. How can I help you today?'
     }
   ]);
+  const [savedConversations, setSavedConversations] = useState([]);
+  const [showConversations, setShowConversations] = useState(false);
   const [input, setInput] = useState('');
   const [isTyping, setIsTyping] = useState(false);
   const [apiSettings, setApiSettings] = useState({
@@ -35,7 +37,7 @@ const AIAssistant = () => {
   const [savedApiSettings, setSavedApiSettings] = useState(null);
   const messagesEndRef = useRef(null);
 
-  // Check if API settings are saved in localStorage
+  // Check if API settings and saved conversations are in localStorage
   useEffect(() => {
     const storedSettings = localStorage.getItem('aiAssistantSettings');
     if (storedSettings) {
@@ -43,14 +45,24 @@ const AIAssistant = () => {
       setSavedApiSettings(parsedSettings);
       setApiSettings(parsedSettings);
     }
+    
+    const storedConversations = localStorage.getItem('aiAssistantConversations');
+    if (storedConversations) {
+      setSavedConversations(JSON.parse(storedConversations));
+    }
   }, []);
 
-  // Scroll to bottom on new messages
+  // Controlled scroll behavior - only auto-scroll for AI Assistant content
   useEffect(() => {
-    if (messagesEndRef.current) {
-      messagesEndRef.current.scrollIntoView({ behavior: 'smooth' });
+    // Only auto-scroll the chat window, not the entire page
+    if (messagesEndRef.current && activeTab === 'chat') {
+      // Get the chat container's parent element (the scrollable area)
+      const chatContainer = messagesEndRef.current.closest('.ai-chat-scrollbar');
+      if (chatContainer) {
+        chatContainer.scrollTop = chatContainer.scrollHeight;
+      }
     }
-  }, [messages]);
+  }, [messages, activeTab]);
 
   // Function to save API settings
   const saveApiSettings = (settings) => {
@@ -150,6 +162,64 @@ const AIAssistant = () => {
       sendMessage();
     }
   };
+  
+  // Function to save current conversation
+  const saveCurrentConversation = () => {
+    if (messages.length <= 1) {
+      toast({
+        title: "Cannot save empty conversation",
+        description: "Have a conversation with the AI first!",
+        variant: "destructive",
+      });
+      return;
+    }
+    
+    // Get first few words of first user message for the title
+    const firstUserMessage = messages.find(m => m.role === 'user')?.content || '';
+    const title = firstUserMessage.split(' ').slice(0, 4).join(' ') + '...';
+    
+    const conversation = {
+      id: Date.now().toString(),
+      title,
+      messages: [...messages],
+      date: new Date().toISOString(),
+      model: savedApiSettings?.model || 'unknown',
+      provider: savedApiSettings?.provider || 'unknown'
+    };
+    
+    const updatedConversations = [conversation, ...savedConversations];
+    setSavedConversations(updatedConversations);
+    localStorage.setItem('aiAssistantConversations', JSON.stringify(updatedConversations));
+    
+    toast({
+      title: "Conversation saved",
+      description: "You can access it from your saved conversations.",
+      variant: "default",
+    });
+  };
+  
+  // Function to load a saved conversation
+  const loadConversation = (conversation) => {
+    setMessages(conversation.messages);
+    setShowConversations(false);
+    toast({
+      title: "Conversation loaded",
+      description: "Previous conversation has been loaded successfully.",
+      variant: "default",
+    });
+  };
+  
+  // Function to clear conversation history
+  const clearConversation = () => {
+    setMessages([
+      { role: 'system', content: 'Hello! I\'m your learning assistant. How can I help you today?' }
+    ]);
+    toast({
+      title: "Conversation cleared",
+      description: "Your conversation has been cleared.",
+      variant: "default",
+    });
+  };
 
   return (
     <div className="space-y-6">
@@ -185,11 +255,21 @@ const AIAssistant = () => {
       </div>
 
       <Tabs defaultValue="chat" value={activeTab} onValueChange={setActiveTab} className="w-full">
-        <TabsList className="grid grid-cols-2 mb-4 bg-orange-50">
-          <TabsTrigger value="chat" className="flex items-center justify-center data-[state=active]:bg-orange-100 data-[state=active]:text-orange-800">
+        <TabsList className="grid grid-cols-3 mb-4 bg-gradient-to-r from-orange-50 to-amber-50 rounded-lg overflow-hidden shadow-sm border border-orange-100">
+          <TabsTrigger value="chat" className="flex items-center justify-center data-[state=active]:bg-white data-[state=active]:text-orange-700 data-[state=active]:shadow-sm">
             <Bot className="mr-2 h-4 w-4" /> Chat
           </TabsTrigger>
-          <TabsTrigger value="settings" className="flex items-center justify-center data-[state=active]:bg-orange-100 data-[state=active]:text-orange-800">
+          <TabsTrigger value="saved" className="flex items-center justify-center data-[state=active]:bg-white data-[state=active]:text-orange-700 data-[state=active]:shadow-sm"
+            onClick={(e) => {
+              e.preventDefault();
+              setShowConversations(true);
+              // Don't change the active tab
+              setActiveTab('chat');
+            }}
+          >
+            <BookOpen className="mr-2 h-4 w-4" /> History
+          </TabsTrigger>
+          <TabsTrigger value="settings" className="flex items-center justify-center data-[state=active]:bg-white data-[state=active]:text-orange-700 data-[state=active]:shadow-sm">
             <Settings className="mr-2 h-4 w-4" /> Settings
           </TabsTrigger>
         </TabsList>
@@ -226,6 +306,42 @@ const AIAssistant = () => {
                 <Bot className="h-4 w-4 text-orange-600 mr-1" />
                 <span className="text-sm font-medium text-gray-800">Learning AI</span>
               </div>
+              
+              {/* Chat controls */}
+              <div className="ml-2 flex items-center">
+                <div className="flex space-x-1">
+                  <Button 
+                    variant="ghost" 
+                    size="icon" 
+                    onClick={saveCurrentConversation}
+                    className="h-7 w-7 rounded-full hover:bg-orange-100 hover:text-orange-700"
+                    title="Save this conversation"
+                  >
+                    <Save className="h-3.5 w-3.5" />
+                  </Button>
+                  
+                  <Button 
+                    variant="ghost" 
+                    size="icon"
+                    onClick={() => setShowConversations(true)}
+                    className="h-7 w-7 rounded-full hover:bg-orange-100 hover:text-orange-700"
+                    title="Browse saved conversations"
+                  >
+                    <BookOpen className="h-3.5 w-3.5" />
+                  </Button>
+                  
+                  <Button 
+                    variant="ghost" 
+                    size="icon"
+                    onClick={clearConversation}
+                    className="h-7 w-7 rounded-full hover:bg-orange-100 hover:text-orange-700"
+                    title="Clear current conversation"
+                  >
+                    <RotateCcw className="h-3.5 w-3.5" />
+                  </Button>
+                </div>
+              </div>
+              
               <div className="ml-auto flex items-center space-x-2">
                 {savedApiSettings?.provider && (
                   <div className="text-xs px-2 py-1 bg-white border border-orange-100 text-orange-700 rounded-full shadow-sm">
@@ -316,6 +432,106 @@ const AIAssistant = () => {
           />
         </TabsContent>
       </Tabs>
+      
+      {/* Saved Conversations Modal */}
+      {showConversations && (
+        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-xl shadow-lg w-full max-w-2xl max-h-[80vh] flex flex-col overflow-hidden">
+            <div className="p-4 border-b flex items-center justify-between bg-gradient-to-r from-orange-50 to-amber-50">
+              <h3 className="text-lg font-semibold text-orange-700 flex items-center">
+                <BookOpen className="h-5 w-5 mr-2 text-orange-600" />
+                Your Saved Conversations
+              </h3>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => setShowConversations(false)}
+                className="rounded-full h-8 w-8 p-0"
+              >
+                <X className="h-4 w-4" />
+              </Button>
+            </div>
+            
+            <div className="flex-1 overflow-y-auto p-4">
+              {savedConversations.length === 0 ? (
+                <div className="text-center py-8 text-gray-500 flex flex-col items-center">
+                  <Bot className="h-12 w-12 text-gray-300 mb-2" />
+                  <p>No saved conversations yet.</p>
+                  <p className="text-sm mt-2">Have a chat and click the save button to store your conversations.</p>
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  {savedConversations.map((convo) => (
+                    <div 
+                      key={convo.id} 
+                      className="bg-gray-50 rounded-lg p-3 hover:bg-orange-50 transition-colors border border-gray-200 cursor-pointer group"
+                      onClick={() => loadConversation(convo)}
+                    >
+                      <div className="flex items-start justify-between">
+                        <div className="flex items-start space-x-3">
+                          <div className="mt-1">
+                            <Clock className="h-4 w-4 text-orange-500" />
+                          </div>
+                          <div>
+                            <h4 className="font-medium text-gray-800 group-hover:text-orange-700">
+                              {convo.title}
+                            </h4>
+                            <div className="flex items-center mt-1 text-gray-500 text-xs">
+                              <span className="inline-block">
+                                {new Date(convo.date).toLocaleDateString('en-US', { 
+                                  year: 'numeric', 
+                                  month: 'short', 
+                                  day: 'numeric',
+                                  hour: '2-digit',
+                                  minute: '2-digit'
+                                })}
+                              </span>
+                              <span className="inline-block mx-2">•</span>
+                              <span className="font-mono">{convo.model.split('/').pop()}</span>
+                            </div>
+                            <p className="text-xs text-gray-500 mt-1 line-clamp-2">
+                              {convo.messages.find(m => m.role === 'user')?.content || ''}
+                            </p>
+                          </div>
+                        </div>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="opacity-0 group-hover:opacity-100 h-8 w-8 rounded-full p-0"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            const updatedConversations = savedConversations.filter(c => c.id !== convo.id);
+                            setSavedConversations(updatedConversations);
+                            localStorage.setItem('aiAssistantConversations', JSON.stringify(updatedConversations));
+                            toast({
+                              title: "Conversation deleted",
+                              variant: "default",
+                            });
+                          }}
+                        >
+                          <Trash2 className="h-4 w-4 text-gray-500 hover:text-red-500" />
+                        </Button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+            
+            <div className="p-3 border-t bg-gray-50">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setShowConversations(false)}
+                className="w-full"
+              >
+                Close
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
+      
     </div>
   );
 };
