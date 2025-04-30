@@ -85,7 +85,7 @@ export default function Share() {
   const createPostMutation = useMutation({
     mutationFn: async (postData) => {
       // Get auth token from localStorage
-      const token = localStorage.getItem('authToken');
+      const token = localStorage.getItem('token');
       
       const response = await fetch('/api/learning-posts', {
         method: 'POST',
@@ -140,7 +140,7 @@ export default function Share() {
   const addCommentMutation = useMutation({
     mutationFn: async ({ postId, content }) => {
       // Get auth token from localStorage
-      const token = localStorage.getItem('authToken');
+      const token = localStorage.getItem('token');
       
       const response = await fetch(`/api/learning-posts/${postId}/comments`, {
         method: 'POST',
@@ -178,7 +178,7 @@ export default function Share() {
   const likePostMutation = useMutation({
     mutationFn: async (postId) => {
       // Get auth token from localStorage
-      const token = localStorage.getItem('authToken');
+      const token = localStorage.getItem('token');
       
       const response = await fetch(`/api/learning-posts/${postId}/like`, {
         method: 'POST',
@@ -211,7 +211,7 @@ export default function Share() {
   const bookmarkPostMutation = useMutation({
     mutationFn: async (postId) => {
       // Get auth token from localStorage
-      const token = localStorage.getItem('authToken');
+      const token = localStorage.getItem('token');
       
       const response = await fetch(`/api/learning-posts/${postId}/bookmark`, {
         method: 'POST',
