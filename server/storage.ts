@@ -835,6 +835,83 @@ export class DatabaseStorage implements IStorage {
       ));
     return result.rowCount > 0;
   }
+
+  // Method application operations
+  async getMethodApplication(id: number): Promise<MethodApplication | undefined> {
+    const [methodApp] = await db.select().from(methodApplications).where(eq(methodApplications.id, id));
+    return methodApp || undefined;
+  }
+  
+  async getMethodApplicationsByUserId(userId: number): Promise<MethodApplication[]> {
+    return await db.select().from(methodApplications)
+      .where(eq(methodApplications.userId, userId))
+      .orderBy(desc(methodApplications.createdAt));
+  }
+  
+  async getMethodApplicationsByMethodId(methodPostId: number): Promise<MethodApplication[]> {
+    return await db.select().from(methodApplications)
+      .where(eq(methodApplications.methodPostId, methodPostId))
+      .orderBy(desc(methodApplications.createdAt));
+  }
+  
+  async getMethodApplicationByUserAndMethod(userId: number, methodPostId: number): Promise<MethodApplication | undefined> {
+    const [methodApp] = await db.select().from(methodApplications)
+      .where(and(
+        eq(methodApplications.userId, userId),
+        eq(methodApplications.methodPostId, methodPostId)
+      ));
+    return methodApp || undefined;
+  }
+  
+  async createMethodApplication(application: InsertMethodApplication): Promise<MethodApplication> {
+    const [methodApp] = await db.insert(methodApplications).values(application).returning();
+    return methodApp;
+  }
+  
+  async updateMethodApplication(id: number, data: Partial<InsertMethodApplication>): Promise<MethodApplication | undefined> {
+    const [updatedMethodApp] = await db.update(methodApplications)
+      .set(data)
+      .where(eq(methodApplications.id, id))
+      .returning();
+    return updatedMethodApp;
+  }
+  
+  async deleteMethodApplication(id: number, userId: number): Promise<boolean> {
+    const result = await db.delete(methodApplications)
+      .where(and(
+        eq(methodApplications.id, id),
+        eq(methodApplications.userId, userId)
+      ));
+    return result.rowCount > 0;
+  }
+  
+  async getActiveMethodApplicationsByUserId(userId: number): Promise<MethodApplication[]> {
+    return await db.select().from(methodApplications)
+      .where(and(
+        eq(methodApplications.userId, userId),
+        eq(methodApplications.status, 'active')
+      ))
+      .orderBy(desc(methodApplications.createdAt));
+  }
+  
+  async getCompletedMethodApplicationsByUserId(userId: number): Promise<MethodApplication[]> {
+    return await db.select().from(methodApplications)
+      .where(and(
+        eq(methodApplications.userId, userId),
+        eq(methodApplications.status, 'completed')
+      ))
+      .orderBy(desc(methodApplications.createdAt));
+  }
+  
+  async getMethodApplicationsCount(methodPostId: number): Promise<number> {
+    const result = await db.select({
+      count: sql`count(*)`
+    })
+    .from(methodApplications)
+    .where(eq(methodApplications.methodPostId, methodPostId));
+    
+    return Number(result[0]?.count || 0);
+  }
 }
 
 export const storage = new DatabaseStorage();
