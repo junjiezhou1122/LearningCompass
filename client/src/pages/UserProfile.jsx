@@ -165,16 +165,31 @@ export default function UserProfile() {
   // Extract the actual count value from the response
   const followingCount = followingCountData?.count || 0;
 
-  // Check if the current user is following this profile
-  const { 
-    data: isFollowingData,
-    isLoading: isFollowingStatusLoading 
-  } = useQuery({
-    queryKey: [`/api/users/${userId}/following/${currentUser?.id}`],
-    queryFn: async () => {
-      // If not authenticated, don't make the request
-      if (!isAuthenticated || !currentUser) {
-        return { following: false };
+  // State to manage follow status
+  const [followStatus, setFollowStatus] = useState({
+    isFollowing: false,
+    isLoading: true,
+    error: null
+  });
+  
+  // Fetch follow status on component mount
+  useEffect(() => {
+    const checkFollowStatus = async () => {
+      // Reset state for new profile
+      setFollowStatus({
+        isFollowing: false,
+        isLoading: true,
+        error: null
+      });
+      
+      // Don't check if not authenticated or looking at own profile
+      if (!isAuthenticated || !currentUser || currentUser.id === parseInt(userId)) {
+        setFollowStatus({
+          isFollowing: false,
+          isLoading: false,
+          error: null
+        });
+        return;
       }
       
       try {
@@ -184,34 +199,48 @@ export default function UserProfile() {
           }
         });
         
-        if (!response.ok) {
-          return { following: false };
+        if (response.ok) {
+          const data = await response.json();
+          setFollowStatus({
+            isFollowing: !!data.following,
+            isLoading: false,
+            error: null
+          });
+        } else {
+          setFollowStatus({
+            isFollowing: false,
+            isLoading: false,
+            error: 'Failed to check follow status'
+          });
         }
-        
-        return response.json();
       } catch (error) {
         console.error('Error checking follow status:', error);
-        return { following: false };
+        setFollowStatus({
+          isFollowing: false,
+          isLoading: false,
+          error: 'Failed to check follow status'
+        });
       }
-    },
-    enabled: !!userId && !!currentUser && !!isAuthenticated && currentUser.id !== parseInt(userId),
-    staleTime: 30000, // Keep the data fresh for 30 seconds to prevent flashing
-    refetchOnWindowFocus: false, // Don't refetch on window focus
-  });
-  
-  // Extract the actual boolean value from the response
-  const [isFollowing, setIsFollowing] = useState(false);
-  
-  // Update local state when the query data changes
-  useEffect(() => {
-    if (isFollowingData?.following !== undefined) {
-      setIsFollowing(isFollowingData.following);
-    }
-  }, [isFollowingData]);
+    };
+    
+    checkFollowStatus();
+  }, [userId, currentUser, isAuthenticated]);
 
-  // Follow user mutation
-  const followMutation = useMutation({
-    mutationFn: async () => {
+  // Follow user function
+  const followUser = async () => {
+    if (!isAuthenticated) {
+      toast({
+        title: "Authentication Required",
+        description: "Please sign in to follow users",
+        variant: "destructive",
+      });
+      return;
+    }
+    
+    // Optimistic UI update
+    setFollowStatus(prev => ({ ...prev, isLoading: true }));
+    
+    try {
       const response = await fetch(`/api/users/${userId}/follow`, {
         method: 'POST',
         headers: {
@@ -220,42 +249,70 @@ export default function UserProfile() {
         },
       });
       
-      if (!response.ok) {
+      if (response.ok) {
+        // Update followers count
+        queryClient.invalidateQueries({ queryKey: [`/api/users/${userId}/followers/count`] });
+        
+        setFollowStatus({
+          isFollowing: true,
+          isLoading: false,
+          error: null
+        });
+        
+        toast({
+          title: "Success",
+          description: `You are now following ${profileData?.username}`,
+        });
+      } else {
         const errorData = await response.json();
-        throw new Error(errorData.message || 'Failed to follow user');
+        
+        // If already following, just update the UI state (don't show error)
+        if (errorData.message?.includes('Already following')) {
+          setFollowStatus({
+            isFollowing: true,
+            isLoading: false,
+            error: null
+          });
+        } else {
+          setFollowStatus(prev => ({ 
+            ...prev, 
+            isLoading: false,
+            error: errorData.message || 'Failed to follow user'
+          }));
+          
+          toast({
+            title: "Error",
+            description: errorData.message || 'Failed to follow user',
+            variant: "destructive",
+          });
+        }
       }
+    } catch (error) {
+      console.error('Error following user:', error);
+      setFollowStatus(prev => ({ 
+        ...prev, 
+        isLoading: false,
+        error: error.message || 'Failed to follow user'
+      }));
       
-      return await response.json();
-    },
-    onSuccess: () => {
-      // Immediately update local state
-      setIsFollowing(true);
-      
-      // Invalidate relevant queries to refresh data
-      queryClient.invalidateQueries({ queryKey: [`/api/users/${userId}/followers/count`] });
-      queryClient.invalidateQueries({ queryKey: [`/api/users/${userId}/following`] });
-      queryClient.invalidateQueries({ queryKey: [`/api/users/${userId}/following/${currentUser?.id}`] });
-      
-      // Force update the isFollowing state directly
-      queryClient.setQueryData([`/api/users/${userId}/following/${currentUser?.id}`], { following: true });
-      
-      toast({
-        title: "Success",
-        description: `You are now following ${profileData?.username}`,
-      });
-    },
-    onError: (error) => {
       toast({
         title: "Error",
-        description: error.message,
+        description: error.message || 'Failed to follow user',
         variant: "destructive",
       });
-    },
-  });
+    }
+  };
 
-  // Unfollow user mutation
-  const unfollowMutation = useMutation({
-    mutationFn: async () => {
+  // Unfollow user function
+  const unfollowUser = async () => {
+    if (!isAuthenticated) {
+      return;
+    }
+    
+    // Optimistic UI update
+    setFollowStatus(prev => ({ ...prev, isLoading: true }));
+    
+    try {
       const response = await fetch(`/api/users/${userId}/follow`, {
         method: 'DELETE',
         headers: {
@@ -264,40 +321,52 @@ export default function UserProfile() {
         },
       });
       
-      if (!response.ok) {
+      if (response.ok) {
+        // Update followers count
+        queryClient.invalidateQueries({ queryKey: [`/api/users/${userId}/followers/count`] });
+        
+        setFollowStatus({
+          isFollowing: false,
+          isLoading: false,
+          error: null
+        });
+        
+        toast({
+          title: "Success",
+          description: `You have unfollowed ${profileData?.username}`,
+        });
+      } else {
         const errorData = await response.json();
-        throw new Error(errorData.message || 'Failed to unfollow user');
+        
+        setFollowStatus(prev => ({ 
+          ...prev, 
+          isLoading: false,
+          error: errorData.message || 'Failed to unfollow user'
+        }));
+        
+        toast({
+          title: "Error",
+          description: errorData.message || 'Failed to unfollow user',
+          variant: "destructive",
+        });
       }
+    } catch (error) {
+      console.error('Error unfollowing user:', error);
+      setFollowStatus(prev => ({ 
+        ...prev, 
+        isLoading: false,
+        error: error.message || 'Failed to unfollow user'
+      }));
       
-      return await response.json();
-    },
-    onSuccess: () => {
-      // Immediately update local state
-      setIsFollowing(false);
-      
-      // Invalidate relevant queries to refresh data
-      queryClient.invalidateQueries({ queryKey: [`/api/users/${userId}/followers/count`] });
-      queryClient.invalidateQueries({ queryKey: [`/api/users/${userId}/following`] });
-      queryClient.invalidateQueries({ queryKey: [`/api/users/${userId}/following/${currentUser?.id}`] });
-      
-      // Force update the isFollowing state directly
-      queryClient.setQueryData([`/api/users/${userId}/following/${currentUser?.id}`], { following: false });
-      
-      toast({
-        title: "Success",
-        description: `You have unfollowed ${profileData?.username}`,
-      });
-    },
-    onError: (error) => {
       toast({
         title: "Error",
-        description: error.message,
+        description: error.message || 'Failed to unfollow user',
         variant: "destructive",
       });
-    },
-  });
+    }
+  };
 
-  // Handle follow/unfollow button click
+  // Combined handler for follow/unfollow
   const handleFollowToggle = () => {
     if (!isAuthenticated) {
       toast({
@@ -308,10 +377,14 @@ export default function UserProfile() {
       return;
     }
     
-    if (isFollowing) {
-      unfollowMutation.mutate();
+    if (followStatus.isLoading) {
+      return; // Prevent multiple clicks while loading
+    }
+    
+    if (followStatus.isFollowing) {
+      unfollowUser();
     } else {
-      followMutation.mutate();
+      followUser();
     }
   };
 
@@ -554,22 +627,22 @@ export default function UserProfile() {
             {isAuthenticated && currentUser?.id !== parseInt(userId) && (
               <div className="mt-4 sm:mt-0">
                 <Button 
-                  variant={isFollowing ? "outline" : "default"}
-                  className={isFollowing ? 
+                  variant={followStatus.isFollowing ? "outline" : "default"}
+                  className={followStatus.isFollowing ? 
                     "border-red-300 text-red-700 hover:bg-red-50 hover:text-red-800" : 
                     "bg-orange-500 hover:bg-orange-600 text-white"
                   }
                   onClick={handleFollowToggle}
-                  disabled={followMutation.isPending || unfollowMutation.isPending}
+                  disabled={followStatus.isLoading}
                 >
-                  {followMutation.isPending || unfollowMutation.isPending ? (
+                  {followStatus.isLoading ? (
                     <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                  ) : isFollowing ? (
+                  ) : followStatus.isFollowing ? (
                     <UserMinus className="h-4 w-4 mr-2" />
                   ) : (
                     <UserPlus className="h-4 w-4 mr-2" />
                   )}
-                  {isFollowing ? 'Unfollow' : 'Follow'}
+                  {followStatus.isFollowing ? 'Unfollow' : 'Follow'}
                 </Button>
               </div>
             )}
