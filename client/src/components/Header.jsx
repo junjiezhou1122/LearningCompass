@@ -24,6 +24,10 @@ import {
   History,
   Clock,
   Brain,
+  X,
+  BookOpen,
+  UserCircle,
+  MessageSquare,
 } from "lucide-react";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import { 
@@ -177,18 +181,20 @@ export default function Header() {
   }, [location]);
 
   return (
-    <header className="bg-white shadow-sm sticky top-0 z-50">
+    <header className="bg-gradient-to-r from-orange-500 to-amber-600 text-white shadow-md sticky top-0 z-50">
       <div className="container mx-auto px-4 py-3">
         <div className="flex items-center justify-between">
           {/* Logo */}
           <Button 
             variant="ghost" 
-            className="p-0 h-auto hover:bg-transparent" 
+            className="p-0 h-auto hover:bg-transparent hover:text-white text-white" 
             onClick={() => navigate("/")}
           >
             <div className="flex items-center">
-              <Brain className="text-primary-600 h-6 w-6 mr-2" />
-              <span className="text-xl font-bold text-gray-800">Learning How to Learn</span>
+              <div className="bg-white rounded-full p-1 mr-2">
+                <Brain className="text-orange-600 h-5 w-5" />
+              </div>
+              <span className="text-xl font-bold">Learning How to Learn</span>
             </div>
           </Button>
 
@@ -198,12 +204,12 @@ export default function Header() {
               <form onSubmit={handleSearchSubmit}>
                 <div className="relative flex">
                   <div className="relative flex-grow">
-                    <Search className="absolute left-3 top-2.5 h-4 w-4 text-gray-400" />
+                    <Search className="absolute left-3 top-2.5 h-4 w-4 text-gray-500" />
                     <Input
                       ref={searchInputRef}
                       type="text"
                       placeholder="Search courses..."
-                      className="w-full pl-10 pr-4 py-2 rounded-r-none"
+                      className="w-full pl-10 pr-4 py-2 rounded-r-none border-0 focus-visible:ring-amber-400"
                       value={searchQuery}
                       onChange={handleSearchChange}
                       onKeyDown={handleSearchKeyPress}
@@ -218,14 +224,14 @@ export default function Header() {
                         }}
                       >
                         <History 
-                          className={`h-4 w-4 ${isSearchPopoverOpen ? 'text-primary-600' : 'text-gray-400'} hover:text-primary-600 transition-colors`} 
+                          className={`h-4 w-4 ${isSearchPopoverOpen ? 'text-amber-700' : 'text-gray-400'} hover:text-amber-700 transition-colors`} 
                         />
                       </div>
                     )}
                   </div>
                   <Button 
                     type="submit" 
-                    className="rounded-l-none bg-blue-600 hover:bg-blue-700"
+                    className="rounded-l-none bg-amber-700 hover:bg-amber-800 border-0"
                   >
                     <Search className="h-4 w-4 text-white" />
                   </Button>
@@ -278,59 +284,67 @@ export default function Header() {
           {/* Navigation */}
           <div className="flex items-center">
             {/* Desktop Navigation */}
-            <div className="hidden md:flex items-center">
+            <div className="hidden md:flex items-center space-x-6">
               {/* Learning How to Learn Link (always visible) */}
               <Button 
                 variant="ghost" 
-                className="text-gray-700 hover:text-primary-600 font-medium mr-6"
+                className="text-white hover:text-white hover:bg-amber-600 font-medium"
                 onClick={() => navigate('/')}
               >
+                <BookOpen className="h-4 w-4 mr-2" />
                 ResourcesHub
+              </Button>
+              
+              <Button 
+                variant="ghost" 
+                className="text-white hover:text-white hover:bg-amber-600 font-medium"
+                onClick={() => navigate('/share')}
+              >
+                <MessageSquare className="h-4 w-4 mr-2" />
+                Share & Connect
               </Button>
               
               {isAuthenticated ? (
                 <>
-                  <Button variant="ghost" size="icon" className="relative mr-2 text-gray-600 hover:text-primary-600">
+                  <Button variant="ghost" size="icon" className="relative text-white hover:text-white hover:bg-amber-600">
                     <Bell className="h-5 w-5" />
-                    <span className="absolute -top-1 -right-1 bg-accent-500 text-white text-xs rounded-full h-4 w-4 flex items-center justify-center">
+                    <span className="absolute -top-1 -right-1 bg-white text-orange-600 text-xs rounded-full h-4 w-4 flex items-center justify-center font-bold">
                       3
                     </span>
                   </Button>
-                  <Link href="/bookmarks">
-                    <Button variant="ghost" size="icon" className="relative mr-4 text-gray-600 hover:text-primary-600">
-                      <Bookmark className="h-5 w-5" />
-                      <span className="absolute -top-1 -right-1 bg-accent-500 text-white text-xs rounded-full h-4 w-4 flex items-center justify-center">
-                        5
-                      </span>
-                    </Button>
-                  </Link>
+                  <Button 
+                    variant="ghost" 
+                    size="icon" 
+                    className="relative text-white hover:text-white hover:bg-amber-600"
+                    onClick={() => navigate("/bookmarks")}
+                  >
+                    <Bookmark className="h-5 w-5" />
+                    <span className="absolute -top-1 -right-1 bg-white text-orange-600 text-xs rounded-full h-4 w-4 flex items-center justify-center font-bold">
+                      5
+                    </span>
+                  </Button>
                   <DropdownMenu>
                     <DropdownMenuTrigger asChild>
-                      <Button variant="ghost" className="flex items-center space-x-1">
-                        <div className="w-8 h-8 rounded-full bg-primary-100 flex items-center justify-center text-primary-700 font-medium">
+                      <Button variant="ghost" className="flex items-center space-x-1 text-white hover:text-white hover:bg-amber-600">
+                        <div className="w-8 h-8 rounded-full bg-white flex items-center justify-center text-orange-600 font-medium">
                           {user?.firstName?.[0] || user?.username?.[0] || "U"}
                         </div>
-                        <span className="text-sm font-medium text-gray-700 hidden md:inline-block">
+                        <span className="text-sm font-medium ml-2 hidden md:inline-block">
                           {user?.firstName || user?.username || "User"}
                         </span>
-                        <ChevronDown className="h-4 w-4 text-gray-400" />
                       </Button>
                     </DropdownMenuTrigger>
                     <DropdownMenuContent align="end">
                       <DropdownMenuLabel>My Account</DropdownMenuLabel>
                       <DropdownMenuSeparator />
-                      <Link href="/profile">
-                        <DropdownMenuItem className="cursor-pointer">
-                          <User className="mr-2 h-4 w-4" />
-                          <span>Profile</span>
-                        </DropdownMenuItem>
-                      </Link>
-                      <Link href="/bookmarks">
-                        <DropdownMenuItem className="cursor-pointer">
-                          <Bookmark className="mr-2 h-4 w-4" />
-                          <span>Bookmarks</span>
-                        </DropdownMenuItem>
-                      </Link>
+                      <DropdownMenuItem className="cursor-pointer" onClick={() => navigate("/profile")}>
+                        <UserCircle className="mr-2 h-4 w-4" />
+                        <span>Profile</span>
+                      </DropdownMenuItem>
+                      <DropdownMenuItem className="cursor-pointer" onClick={() => navigate("/bookmarks")}>
+                        <Bookmark className="mr-2 h-4 w-4" />
+                        <span>Bookmarks</span>
+                      </DropdownMenuItem>
                       <DropdownMenuSeparator />
                       <DropdownMenuItem onClick={handleLogout} className="cursor-pointer">
                         <LogOut className="mr-2 h-4 w-4" />
@@ -348,23 +362,35 @@ export default function Header() {
             <div className="md:hidden">
               <Sheet open={mobileMenuOpen} onOpenChange={setMobileMenuOpen}>
                 <SheetTrigger asChild>
-                  <Button variant="ghost" size="icon">
+                  <Button variant="ghost" size="icon" className="text-white hover:bg-amber-600">
                     <Menu className="h-6 w-6" />
                   </Button>
                 </SheetTrigger>
-                <SheetContent side="right">
+                <SheetContent side="right" className="bg-orange-600 text-white border-amber-500">
                   <div className="flex flex-col h-full py-6">
+                    <div className="flex justify-between items-center mb-6">
+                      <div className="flex items-center">
+                        <div className="bg-white rounded-full p-1 mr-2">
+                          <Brain className="text-orange-600 h-5 w-5" />
+                        </div>
+                        <span className="text-xl font-bold">Learning</span>
+                      </div>
+                      <Button variant="ghost" size="icon" className="text-white hover:bg-amber-700" onClick={() => setMobileMenuOpen(false)}>
+                        <X className="h-6 w-6" />
+                      </Button>
+                    </div>
+
                     {/* Mobile search - only shown on ResourcesHub */}
                     {isResourcesHub && (
                       <div className="mb-6">
                         <form onSubmit={handleSearchSubmit}>
                           <div className="relative flex">
                             <div className="relative flex-grow">
-                              <Search className="absolute left-3 top-2.5 h-4 w-4 text-gray-400" />
+                              <Search className="absolute left-3 top-2.5 h-4 w-4 text-gray-500" />
                               <Input
                                 type="text"
                                 placeholder="Search courses..."
-                                className="w-full pl-10 pr-4 py-2 rounded-r-none"
+                                className="w-full pl-10 pr-4 py-2 rounded-r-none border-0 focus-visible:ring-amber-400 bg-white"
                                 value={searchQuery}
                                 onChange={handleSearchChange}
                                 onKeyDown={handleSearchKeyPress}
@@ -379,14 +405,14 @@ export default function Header() {
                                   }}
                                 >
                                   <History 
-                                    className={`h-4 w-4 ${isSearchPopoverOpen ? 'text-primary-600' : 'text-gray-400'} hover:text-primary-600 transition-colors`} 
+                                    className={`h-4 w-4 ${isSearchPopoverOpen ? 'text-amber-700' : 'text-gray-400'} hover:text-amber-700 transition-colors`} 
                                   />
                                 </div>
                               )}
                             </div>
                             <Button 
                               type="submit" 
-                              className="rounded-l-none bg-blue-600 hover:bg-blue-700"
+                              className="rounded-l-none bg-amber-700 hover:bg-amber-800 border-0"
                             >
                               <Search className="h-4 w-4 text-white" />
                             </Button>
@@ -398,41 +424,55 @@ export default function Header() {
                     <div className="space-y-4 flex-grow">
                       <Button
                         variant="ghost"
-                        className="w-full justify-start text-gray-700 hover:text-primary-600 py-2 h-auto font-normal"
-                        onClick={() => navigate("/")}
+                        className="w-full justify-start text-white hover:bg-amber-700 py-2 h-auto font-normal"
+                        onClick={() => {
+                          navigate("/");
+                          setMobileMenuOpen(false);
+                        }}
                       >
+                        <Brain className="h-5 w-5 mr-2" />
+                        Learning How to Learn
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        className="w-full justify-start text-white hover:bg-amber-700 py-2 h-auto font-normal"
+                        onClick={() => {
+                          navigate("/courses");
+                          setMobileMenuOpen(false);
+                        }}
+                      >
+                        <BookOpen className="h-5 w-5 mr-2" />
                         ResourcesHub
                       </Button>
                       <Button
                         variant="ghost"
-                        className="w-full justify-start text-gray-700 hover:text-primary-600 py-2 h-auto font-normal"
-                        onClick={() => navigate("/learning-how-to-learn")}
+                        className="w-full justify-start text-white hover:bg-amber-700 py-2 h-auto font-normal"
+                        onClick={() => {
+                          navigate("/share");
+                          setMobileMenuOpen(false);
+                        }}
                       >
-                        Learning How to Learn
+                        <MessageSquare className="h-5 w-5 mr-2" />
+                        Share & Connect
                       </Button>
                       {isAuthenticated && (
-                        <>
-                          <Button
-                            variant="ghost"
-                            className="w-full justify-start text-gray-700 hover:text-primary-600 py-2 h-auto font-normal"
-                            onClick={() => navigate("/bookmarks")}
-                          >
-                            Bookmarks
-                          </Button>
-                          <Button
-                            variant="ghost"
-                            className="w-full justify-start text-gray-700 hover:text-primary-600 py-2 h-auto font-normal"
-                            onClick={() => navigate("/profile")}
-                          >
-                            Profile
-                          </Button>
-                        </>
+                        <Button
+                          variant="ghost"
+                          className="w-full justify-start text-white hover:bg-amber-700 py-2 h-auto font-normal"
+                          onClick={() => {
+                            navigate("/profile");
+                            setMobileMenuOpen(false);
+                          }}
+                        >
+                          <UserCircle className="h-5 w-5 mr-2" />
+                          Profile
+                        </Button>
                       )}
                     </div>
 
                     <div className="mt-auto">
                       {isAuthenticated ? (
-                        <Button onClick={handleLogout} variant="outline" className="w-full justify-start">
+                        <Button onClick={handleLogout} variant="outline" className="w-full justify-start text-white border-white hover:bg-amber-700">
                           <LogOut className="mr-2 h-4 w-4" />
                           Sign Out
                         </Button>
@@ -455,11 +495,11 @@ export default function Header() {
             <form onSubmit={handleSearchSubmit}>
               <div className="relative flex">
                 <div className="relative flex-grow">
-                  <Search className="absolute left-3 top-2.5 h-4 w-4 text-gray-400" />
+                  <Search className="absolute left-3 top-2.5 h-4 w-4 text-gray-500" />
                   <Input
                     type="text"
                     placeholder="Search courses..."
-                    className="w-full pl-10 pr-4 py-2 rounded-r-none"
+                    className="w-full pl-10 pr-4 py-2 rounded-r-none border-0 focus-visible:ring-amber-400"
                     value={searchQuery}
                     onChange={handleSearchChange}
                     onKeyDown={handleSearchKeyPress}
@@ -474,14 +514,14 @@ export default function Header() {
                       }}
                     >
                       <History 
-                        className={`h-4 w-4 ${isSearchPopoverOpen ? 'text-primary-600' : 'text-gray-400'} hover:text-primary-600 transition-colors`} 
+                        className={`h-4 w-4 ${isSearchPopoverOpen ? 'text-amber-700' : 'text-gray-400'} hover:text-amber-700 transition-colors`} 
                       />
                     </div>
                   )}
                 </div>
                 <Button 
                   type="submit" 
-                  className="rounded-l-none bg-blue-600 hover:bg-blue-700"
+                  className="rounded-l-none bg-amber-700 hover:bg-amber-800 border-0"
                 >
                   <Search className="h-4 w-4 text-white" />
                 </Button>
@@ -494,7 +534,7 @@ export default function Header() {
                 <Button 
                   variant="outline" 
                   size="sm" 
-                  className="w-full flex justify-center items-center"
+                  className="w-full flex justify-center items-center text-white border-white hover:bg-amber-700"
                   onClick={() => setIsSearchPopoverOpen(!isSearchPopoverOpen)}
                 >
                   <History className="h-4 w-4 mr-2" />
