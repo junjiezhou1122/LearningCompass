@@ -63,8 +63,9 @@ const APIConfiguration = ({ initialSettings, onSave }) => {
       newSettings.model = '';
       newSettings.baseUrl = '';
     } else if (value === 'openrouter') {
-      newSettings.model = 'google/gemini-2.5-pro-preview';
+      newSettings.model = 'mistralai/mistral-7b-instruct';
       newSettings.baseUrl = 'https://openrouter.ai/api/v1';
+      newSettings.maxTokens = 100; // Limit tokens for free plan
     }
     
     setSettings(newSettings);
@@ -221,11 +222,12 @@ const APIConfiguration = ({ initialSettings, onSave }) => {
                       <p className="text-xs text-gray-500 mb-2">Popular models (click to select):</p>
                       <div className="flex flex-wrap gap-1">
                         {[
-                          { id: 'anthropic/claude-3-5-sonnet', name: 'Claude 3.5 Sonnet' },
-                          { id: 'google/gemini-2.5-pro-preview', name: 'Gemini 2.5 Pro' }, 
-                          { id: 'mistralai/mistral-8x7b', name: 'Mistral Large' },
-                          { id: 'openai/gpt-4o', name: 'GPT-4o' },
-                          { id: 'meta-llama/llama-3-70b-instruct', name: 'Llama 3 70B' }
+                          // Free models that work on the OpenRouter free tier
+                          { id: 'mistralai/mistral-7b-instruct', name: 'Mistral 7B (Free)' },
+                          { id: 'google/gemma-7b-it', name: 'Gemma 7B (Free)' },
+                          { id: 'nousresearch/nous-capybara-7b', name: 'Nous 7B (Free)' },
+                          { id: 'meta-llama/llama-3-8b-instruct', name: 'Llama 3 8B (Free)' },
+                          { id: 'openchat/openchat-3.5-0106', name: 'OpenChat (Free)' }
                         ].map(model => (
                           <button
                             key={model.id}

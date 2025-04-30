@@ -144,6 +144,11 @@ async function handleCustomAPIChat(body: AIRequestBody): Promise<string> {
   if (isOpenRouter) {
     headers['HTTP-Referer'] = 'https://learninghowtolearn.app';
     headers['X-Title'] = 'Learning How To Learn';
+    
+    // Debug OpenRouter API key
+    console.log('OpenRouter API key available:', !!apiKey);
+    console.log('OpenRouter API key length:', apiKey?.length);
+    console.log('OpenRouter API key first 5 chars:', apiKey?.substring(0, 5));
   }
   
   // Construct endpoint URL - OpenRouter uses /api/v1/chat/completions
@@ -159,16 +164,22 @@ async function handleCustomAPIChat(body: AIRequestBody): Promise<string> {
   
   console.log('Using endpoint URL:', endpointUrl);
   
+  // Log full request details for debugging
+  const requestPayload = {
+    model: body.model,
+    messages: formattedMessages,
+    temperature: body.temperature || 0.7,
+    max_tokens: body.maxTokens || 1000
+  };
+  
+  console.log('API request headers:', JSON.stringify(headers, null, 2));
+  console.log('API request payload:', JSON.stringify(requestPayload, null, 2));
+  
   // Make the API request
   const response = await fetch(endpointUrl, {
     method: 'POST',
     headers,
-    body: JSON.stringify({
-      model: body.model,
-      messages: formattedMessages,
-      temperature: body.temperature,
-      max_tokens: body.maxTokens
-    })
+    body: JSON.stringify(requestPayload)
   });
   
   if (!response.ok) {
