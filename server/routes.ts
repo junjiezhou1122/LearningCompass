@@ -9,7 +9,9 @@ import {
   insertCommentSchema, insertSearchHistorySchema,
   // Learning post schemas
   insertLearningPostSchema, insertLearningPostCommentSchema,
-  insertLearningPostLikeSchema, insertLearningPostBookmarkSchema
+  insertLearningPostLikeSchema, insertLearningPostBookmarkSchema,
+  // AI conversation schema
+  insertAiConversationSchema
 } from "@shared/schema";
 import { z, ZodError } from "zod";
 import { fromZodError } from "zod-validation-error";
@@ -1466,6 +1468,109 @@ export async function registerRoutes(app: Express): Promise<Server> {
           details: error instanceof Error ? error.message : String(error)
         });
       }
+    }
+  });
+  
+  // AI Conversation Management Routes (protected)
+  
+  // Get user's saved conversations
+  app.get("/api/ai/conversations", authenticateJWT, async (req: Request, res: Response) => {
+    try {
+      const userId = (req as any).user.id;
+      const conversations = await storage.getAiConversationsByUserId(userId);
+      res.json(conversations);
+    } catch (error) {
+      console.error("Error fetching AI conversations:", error);
+      res.status(500).json({ 
+        message: "Error fetching AI conversations", 
+        error: error instanceof Error ? error.message : String(error)
+      });
+    }
+  });
+  
+  // Save a conversation
+  app.post("/api/ai/conversations", authenticateJWT, async (req: Request, res: Response) => {
+    try {
+      const userId = (req as any).user.id;
+      
+      const conversationData = insertAiConversationSchema.parse({
+        ...req.body,
+        userId,
+        messages: JSON.stringify(req.body.messages || [])
+      });
+      
+      const conversation = await storage.createAiConversation(conversationData);
+      res.status(201).json(conversation);
+    } catch (error) {
+      console.error("Error saving AI conversation:", error);
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ 
+          message: "Invalid conversation data", 
+          details: fromZodError(error).message 
+        });
+      }
+      res.status(500).json({ 
+        message: "Error saving AI conversation", 
+        error: error instanceof Error ? error.message : String(error)
+      });
+    }
+  });
+  
+  // Update a conversation
+  app.put("/api/ai/conversations/:id", authenticateJWT, async (req: Request, res: Response) => {
+    try {
+      const userId = (req as any).user.id;
+      const conversationId = parseInt(req.params.id);
+      
+      // Check if conversation exists and belongs to user
+      const existingConversation = await storage.getAiConversation(conversationId);
+      if (!existingConversation) {
+        return res.status(404).json({ message: "Conversation not found" });
+      }
+      
+      if (existingConversation.userId !== userId) {
+        return res.status(403).json({ message: "You don't have permission to update this conversation" });
+      }
+      
+      // Convert messages to string if provided
+      const updateData = {
+        ...req.body
+      };
+      
+      if (req.body.messages) {
+        updateData.messages = JSON.stringify(req.body.messages);
+      }
+      
+      const updatedConversation = await storage.updateAiConversation(conversationId, updateData);
+      res.json(updatedConversation);
+    } catch (error) {
+      console.error("Error updating AI conversation:", error);
+      res.status(500).json({ 
+        message: "Error updating AI conversation", 
+        error: error instanceof Error ? error.message : String(error)
+      });
+    }
+  });
+  
+  // Delete a conversation
+  app.delete("/api/ai/conversations/:id", authenticateJWT, async (req: Request, res: Response) => {
+    try {
+      const userId = (req as any).user.id;
+      const conversationId = parseInt(req.params.id);
+      
+      const success = await storage.deleteAiConversation(conversationId, userId);
+      
+      if (success) {
+        res.status(204).send();
+      } else {
+        res.status(404).json({ message: "Conversation not found or already deleted" });
+      }
+    } catch (error) {
+      console.error("Error deleting AI conversation:", error);
+      res.status(500).json({ 
+        message: "Error deleting AI conversation", 
+        error: error instanceof Error ? error.message : String(error)
+      });
     }
   });
 
