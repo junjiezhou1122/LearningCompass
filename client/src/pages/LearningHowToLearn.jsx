@@ -445,13 +445,13 @@ export default function LearningHowToLearn() {
   // Introduction component for the overview tab
   const OverviewTab = () => (
     <div className="space-y-8">
-      <div className="bg-gradient-to-r from-blue-50 to-indigo-50 rounded-xl p-8 border border-blue-100">
+      <div className="bg-gradient-to-r from-orange-50 to-amber-50 rounded-xl p-8 border border-amber-100">
         <div className="flex flex-col md:flex-row items-center gap-6">
           <div className="md:w-1/4 flex justify-center">
             <div className="relative">
-              <div className="absolute inset-0 bg-blue-200 rounded-full opacity-20 blur-xl transform scale-150"></div>
+              <div className="absolute inset-0 bg-amber-200 rounded-full opacity-20 blur-xl transform scale-150"></div>
               <div className="relative">
-                <Brain className="h-24 w-24 text-primary-600" />
+                <Brain className="h-24 w-24 text-orange-500" />
               </div>
             </div>
           </div>
@@ -474,8 +474,8 @@ export default function LearningHowToLearn() {
         <Card className="flex flex-col">
           <CardHeader>
             <div className="flex items-center gap-3">
-              <div className="bg-primary-100 p-2 rounded-full">
-                <GraduationCap className="h-6 w-6 text-primary-600" />
+              <div className="bg-amber-100 p-2 rounded-full">
+                <GraduationCap className="h-6 w-6 text-orange-500" />
               </div>
               <CardTitle>Why Learn How to Learn?</CardTitle>
             </div>
@@ -498,8 +498,8 @@ export default function LearningHowToLearn() {
         <Card className="flex flex-col">
           <CardHeader>
             <div className="flex items-center gap-3">
-              <div className="bg-primary-100 p-2 rounded-full">
-                <Sparkles className="h-6 w-6 text-primary-600" />
+              <div className="bg-amber-100 p-2 rounded-full">
+                <Sparkles className="h-6 w-6 text-orange-500" />
               </div>
               <CardTitle>How This Platform Helps</CardTitle>
             </div>
@@ -525,7 +525,7 @@ export default function LearningHowToLearn() {
           ResourcesHub to discover learning materials tailored to your interests.
         </p>
         <Button
-          className="bg-primary-600 text-black hover:bg-primary-700"
+          className="bg-gradient-to-r from-orange-500 to-amber-600 text-white hover:from-orange-600 hover:to-amber-700"
           onClick={() => setActiveTab("resources")}
         >
           <School className="mr-2 h-5 w-5" />
