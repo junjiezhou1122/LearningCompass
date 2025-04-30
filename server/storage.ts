@@ -84,6 +84,7 @@ export interface IStorage {
   // Learning post comment operations
   getLearningPostComment(id: number): Promise<LearningPostComment | undefined>;
   getLearningPostCommentsByPostId(postId: number): Promise<LearningPostComment[]>;
+  getLearningPostCommentsCount(postId: number): Promise<number>;
   createLearningPostComment(comment: InsertLearningPostComment): Promise<LearningPostComment>;
   updateLearningPostComment(id: number, content: string): Promise<LearningPostComment | undefined>;
   deleteLearningPostComment(id: number, userId: number): Promise<boolean>;
@@ -542,6 +543,12 @@ export class DatabaseStorage implements IStorage {
     return await db.select().from(learningPostComments)
       .where(eq(learningPostComments.postId, postId))
       .orderBy(asc(learningPostComments.createdAt));
+  }
+  
+  async getLearningPostCommentsCount(postId: number): Promise<number> {
+    const result = await db.select({ count: sql`count(*)` }).from(learningPostComments)
+      .where(eq(learningPostComments.postId, postId));
+    return Number(result[0]?.count || 0);
   }
 
   async createLearningPostComment(insertComment: InsertLearningPostComment): Promise<LearningPostComment> {

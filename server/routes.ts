@@ -760,6 +760,23 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Get comment count for a learning post
+  app.get("/api/learning-posts/:postId/comments/count", async (req: Request, res: Response) => {
+    try {
+      const postId = parseInt(req.params.postId);
+      
+      if (isNaN(postId)) {
+        return res.status(400).json({ message: "Invalid post ID" });
+      }
+      
+      const count = await storage.getLearningPostCommentsCount(postId);
+      res.json({ count });
+    } catch (error) {
+      console.error("Error fetching learning post comment count:", error);
+      res.status(500).json({ message: "Error fetching learning post comment count" });
+    }
+  });
+
   // Create a comment on a learning post
   app.post("/api/learning-posts/:postId/comments", authenticateJWT, async (req: Request, res: Response) => {
     try {
