@@ -258,15 +258,11 @@ export default function UserProfile() {
 
   useEffect(() => {
     // Fetch user's liked posts when tab is 'likes'
-    if (activeTab === 'likes' && !userLikes.length && !isLikesLoading && isAuthenticated) {
+    if (activeTab === 'likes' && !userLikes.length && !isLikesLoading) {
       const fetchLikes = async () => {
         setIsLikesLoading(true);
         try {
-          const response = await fetch('/api/learning-posts/user-likes', {
-            headers: {
-              'Authorization': `Bearer ${localStorage.getItem('token')}`
-            }
-          });
+          const response = await fetch(`/api/users/${userId}/likes`);
           if (response.ok) {
             const data = await response.json();
             setUserLikes(data);
@@ -282,15 +278,11 @@ export default function UserProfile() {
     }
     
     // Fetch user's comments when tab is 'comments'
-    if (activeTab === 'comments' && !userComments.length && !isCommentsLoading && isAuthenticated) {
+    if (activeTab === 'comments' && !userComments.length && !isCommentsLoading) {
       const fetchComments = async () => {
         setIsCommentsLoading(true);
         try {
-          const response = await fetch('/api/learning-posts/user-comments', {
-            headers: {
-              'Authorization': `Bearer ${localStorage.getItem('token')}`
-            }
-          });
+          const response = await fetch(`/api/users/${userId}/comments`);
           if (response.ok) {
             const data = await response.json();
             setUserComments(data);
@@ -304,7 +296,7 @@ export default function UserProfile() {
       
       fetchComments();
     }
-  }, [activeTab, isAuthenticated, userLikes.length, userComments.length]);
+  }, [activeTab, userId, userLikes.length, userComments.length]);
   
   if (isProfileLoading) {
     return (
