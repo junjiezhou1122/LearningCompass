@@ -199,6 +199,9 @@ export default function UserProfile() {
       queryClient.invalidateQueries({ queryKey: [`/api/users/${userId}/followers/count`] });
       queryClient.invalidateQueries({ queryKey: [`/api/users/${userId}/following`] });
       
+      // Force update the isFollowing state directly
+      queryClient.setQueryData([`/api/users/${userId}/following`], { following: true });
+      
       toast({
         title: "Success",
         description: `You are now following ${profileData?.username}`,
@@ -235,6 +238,9 @@ export default function UserProfile() {
       // Invalidate relevant queries to refresh data
       queryClient.invalidateQueries({ queryKey: [`/api/users/${userId}/followers/count`] });
       queryClient.invalidateQueries({ queryKey: [`/api/users/${userId}/following`] });
+      
+      // Force update the isFollowing state directly
+      queryClient.setQueryData([`/api/users/${userId}/following`], { following: false });
       
       toast({
         title: "Success",
@@ -424,7 +430,10 @@ export default function UserProfile() {
                         variant="outline" 
                         size="sm"
                         className="border-orange-300 hover:bg-orange-50 hover:text-orange-700"
-                        onClick={() => navigate(`/users/${user.id}`)}
+                        onClick={() => {
+                          setShowFollowModal(false); // Close the modal
+                          navigate(`/users/${user.id}`);
+                        }}
                       >
                         View Profile
                       </Button>
