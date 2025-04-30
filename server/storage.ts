@@ -7,7 +7,9 @@ import {
   LearningPost, InsertLearningPost, LearningPostComment, InsertLearningPostComment,
   LearningPostLike, InsertLearningPostLike, LearningPostBookmark, InsertLearningPostBookmark,
   // User follows schemas and types
-  userFollows, UserFollow, InsertUserFollow
+  userFollows, UserFollow, InsertUserFollow,
+  // AI conversations schemas and types
+  aiConversations, AiConversation, InsertAiConversation
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, and, like, desc, asc, sql, or, inArray, arrayContains } from "drizzle-orm";
@@ -119,6 +121,13 @@ export interface IStorage {
   
   // Learning post tag operations
   getLearningPostTags(): Promise<string[]>;
+  
+  // AI conversation operations
+  getAiConversation(id: number): Promise<AiConversation | undefined>;
+  getAiConversationsByUserId(userId: number): Promise<AiConversation[]>;
+  createAiConversation(conversation: InsertAiConversation): Promise<AiConversation>;
+  updateAiConversation(id: number, data: Partial<InsertAiConversation>): Promise<AiConversation | undefined>;
+  deleteAiConversation(id: number, userId: number): Promise<boolean>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -774,6 +783,43 @@ export class DatabaseStorage implements IStorage {
     });
     
     return Array.from(tagSet);
+  }
+  
+  // AI conversation operations
+  async getAiConversation(id: number): Promise<AiConversation | undefined> {
+    const [conversation] = await db.select().from(aiConversations).where(eq(aiConversations.id, id));
+    return conversation || undefined;
+  }
+  
+  async getAiConversationsByUserId(userId: number): Promise<AiConversation[]> {
+    return await db.select().from(aiConversations)
+      .where(eq(aiConversations.userId, userId))
+      .orderBy(desc(aiConversations.createdAt));
+  }
+  
+  async createAiConversation(conversation: InsertAiConversation): Promise<AiConversation> {
+    const [result] = await db.insert(aiConversations).values(conversation).returning();
+    return result;
+  }
+  
+  async updateAiConversation(id: number, data: Partial<InsertAiConversation>): Promise<AiConversation | undefined> {
+    const [updated] = await db.update(aiConversations)
+      .set({
+        ...data,
+        updatedAt: new Date()
+      })
+      .where(eq(aiConversations.id, id))
+      .returning();
+    return updated;
+  }
+  
+  async deleteAiConversation(id: number, userId: number): Promise<boolean> {
+    const result = await db.delete(aiConversations)
+      .where(and(
+        eq(aiConversations.id, id),
+        eq(aiConversations.userId, userId)
+      ));
+    return result.rowCount > 0;
   }
 }
 

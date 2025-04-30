@@ -344,3 +344,39 @@ export type InsertLearningPostBookmark = typeof learningPostBookmarks.$inferInse
 
 export type UserFollow = typeof userFollows.$inferSelect;
 export type InsertUserFollow = typeof userFollows.$inferInsert;
+
+// AI Conversations schema
+export const aiConversations = pgTable("ai_conversations", {
+  id: serial("id").primaryKey(),
+  userId: integer("user_id").notNull().references(() => users.id),
+  title: text("title").notNull(),
+  provider: text("provider").notNull(), // openai, anthropic, openrouter, custom
+  model: text("model").notNull(), // Model identifier
+  messages: text("messages").notNull(), // JSON string of messages
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at")
+});
+
+export const insertAiConversationSchema = createInsertSchema(aiConversations).pick({
+  userId: true,
+  title: true,
+  provider: true,
+  model: true,
+  messages: true,
+  updatedAt: true
+});
+
+export const aiConversationsRelations = relations(aiConversations, ({ one }) => ({
+  user: one(users, {
+    fields: [aiConversations.userId],
+    references: [users.id]
+  })
+}));
+
+// Update user relations to include AI conversations
+export const usersAiRelations = relations(users, ({ many }) => ({
+  aiConversations: many(aiConversations)
+}));
+
+export type AiConversation = typeof aiConversations.$inferSelect;
+export type InsertAiConversation = typeof aiConversations.$inferInsert;

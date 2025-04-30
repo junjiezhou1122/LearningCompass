@@ -307,7 +307,7 @@ const AIAssistant = () => {
                 <span className="text-sm font-medium text-gray-800">Learning AI</span>
               </div>
               
-              {/* Chat controls */}
+              {/* Chat controls - simplified to avoid duplication */}
               <div className="ml-2 flex items-center">
                 <div className="flex space-x-1">
                   <Button 
@@ -318,16 +318,6 @@ const AIAssistant = () => {
                     title="Save this conversation"
                   >
                     <Save className="h-3.5 w-3.5" />
-                  </Button>
-                  
-                  <Button 
-                    variant="ghost" 
-                    size="icon"
-                    onClick={() => setShowConversations(true)}
-                    className="h-7 w-7 rounded-full hover:bg-orange-100 hover:text-orange-700"
-                    title="Browse saved conversations"
-                  >
-                    <BookOpen className="h-3.5 w-3.5" />
                   </Button>
                   
                   <Button 
