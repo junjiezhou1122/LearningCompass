@@ -1,10 +1,14 @@
 import { 
   User, Course, Bookmark, SearchHistory, Subscriber, Comment,
   InsertUser, InsertCourse, InsertBookmark, InsertSearchHistory, InsertSubscriber, InsertComment,
-  users, courses, bookmarks, searchHistory, subscribers, comments
+  users, courses, bookmarks, searchHistory, subscribers, comments,
+  // Learning post schemas and types
+  learningPosts, learningPostComments, learningPostLikes, learningPostBookmarks,
+  LearningPost, InsertLearningPost, LearningPostComment, InsertLearningPostComment,
+  LearningPostLike, InsertLearningPostLike, LearningPostBookmark, InsertLearningPostBookmark
 } from "@shared/schema";
 import { db } from "./db";
-import { eq, and, like, desc, asc, sql, or, inArray } from "drizzle-orm";
+import { eq, and, like, desc, asc, sql, or, inArray, arrayContains } from "drizzle-orm";
 
 export interface IStorage {
   // User operations
@@ -441,6 +445,210 @@ export class DatabaseStorage implements IStorage {
     // Delete comment
     await db.delete(comments).where(eq(comments.id, id));
     return true;
+  }
+
+  // Learning post operations
+  async getLearningPost(id: number): Promise<LearningPost | undefined> {
+    const [post] = await db.select().from(learningPosts).where(eq(learningPosts.id, id));
+    return post || undefined;
+  }
+
+  async getLearningPosts(options?: {
+    limit?: number;
+    offset?: number;
+    type?: string;
+    tag?: string;
+    userId?: number;
+  }): Promise<LearningPost[]> {
+    let query = db.select().from(learningPosts);
+    
+    // Apply filters
+    const whereConditions = [];
+    
+    if (options?.type) {
+      whereConditions.push(eq(learningPosts.type, options.type));
+    }
+    
+    if (options?.tag) {
+      whereConditions.push(arrayContains(learningPosts.tags, [options.tag]));
+    }
+    
+    if (options?.userId) {
+      whereConditions.push(eq(learningPosts.userId, options.userId));
+    }
+    
+    if (whereConditions.length > 0) {
+      query = query.where(and(...whereConditions));
+    }
+    
+    // Order by most recent
+    query = query.orderBy(desc(learningPosts.createdAt));
+    
+    // Apply pagination
+    if (options?.limit) {
+      query = query.limit(options.limit);
+    }
+    
+    if (options?.offset) {
+      query = query.offset(options.offset);
+    }
+    
+    return await query;
+  }
+
+  async createLearningPost(insertPost: InsertLearningPost): Promise<LearningPost> {
+    const [post] = await db.insert(learningPosts).values(insertPost).returning();
+    return post;
+  }
+
+  async updateLearningPost(id: number, post: Partial<InsertLearningPost>): Promise<LearningPost | undefined> {
+    const [updatedPost] = await db.update(learningPosts)
+      .set({
+        ...post,
+        updatedAt: new Date()
+      })
+      .where(eq(learningPosts.id, id))
+      .returning();
+    return updatedPost || undefined;
+  }
+
+  async deleteLearningPost(id: number, userId: number): Promise<boolean> {
+    // First, ensure the post exists and belongs to the user
+    const [post] = await db.select().from(learningPosts)
+      .where(and(
+        eq(learningPosts.id, id),
+        eq(learningPosts.userId, userId)
+      ));
+    
+    if (!post) return false;
+    
+    // Delete all associated data first
+    await db.delete(learningPostLikes).where(eq(learningPostLikes.postId, id));
+    await db.delete(learningPostComments).where(eq(learningPostComments.postId, id));
+    await db.delete(learningPostBookmarks).where(eq(learningPostBookmarks.postId, id));
+    
+    // Then delete the post
+    await db.delete(learningPosts).where(eq(learningPosts.id, id));
+    return true;
+  }
+
+  // Learning post comment operations
+  async getLearningPostComment(id: number): Promise<LearningPostComment | undefined> {
+    const [comment] = await db.select().from(learningPostComments).where(eq(learningPostComments.id, id));
+    return comment || undefined;
+  }
+
+  async getLearningPostCommentsByPostId(postId: number): Promise<LearningPostComment[]> {
+    return await db.select().from(learningPostComments)
+      .where(eq(learningPostComments.postId, postId))
+      .orderBy(asc(learningPostComments.createdAt));
+  }
+
+  async createLearningPostComment(insertComment: InsertLearningPostComment): Promise<LearningPostComment> {
+    const [comment] = await db.insert(learningPostComments).values(insertComment).returning();
+    return comment;
+  }
+
+  async updateLearningPostComment(id: number, content: string): Promise<LearningPostComment | undefined> {
+    const [updatedComment] = await db.update(learningPostComments)
+      .set({
+        content,
+        updatedAt: new Date()
+      })
+      .where(eq(learningPostComments.id, id))
+      .returning();
+    return updatedComment || undefined;
+  }
+
+  async deleteLearningPostComment(id: number, userId: number): Promise<boolean> {
+    await db.delete(learningPostComments)
+      .where(and(
+        eq(learningPostComments.id, id),
+        eq(learningPostComments.userId, userId)
+      ));
+    return true;
+  }
+
+  // Learning post like operations
+  async getLearningPostLike(postId: number, userId: number): Promise<LearningPostLike | undefined> {
+    const [like] = await db.select().from(learningPostLikes)
+      .where(and(
+        eq(learningPostLikes.postId, postId),
+        eq(learningPostLikes.userId, userId)
+      ));
+    return like || undefined;
+  }
+
+  async getLearningPostLikesByPostId(postId: number): Promise<LearningPostLike[]> {
+    return await db.select().from(learningPostLikes)
+      .where(eq(learningPostLikes.postId, postId));
+  }
+
+  async createLearningPostLike(insertLike: InsertLearningPostLike): Promise<LearningPostLike> {
+    const [like] = await db.insert(learningPostLikes).values(insertLike).returning();
+    return like;
+  }
+
+  async deleteLearningPostLike(postId: number, userId: number): Promise<boolean> {
+    await db.delete(learningPostLikes)
+      .where(and(
+        eq(learningPostLikes.postId, postId),
+        eq(learningPostLikes.userId, userId)
+      ));
+    return true;
+  }
+
+  async getLearningPostLikesCount(postId: number): Promise<number> {
+    const result = await db.select({ count: sql`count(*)` }).from(learningPostLikes)
+      .where(eq(learningPostLikes.postId, postId));
+    return Number(result[0]?.count || 0);
+  }
+
+  // Learning post bookmark operations
+  async getLearningPostBookmark(postId: number, userId: number): Promise<LearningPostBookmark | undefined> {
+    const [bookmark] = await db.select().from(learningPostBookmarks)
+      .where(and(
+        eq(learningPostBookmarks.postId, postId),
+        eq(learningPostBookmarks.userId, userId)
+      ));
+    return bookmark || undefined;
+  }
+
+  async getLearningPostBookmarksByUserId(userId: number): Promise<LearningPostBookmark[]> {
+    return await db.select().from(learningPostBookmarks)
+      .where(eq(learningPostBookmarks.userId, userId));
+  }
+
+  async createLearningPostBookmark(insertBookmark: InsertLearningPostBookmark): Promise<LearningPostBookmark> {
+    const [bookmark] = await db.insert(learningPostBookmarks).values(insertBookmark).returning();
+    return bookmark;
+  }
+
+  async deleteLearningPostBookmark(postId: number, userId: number): Promise<boolean> {
+    await db.delete(learningPostBookmarks)
+      .where(and(
+        eq(learningPostBookmarks.postId, postId),
+        eq(learningPostBookmarks.userId, userId)
+      ));
+    return true;
+  }
+
+  // Learning post tag operations
+  async getLearningPostTags(): Promise<string[]> {
+    const result = await db.select({ tags: learningPosts.tags }).from(learningPosts)
+      .where(sql`${learningPosts.tags} IS NOT NULL`);
+    
+    // Extract and deduplicate tags
+    const tagSet = new Set<string>();
+    result.forEach(r => {
+      if (r.tags && r.tags.length > 0) {
+        r.tags.forEach(tag => {
+          if (tag) tagSet.add(tag);
+        });
+      }
+    });
+    
+    return Array.from(tagSet);
   }
 }
 
