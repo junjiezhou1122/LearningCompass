@@ -332,7 +332,11 @@ const APIConfiguration = ({ initialSettings, onSave }) => {
         <Button 
           onClick={handleSave}
           className="bg-gradient-to-r from-orange-500 to-amber-600 text-white hover:from-orange-600 hover:to-amber-700"
-          disabled={(settings.provider !== 'openrouter' && !settings.apiKey) || (settings.provider === 'custom' && !settings.baseUrl)}
+          disabled={
+            (settings.provider !== 'openrouter' && !settings.apiKey) || 
+            (settings.provider === 'custom' && !settings.baseUrl) ||
+            !settings.model
+          }
         >
           <Save className="mr-2 h-4 w-4" />
           Save Settings

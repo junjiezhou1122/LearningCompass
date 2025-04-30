@@ -122,9 +122,23 @@ async function handleCustomAPIChat(body: AIRequestBody): Promise<string> {
   
   // Prepare headers
   const headers: Record<string, string> = {
-    'Content-Type': 'application/json',
-    'Authorization': `Bearer ${body.apiKey}`
+    'Content-Type': 'application/json'
   };
+  
+  // Handle API key for authorization
+  let apiKey = body.apiKey;
+  
+  // For OpenRouter, use environment variable if available
+  if (isOpenRouter && process.env.OPENROUTER_API_KEY) {
+    console.log('Using OpenRouter API key from environment variable');
+    apiKey = process.env.OPENROUTER_API_KEY;
+  } else if (!apiKey) {
+    throw new Error('API key is required');
+  }
+  
+  // Set Authorization header with appropriate API key
+  headers['Authorization'] = `Bearer ${apiKey}`;
+  console.log('Authorization header set with API key');
   
   // Add OpenRouter specific headers
   if (isOpenRouter) {
@@ -183,8 +197,9 @@ export async function handleChatRequest(req: Request, res: Response) {
       messageCount: body.messages?.length
     });
     
-    if (!body.apiKey) {
-      console.log('API key missing');
+    // Skip API key check if provider is OpenRouter (we'll use env var)
+    if (body.provider !== 'openrouter' && !body.apiKey) {
+      console.log('API key missing and provider is not OpenRouter');
       return res.status(400).json({ error: 'API key is required' });
     }
     

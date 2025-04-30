@@ -70,10 +70,21 @@ const AIAssistant = () => {
     if (!input.trim()) return;
     
     // Check if API settings are configured
-    if (!savedApiSettings || (savedApiSettings.provider !== 'openrouter' && !savedApiSettings.apiKey)) {
+    if (!savedApiSettings) {
       toast({
         title: 'API not configured',
         description: 'Please configure your AI provider settings first.',
+        variant: 'destructive',
+      });
+      setActiveTab('settings');
+      return;
+    }
+    
+    // For non-OpenRouter providers, require an API key
+    if (savedApiSettings.provider !== 'openrouter' && !savedApiSettings.apiKey) {
+      toast({
+        title: 'API key missing',
+        description: 'Please provide an API key for ' + savedApiSettings.provider,
         variant: 'destructive',
       });
       setActiveTab('settings');
@@ -167,7 +178,7 @@ const AIAssistant = () => {
         </TabsList>
 
         <TabsContent value="chat" className="space-y-4">
-          {(!savedApiSettings || (savedApiSettings.provider !== 'openrouter' && !savedApiSettings?.apiKey)) && (
+          {!savedApiSettings && (
             <Card className="border-amber-200 bg-amber-50">
               <CardHeader className="pb-2">
                 <CardTitle className="text-amber-700 text-lg">Configure AI Provider</CardTitle>
@@ -231,11 +242,11 @@ const AIAssistant = () => {
                   onKeyDown={handleKeyDown}
                   placeholder="Type your message..."
                   className="flex-grow"
-                  disabled={(!savedApiSettings || (savedApiSettings.provider !== 'openrouter' && !savedApiSettings?.apiKey)) || isTyping}
+                  disabled={(isTyping || !savedApiSettings)}
                 />
                 <Button 
                   onClick={sendMessage} 
-                  disabled={!input.trim() || (!savedApiSettings || (savedApiSettings.provider !== 'openrouter' && !savedApiSettings?.apiKey)) || isTyping}
+                  disabled={!input.trim() || !savedApiSettings || isTyping}
                   className="bg-gradient-to-r from-orange-500 to-amber-600 text-white hover:from-orange-600 hover:to-amber-700"
                 >
                   <Send className="h-4 w-4" />
