@@ -268,7 +268,7 @@ export default function Share() {
   // Filter posts by type and tag
   const filteredPosts = posts.filter(post => {
     if (activeTab !== 'all' && post.type !== activeTab) return false;
-    if (filterTag && !post.tags.includes(filterTag)) return false;
+    if (filterTag && filterTag !== 'all-tags' && !post.tags.includes(filterTag)) return false;
     return true;
   });
 
@@ -316,7 +316,7 @@ export default function Share() {
                   <SelectValue placeholder="Filter by tag" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">All tags</SelectItem>
+                  <SelectItem value="all-tags">All tags</SelectItem>
                   {tagOptions.map(tag => (
                     <SelectItem key={tag} value={tag}>{tag}</SelectItem>
                   ))}
@@ -498,7 +498,7 @@ export default function Share() {
                             key={tag} 
                             variant="outline"
                             className="cursor-pointer hover:bg-orange-50"
-                            onClick={() => setFilterTag(tag)}
+                            onClick={() => filterTag === tag ? setFilterTag('all-tags') : setFilterTag(tag)}
                           >
                             {tag}
                           </Badge>
@@ -602,7 +602,7 @@ export default function Share() {
                 <MessageSquare size={48} className="mx-auto text-gray-300 mb-4" />
                 <h3 className="text-lg font-medium text-gray-900 mb-1">No posts found</h3>
                 <p className="text-gray-500">
-                  {filterTag ? `No posts with the tag "${filterTag}"` : 'Be the first to post in this category'}
+                  {filterTag && filterTag !== 'all-tags' ? `No posts with the tag "${filterTag}"` : 'Be the first to post in this category'}
                 </p>
               </div>
             )}
