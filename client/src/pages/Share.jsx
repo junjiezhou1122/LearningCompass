@@ -67,6 +67,7 @@ import {
   Search,
   Eye,
   ArrowRight,
+  FlaskRound,
 } from 'lucide-react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { toast } from '@/hooks/use-toast';
@@ -103,12 +104,50 @@ export default function Share() {
   const [searchQuery, setSearchQuery] = useState('');
   // For tracking unique tags from all posts
   const [availableTags, setAvailableTags] = useState([]);
+  // For tracking applied methods
+  const [appliedMethods, setAppliedMethods] = useState({});
   
   // Fetch all learning posts
   const { data: posts = [], isLoading: isPostsLoading } = useQuery({
     queryKey: ['/api/learning-posts'],
     staleTime: 1000 * 30, // 30 seconds instead of 1 minute for more frequent refreshes
   });
+  
+  // Check which methods the user has applied (if authenticated)
+  useEffect(() => {
+    if (isAuthenticated && posts && posts.length > 0) {
+      // Filter for method posts only
+      const methodPosts = posts.filter(post => post.type === 'method');
+      
+      if (methodPosts.length > 0) {
+        // For each method post, check if the user has applied it
+        const checkMethodApplications = async () => {
+          const token = localStorage.getItem('token');
+          const appliedObj = {};
+          
+          const promises = methodPosts.map(async (post) => {
+            try {
+              const response = await fetch(`/api/methods/${post.id}/application`, {
+                headers: { 'Authorization': `Bearer ${token}` }
+              });
+              
+              if (response.ok) {
+                const data = await response.json();
+                appliedObj[post.id] = data.applied;
+              }
+            } catch (error) {
+              console.error(`Error checking method application for post ${post.id}:`, error);
+            }
+          });
+          
+          await Promise.all(promises);
+          setAppliedMethods(appliedObj);
+        };
+        
+        checkMethodApplications();
+      }
+    }
+  }, [posts, isAuthenticated]);
   
   // Use useEffect to extract tags and populate comment/like info when posts load
   useEffect(() => {
@@ -425,6 +464,69 @@ export default function Share() {
       toast({
         title: "Error",
         description: error.message || "Failed to like post. Please try again.",
+        variant: "destructive",
+      });
+    }
+  });
+  
+  // Mutation for applying a method
+  const applyMethodMutation = useMutation({
+    mutationFn: async (methodId) => {
+      if (!isAuthenticated) {
+        toast({
+          title: "Authentication Required",
+          description: "Please sign in to apply methods",
+          variant: "destructive",
+        });
+        return;
+      }
+      
+      // Check if the user has already applied this method
+      if (appliedMethods[methodId]) {
+        toast({
+          title: "Already Applied",
+          description: "You have already applied this method. Check your profile for progress tracking.",
+        });
+        return;
+      }
+      
+      // Get auth token from localStorage
+      const token = localStorage.getItem('token');
+      
+      const response = await fetch(`/api/methods/${methodId}/apply`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({ progress: '{}' }),
+      });
+      
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || 'Failed to apply method');
+      }
+      
+      return { methodId, applied: true, application: await response.json() };
+    },
+    onSuccess: (data) => {
+      if (data) {
+        // Update applied methods state
+        setAppliedMethods(prev => ({
+          ...prev,
+          [data.methodId]: true
+        }));
+        
+        toast({
+          title: "Method Applied!",
+          description: "You've started applying this method. Track your progress in your profile.",
+        });
+      }
+    },
+    onError: (error) => {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to apply method. Please try again.",
         variant: "destructive",
       });
     }
@@ -903,6 +1005,12 @@ export default function Share() {
                             <span>Share a resource</span>
                           </div>
                         </SelectItem>
+                        <SelectItem value="method">
+                          <div className="flex items-center">
+                            <FlaskRound size={16} className="mr-2 text-green-500" />
+                            <span>Share a method</span>
+                          </div>
+                        </SelectItem>
                       </SelectContent>
                     </Select>
                   </div>
@@ -1056,15 +1164,17 @@ export default function Share() {
                           </div>
                           <div className="flex items-start space-x-2">
                             <Badge 
-                              variant={post.type === 'thought' ? 'secondary' : 'outline'} 
-                              className="transition-all duration-300 group-hover:shadow-sm"
+                              variant={post.type === 'thought' ? 'secondary' : (post.type === 'method' ? 'default' : 'outline')} 
+                              className={`transition-all duration-300 group-hover:shadow-sm ${post.type === 'method' ? 'bg-green-100 text-green-800 hover:bg-green-200' : ''}`}
                             >
                               {post.type === 'thought' ? (
                                 <Lightbulb size={14} className="mr-1 text-amber-500" />
+                              ) : post.type === 'method' ? (
+                                <FlaskRound size={14} className="mr-1 text-green-500" />
                               ) : (
                                 <BookOpen size={14} className="mr-1 text-blue-500" />
                               )}
-                              {post.type === 'thought' ? 'Thought' : 'Resource'}
+                              {post.type === 'thought' ? 'Thought' : post.type === 'method' ? 'Method' : 'Resource'}
                             </Badge>
                           </div>
                         </div>
@@ -1082,6 +1192,52 @@ export default function Share() {
                           >
                             View Resource <ArrowRight size={16} className="ml-1" />
                           </a>
+                        )}
+                        
+                        {post.type === 'method' && (
+                          isAuthenticated ? (
+                            appliedMethods[post.id] ? (
+                              <Button
+                                variant="outline"
+                                className="mt-3 text-green-700 bg-green-50 border-green-300 hover:bg-green-100"
+                                onClick={(e) => {
+                                  e.stopPropagation(); // Prevent navigating to post detail
+                                  navigate('/profile'); // Go to profile to view method applications
+                                }}
+                              >
+                                <FlaskRound size={16} className="mr-2" fill="currentColor" />
+                                Applied - View Progress
+                              </Button>
+                            ) : (
+                              <Button
+                                variant="outline"
+                                className="mt-3 text-green-600 border-green-300 hover:bg-green-50 hover:text-green-700 hover:border-green-400"
+                                onClick={(e) => {
+                                  e.stopPropagation(); // Prevent navigating to post detail
+                                  applyMethodMutation.mutate(post.id);
+                                }}
+                              >
+                                <FlaskRound size={16} className="mr-2" />
+                                Apply This Method
+                              </Button>
+                            )
+                          ) : (
+                            <Button
+                              variant="outline"
+                              className="mt-3 text-green-600 border-green-300 hover:bg-green-50 hover:text-green-700 hover:border-green-400"
+                              onClick={(e) => {
+                                e.stopPropagation(); // Prevent navigating to post detail
+                                toast({
+                                  title: "Authentication Required",
+                                  description: "Please sign in to apply this method",
+                                  variant: "destructive",
+                                });
+                              }}
+                            >
+                              <FlaskRound size={16} className="mr-2" />
+                              Apply This Method
+                            </Button>
+                          )
                         )}
                         
                         <div className="flex flex-wrap gap-2 mt-4">
