@@ -335,6 +335,53 @@ const AIAssistant = () => {
     });
   };
   
+  // Function to delete a conversation from database
+  const deleteDbConversation = async (conversationId) => {
+    if (!isAuthenticated || !token) return;
+    
+    try {
+      const response = await fetch(`/api/ai/conversations/${conversationId}`, {
+        method: 'DELETE',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        }
+      });
+      
+      if (!response.ok) {
+        throw new Error(`Error: ${response.status}`);
+      }
+      
+      // Remove from state
+      setDbConversations(prev => prev.filter(c => c.id.toString() !== conversationId.toString()));
+      
+      toast({
+        title: "Conversation deleted",
+        description: "The conversation has been deleted from your account.",
+        variant: "default",
+      });
+    } catch (error) {
+      console.error('Error deleting conversation from database:', error);
+      toast({
+        title: 'Error',
+        description: 'Failed to delete conversation from database.',
+        variant: 'destructive',
+      });
+    }
+  };
+  
+  // Function to delete a local conversation
+  const deleteLocalConversation = (conversationId) => {
+    const updatedConversations = savedConversations.filter(c => c.id !== conversationId);
+    setSavedConversations(updatedConversations);
+    localStorage.setItem('aiAssistantConversations', JSON.stringify(updatedConversations));
+    
+    toast({
+      title: "Conversation deleted",
+      variant: "default",
+    });
+  };
+  
   // Function to clear conversation history
   const clearConversation = () => {
     setMessages([
