@@ -154,75 +154,99 @@ const AIAssistant = () => {
   return (
     <div className="space-y-6">
       <div className="relative">
-        {/* Background elements */}
-        <div className="absolute -z-10 -top-10 -right-10 w-40 h-40 bg-orange-200 rounded-full filter blur-3xl opacity-60 animate-blob"></div>
-        <div className="absolute -z-10 -bottom-10 -left-10 w-40 h-40 bg-amber-200 rounded-full filter blur-3xl opacity-60 animate-blob animation-delay-2000"></div>
+        {/* Background elements - made more subtle */}
+        <div className="absolute -z-10 -top-5 -right-5 w-36 h-36 bg-orange-100 rounded-full filter blur-3xl opacity-40 animate-blob"></div>
+        <div className="absolute -z-10 -bottom-5 -left-5 w-36 h-36 bg-amber-100 rounded-full filter blur-3xl opacity-40 animate-blob animation-delay-2000"></div>
         
-        <h2 className="text-3xl font-bold tracking-tight text-orange-600 animate-fadeIn flex items-center">
-          <Bot className="mr-3 h-8 w-8" /> 
-          AI Learning Assistant
-        </h2>
-        <p className="text-lg text-gray-700 mt-2 animate-fadeIn animation-delay-300">
-          Get personalized help with your learning journey through our AI assistant.
-        </p>
+        <div className="flex items-center justify-between">
+          <div>
+            <h2 className="text-2xl font-bold tracking-tight text-orange-600 animate-fadeIn flex items-center">
+              <Bot className="mr-2 h-6 w-6" /> 
+              AI Learning Assistant
+            </h2>
+            <p className="text-sm text-gray-600 mt-1 animate-fadeIn animation-delay-300">
+              Ask questions about any topic to enhance your learning journey
+            </p>
+          </div>
+          
+          {/* Settings button in the header for quick access */}
+          {activeTab === 'chat' && savedApiSettings && (
+            <Button 
+              variant="ghost" 
+              size="sm"
+              onClick={() => setActiveTab('settings')}
+              className="text-gray-500 hover:text-orange-600"
+            >
+              <Settings className="h-4 w-4 mr-1" /> 
+              <span className="text-xs">Settings</span>
+            </Button>
+          )}
+        </div>
       </div>
 
       <Tabs defaultValue="chat" value={activeTab} onValueChange={setActiveTab} className="w-full">
-        <TabsList className="grid grid-cols-2 mb-4">
-          <TabsTrigger value="chat" className="flex items-center justify-center">
+        <TabsList className="grid grid-cols-2 mb-4 bg-orange-50">
+          <TabsTrigger value="chat" className="flex items-center justify-center data-[state=active]:bg-orange-100 data-[state=active]:text-orange-800">
             <Bot className="mr-2 h-4 w-4" /> Chat
           </TabsTrigger>
-          <TabsTrigger value="settings" className="flex items-center justify-center">
+          <TabsTrigger value="settings" className="flex items-center justify-center data-[state=active]:bg-orange-100 data-[state=active]:text-orange-800">
             <Settings className="mr-2 h-4 w-4" /> Settings
           </TabsTrigger>
         </TabsList>
 
         <TabsContent value="chat" className="space-y-4">
           {!savedApiSettings && (
-            <Card className="border-amber-200 bg-amber-50">
+            <Card className="border-amber-200 bg-gradient-to-r from-amber-50 to-orange-50 shadow-sm">
               <CardHeader className="pb-2">
-                <CardTitle className="text-amber-700 text-lg">Configure AI Provider</CardTitle>
+                <CardTitle className="text-orange-700 text-lg flex items-center">
+                  <HelpCircle className="h-5 w-5 mr-2 text-orange-500" />
+                  Welcome to AI Assistant
+                </CardTitle>
               </CardHeader>
               <CardContent>
-                <p className="text-sm text-amber-700">
-                  You need to configure your AI provider settings before using the assistant.
+                <p className="text-sm text-gray-700">
+                  To get started, you'll need to configure your AI provider settings. 
+                  We've pre-configured the OpenRouter integration for easy setup.
                 </p>
               </CardContent>
               <CardFooter>
                 <Button 
-                  variant="outline" 
-                  className="text-amber-700 border-amber-300 hover:bg-amber-100"
+                  className="bg-gradient-to-r from-orange-500 to-amber-500 text-white hover:from-orange-600 hover:to-amber-600 shadow-sm"
                   onClick={() => setActiveTab('settings')}
                 >
-                  <Settings className="mr-2 h-4 w-4" /> Configure Settings
+                  <Settings className="mr-2 h-4 w-4" /> Configure AI Settings
                 </Button>
               </CardFooter>
             </Card>
           )}
 
-          <div className="bg-white rounded-lg border border-gray-200 overflow-hidden shadow-sm min-h-80 max-h-[500px] flex flex-col">
-            <div className="p-4 bg-gray-50 border-b border-gray-200 flex items-center">
-              <Bot className="h-5 w-5 text-orange-600 mr-2" />
-              <span className="font-medium text-gray-700">AI Assistant</span>
+          <div className="bg-white rounded-lg border border-gray-200 overflow-hidden shadow-md min-h-[60vh] max-h-[70vh] flex flex-col">
+            <div className="p-3 bg-gradient-to-r from-orange-50 to-amber-50 border-b border-orange-100 flex items-center">
+              <div className="flex items-center bg-white rounded-full px-3 py-1 shadow-sm border border-orange-100">
+                <Bot className="h-4 w-4 text-orange-600 mr-1" />
+                <span className="text-sm font-medium text-gray-800">Learning AI</span>
+              </div>
               <div className="ml-auto flex items-center space-x-2">
                 {savedApiSettings?.provider && (
-                  <div className="text-xs px-2 py-1 bg-orange-100 text-orange-700 rounded-full">
+                  <div className="text-xs px-2 py-1 bg-white border border-orange-100 text-orange-700 rounded-full shadow-sm">
                     {savedApiSettings.provider === 'openai' ? 'OpenAI' : 
                      savedApiSettings.provider === 'anthropic' ? 'Anthropic' : 
                      savedApiSettings.provider === 'openrouter' ? 'OpenRouter' :
                      savedApiSettings.provider === 'custom' ? 'Custom API' : 
                      savedApiSettings.provider}
+                    {' • '}
+                    <span className="font-mono text-xs opacity-75">{savedApiSettings.model.split('/').pop()}</span>
                   </div>
                 )}
               </div>
             </div>
             
-            <div className="flex-grow overflow-y-auto p-4 space-y-4">
+            <div className="flex-grow overflow-y-auto p-4 space-y-4 bg-gray-50">
               {messages.map((message, index) => (
                 <ChatMessage key={index} message={message} />
               ))}
               {isTyping && (
-                <div className="flex items-center text-gray-500 text-sm">
+                <div className="flex items-center text-gray-500 text-sm bg-white p-3 rounded-lg border border-gray-100 shadow-sm">
                   <div className="typing-indicator">
                     <span></span>
                     <span></span>
@@ -234,39 +258,48 @@ const AIAssistant = () => {
               <div ref={messagesEndRef} />
             </div>
             
-            <div className="p-4 border-t border-gray-200 bg-gray-50">
-              <div className="flex space-x-2">
+            <div className="p-3 border-t border-gray-200 bg-white">
+              <div className="flex space-x-2 items-center">
                 <Input
                   value={input}
                   onChange={(e) => setInput(e.target.value)}
                   onKeyDown={handleKeyDown}
-                  placeholder="Type your message..."
-                  className="flex-grow"
+                  placeholder="Ask a question..."
+                  className="flex-grow rounded-full border-orange-200 focus:border-orange-300 focus:ring-orange-200 shadow-sm"
                   disabled={(isTyping || !savedApiSettings)}
                 />
                 <Button 
                   onClick={sendMessage} 
                   disabled={!input.trim() || !savedApiSettings || isTyping}
-                  className="bg-gradient-to-r from-orange-500 to-amber-600 text-white hover:from-orange-600 hover:to-amber-700"
+                  className="bg-gradient-to-r from-orange-500 to-amber-500 text-white hover:from-orange-600 hover:to-amber-600 rounded-full shadow-sm aspect-square p-2"
                 >
                   <Send className="h-4 w-4" />
                 </Button>
               </div>
               {savedApiSettings && (savedApiSettings.provider === 'openrouter' || savedApiSettings.apiKey) && (
-                <p className="text-xs text-gray-500 mt-2">
-                  Using {savedApiSettings.model || 'default model'} from {
-                    savedApiSettings.provider === 'openai' ? 'OpenAI' : 
-                    savedApiSettings.provider === 'anthropic' ? 'Anthropic' : 
-                    savedApiSettings.provider === 'openrouter' ? 'OpenRouter' :
-                    'Custom API'
-                  }
-                </p>
+                <div className="flex justify-center">
+                  <p className="text-[10px] text-gray-400 mt-2 italic">
+                    Powered by {savedApiSettings.provider === 'openai' ? 'OpenAI' : 
+                      savedApiSettings.provider === 'anthropic' ? 'Anthropic Claude' : 
+                      savedApiSettings.provider === 'openrouter' ? 'OpenRouter' :
+                      'Custom API'}
+                  </p>
+                </div>
               )}
             </div>
           </div>
         </TabsContent>
 
         <TabsContent value="settings" className="space-y-4">
+          <Button 
+            variant="ghost" 
+            onClick={() => setActiveTab('chat')}
+            className="text-gray-500 hover:text-orange-600 mb-2"
+            size="sm"
+          >
+            <span className="text-xs">← Back to chat</span>
+          </Button>
+          
           <APIConfiguration 
             initialSettings={apiSettings} 
             onSave={saveApiSettings} 

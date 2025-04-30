@@ -733,8 +733,8 @@ export default function LearningHowToLearn() {
             {activeTab === "assistant" && <AIAssistant />}
           </div>
           
-          {/* Newsletter Section */}
-          <Newsletter />
+          {/* Newsletter Section - Hide when assistant tab is active */}
+          {activeTab !== "assistant" && <Newsletter />}
         </div>
       </div>
     </div>
