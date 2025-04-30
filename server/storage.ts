@@ -9,7 +9,9 @@ import {
   // User follows schemas and types
   userFollows, UserFollow, InsertUserFollow,
   // AI conversations schemas and types
-  aiConversations, AiConversation, InsertAiConversation
+  aiConversations, AiConversation, InsertAiConversation,
+  // Method applications schemas and types
+  methodApplications, MethodApplication, InsertMethodApplication
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, and, like, desc, asc, sql, or, inArray, arrayContains } from "drizzle-orm";
@@ -128,6 +130,18 @@ export interface IStorage {
   createAiConversation(conversation: InsertAiConversation): Promise<AiConversation>;
   updateAiConversation(id: number, data: Partial<InsertAiConversation>): Promise<AiConversation | undefined>;
   deleteAiConversation(id: number, userId: number): Promise<boolean>;
+  
+  // Method application operations
+  getMethodApplication(id: number): Promise<MethodApplication | undefined>;
+  getMethodApplicationsByUserId(userId: number): Promise<MethodApplication[]>;
+  getMethodApplicationsByMethodId(methodPostId: number): Promise<MethodApplication[]>;
+  getMethodApplicationByUserAndMethod(userId: number, methodPostId: number): Promise<MethodApplication | undefined>;
+  createMethodApplication(application: InsertMethodApplication): Promise<MethodApplication>;
+  updateMethodApplication(id: number, data: Partial<InsertMethodApplication>): Promise<MethodApplication | undefined>;
+  deleteMethodApplication(id: number, userId: number): Promise<boolean>;
+  getActiveMethodApplicationsByUserId(userId: number): Promise<MethodApplication[]>;
+  getCompletedMethodApplicationsByUserId(userId: number): Promise<MethodApplication[]>;
+  getMethodApplicationsCount(methodPostId: number): Promise<number>;
 }
 
 export class DatabaseStorage implements IStorage {

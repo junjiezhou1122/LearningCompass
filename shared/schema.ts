@@ -189,7 +189,7 @@ export const learningPosts = pgTable("learning_posts", {
   userId: integer("user_id").notNull(),
   title: text("title").notNull(),
   content: text("content").notNull(),
-  type: varchar("type", { length: 50 }).notNull(), // 'thought' or 'resource'
+  type: varchar("type", { length: 50 }).notNull(), // 'thought', 'resource', or 'method'
   resourceLink: text("resource_link"),
   tags: text("tags").array(), // Store tags as array
   views: integer("views").default(0).notNull(), // Track number of views
@@ -380,3 +380,55 @@ export const usersAiRelations = relations(users, ({ many }) => ({
 
 export type AiConversation = typeof aiConversations.$inferSelect;
 export type InsertAiConversation = typeof aiConversations.$inferInsert;
+
+// Method applications schema - for tracking when users apply methods
+export const methodApplications = pgTable("method_applications", {
+  id: serial("id").primaryKey(),
+  methodPostId: integer("method_post_id").notNull().references(() => learningPosts.id),
+  userId: integer("user_id").notNull().references(() => users.id),
+  status: varchar("status", { length: 50 }).notNull(), // 'active', 'completed', 'abandoned'
+  startDate: timestamp("start_date").defaultNow().notNull(),
+  endDate: timestamp("end_date"),
+  rating: integer("rating"), // Users can rate how effective the method was
+  feedback: text("feedback"), // User feedback about their experience
+  progress: text("progress"), // JSON for tracking steps or progress
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at")
+});
+
+export const insertMethodApplicationSchema = createInsertSchema(methodApplications).pick({
+  methodPostId: true,
+  userId: true,
+  status: true,
+  startDate: true,
+  endDate: true,
+  rating: true,
+  feedback: true,
+  progress: true,
+  updatedAt: true
+});
+
+// Method application relations
+export const methodApplicationsRelations = relations(methodApplications, ({ one }) => ({
+  post: one(learningPosts, {
+    fields: [methodApplications.methodPostId],
+    references: [learningPosts.id]
+  }),
+  user: one(users, {
+    fields: [methodApplications.userId],
+    references: [users.id]
+  })
+}));
+
+// Update user relations to include method applications
+export const usersMethodRelations = relations(users, ({ many }) => ({
+  methodApplications: many(methodApplications)
+}));
+
+// Update learning post relations to include method applications
+export const learningPostMethodRelations = relations(learningPosts, ({ many }) => ({
+  methodApplications: many(methodApplications)
+}));
+
+export type MethodApplication = typeof methodApplications.$inferSelect;
+export type InsertMethodApplication = typeof methodApplications.$inferInsert;
