@@ -202,8 +202,7 @@ export const insertLearningPostSchema = createInsertSchema(learningPosts).pick({
   content: true,
   type: true,
   resourceLink: true,
-  tags: true,
-  updatedAt: true
+  tags: true
 });
 
 // Learning Post Comments schema
@@ -219,8 +218,7 @@ export const learningPostComments = pgTable("learning_post_comments", {
 export const insertLearningPostCommentSchema = createInsertSchema(learningPostComments).pick({
   postId: true,
   userId: true,
-  content: true,
-  updatedAt: true
+  content: true
 });
 
 // Learning Post Likes schema
