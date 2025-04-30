@@ -668,26 +668,100 @@ export default function UserProfile() {
                       <CardHeader className="pb-3 transition-colors duration-300 group-hover:bg-orange-50/50">
                         <div className="flex justify-between items-start">
                           <div>
-                            <CardTitle className="text-lg transition-colors duration-300 group-hover:text-orange-700">{post.title}</CardTitle>
+                            <CardTitle className="text-lg transition-colors duration-300 group-hover:text-orange-700">
+                              <span className="flex items-center gap-2">
+                                <Heart className="h-4 w-4 text-red-500 fill-red-500" />
+                                {post.title}
+                              </span>
+                            </CardTitle>
                             <CardDescription className="flex flex-wrap items-center mt-1 gap-x-2">
                               <div className="flex items-center">
                                 <Calendar size={14} className="mr-1 text-orange-400" />
                                 <span>{new Date(post.createdAt).toLocaleDateString()}</span>
                               </div>
                               <span className="inline-block mx-1">•</span>
-                              <div className="flex items-center">
+                              <div 
+                                className="flex items-center cursor-pointer hover:text-orange-600" 
+                                onClick={(e) => { 
+                                  e.stopPropagation(); 
+                                  navigate(`/profile/${post.userId}`); 
+                                }}
+                              >
                                 <User size={14} className="mr-1 text-green-500" />
-                                <span>By {post.username}</span>
+                                <span className="hover:underline">By {post.username || 'Unknown'}</span>
                               </div>
+                              {post.views !== undefined && (
+                                <>
+                                  <span className="inline-block mx-1">•</span>
+                                  <div className="flex items-center">
+                                    <Eye size={14} className="mr-1 text-blue-400" />
+                                    <span>{post.views || 0} views</span>
+                                  </div>
+                                </>
+                              )}
                             </CardDescription>
                           </div>
+                          
+                          {post.type && (
+                            <div className="flex items-start space-x-2">
+                              <Badge 
+                                variant={post.type === 'thought' ? 'secondary' : 'outline'} 
+                                className="transition-all duration-300 group-hover:shadow-sm"
+                              >
+                                {post.type === 'thought' ? (
+                                  <Lightbulb size={14} className="mr-1 text-amber-500" />
+                                ) : (
+                                  <BookOpen size={14} className="mr-1 text-blue-500" />
+                                )}
+                                {post.type === 'thought' ? 'Thought' : 'Resource'}
+                              </Badge>
+                            </div>
+                          )}
                         </div>
                       </CardHeader>
                       
                       <CardContent className="transition-colors duration-300 group-hover:bg-orange-50/30">
                         <p className="text-gray-700 whitespace-pre-line line-clamp-3 transition-colors duration-300 group-hover:text-gray-900">{post.content}</p>
+                        
+                        {post.type === 'resource' && post.resourceLink && (
+                          <a 
+                            href={post.resourceLink} 
+                            target="_blank" 
+                            rel="noopener noreferrer"
+                            className="inline-flex items-center mt-3 text-blue-600 hover:text-blue-800 hover:underline transform transition-all duration-300 hover:translate-x-1"
+                            onClick={(e) => e.stopPropagation()} // Prevent navigating to post detail
+                          >
+                            View Resource <ArrowRight size={16} className="ml-1" />
+                          </a>
+                        )}
+                        
+                        {post.tags && post.tags.length > 0 && (
+                          <div className="flex flex-wrap gap-2 mt-4">
+                            {post.tags.map(tag => (
+                              <Badge 
+                                key={tag} 
+                                variant="outline"
+                                className="transition-all duration-300 hover:bg-orange-100 hover:text-orange-800"
+                              >
+                                {tag}
+                              </Badge>
+                            ))}
+                          </div>
+                        )}
                       </CardContent>
                     </div>
+                    
+                    <CardFooter className="border-t pt-4 flex flex-wrap items-center justify-between gap-4 bg-gray-50 group-hover:bg-orange-50/20 transition-colors duration-300">
+                      <div className="flex flex-wrap items-center gap-4">
+                        <PostLikeStatus postId={post.id} />
+                        <PostCommentCount postId={post.id} />
+                        <div className="flex items-center gap-1 text-gray-500">
+                          <Eye size={16} className="text-blue-400" />
+                          <span>{post.views || 0}</span>
+                        </div>
+                        <PostBookmarkStatus postId={post.id} />
+                      </div>
+                    </CardFooter>
                   </Card>
                 ))}
               </div>
@@ -712,22 +786,67 @@ export default function UserProfile() {
             ) : userComments?.length > 0 ? (
               <div className="grid grid-cols-1 gap-6">
                 {userComments.map(comment => (
-                  <Card key={comment.id} className="overflow-hidden transition-all duration-300 hover:shadow-md">
-                    <CardHeader className="pb-2">
-                      <div className="flex justify-between items-center">
+                  <Card key={comment.id} className="overflow-hidden transition-all duration-300 hover:shadow-md group">
+                    <CardHeader className="pb-2 transition-colors duration-300 group-hover:bg-orange-50/50">
+                      <div className="flex justify-between items-start">
                         <CardTitle className="text-md">
-                          <span className="font-normal text-gray-500">Commented on </span>
-                          <span className="text-blue-600 hover:underline cursor-pointer" onClick={() => navigate(`/post/${comment.postId}`)}>
-                            {comment.postTitle}
+                          <span className="flex items-start gap-1.5">
+                            <MessageSquare size={16} className="mt-1 text-orange-500" />
+                            <span>
+                              <span className="font-normal text-gray-500">Commented on </span>
+                              <span 
+                                className="text-blue-600 hover:underline cursor-pointer group-hover:text-orange-600 transition-colors" 
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  navigate(`/post/${comment.postId}`);
+                                }}
+                              >
+                                {comment.postTitle}
+                              </span>
+                            </span>
                           </span>
                         </CardTitle>
-                        <CardDescription className="text-xs text-right">
+                        <CardDescription className="text-xs text-right flex items-center gap-1">
+                          <Calendar size={14} className="text-orange-400" />
                           {new Date(comment.createdAt).toLocaleDateString()}
                         </CardDescription>
                       </div>
+                      {comment.postAuthor && (
+                        <div className="mt-1.5 text-sm text-gray-500 flex items-center">
+                          <User size={14} className="mr-1 text-green-500" />
+                          <span>
+                            Post by: 
+                            <span 
+                              className="ml-1 hover:text-orange-600 hover:underline cursor-pointer transition-colors" 
+                              onClick={(e) => { 
+                                e.stopPropagation(); 
+                                navigate(`/profile/${comment.postUserId}`); 
+                              }}
+                            >
+                              {comment.postAuthor}
+                            </span>
+                          </span>
+                        </div>
+                      )}
                     </CardHeader>
-                    <CardContent>
-                      <p className="text-gray-700 whitespace-pre-line">{comment.content}</p>
+                    <CardContent className="transition-colors duration-300 group-hover:bg-orange-50/20">
+                      <div className="border-l-4 border-orange-200 pl-3 py-1 mb-2 italic text-gray-600 bg-orange-50/30 rounded-sm">
+                        <p className="whitespace-pre-line line-clamp-2 text-sm">{comment.content}</p>
+                      </div>
+                      
+                      <div className="flex justify-end">
+                        <Button 
+                          variant="link" 
+                          size="sm" 
+                          className="text-orange-600 hover:text-orange-800 p-0 h-auto"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            navigate(`/post/${comment.postId}`);
+                          }}
+                        >
+                          View full post <ArrowRight size={14} className="ml-1" />
+                        </Button>
+                      </div>
                     </CardContent>
                   </Card>
                 ))}
