@@ -184,7 +184,7 @@ export default function Header() {
           <Button 
             variant="ghost" 
             className="p-0 h-auto hover:bg-transparent" 
-            onClick={() => navigate("/learning-how-to-learn")}
+            onClick={() => navigate("/")}
           >
             <div className="flex items-center">
               <Brain className="text-primary-600 h-6 w-6 mr-2" />

@@ -11,6 +11,7 @@ import Bookmarks from "@/pages/Bookmarks";
 import Profile from "@/pages/Profile";
 import LearningHowToLearn from "@/pages/LearningHowToLearn";
 import Share from "@/pages/Share";
+import PostDetail from "@/pages/PostDetail";
 import Header from "@/components/Header";
 import Footer from "@/components/Footer";
 import LearningHeader from "@/components/LearningHeader";
@@ -32,6 +33,7 @@ function Router() {
           <Route path="/bookmarks" component={Bookmarks} />
           <Route path="/profile" component={Profile} />
           <Route path="/share" component={Share} />
+          <Route path="/post/:id" component={PostDetail} />
           <Route component={NotFound} />
         </Switch>
       </main>

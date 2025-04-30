@@ -783,21 +783,58 @@ export default function Share() {
               
               <div className="flex items-center space-x-2">
                 <Filter size={16} className="text-gray-500" />
-                <Select value={filterTag} onValueChange={setFilterTag}>
-                  <SelectTrigger className="w-[180px]">
-                    <SelectValue placeholder="Filter by tag" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all-tags">All tags</SelectItem>
-                    {/* Combine default tag options with dynamically found tags */}
-                    {[...new Set([...tagOptions, ...availableTags])]
-                      .sort()
-                      .map(tag => (
-                        <SelectItem key={tag} value={tag}>{tag}</SelectItem>
-                      ))
-                    }
-                  </SelectContent>
-                </Select>
+                <div className="relative w-[220px]">
+                  <Input
+                    placeholder="Search or select tag..."
+                    value={currentTag}
+                    onChange={(e) => setCurrentTag(e.target.value)}
+                    className="w-full pr-10"
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter' && currentTag) {
+                        // Set the current tag as filter
+                        setFilterTag(currentTag);
+                        e.preventDefault();
+                      }
+                    }}
+                  />
+                  <div className="absolute right-2 top-1/2 transform -translate-y-1/2">
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <Button variant="ghost" size="icon" className="h-6 w-6">
+                          <Filter size={14} />
+                        </Button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="end" className="w-[200px] max-h-[300px] overflow-y-auto">
+                        <div className="p-2">
+                          <Input
+                            placeholder="Search tags..."
+                            value={currentTag}
+                            onChange={(e) => setCurrentTag(e.target.value)}
+                            className="mb-2"
+                          />
+                        </div>
+                        <DropdownMenuItem onClick={() => {
+                          setFilterTag('all-tags');
+                          setCurrentTag('');
+                        }}>
+                          <span className="font-bold">All tags</span>
+                        </DropdownMenuItem>
+                        {[...new Set([...tagOptions, ...availableTags])]
+                          .sort()
+                          .filter(tag => tag.toLowerCase().includes(currentTag.toLowerCase()))
+                          .map(tag => (
+                            <DropdownMenuItem key={tag} onClick={() => {
+                              setFilterTag(tag);
+                              setCurrentTag(tag);
+                            }}>
+                              {tag}
+                            </DropdownMenuItem>
+                          ))
+                        }
+                      </DropdownMenuContent>
+                    </DropdownMenu>
+                  </div>
+                </div>
               </div>
             </div>
             
@@ -969,64 +1006,69 @@ export default function Share() {
             {filteredPosts.length > 0 ? (
               filteredPosts.map(post => (
                 <div key={post.id} className="space-y-4">
-                  <Card>
-                    <CardHeader>
-                      <div className="flex justify-between items-start">
-                        <div className="flex items-start space-x-4">
-                          <Avatar>
-                            <AvatarFallback className="bg-orange-100 text-orange-800">
-                              {post.user?.username?.charAt(0).toUpperCase() || 'U'}
-                            </AvatarFallback>
-                          </Avatar>
-                          <div>
-                            <CardTitle className="text-lg">{post.title}</CardTitle>
-                            <CardDescription className="flex items-center mt-1">
-                              <span>{post.user?.username || 'Anonymous'}</span>
-                              <span className="inline-block mx-2">•</span>
-                              <span>{new Date(post.createdAt).toLocaleDateString()}</span>
-                            </CardDescription>
+                  <Card className="cursor-pointer hover:shadow-md transition-shadow">
+                    <div onClick={() => navigate(`/post/${post.id}`)}>
+                      <CardHeader>
+                        <div className="flex justify-between items-start">
+                          <div className="flex items-start space-x-4">
+                            <Avatar>
+                              <AvatarFallback className="bg-orange-100 text-orange-800">
+                                {post.user?.username?.charAt(0).toUpperCase() || 'U'}
+                              </AvatarFallback>
+                            </Avatar>
+                            <div>
+                              <CardTitle className="text-lg">{post.title}</CardTitle>
+                              <CardDescription className="flex items-center mt-1">
+                                <span>{post.user?.username || 'Anonymous'}</span>
+                                <span className="inline-block mx-2">•</span>
+                                <span>{new Date(post.createdAt).toLocaleDateString()}</span>
+                              </CardDescription>
+                            </div>
+                          </div>
+                          <div className="flex items-start space-x-2">
+                            <Badge variant={post.type === 'thought' ? 'secondary' : 'outline'}>
+                              {post.type === 'thought' ? (
+                                <Lightbulb size={14} className="mr-1 text-amber-500" />
+                              ) : (
+                                <BookOpen size={14} className="mr-1 text-blue-500" />
+                              )}
+                              {post.type === 'thought' ? 'Thought' : 'Resource'}
+                            </Badge>
                           </div>
                         </div>
-                        <div className="flex items-start space-x-2">
-
-                          <Badge variant={post.type === 'thought' ? 'secondary' : 'outline'}>
-                            {post.type === 'thought' ? (
-                              <Lightbulb size={14} className="mr-1 text-amber-500" />
-                            ) : (
-                              <BookOpen size={14} className="mr-1 text-blue-500" />
-                            )}
-                            {post.type === 'thought' ? 'Thought' : 'Resource'}
-                          </Badge>
-                        </div>
-                      </div>
-                    </CardHeader>
-                    <CardContent>
-                      <p className="text-gray-700 whitespace-pre-line">{post.content}</p>
-                      
-                      {post.type === 'resource' && post.resourceLink && (
-                        <a 
-                          href={post.resourceLink} 
-                          target="_blank" 
-                          rel="noopener noreferrer"
-                          className="inline-block mt-3 text-blue-600 hover:text-blue-800 underline"
-                        >
-                          View Resource →
-                        </a>
-                      )}
-                      
-                      <div className="flex flex-wrap gap-2 mt-4">
-                        {post.tags.map(tag => (
-                          <Badge 
-                            key={tag} 
-                            variant="outline"
-                            className="cursor-pointer hover:bg-orange-50"
-                            onClick={() => filterTag === tag ? setFilterTag('all-tags') : setFilterTag(tag)}
+                      </CardHeader>
+                      <CardContent>
+                        <p className="text-gray-700 whitespace-pre-line line-clamp-3">{post.content}</p>
+                        
+                        {post.type === 'resource' && post.resourceLink && (
+                          <a 
+                            href={post.resourceLink} 
+                            target="_blank" 
+                            rel="noopener noreferrer"
+                            className="inline-block mt-3 text-blue-600 hover:text-blue-800 underline"
+                            onClick={(e) => e.stopPropagation()} // Prevent navigating to post detail
                           >
-                            {tag}
-                          </Badge>
-                        ))}
-                      </div>
-                    </CardContent>
+                            View Resource →
+                          </a>
+                        )}
+                        
+                        <div className="flex flex-wrap gap-2 mt-4">
+                          {post.tags.map(tag => (
+                            <Badge 
+                              key={tag} 
+                              variant="outline"
+                              className="cursor-pointer hover:bg-orange-50"
+                              onClick={(e) => {
+                                e.stopPropagation(); // Prevent navigating to post detail
+                                filterTag === tag ? setFilterTag('all-tags') : setFilterTag(tag);
+                              }}
+                            >
+                              {tag}
+                            </Badge>
+                          ))}
+                        </div>
+                      </CardContent>
+                    </div>
                     <CardFooter className="border-t pt-4 flex flex-wrap items-center gap-4 justify-between">
                       <div className="flex flex-wrap items-center gap-4">
                         <Button 
