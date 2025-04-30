@@ -10,6 +10,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
 import { useAuth } from '../../contexts/AuthContext';
+import { useLanguage } from '../../contexts/LanguageContext';
 import APIConfiguration from './APIConfiguration';
 import ChatMessage from './ChatMessage';
 import './ai-assistant.css';
@@ -17,6 +18,7 @@ import './ai-assistant.css';
 const AIAssistant = () => {
   const { toast } = useToast();
   const { user, isAuthenticated, token } = useAuth();
+  const { t } = useLanguage();
   const [activeTab, setActiveTab] = useState('chat');
   const [messages, setMessages] = useState([
     { 
@@ -405,10 +407,10 @@ const AIAssistant = () => {
           <div>
             <h2 className="text-2xl font-bold tracking-tight text-orange-600 animate-fadeIn flex items-center">
               <Bot className="mr-2 h-6 w-6" /> 
-              AI Learning Assistant
+              {t('chatWithAI')}
             </h2>
             <p className="text-sm text-gray-600 mt-1 animate-fadeIn animation-delay-300">
-              Ask questions about any topic to enhance your learning journey
+              {t('askQuestionsAboutAnyTopic')}
             </p>
           </div>
           
@@ -421,7 +423,7 @@ const AIAssistant = () => {
               className="text-gray-500 hover:text-orange-600"
             >
               <Settings className="h-4 w-4 mr-1" /> 
-              <span className="text-xs">Settings</span>
+              <span className="text-xs">{t('settings')}</span>
             </Button>
           )}
         </div>
@@ -430,7 +432,7 @@ const AIAssistant = () => {
       <Tabs defaultValue="chat" value={activeTab} onValueChange={setActiveTab} className="w-full">
         <TabsList className="grid grid-cols-3 mb-4 bg-gradient-to-r from-orange-50 to-amber-50 rounded-lg overflow-hidden shadow-sm border border-orange-100">
           <TabsTrigger value="chat" className="flex items-center justify-center data-[state=active]:bg-white data-[state=active]:text-orange-700 data-[state=active]:shadow-sm">
-            <Bot className="mr-2 h-4 w-4" /> Chat
+            <Bot className="mr-2 h-4 w-4" /> {t('chat')}
           </TabsTrigger>
           <TabsTrigger 
             value="saved" 
@@ -447,10 +449,10 @@ const AIAssistant = () => {
               }
             }}
           >
-            <BookOpen className="mr-2 h-4 w-4" /> History
+            <BookOpen className="mr-2 h-4 w-4" /> {t('history')}
           </TabsTrigger>
           <TabsTrigger value="settings" className="flex items-center justify-center data-[state=active]:bg-white data-[state=active]:text-orange-700 data-[state=active]:shadow-sm">
-            <Settings className="mr-2 h-4 w-4" /> Settings
+            <Settings className="mr-2 h-4 w-4" /> {t('settings')}
           </TabsTrigger>
         </TabsList>
 
