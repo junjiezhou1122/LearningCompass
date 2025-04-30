@@ -865,57 +865,126 @@ export default function UserProfile() {
               </div>
             ) : userComments?.length > 0 ? (
               <div className="grid grid-cols-1 gap-6">
-                {userComments.map(post => (
-                  <Card key={post.id} className="overflow-hidden transition-all duration-300 hover:shadow-md group">
-                    <div onClick={() => navigate(`/post/${post.id}`)} className="cursor-pointer">
-                      <CardHeader className="pb-3 transition-colors duration-300 group-hover:bg-orange-50/50">
-                        <div className="flex justify-between items-start">
-                          <div>
-                            <CardTitle className="text-lg transition-colors duration-300 group-hover:text-orange-700">
-                              <span className="flex items-center gap-2">
-                                <MessageSquare className="h-4 w-4 text-orange-500" />
-                                {post.title}
-                              </span>
-                            </CardTitle>
-                            <CardDescription className="flex flex-wrap items-center mt-1 gap-x-2">
-                              <div className="flex items-center">
-                                <Calendar size={14} className="mr-1 text-orange-400" />
-                                <span>{new Date(post.createdAt).toLocaleDateString()}</span>
-                              </div>
-                              <span className="inline-block mx-1">•</span>
-                              <div 
-                                className="flex items-center cursor-pointer hover:text-orange-600" 
-                                onClick={(e) => { 
-                                  e.stopPropagation(); 
-                                  navigate(`/users/${post.userId}`); 
-                                }}
-                              >
-                                <User size={14} className="mr-1 text-green-500" />
-                                <span className="hover:underline">By {post.username || 'Unknown'}</span>
-                              </div>
-                            </CardDescription>
-                          </div>
+                {userComments.map((post, index) => (
+                  <Card 
+                    key={post.id} 
+                    className="overflow-hidden hover:shadow-md group border-l-4 border-l-orange-200 hover:border-l-orange-500 transition-all duration-300"
+                    style={{
+                      transform: "translateY(20px)",
+                      opacity: 0,
+                      animation: `fadeInUp 0.5s ease-out ${index * 0.1}s forwards`
+                    }}
+                  >
+                    <style jsx="true">{`
+                      @keyframes fadeInUp {
+                        from {
+                          transform: translateY(20px);
+                          opacity: 0;
+                        }
+                        to {
+                          transform: translateY(0);
+                          opacity: 1;
+                        }
+                      }
+                      @keyframes pulse {
+                        0% { transform: scale(1); }
+                        50% { transform: scale(1.05); }
+                        100% { transform: scale(1); }
+                      }
+                    `}</style>
+                    
+                    <CardHeader className="pb-3 transition-colors duration-300 group-hover:bg-orange-50/70">
+                      <div className="flex justify-between items-start">
+                        <div>
+                          <CardTitle className="text-lg flex items-center gap-2 text-gray-800 group-hover:text-orange-700 transition-colors duration-300">
+                            <MessageSquare className="h-5 w-5 text-orange-500" />
+                            {post.title}
+                          </CardTitle>
+                          <CardDescription className="flex flex-wrap items-center mt-1 gap-x-2">
+                            <div className="flex items-center">
+                              <Calendar size={14} className="mr-1 text-orange-400" />
+                              <span>{new Date(post.createdAt).toLocaleDateString()}</span>
+                            </div>
+                            <span className="inline-block mx-1">•</span>
+                            <div 
+                              className="flex items-center cursor-pointer hover:text-orange-600 transition-colors" 
+                              onClick={(e) => { 
+                                e.stopPropagation(); 
+                                navigate(`/users/${post.userId}`); 
+                              }}
+                            >
+                              <User size={14} className="mr-1 text-green-500" />
+                              <span className="hover:underline">By {post.username || 'Unknown'}</span>
+                            </div>
+                          </CardDescription>
                         </div>
-                      </CardHeader>
-                      
-                      <CardContent className="transition-colors duration-300 group-hover:bg-orange-50/30">
-                        <p className="text-gray-700 whitespace-pre-line line-clamp-3 transition-colors duration-300 group-hover:text-gray-900">
-                          {post.commentContent || 'Commented on this post'}
+                      </div>
+                    </CardHeader>
+                    
+                    <CardContent className="pt-2 pb-4">
+                      <div className="bg-orange-50 p-4 rounded-lg border-l-4 border-orange-300 mb-4 relative">
+                        <div className="absolute -top-2 -left-2 bg-orange-100 rounded-full p-1 shadow-sm">
+                          <MessageSquare size={16} className="text-orange-600" />
+                        </div>
+                        <p className="text-gray-700 whitespace-pre-line text-sm pl-4 italic">
+                          "{post.commentContent || 'Commented on this post'}"
                         </p>
-                      </CardContent>
-                    </div>
+                        <div className="text-xs text-gray-500 mt-2 text-right">
+                          {post.commentDate ? new Date(post.commentDate).toLocaleDateString() : 'Recently'}
+                        </div>
+                      </div>
+                      
+                      <div className="flex justify-between items-center">
+                        <div className="text-sm text-gray-500">
+                          <span className="inline-flex items-center">
+                            <MessageSquare size={14} className="mr-1 text-gray-400" /> 
+                            {post.commentsCount || 'Multiple'} comments
+                          </span>
+                        </div>
+                        <Button 
+                          size="sm" 
+                          variant="outline"
+                          className="text-sm border-orange-200 text-orange-700 hover:bg-orange-100 hover:text-orange-800 transition-all duration-300 hover:scale-105"
+                          onClick={() => navigate(`/post/${post.id}`)}
+                        >
+                          <Eye size={14} className="mr-1" /> 
+                          View Post
+                        </Button>
+                      </div>
+                    </CardContent>
                   </Card>
                 ))}
               </div>
             ) : (
-              <div className="text-center py-12">
-                <MessageSquare size={48} className="mx-auto text-gray-300 mb-4" />
-                <h3 className="text-lg font-medium text-gray-900 mb-1">No comments yet</h3>
-                <p className="text-gray-500">
+              <div 
+                className="text-center py-12 bg-orange-50/50 rounded-lg border border-orange-100 shadow-sm"
+                style={{
+                  animation: "fadeIn 0.5s ease-out forwards"
+                }}
+              >
+                <style jsx="true">{`
+                  @keyframes fadeIn {
+                    from { opacity: 0; }
+                    to { opacity: 1; }
+                  }
+                `}</style>
+                <MessageSquare size={48} className="mx-auto text-orange-200 mb-4" />
+                <h3 className="text-xl font-medium text-gray-900 mb-1">No comments yet</h3>
+                <p className="text-gray-500 max-w-md mx-auto">
                   {parseInt(userId) === currentUser?.id ? 
-                    "You haven't commented on any posts yet. Join the conversation!" : 
+                    "You haven't commented on any posts yet. Join the conversation to share your thoughts!" : 
                     `${profileData.username} hasn't commented on any posts yet.`}
                 </p>
+                
+                {parseInt(userId) === currentUser?.id && (
+                  <Button 
+                    className="mt-6 bg-orange-500 hover:bg-orange-600 transition-all duration-300 hover:shadow-md"
+                    onClick={() => navigate('/')}
+                  >
+                    <MessageSquare size={16} className="mr-2" />
+                    Explore Learning Posts
+                  </Button>
+                )}
               </div>
             )}
           </TabsContent>
