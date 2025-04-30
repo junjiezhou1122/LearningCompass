@@ -18,23 +18,24 @@ import LearningFooter from "@/components/LearningFooter";
 
 function Router() {
   const [location] = useLocation();
-  const isLearningPage = location === "/learning-how-to-learn" || location === "/share";
+  const isCoursesPage = location === "/courses" || location === "/course" || location.startsWith("/course/");
+  // We've flipped the logic - now the learning pages are the default, and courses is a special case
   
   return (
     <div className="min-h-screen flex flex-col">
-      {isLearningPage ? <LearningHeader /> : <Header />}
+      {isCoursesPage ? <Header /> : <LearningHeader />}
       <main className="flex-grow">
         <Switch>
-          <Route path="/" component={Home} />
+          <Route path="/" component={LearningHowToLearn} />
+          <Route path="/courses" component={Home} />
           <Route path="/course/:id" component={CourseDetail} />
           <Route path="/bookmarks" component={Bookmarks} />
           <Route path="/profile" component={Profile} />
-          <Route path="/learning-how-to-learn" component={LearningHowToLearn} />
           <Route path="/share" component={Share} />
           <Route component={NotFound} />
         </Switch>
       </main>
-      {isLearningPage ? <LearningFooter /> : <Footer />}
+      {isCoursesPage ? <Footer /> : <LearningFooter />}
     </div>
   );
 }

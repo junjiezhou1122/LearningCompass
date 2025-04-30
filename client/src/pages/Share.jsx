@@ -91,6 +91,9 @@ export default function Share() {
   const [bookmarkedPosts, setBookmarkedPosts] = useState({});
   const queryClient = useQueryClient();
   const [activeCommentId, setActiveCommentId] = useState(null);
+  const [searchQuery, setSearchQuery] = useState('');
+  // For tracking unique tags from all posts
+  const [availableTags, setAvailableTags] = useState([]);
   
   // Fetch all learning posts
   const { data: posts = [], isLoading: isPostsLoading } = useQuery({
@@ -106,6 +109,15 @@ export default function Share() {
       if (isAuthenticated) {
         checkLikedAndBookmarkedPosts(posts);
       }
+      
+      // Extract all unique tags from posts for filtering and search
+      const allTags = new Set();
+      posts.forEach(post => {
+        if (post.tags && Array.isArray(post.tags)) {
+          post.tags.forEach(tag => allTags.add(tag));
+        }
+      });
+      setAvailableTags(Array.from(allTags));
     }
   }, [posts, isAuthenticated]);
   
@@ -696,10 +708,39 @@ export default function Share() {
     );
   }
   
-  // Filter posts by type and tag
+  // Search function to check if post matches search query
+  const postMatchesSearch = (post, query) => {
+    if (!query) return true;
+    
+    const searchLower = query.toLowerCase();
+    
+    // Check title
+    if (post.title && post.title.toLowerCase().includes(searchLower)) return true;
+    
+    // Check content
+    if (post.content && post.content.toLowerCase().includes(searchLower)) return true;
+    
+    // Check tags
+    if (post.tags && Array.isArray(post.tags)) {
+      for (const tag of post.tags) {
+        if (tag.toLowerCase().includes(searchLower)) return true;
+      }
+    }
+    
+    return false;
+  };
+
+  // Filter posts by type, tag, and search query
   const filteredPosts = posts.filter(post => {
+    // Filter by post type
     if (activeTab !== 'all' && post.type !== activeTab) return false;
+    
+    // Filter by tag
     if (filterTag && filterTag !== 'all-tags' && Array.isArray(post.tags) && !post.tags.includes(filterTag)) return false;
+    
+    // Filter by search query
+    if (!postMatchesSearch(post, searchQuery)) return false;
+    
     return true;
   });
 
@@ -729,29 +770,73 @@ export default function Share() {
           </div>
           
           {/* Filter Controls */}
-          <div className="flex flex-col md:flex-row items-start md:items-center justify-between mb-6 bg-gray-50 p-4 rounded-lg">
-            <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full md:w-auto mb-4 md:mb-0">
-              <TabsList>
-                <TabsTrigger value="all">All</TabsTrigger>
-                <TabsTrigger value="thought">Thoughts</TabsTrigger>
-                <TabsTrigger value="resource">Resources</TabsTrigger>
-              </TabsList>
-            </Tabs>
-            
-            <div className="flex items-center space-x-2">
-              <Filter size={16} className="text-gray-500" />
-              <Select value={filterTag} onValueChange={setFilterTag}>
-                <SelectTrigger className="w-[180px]">
-                  <SelectValue placeholder="Filter by tag" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all-tags">All tags</SelectItem>
-                  {tagOptions.map(tag => (
-                    <SelectItem key={tag} value={tag}>{tag}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+          <div className="mb-6 bg-gray-50 p-4 rounded-lg space-y-4">
+            <div className="flex flex-col md:flex-row items-start md:items-center justify-between">
+              <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full md:w-auto mb-4 md:mb-0">
+                <TabsList>
+                  <TabsTrigger value="all">All</TabsTrigger>
+                  <TabsTrigger value="thought">Thoughts</TabsTrigger>
+                  <TabsTrigger value="resource">Resources</TabsTrigger>
+                </TabsList>
+              </Tabs>
+              
+              <div className="flex items-center space-x-2">
+                <Filter size={16} className="text-gray-500" />
+                <Select value={filterTag} onValueChange={setFilterTag}>
+                  <SelectTrigger className="w-[180px]">
+                    <SelectValue placeholder="Filter by tag" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all-tags">All tags</SelectItem>
+                    {/* Combine default tag options with dynamically found tags */}
+                    {[...new Set([...tagOptions, ...availableTags])]
+                      .sort()
+                      .map(tag => (
+                        <SelectItem key={tag} value={tag}>{tag}</SelectItem>
+                      ))
+                    }
+                  </SelectContent>
+                </Select>
+              </div>
             </div>
+            
+            {/* Search Bar */}
+            <div className="relative w-full">
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={18} />
+              <Input
+                placeholder="Search by post title, content, or tags..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="pl-10 w-full"
+              />
+              {searchQuery && (
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="absolute right-2 top-1/2 transform -translate-y-1/2 h-8 w-8"
+                  onClick={() => setSearchQuery('')}
+                >
+                  <X size={16} />
+                </Button>
+              )}
+            </div>
+            
+            {/* Show tags as filter badges */}
+            {availableTags.length > 0 && (
+              <div className="flex flex-wrap gap-2 mt-2">
+                <span className="text-sm text-gray-500 self-center mr-1">Popular tags:</span>
+                {availableTags.slice(0, 8).map(tag => (
+                  <Badge 
+                    key={tag}
+                    variant={filterTag === tag ? "default" : "outline"}
+                    className="cursor-pointer hover:bg-orange-50"
+                    onClick={() => filterTag === tag ? setFilterTag('all-tags') : setFilterTag(tag)}
+                  >
+                    {tag}
+                  </Badge>
+                ))}
+              </div>
+            )}
           </div>
           
           {/* New Post Form (shown only when needed) */}

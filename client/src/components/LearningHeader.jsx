@@ -25,7 +25,7 @@ export default function LearningHeader() {
           <Button 
             variant="ghost" 
             className="p-0 h-auto hover:bg-transparent hover:text-white text-white" 
-            onClick={() => navigate("/learning-how-to-learn")}
+            onClick={() => navigate("/")}
           >
             <div className="flex items-center">
               <div className="bg-white rounded-full p-1 mr-2">
@@ -42,7 +42,7 @@ export default function LearningHeader() {
               <Button 
                 variant="ghost" 
                 className="text-white hover:text-white hover:bg-amber-600 font-medium"
-                onClick={() => navigate('/')}
+                onClick={() => navigate('/courses')}
               >
                 <Book className="h-4 w-4 mr-2" />
                 ResourcesHub
@@ -119,19 +119,19 @@ export default function LearningHeader() {
                           setMobileMenuOpen(false);
                         }}
                       >
-                        <Book className="h-5 w-5 mr-2" />
-                        ResourcesHub
+                        <Brain className="h-5 w-5 mr-2" />
+                        Learning How to Learn
                       </Button>
                       <Button
                         variant="ghost"
                         className="w-full justify-start text-white hover:bg-amber-700 py-2 h-auto font-normal"
                         onClick={() => {
-                          navigate("/learning-how-to-learn");
+                          navigate("/courses");
                           setMobileMenuOpen(false);
                         }}
                       >
-                        <Brain className="h-5 w-5 mr-2" />
-                        Learning How to Learn
+                        <Book className="h-5 w-5 mr-2" />
+                        ResourcesHub
                       </Button>
                       <Button
                         variant="ghost"
