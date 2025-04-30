@@ -1,10 +1,8 @@
-import React, { useState, useEffect } from 'react';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { useParams, Link, useLocation, useRoute } from 'wouter';
+import { useEffect, useState } from 'react';
+import { useParams, useLocation } from 'wouter';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
-import LearningHeader from '@/components/LearningHeader';
-import LearningFooter from '@/components/LearningFooter';
 import { 
   Card, 
   CardContent, 
@@ -376,204 +374,331 @@ export default function UserProfile() {
   }
 
   return (
-    <>
-      <LearningHeader />
-      <div className="container max-w-5xl py-8 mx-auto px-4">
-        
-        {/* Followers/Following Modal */}
-        <Dialog open={showFollowModal} onOpenChange={setShowFollowModal}>
-          <DialogContent className="sm:max-w-md">
-            <DialogHeader>
-              <DialogTitle className="flex items-center gap-2">
-                {modalType === 'followers' ? (
-                  <><UserCheck className="h-5 w-5 text-orange-500" /> Followers</>
-                ) : (
-                  <><UserPlus className="h-5 w-5 text-orange-500" /> Following</>
-                )}
-              </DialogTitle>
-              <DialogDescription>
-                {modalType === 'followers' 
-                  ? `People who follow ${profileData?.username}` 
-                  : `People ${profileData?.username} follows`
-                }
-              </DialogDescription>
-            </DialogHeader>
-            
-            <div className="max-h-[60vh] overflow-y-auto py-4">
-              {isModalLoading ? (
-                <div className="flex justify-center items-center py-8">
-                  <Loader2 className="h-8 w-8 animate-spin text-orange-500" />
-                </div>
-              ) : modalUsers.length > 0 ? (
-                <div className="space-y-4">
-                  {modalUsers.map(user => (
-                    <div key={user.id} className="flex items-center justify-between p-2 hover:bg-orange-50 rounded-lg transition-colors">
-                      <div className="flex items-center gap-3">
-                        <Avatar className="h-10 w-10 cursor-pointer" onClick={() => navigate(`/profile/${user.id}`)}>
-                          <AvatarFallback className="bg-orange-100 text-orange-800">
-                            {user.username?.charAt(0).toUpperCase() || 'U'}
-                          </AvatarFallback>
-                        </Avatar>
-                        <div>
-                          <p className="font-medium hover:text-orange-600 cursor-pointer" onClick={() => navigate(`/profile/${user.id}`)}>
-                            {user.username}
-                          </p>
-                          {user.bio && (
-                            <p className="text-sm text-gray-500 line-clamp-1">{user.bio}</p>
-                          )}
-                        </div>
-                      </div>
-                      
-                      {isAuthenticated && currentUser?.id !== user.id && (
-                        <Button 
-                          variant="outline" 
-                          size="sm"
-                          className="border-orange-300 hover:bg-orange-50 hover:text-orange-700"
-                          onClick={() => navigate(`/profile/${user.id}`)}
-                        >
-                          View Profile
-                        </Button>
-                      )}
-                    </div>
-                  ))}
-                </div>
+    <div className="container max-w-5xl py-8 mx-auto px-4">
+      {/* Followers/Following Modal */}
+      <Dialog open={showFollowModal} onOpenChange={setShowFollowModal}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              {modalType === 'followers' ? (
+                <><UserCheck className="h-5 w-5 text-orange-500" /> Followers</>
               ) : (
-                <div className="text-center py-6">
-                  <p className="text-gray-500">
-                    {modalType === 'followers' 
-                      ? `${profileData?.username} doesn't have any followers yet.` 
-                      : `${profileData?.username} isn't following anyone yet.`
-                    }
-                  </p>
-                </div>
+                <><UserPlus className="h-5 w-5 text-orange-500" /> Following</>
               )}
-            </div>
-            
-            <div className="flex justify-end">
-              <DialogClose asChild>
-                <Button type="button" variant="secondary" onClick={closeModal}>
-                  Close
-                </Button>
-              </DialogClose>
-            </div>
-          </DialogContent>
-        </Dialog>
-        {/* Profile Header */}
-        <Card className="mb-8 overflow-hidden border-none shadow-md bg-gradient-to-r from-orange-50 to-amber-50">
-          <div className="absolute top-0 left-0 w-full h-24 bg-gradient-to-r from-orange-300 via-orange-400 to-amber-300 opacity-20"></div>
+            </DialogTitle>
+            <DialogDescription>
+              {modalType === 'followers' 
+                ? `People who follow ${profileData?.username}` 
+                : `People ${profileData?.username} follows`
+              }
+            </DialogDescription>
+          </DialogHeader>
           
-          <CardHeader className="pt-8 pb-4 relative z-10">
-            <div className="flex flex-col sm:flex-row items-center sm:items-start gap-6">
-              <Avatar className="h-24 w-24 border-4 border-white shadow-lg">
-                <AvatarFallback className="bg-orange-100 text-orange-800 text-4xl font-bold">
-                  {profileData.username?.charAt(0).toUpperCase() || 'U'}
-                </AvatarFallback>
-              </Avatar>
-              
-              <div className="flex-1 text-center sm:text-left">
-                <CardTitle className="text-2xl font-bold mb-1">{profileData.username}</CardTitle>
-                <CardDescription className="text-gray-600 mb-4">
-                  {profileData.bio || 'Learning enthusiast sharing knowledge and insights'}
-                </CardDescription>
-                
-                <div className="flex flex-wrap items-center justify-center sm:justify-start gap-4 mb-2">
-                  <div className="flex items-center gap-1 text-gray-600">
-                    <User className="h-4 w-4 text-gray-500" />
-                    <span>{userPosts?.length || 0} posts</span>
-                  </div>
-                  
-                  <div 
-                    className="flex items-center gap-1 text-gray-600 cursor-pointer hover:text-orange-600 transition-colors"
-                    onClick={() => handleViewFollows('followers')}
-                  >
-                    <UserCheck className="h-4 w-4 text-gray-500" />
-                    <span className="hover:underline">{followersCount || 0} followers</span>
-                  </div>
-                  
-                  <div 
-                    className="flex items-center gap-1 text-gray-600 cursor-pointer hover:text-orange-600 transition-colors"
-                    onClick={() => handleViewFollows('following')}
-                  >
-                    <UserPlus className="h-4 w-4 text-gray-500" />
-                    <span className="hover:underline">{followingCount || 0} following</span>
-                  </div>
-                  
-                  <div className="flex items-center gap-1 text-gray-600">
-                    <Calendar className="h-4 w-4 text-gray-500" />
-                    <span>Joined {new Date(profileData.createdAt).toLocaleDateString()}</span>
-                  </div>
-                </div>
-              </div>
-              
-              {isAuthenticated && currentUser?.id !== parseInt(userId) && (
-                <div className="mt-4 sm:mt-0">
-                  <Button 
-                    variant={isFollowing ? "outline" : "default"}
-                    className={isFollowing ? 
-                      "border-red-300 text-red-700 hover:bg-red-50 hover:text-red-800" : 
-                      "bg-orange-500 hover:bg-orange-600 text-white"
-                    }
-                    onClick={handleFollowToggle}
-                    disabled={followMutation.isPending || unfollowMutation.isPending}
-                  >
-                    {followMutation.isPending || unfollowMutation.isPending ? (
-                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                    ) : isFollowing ? (
-                      <UserMinus className="h-4 w-4 mr-2" />
-                    ) : (
-                      <UserPlus className="h-4 w-4 mr-2" />
-                    )}
-                    {isFollowing ? 'Unfollow' : 'Follow'}
-                  </Button>
-                </div>
-              )}
-            </div>
-          </CardHeader>
-        </Card>
-        
-        {/* Profile Content */}
-        <Tabs defaultValue="posts" value={activeTab} onValueChange={setActiveTab} className="mb-6">
-          <TabsList className="mb-6 bg-orange-50">
-            <TabsTrigger value="posts" className="flex items-center gap-2">
-              <MessageSquare className="h-4 w-4" />
-              <span>Posts</span>
-            </TabsTrigger>
-            <TabsTrigger value="likes" className="flex items-center gap-2">
-              <Heart className="h-4 w-4" />
-              <span>Likes</span>
-            </TabsTrigger>
-            <TabsTrigger value="comments" className="flex items-center gap-2">
-              <MessageSquare className="h-4 w-4" />
-              <span>Comments</span>
-            </TabsTrigger>
-          </TabsList>
-          
-          <TabsContent value="posts" className="py-4">
-            {isPostsLoading ? (
-              <div className="flex justify-center items-center min-h-[200px]">
+          <div className="max-h-[60vh] overflow-y-auto py-4">
+            {isModalLoading ? (
+              <div className="flex justify-center items-center py-8">
                 <Loader2 className="h-8 w-8 animate-spin text-orange-500" />
               </div>
-            ) : userPosts?.length > 0 ? (
-              <div className="grid grid-cols-1 gap-6">
-                {userPosts.map(post => (
-                  <Card key={post.id} className="overflow-hidden transition-all duration-300 hover:shadow-md group">
-                    <div onClick={() => navigate(`/post/${post.id}`)} className="cursor-pointer">
-                      <CardHeader className="pb-3 transition-colors duration-300 group-hover:bg-orange-50/50">
-                        <div className="flex justify-between items-start">
-                          <div>
-                            <CardTitle className="text-lg transition-colors duration-300 group-hover:text-orange-700">{post.title}</CardTitle>
-                            <CardDescription className="flex flex-wrap items-center mt-1 gap-x-2">
-                              <div className="flex items-center">
-                                <Calendar size={14} className="mr-1 text-orange-400" />
-                                <span>{new Date(post.createdAt).toLocaleDateString()}</span>
-                              </div>
-                              <span className="inline-block mx-1">•</span>
-                              <div className="flex items-center">
-                                <Eye size={14} className="mr-1 text-blue-400" />
-                                <span>{post.views || 0} views</span>
-                              </div>
-                            </CardDescription>
-                          </div>
+            ) : modalUsers.length > 0 ? (
+              <div className="space-y-4">
+                {modalUsers.map(user => (
+                  <div key={user.id} className="flex items-center justify-between p-2 hover:bg-orange-50 rounded-lg transition-colors">
+                    <div className="flex items-center gap-3">
+                      <Avatar className="h-10 w-10 cursor-pointer" onClick={() => navigate(`/profile/${user.id}`)}>
+                        <AvatarFallback className="bg-orange-100 text-orange-800">
+                          {user.username?.charAt(0).toUpperCase() || 'U'}
+                        </AvatarFallback>
+                      </Avatar>
+                      <div>
+                        <p className="font-medium hover:text-orange-600 cursor-pointer" onClick={() => navigate(`/profile/${user.id}`)}>
+                          {user.username}
+                        </p>
+                        {user.bio && (
+                          <p className="text-sm text-gray-500 line-clamp-1">{user.bio}</p>
+                        )}
+                      </div>
+                    </div>
+                    
+                    {isAuthenticated && currentUser?.id !== user.id && (
+                      <Button 
+                        variant="outline" 
+                        size="sm"
+                        className="border-orange-300 hover:bg-orange-50 hover:text-orange-700"
+                        onClick={() => navigate(`/profile/${user.id}`)}
+                      >
+                        View Profile
+                      </Button>
+                    )}
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="text-center py-6">
+                <p className="text-gray-500">
+                  {modalType === 'followers' 
+                    ? `${profileData?.username} doesn't have any followers yet.` 
+                    : `${profileData?.username} isn't following anyone yet.`
+                  }
+                </p>
+              </div>
+            )}
+          </div>
+          
+          <div className="flex justify-end">
+            <DialogClose asChild>
+              <Button type="button" variant="secondary" onClick={closeModal}>
+                Close
+              </Button>
+            </DialogClose>
+          </div>
+        </DialogContent>
+      </Dialog>
+      
+      {/* Profile Header */}
+      <Card className="mb-8 overflow-hidden border-none shadow-md bg-gradient-to-r from-orange-50 to-amber-50">
+        <div className="absolute top-0 left-0 w-full h-24 bg-gradient-to-r from-orange-300 via-orange-400 to-amber-300 opacity-20"></div>
+        
+        <CardHeader className="pt-8 pb-4 relative z-10">
+          <div className="flex flex-col sm:flex-row items-center sm:items-start gap-6">
+            <Avatar className="h-24 w-24 border-4 border-white shadow-lg">
+              <AvatarFallback className="bg-orange-100 text-orange-800 text-4xl font-bold">
+                {profileData.username?.charAt(0).toUpperCase() || 'U'}
+              </AvatarFallback>
+            </Avatar>
+            
+            <div className="flex-1 text-center sm:text-left">
+              <CardTitle className="text-2xl font-bold mb-1">{profileData.username}</CardTitle>
+              <CardDescription className="text-gray-600 mb-4">
+                {profileData.bio || 'Learning enthusiast sharing knowledge and insights'}
+              </CardDescription>
+              
+              <div className="flex flex-wrap items-center justify-center sm:justify-start gap-4 mb-2">
+                <div className="flex items-center gap-1 text-gray-600">
+                  <User className="h-4 w-4 text-gray-500" />
+                  <span>{userPosts?.length || 0} posts</span>
+                </div>
+                
+                <div 
+                  className="flex items-center gap-1 text-gray-600 cursor-pointer hover:text-orange-600 transition-colors"
+                  onClick={() => handleViewFollows('followers')}
+                >
+                  <UserCheck className="h-4 w-4 text-gray-500" />
+                  <span className="hover:underline">{followersCount || 0} followers</span>
+                </div>
+                
+                <div 
+                  className="flex items-center gap-1 text-gray-600 cursor-pointer hover:text-orange-600 transition-colors"
+                  onClick={() => handleViewFollows('following')}
+                >
+                  <UserPlus className="h-4 w-4 text-gray-500" />
+                  <span className="hover:underline">{followingCount || 0} following</span>
+                </div>
+                
+                <div className="flex items-center gap-1 text-gray-600">
+                  <Calendar className="h-4 w-4 text-gray-500" />
+                  <span>Joined {new Date(profileData.createdAt).toLocaleDateString()}</span>
+                </div>
+              </div>
+            </div>
+            
+            {isAuthenticated && currentUser?.id !== parseInt(userId) && (
+              <div className="mt-4 sm:mt-0">
+                <Button 
+                  variant={isFollowing ? "outline" : "default"}
+                  className={isFollowing ? 
+                    "border-red-300 text-red-700 hover:bg-red-50 hover:text-red-800" : 
+                    "bg-orange-500 hover:bg-orange-600 text-white"
+                  }
+                  onClick={handleFollowToggle}
+                  disabled={followMutation.isPending || unfollowMutation.isPending}
+                >
+                  {followMutation.isPending || unfollowMutation.isPending ? (
+                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  ) : isFollowing ? (
+                    <UserMinus className="h-4 w-4 mr-2" />
+                  ) : (
+                    <UserPlus className="h-4 w-4 mr-2" />
+                  )}
+                  {isFollowing ? 'Unfollow' : 'Follow'}
+                </Button>
+              </div>
+            )}
+          </div>
+        </CardHeader>
+      </Card>
+      
+      {/* Profile Content */}
+      <Tabs defaultValue="posts" value={activeTab} onValueChange={setActiveTab} className="mb-6">
+        <TabsList className="mb-6 bg-orange-50">
+          <TabsTrigger value="posts" className="flex items-center gap-2">
+            <MessageSquare className="h-4 w-4" />
+            <span>Posts</span>
+          </TabsTrigger>
+          <TabsTrigger value="likes" className="flex items-center gap-2">
+            <Heart className="h-4 w-4" />
+            <span>Likes</span>
+          </TabsTrigger>
+          <TabsTrigger value="comments" className="flex items-center gap-2">
+            <MessageSquare className="h-4 w-4" />
+            <span>Comments</span>
+          </TabsTrigger>
+        </TabsList>
+        
+        <TabsContent value="posts" className="py-4">
+          {isPostsLoading ? (
+            <div className="flex justify-center items-center min-h-[200px]">
+              <Loader2 className="h-8 w-8 animate-spin text-orange-500" />
+            </div>
+          ) : userPosts?.length > 0 ? (
+            <div className="grid grid-cols-1 gap-6">
+              {userPosts.map(post => (
+                <Card key={post.id} className="overflow-hidden transition-all duration-300 hover:shadow-md group">
+                  <div onClick={() => navigate(`/post/${post.id}`)} className="cursor-pointer">
+                    <CardHeader className="pb-3 transition-colors duration-300 group-hover:bg-orange-50/50">
+                      <div className="flex justify-between items-start">
+                        <div>
+                          <CardTitle className="text-lg transition-colors duration-300 group-hover:text-orange-700">{post.title}</CardTitle>
+                          <CardDescription className="flex flex-wrap items-center mt-1 gap-x-2">
+                            <div className="flex items-center">
+                              <Calendar size={14} className="mr-1 text-orange-400" />
+                              <span>{new Date(post.createdAt).toLocaleDateString()}</span>
+                            </div>
+                            <span className="inline-block mx-1">•</span>
+                            <div className="flex items-center">
+                              <Eye size={14} className="mr-1 text-blue-400" />
+                              <span>{post.views || 0} views</span>
+                            </div>
+                          </CardDescription>
+                        </div>
+                        <div className="flex items-start space-x-2">
+                          <Badge 
+                            variant={post.type === 'thought' ? 'secondary' : 'outline'} 
+                            className="transition-all duration-300 group-hover:shadow-sm"
+                          >
+                            {post.type === 'thought' ? (
+                              <Lightbulb size={14} className="mr-1 text-amber-500" />
+                            ) : (
+                              <BookOpen size={14} className="mr-1 text-blue-500" />
+                            )}
+                            {post.type === 'thought' ? 'Thought' : 'Resource'}
+                          </Badge>
+                        </div>
+                      </div>
+                    </CardHeader>
+                    
+                    <CardContent className="transition-colors duration-300 group-hover:bg-orange-50/30">
+                      <p className="text-gray-700 whitespace-pre-line line-clamp-3 transition-colors duration-300 group-hover:text-gray-900">{post.content}</p>
+                      
+                      {post.type === 'resource' && post.resourceLink && (
+                        <a 
+                          href={post.resourceLink} 
+                          target="_blank" 
+                          rel="noopener noreferrer"
+                          className="inline-flex items-center mt-3 text-blue-600 hover:text-blue-800 hover:underline transform transition-all duration-300 hover:translate-x-1"
+                          onClick={(e) => e.stopPropagation()} // Prevent navigating to post detail
+                        >
+                          View Resource <ArrowRight size={16} className="ml-1" />
+                        </a>
+                      )}
+                      
+                      <div className="flex flex-wrap gap-2 mt-4">
+                        {post.tags && post.tags.map(tag => (
+                          <Badge 
+                            key={tag} 
+                            variant="outline"
+                            className="transition-all duration-300 hover:bg-orange-100 hover:text-orange-800"
+                          >
+                            {tag}
+                          </Badge>
+                        ))}
+                      </div>
+                    </CardContent>
+                  </div>
+                  
+                  <CardFooter className="border-t pt-4 flex flex-wrap items-center justify-between gap-4 bg-gray-50 group-hover:bg-orange-50 transition-colors duration-300">
+                    <div className="flex flex-wrap items-center gap-4">
+                      <PostLikeStatus postId={post.id} />
+                      <PostCommentCount postId={post.id} />
+                      <div className="flex items-center gap-1 text-gray-500">
+                        <Eye size={16} className="text-blue-400" />
+                        <span>{post.views || 0}</span>
+                      </div>
+                      <PostBookmarkStatus postId={post.id} />
+                    </div>
+                  </CardFooter>
+                </Card>
+              ))}
+            </div>
+          ) : (
+            <div className="text-center py-12">
+              <MessageSquare size={48} className="mx-auto text-gray-300 mb-4" />
+              <h3 className="text-lg font-medium text-gray-900 mb-1">No posts yet</h3>
+              <p className="text-gray-500">
+                {parseInt(userId) === currentUser?.id ? 
+                  "You haven't shared any posts yet. Start sharing your learning journey!" : 
+                  `${profileData.username} hasn't shared any posts yet.`}
+              </p>
+              
+              {parseInt(userId) === currentUser?.id && (
+                <Button 
+                  className="mt-6 bg-orange-500 hover:bg-orange-600"
+                  onClick={() => navigate('/share')}
+                >
+                  Create Your First Post
+                </Button>
+              )}
+            </div>
+          )}
+        </TabsContent>
+        
+        <TabsContent value="likes" className="py-4">
+          {isLikesLoading ? (
+            <div className="flex justify-center items-center min-h-[200px]">
+              <Loader2 className="h-8 w-8 animate-spin text-orange-500" />
+            </div>
+          ) : userLikes?.length > 0 ? (
+            <div className="grid grid-cols-1 gap-6">
+              {userLikes.map(post => (
+                <Card key={post.id} className="overflow-hidden transition-all duration-300 hover:shadow-md group">
+                  <div onClick={() => navigate(`/post/${post.id}`)} className="cursor-pointer">
+                    <CardHeader className="pb-3 transition-colors duration-300 group-hover:bg-orange-50/50">
+                      <div className="flex justify-between items-start">
+                        <div>
+                          <CardTitle className="text-lg transition-colors duration-300 group-hover:text-orange-700">
+                            <span className="flex items-center gap-2">
+                              <Heart className="h-4 w-4 text-red-500 fill-red-500" />
+                              {post.title}
+                            </span>
+                          </CardTitle>
+                          <CardDescription className="flex flex-wrap items-center mt-1 gap-x-2">
+                            <div className="flex items-center">
+                              <Calendar size={14} className="mr-1 text-orange-400" />
+                              <span>{new Date(post.createdAt).toLocaleDateString()}</span>
+                            </div>
+                            <span className="inline-block mx-1">•</span>
+                            <div 
+                              className="flex items-center cursor-pointer hover:text-orange-600" 
+                              onClick={(e) => { 
+                                e.stopPropagation(); 
+                                navigate(`/profile/${post.userId}`); 
+                              }}
+                            >
+                              <User size={14} className="mr-1 text-green-500" />
+                              <span className="hover:underline">By {post.username || 'Unknown'}</span>
+                            </div>
+                            {post.views !== undefined && (
+                              <>
+                                <span className="inline-block mx-1">•</span>
+                                <div className="flex items-center">
+                                  <Eye size={14} className="mr-1 text-blue-400" />
+                                  <span>{post.views || 0} views</span>
+                                </div>
+                              </>
+                            )}
+                          </CardDescription>
+                        </div>
+                        
+                        {post.type && (
                           <div className="flex items-start space-x-2">
                             <Badge 
                               variant={post.type === 'thought' ? 'secondary' : 'outline'} 
@@ -587,24 +712,26 @@ export default function UserProfile() {
                               {post.type === 'thought' ? 'Thought' : 'Resource'}
                             </Badge>
                           </div>
-                        </div>
-                      </CardHeader>
-                      
-                      <CardContent className="transition-colors duration-300 group-hover:bg-orange-50/30">
-                        <p className="text-gray-700 whitespace-pre-line line-clamp-3 transition-colors duration-300 group-hover:text-gray-900">{post.content}</p>
-                        
-                        {post.type === 'resource' && post.resourceLink && (
-                          <a 
-                            href={post.resourceLink} 
-                            target="_blank" 
-                            rel="noopener noreferrer"
-                            className="inline-flex items-center mt-3 text-blue-600 hover:text-blue-800 hover:underline transform transition-all duration-300 hover:translate-x-1"
-                            onClick={(e) => e.stopPropagation()} // Prevent navigating to post detail
-                          >
-                            View Resource <ArrowRight size={16} className="ml-1" />
-                          </a>
                         )}
-                        
+                      </div>
+                    </CardHeader>
+                    
+                    <CardContent className="transition-colors duration-300 group-hover:bg-orange-50/30">
+                      <p className="text-gray-700 whitespace-pre-line line-clamp-3 transition-colors duration-300 group-hover:text-gray-900">{post.content}</p>
+                      
+                      {post.type === 'resource' && post.resourceLink && (
+                        <a 
+                          href={post.resourceLink} 
+                          target="_blank" 
+                          rel="noopener noreferrer"
+                          className="inline-flex items-center mt-3 text-blue-600 hover:text-blue-800 hover:underline transform transition-all duration-300 hover:translate-x-1"
+                          onClick={(e) => e.stopPropagation()} // Prevent navigating to post detail
+                        >
+                          View Resource <ArrowRight size={16} className="ml-1" />
+                        </a>
+                      )}
+                      
+                      {post.tags && post.tags.length > 0 && (
                         <div className="flex flex-wrap gap-2 mt-4">
                           {post.tags.map(tag => (
                             <Badge 
@@ -616,256 +743,123 @@ export default function UserProfile() {
                             </Badge>
                           ))}
                         </div>
-                      </CardContent>
+                      )}
+                    </CardContent>
+                  </div>
+                  
+                  <CardFooter className="border-t pt-4 flex flex-wrap items-center justify-between gap-4 bg-gray-50 group-hover:bg-orange-50/20 transition-colors duration-300">
+                    <div className="flex flex-wrap items-center gap-4">
+                      <PostLikeStatus postId={post.id} />
+                      <PostCommentCount postId={post.id} />
+                      <div className="flex items-center gap-1 text-gray-500">
+                        <Eye size={16} className="text-blue-400" />
+                        <span>{post.views || 0}</span>
+                      </div>
+                      <PostBookmarkStatus postId={post.id} />
                     </div>
-                    
-                    <CardFooter className="border-t pt-4 flex flex-wrap items-center justify-between gap-4 bg-gray-50 group-hover:bg-orange-50 transition-colors duration-300">
-                      <div className="flex flex-wrap items-center gap-4">
-                        <PostLikeStatus postId={post.id} />
-                        <PostCommentCount postId={post.id} />
-                        <div className="flex items-center gap-1 text-gray-500">
-                          <Eye size={16} className="text-blue-400" />
-                          <span>{post.views || 0}</span>
-                        </div>
-                        <PostBookmarkStatus postId={post.id} />
-                      </div>
-                    </CardFooter>
-                  </Card>
-                ))}
-              </div>
-            ) : (
-              <div className="text-center py-12">
-                <MessageSquare size={48} className="mx-auto text-gray-300 mb-4" />
-                <h3 className="text-lg font-medium text-gray-900 mb-1">No posts yet</h3>
-                <p className="text-gray-500">
-                  {parseInt(userId) === currentUser?.id ? 
-                    "You haven't shared any posts yet. Start sharing your learning journey!" : 
-                    `${profileData.username} hasn't shared any posts yet.`}
-                </p>
-                
-                {parseInt(userId) === currentUser?.id && (
-                  <Button 
-                    className="mt-6 bg-orange-500 hover:bg-orange-600"
-                    onClick={() => navigate('/share')}
-                  >
-                    Create Your First Post
-                  </Button>
-                )}
-              </div>
-            )}
-          </TabsContent>
-          
-          <TabsContent value="likes" className="py-4">
-            {isLikesLoading ? (
-              <div className="flex justify-center items-center min-h-[200px]">
-                <Loader2 className="h-8 w-8 animate-spin text-orange-500" />
-              </div>
-            ) : userLikes?.length > 0 ? (
-              <div className="grid grid-cols-1 gap-6">
-                {userLikes.map(post => (
-                  <Card key={post.id} className="overflow-hidden transition-all duration-300 hover:shadow-md group">
-                    <div onClick={() => navigate(`/post/${post.id}`)} className="cursor-pointer">
-                      <CardHeader className="pb-3 transition-colors duration-300 group-hover:bg-orange-50/50">
-                        <div className="flex justify-between items-start">
-                          <div>
-                            <CardTitle className="text-lg transition-colors duration-300 group-hover:text-orange-700">
-                              <span className="flex items-center gap-2">
-                                <Heart className="h-4 w-4 text-red-500 fill-red-500" />
-                                {post.title}
-                              </span>
-                            </CardTitle>
-                            <CardDescription className="flex flex-wrap items-center mt-1 gap-x-2">
-                              <div className="flex items-center">
-                                <Calendar size={14} className="mr-1 text-orange-400" />
-                                <span>{new Date(post.createdAt).toLocaleDateString()}</span>
-                              </div>
-                              <span className="inline-block mx-1">•</span>
-                              <div 
-                                className="flex items-center cursor-pointer hover:text-orange-600" 
-                                onClick={(e) => { 
-                                  e.stopPropagation(); 
-                                  navigate(`/profile/${post.userId}`); 
-                                }}
-                              >
-                                <User size={14} className="mr-1 text-green-500" />
-                                <span className="hover:underline">By {post.username || 'Unknown'}</span>
-                              </div>
-                              {post.views !== undefined && (
-                                <>
-                                  <span className="inline-block mx-1">•</span>
-                                  <div className="flex items-center">
-                                    <Eye size={14} className="mr-1 text-blue-400" />
-                                    <span>{post.views || 0} views</span>
-                                  </div>
-                                </>
-                              )}
-                            </CardDescription>
-                          </div>
-                          
-                          {post.type && (
-                            <div className="flex items-start space-x-2">
-                              <Badge 
-                                variant={post.type === 'thought' ? 'secondary' : 'outline'} 
-                                className="transition-all duration-300 group-hover:shadow-sm"
-                              >
-                                {post.type === 'thought' ? (
-                                  <Lightbulb size={14} className="mr-1 text-amber-500" />
-                                ) : (
-                                  <BookOpen size={14} className="mr-1 text-blue-500" />
-                                )}
-                                {post.type === 'thought' ? 'Thought' : 'Resource'}
-                              </Badge>
-                            </div>
-                          )}
-                        </div>
-                      </CardHeader>
-                      
-                      <CardContent className="transition-colors duration-300 group-hover:bg-orange-50/30">
-                        <p className="text-gray-700 whitespace-pre-line line-clamp-3 transition-colors duration-300 group-hover:text-gray-900">{post.content}</p>
-                        
-                        {post.type === 'resource' && post.resourceLink && (
-                          <a 
-                            href={post.resourceLink} 
-                            target="_blank" 
-                            rel="noopener noreferrer"
-                            className="inline-flex items-center mt-3 text-blue-600 hover:text-blue-800 hover:underline transform transition-all duration-300 hover:translate-x-1"
-                            onClick={(e) => e.stopPropagation()} // Prevent navigating to post detail
-                          >
-                            View Resource <ArrowRight size={16} className="ml-1" />
-                          </a>
-                        )}
-                        
-                        {post.tags && post.tags.length > 0 && (
-                          <div className="flex flex-wrap gap-2 mt-4">
-                            {post.tags.map(tag => (
-                              <Badge 
-                                key={tag} 
-                                variant="outline"
-                                className="transition-all duration-300 hover:bg-orange-100 hover:text-orange-800"
-                              >
-                                {tag}
-                              </Badge>
-                            ))}
-                          </div>
-                        )}
-                      </CardContent>
-                    </div>
-                    
-                    <CardFooter className="border-t pt-4 flex flex-wrap items-center justify-between gap-4 bg-gray-50 group-hover:bg-orange-50/20 transition-colors duration-300">
-                      <div className="flex flex-wrap items-center gap-4">
-                        <PostLikeStatus postId={post.id} />
-                        <PostCommentCount postId={post.id} />
-                        <div className="flex items-center gap-1 text-gray-500">
-                          <Eye size={16} className="text-blue-400" />
-                          <span>{post.views || 0}</span>
-                        </div>
-                        <PostBookmarkStatus postId={post.id} />
-                      </div>
-                    </CardFooter>
-                  </Card>
-                ))}
-              </div>
-            ) : (
-              <div className="text-center py-12">
-                <Heart size={48} className="mx-auto text-gray-300 mb-4" />
-                <h3 className="text-lg font-medium text-gray-900 mb-1">No liked posts yet</h3>
-                <p className="text-gray-500">
-                  {parseInt(userId) === currentUser?.id ? 
-                    "You haven't liked any posts yet. Explore and find content you enjoy!" : 
-                    `${profileData.username} hasn't liked any posts yet.`}
-                </p>
-              </div>
-            )}
-          </TabsContent>
-          
-          <TabsContent value="comments" className="py-4">
-            {isCommentsLoading ? (
-              <div className="flex justify-center items-center min-h-[200px]">
-                <Loader2 className="h-8 w-8 animate-spin text-orange-500" />
-              </div>
-            ) : userComments?.length > 0 ? (
-              <div className="grid grid-cols-1 gap-6">
-                {userComments.map(comment => (
-                  <Card key={comment.id} className="overflow-hidden transition-all duration-300 hover:shadow-md group">
-                    <CardHeader className="pb-2 transition-colors duration-300 group-hover:bg-orange-50/50">
-                      <div className="flex justify-between items-start">
-                        <CardTitle className="text-md">
-                          <span className="flex items-start gap-1.5">
-                            <MessageSquare size={16} className="mt-1 text-orange-500" />
-                            <span>
-                              <span className="font-normal text-gray-500">Commented on </span>
-                              <span 
-                                className="text-blue-600 hover:underline cursor-pointer group-hover:text-orange-600 transition-colors" 
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  navigate(`/post/${comment.postId}`);
-                                }}
-                              >
-                                {comment.postTitle}
-                              </span>
-                            </span>
-                          </span>
-                        </CardTitle>
-                        <CardDescription className="text-xs text-right flex items-center gap-1">
-                          <Calendar size={14} className="text-orange-400" />
-                          {new Date(comment.createdAt).toLocaleDateString()}
-                        </CardDescription>
-                      </div>
-                      {comment.postAuthor && (
-                        <div className="mt-1.5 text-sm text-gray-500 flex items-center">
-                          <User size={14} className="mr-1 text-green-500" />
+                  </CardFooter>
+                </Card>
+              ))}
+            </div>
+          ) : (
+            <div className="text-center py-12">
+              <Heart size={48} className="mx-auto text-gray-300 mb-4" />
+              <h3 className="text-lg font-medium text-gray-900 mb-1">No liked posts yet</h3>
+              <p className="text-gray-500">
+                {parseInt(userId) === currentUser?.id ? 
+                  "You haven't liked any posts yet. Explore and find content you enjoy!" : 
+                  `${profileData.username} hasn't liked any posts yet.`}
+              </p>
+            </div>
+          )}
+        </TabsContent>
+        
+        <TabsContent value="comments" className="py-4">
+          {isCommentsLoading ? (
+            <div className="flex justify-center items-center min-h-[200px]">
+              <Loader2 className="h-8 w-8 animate-spin text-orange-500" />
+            </div>
+          ) : userComments?.length > 0 ? (
+            <div className="grid grid-cols-1 gap-6">
+              {userComments.map(comment => (
+                <Card key={comment.id} className="overflow-hidden transition-all duration-300 hover:shadow-md group">
+                  <CardHeader className="pb-2 transition-colors duration-300 group-hover:bg-orange-50/50">
+                    <div className="flex justify-between items-start">
+                      <CardTitle className="text-md">
+                        <span className="flex items-start gap-1.5">
+                          <MessageSquare size={16} className="mt-1 text-orange-500" />
                           <span>
-                            Post by: 
+                            <span className="font-normal text-gray-500">Commented on </span>
                             <span 
-                              className="ml-1 hover:text-orange-600 hover:underline cursor-pointer transition-colors" 
-                              onClick={(e) => { 
-                                e.stopPropagation(); 
-                                navigate(`/profile/${comment.postUserId}`); 
+                              className="text-blue-600 hover:underline cursor-pointer group-hover:text-orange-600 transition-colors" 
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                navigate(`/post/${comment.postId}`);
                               }}
                             >
-                              {comment.postAuthor}
+                              {comment.postTitle}
                             </span>
                           </span>
-                        </div>
-                      )}
-                    </CardHeader>
-                    <CardContent className="transition-colors duration-300 group-hover:bg-orange-50/20">
-                      <div className="border-l-4 border-orange-200 pl-3 py-1 mb-2 italic text-gray-600 bg-orange-50/30 rounded-sm">
-                        <p className="whitespace-pre-line line-clamp-2 text-sm">{comment.content}</p>
+                        </span>
+                      </CardTitle>
+                      <CardDescription className="text-xs text-right flex items-center gap-1">
+                        <Calendar size={14} className="text-orange-400" />
+                        {new Date(comment.createdAt).toLocaleDateString()}
+                      </CardDescription>
+                    </div>
+                    {comment.postAuthor && (
+                      <div className="mt-1.5 text-sm text-gray-500 flex items-center">
+                        <User size={14} className="mr-1 text-green-500" />
+                        <span>
+                          Post by: 
+                          <span 
+                            className="ml-1 hover:text-orange-600 hover:underline cursor-pointer transition-colors" 
+                            onClick={(e) => { 
+                              e.stopPropagation(); 
+                              navigate(`/profile/${comment.postUserId}`); 
+                            }}
+                          >
+                            {comment.postAuthor}
+                          </span>
+                        </span>
                       </div>
-                      
-                      <div className="flex justify-end">
-                        <Button 
-                          variant="link" 
-                          size="sm" 
-                          className="text-orange-600 hover:text-orange-800 p-0 h-auto"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            navigate(`/post/${comment.postId}`);
-                          }}
-                        >
-                          View full post <ArrowRight size={14} className="ml-1" />
-                        </Button>
-                      </div>
-                    </CardContent>
-                  </Card>
-                ))}
-              </div>
-            ) : (
-              <div className="text-center py-12">
-                <MessageSquare size={48} className="mx-auto text-gray-300 mb-4" />
-                <h3 className="text-lg font-medium text-gray-900 mb-1">No comments yet</h3>
-                <p className="text-gray-500">
-                  {parseInt(userId) === currentUser?.id ? 
-                    "You haven't commented on any posts yet. Join the discussion!" : 
-                    `${profileData.username} hasn't commented on any posts yet.`}
-                </p>
-              </div>
-            )}
-          </TabsContent>
-        </Tabs>
-      </div>
-      <LearningFooter />
-    </>
+                    )}
+                  </CardHeader>
+                  <CardContent className="transition-colors duration-300 group-hover:bg-orange-50/20">
+                    <div className="border-l-4 border-orange-200 pl-3 py-1 mb-2 italic text-gray-600 bg-orange-50/30 rounded-sm">
+                      <p className="whitespace-pre-line line-clamp-2 text-sm">{comment.content}</p>
+                    </div>
+                    
+                    <div className="flex justify-end">
+                      <Button 
+                        variant="link" 
+                        size="sm" 
+                        className="text-orange-600 hover:text-orange-800 p-0 h-auto"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          navigate(`/post/${comment.postId}`);
+                        }}
+                      >
+                        View full post <ArrowRight size={14} className="ml-1" />
+                      </Button>
+                    </div>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+          ) : (
+            <div className="text-center py-12">
+              <MessageSquare size={48} className="mx-auto text-gray-300 mb-4" />
+              <h3 className="text-lg font-medium text-gray-900 mb-1">No comments yet</h3>
+              <p className="text-gray-500">
+                {parseInt(userId) === currentUser?.id ? 
+                  "You haven't commented on any posts yet. Join the discussion!" : 
+                  `${profileData.username} hasn't commented on any posts yet.`}
+              </p>
+            </div>
+          )}
+        </TabsContent>
+      </Tabs>
+    </div>
   );
 }
