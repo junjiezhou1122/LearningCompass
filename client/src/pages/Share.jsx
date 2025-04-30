@@ -84,10 +84,14 @@ export default function Share() {
   // Mutation for creating a new post
   const createPostMutation = useMutation({
     mutationFn: async (postData) => {
+      // Get auth token from localStorage
+      const token = localStorage.getItem('authToken');
+      
       const response = await fetch('/api/learning-posts', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}` // Add authorization header
         },
         body: JSON.stringify(postData),
       });
@@ -125,22 +129,24 @@ export default function Share() {
     }
   });
   
-  // Fetch comments for a specific post
-  const getComments = (postId) => {
-    return useQuery({
-      queryKey: [`/api/learning-posts/${postId}/comments`],
-      enabled: expandedPostId === postId,
-      staleTime: 1000 * 60, // 1 minute
-    });
-  };
+  // Fetch comments data once at the component level
+  const { data: commentsData = {} } = useQuery({
+    queryKey: ['/api/learning-post-comments'],
+    enabled: expandedPostId !== null,
+    staleTime: 1000 * 60, // 1 minute
+  });
   
   // Mutation for adding a comment
   const addCommentMutation = useMutation({
     mutationFn: async ({ postId, content }) => {
+      // Get auth token from localStorage
+      const token = localStorage.getItem('authToken');
+      
       const response = await fetch(`/api/learning-posts/${postId}/comments`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}` // Add authorization header
         },
         body: JSON.stringify({ content }),
       });
@@ -171,10 +177,14 @@ export default function Share() {
   // Mutation for liking a post
   const likePostMutation = useMutation({
     mutationFn: async (postId) => {
+      // Get auth token from localStorage
+      const token = localStorage.getItem('authToken');
+      
       const response = await fetch(`/api/learning-posts/${postId}/like`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}` // Add authorization header
         },
       });
       
@@ -200,10 +210,14 @@ export default function Share() {
   // Mutation for bookmarking a post
   const bookmarkPostMutation = useMutation({
     mutationFn: async (postId) => {
+      // Get auth token from localStorage
+      const token = localStorage.getItem('authToken');
+      
       const response = await fetch(`/api/learning-posts/${postId}/bookmark`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}` // Add authorization header
         },
       });
       
@@ -557,47 +571,39 @@ export default function Share() {
                         <CardTitle className="text-sm text-gray-600">Comments</CardTitle>
                       </CardHeader>
                       <CardContent className="space-y-4">
-                        {(() => {
-                          if (expandedPostId === post.id) {
-                            const { data: postComments = [], isLoading } = getComments(post.id);
-                            
-                            if (isLoading) {
-                              return <p className="text-center text-gray-500 text-sm py-4">Loading comments...</p>;
-                            }
-                            
-                            if (postComments.length > 0) {
-                              return postComments.map(comment => (
-                                <div key={comment.id} className="flex space-x-3">
-                                  <Avatar className="h-8 w-8">
-                                    <AvatarFallback className="text-xs bg-gray-100">
-                                      {comment.user?.username?.[0]?.toUpperCase() || 'U'}
-                                    </AvatarFallback>
-                                  </Avatar>
-                                  <div className="flex-1">
-                                    <div className="bg-gray-50 p-3 rounded-lg">
-                                      <div className="flex justify-between items-center mb-1">
-                                        <span className="font-medium text-sm">
-                                          {comment.user?.username || 'Anonymous'}
-                                        </span>
-                                        <span className="text-xs text-gray-500">
-                                          {new Date(comment.createdAt).toLocaleDateString()}
-                                        </span>
-                                      </div>
-                                      <p className="text-sm text-gray-700">{comment.content}</p>
+                        {/* Comment fetching logic now handled at component level */}
+                        {expandedPostId === post.id && commentsData[post.id] ? (
+                          commentsData[post.id].length > 0 ? (
+                            commentsData[post.id].map(comment => (
+                              <div key={comment.id} className="flex space-x-3">
+                                <Avatar className="h-8 w-8">
+                                  <AvatarFallback className="text-xs bg-gray-100">
+                                    {comment.user?.username?.[0]?.toUpperCase() || 'U'}
+                                  </AvatarFallback>
+                                </Avatar>
+                                <div className="flex-1">
+                                  <div className="bg-gray-50 p-3 rounded-lg">
+                                    <div className="flex justify-between items-center mb-1">
+                                      <span className="font-medium text-sm">
+                                        {comment.user?.username || 'Anonymous'}
+                                      </span>
+                                      <span className="text-xs text-gray-500">
+                                        {new Date(comment.createdAt).toLocaleDateString()}
+                                      </span>
                                     </div>
+                                    <p className="text-sm text-gray-700">{comment.content}</p>
                                   </div>
                                 </div>
-                              ));
-                            }
-                            
-                            return (
-                              <p className="text-center text-gray-500 text-sm py-4">
-                                No comments yet. Be the first to comment!
-                              </p>
-                            );
-                          }
-                          return null;
-                        })()}
+                              </div>
+                            ))
+                          ) : (
+                            <p className="text-center text-gray-500 text-sm py-4">
+                              No comments yet. Be the first to comment!
+                            </p>
+                          )
+                        ) : expandedPostId === post.id ? (
+                          <p className="text-center text-gray-500 text-sm py-4">Loading comments...</p>
+                        ) : null}
                         
                         {/* Add new comment */}
                         {isAuthenticated && (
