@@ -406,7 +406,7 @@ export default function UserProfile() {
   }
 
   return (
-    <div className="container max-w-5xl pt-4 pb-8 mx-auto px-4">
+    <div className="container max-w-5xl py-8 mx-auto px-4">
       {/* Followers/Following Modal */}
       <Dialog open={showFollowModal} onOpenChange={setShowFollowModal}>
         <DialogContent className="sm:max-w-md">
