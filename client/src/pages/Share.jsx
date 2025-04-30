@@ -865,6 +865,13 @@ export default function Share() {
                     Thoughts
                   </TabsTrigger>
                   <TabsTrigger 
+                    value="method"
+                    className="transition-all duration-300 hover:bg-orange-100 data-[state=active]:bg-orange-500 data-[state=active]:text-white data-[state=active]:shadow-md"
+                  >
+                    <FlaskRound size={16} className="mr-2 transition-all duration-300 data-[state=active]:text-white" />
+                    Methods
+                  </TabsTrigger>
+                  <TabsTrigger 
                     value="resource"
                     className="transition-all duration-300 hover:bg-orange-100 data-[state=active]:bg-orange-500 data-[state=active]:text-white data-[state=active]:shadow-md"
                   >
