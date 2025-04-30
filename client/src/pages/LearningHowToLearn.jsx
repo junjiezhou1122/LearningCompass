@@ -13,8 +13,10 @@ import {
   Sparkles, 
   Send, 
   CheckCircle,
-  AlertCircle
+  AlertCircle,
+  Bot
 } from 'lucide-react';
+import AIAssistant from '@/components/ai-assistant/AIAssistant';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Separator } from '@/components/ui/separator';
@@ -684,6 +686,7 @@ export default function LearningHowToLearn() {
     { id: "techniques", label: "Learning Techniques", icon: Lightbulb },
     { id: "tools", label: "Learning Tools", icon: Compass },
     { id: "research", label: "Scientific Research", icon: BookOpen },
+    { id: "assistant", label: "AI Assistant", icon: Bot },
   ];
   
   return (
@@ -727,6 +730,7 @@ export default function LearningHowToLearn() {
             {activeTab === "techniques" && <TechniquesTab />}
             {activeTab === "tools" && <ToolsTab />}
             {activeTab === "research" && <ScientificResearchTab />}
+            {activeTab === "assistant" && <AIAssistant />}
           </div>
           
           {/* Newsletter Section */}

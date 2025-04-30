@@ -3,6 +3,7 @@ import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import jwt from "jsonwebtoken";
 import bcrypt from "bcrypt";
+import { handleChatRequest } from "./ai-service";
 import { 
   insertUserSchema, insertBookmarkSchema, insertSubscriberSchema, 
   insertCommentSchema, insertSearchHistorySchema,
