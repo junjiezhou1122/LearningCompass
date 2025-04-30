@@ -1,6 +1,6 @@
 import React from 'react';
 import { useLocation } from "wouter";
-import { Brain, BookOpen, Lightbulb, Compass, Twitter, Linkedin, Github } from 'lucide-react';
+import { Brain, BookOpen, Lightbulb, Compass, Twitter, Linkedin, Github, MessageSquare } from 'lucide-react';
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 

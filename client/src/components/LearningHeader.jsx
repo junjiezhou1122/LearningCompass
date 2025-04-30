@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import { useLocation } from "wouter";
-import { Brain, Book, Menu, X, UserCircle, LogOut } from "lucide-react";
+import { Brain, Book, Menu, X, UserCircle, LogOut, MessageSquare } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
@@ -46,6 +46,15 @@ export default function LearningHeader() {
               >
                 <Book className="h-4 w-4 mr-2" />
                 ResourcesHub
+              </Button>
+              
+              <Button 
+                variant="ghost" 
+                className="text-white hover:text-white hover:bg-amber-600 font-medium"
+                onClick={() => navigate('/share')}
+              >
+                <MessageSquare className="h-4 w-4 mr-2" />
+                Share & Connect
               </Button>
               
               {isAuthenticated ? (
