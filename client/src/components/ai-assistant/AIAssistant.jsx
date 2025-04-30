@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect } from 'react';
 import { useToast } from '@/hooks/use-toast';
-import { Send, Bot, Settings, HelpCircle } from 'lucide-react';
+import { Send, Bot, Settings, HelpCircle, Sparkles } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -221,7 +221,7 @@ const AIAssistant = () => {
           )}
 
           <div className="bg-white rounded-lg border border-gray-200 overflow-hidden shadow-md min-h-[60vh] max-h-[70vh] flex flex-col">
-            <div className="p-3 bg-gradient-to-r from-orange-50 to-amber-50 border-b border-orange-100 flex items-center">
+            <div className="p-3 ai-assistant-gradient border-b border-orange-100 flex items-center">
               <div className="flex items-center bg-white rounded-full px-3 py-1 shadow-sm border border-orange-100">
                 <Bot className="h-4 w-4 text-orange-600 mr-1" />
                 <span className="text-sm font-medium text-gray-800">Learning AI</span>
@@ -241,10 +241,18 @@ const AIAssistant = () => {
               </div>
             </div>
             
-            <div className="flex-grow overflow-y-auto p-4 space-y-4 bg-gray-50">
+            <div className="flex-grow overflow-y-auto p-4 space-y-4 bg-gray-50 ai-chat-scrollbar">
+              {messages.length === 0 && !isTyping && savedApiSettings && (
+                <div className="flex flex-col items-center justify-center h-full opacity-70">
+                  <Sparkles className="h-8 w-8 text-orange-300 mb-2" />
+                  <p className="text-sm text-gray-500 text-center">Ask me anything about learning techniques,<br/>subject explanations, or study strategies!</p>
+                </div>
+              )}
+              
               {messages.map((message, index) => (
                 <ChatMessage key={index} message={message} />
               ))}
+              
               {isTyping && (
                 <div className="flex items-center text-gray-500 text-sm bg-white p-3 rounded-lg border border-gray-100 shadow-sm">
                   <div className="typing-indicator">
@@ -265,7 +273,7 @@ const AIAssistant = () => {
                   onChange={(e) => setInput(e.target.value)}
                   onKeyDown={handleKeyDown}
                   placeholder="Ask a question..."
-                  className="flex-grow rounded-full border-orange-200 focus:border-orange-300 focus:ring-orange-200 shadow-sm"
+                  className="flex-grow rounded-full border-orange-200 focus:border-orange-300 focus:ring-orange-200 shadow-sm input-focus-effect"
                   disabled={(isTyping || !savedApiSettings)}
                 />
                 <Button 
@@ -276,13 +284,15 @@ const AIAssistant = () => {
                   <Send className="h-4 w-4" />
                 </Button>
               </div>
-              {savedApiSettings && (savedApiSettings.provider === 'openrouter' || savedApiSettings.apiKey) && (
+              {savedApiSettings && (
                 <div className="flex justify-center">
                   <p className="text-[10px] text-gray-400 mt-2 italic">
                     Powered by {savedApiSettings.provider === 'openai' ? 'OpenAI' : 
                       savedApiSettings.provider === 'anthropic' ? 'Anthropic Claude' : 
                       savedApiSettings.provider === 'openrouter' ? 'OpenRouter' :
                       'Custom API'}
+                    {savedApiSettings.hasApiKey && " • Using your API key"}
+                    {!savedApiSettings.hasApiKey && savedApiSettings.provider === 'openrouter' && " • Free tier access"}
                   </p>
                 </div>
               )}

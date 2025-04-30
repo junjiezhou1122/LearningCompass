@@ -20,7 +20,7 @@ const ChatMessage = ({ message }) => {
 
   // Chat bubble with tail design
   return (
-    <div className={`flex items-end mb-4 ${isUser ? 'justify-end' : 'justify-start'}`}>
+    <div className={`flex items-end mb-4 ${isUser ? 'justify-end chat-message-user' : 'justify-start chat-message-ai'}`}>
       {!isUser && (
         <div className="flex-shrink-0 mr-2 mb-1">
           <div className="bg-gradient-to-br from-amber-500 to-orange-500 text-white p-1.5 rounded-full shadow-sm">
@@ -49,7 +49,7 @@ const ChatMessage = ({ message }) => {
           {isUser ? (
             <p className="text-sm">{message.content}</p>
           ) : (
-            <div className="prose prose-sm max-w-none prose-p:leading-relaxed prose-headings:text-amber-700 prose-a:text-orange-600">
+            <div className="prose prose-sm max-w-none prose-p:leading-relaxed prose-headings:text-amber-700 prose-a:text-orange-600 ai-markdown">
               <ReactMarkdown>{message.content}</ReactMarkdown>
             </div>
           )}
