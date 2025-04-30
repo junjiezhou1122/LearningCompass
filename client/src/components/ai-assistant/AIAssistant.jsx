@@ -11,6 +11,7 @@ import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
 import APIConfiguration from './APIConfiguration';
 import ChatMessage from './ChatMessage';
+import './ai-assistant.css';
 
 const AIAssistant = () => {
   const { toast } = useToast();

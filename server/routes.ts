@@ -1446,6 +1446,23 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // AI Assistant Chat API
+  app.post("/api/ai/chat", async (req: Request, res: Response) => {
+    try {
+      // Pass request to the AI service handler
+      await handleChatRequest(req, res);
+    } catch (error) {
+      console.error("AI Chat API Error:", error);
+      // If response was not already sent by the handler
+      if (!res.headersSent) {
+        res.status(500).json({ 
+          error: "An error occurred processing your AI request",
+          details: error instanceof Error ? error.message : String(error)
+        });
+      }
+    }
+  });
+
   const httpServer = createServer(app);
   return httpServer;
 }
