@@ -93,7 +93,7 @@ const APIConfiguration = ({ initialSettings, onSave }) => {
         <Tabs defaultValue="basic" value={activeTab} onValueChange={setActiveTab}>
           <TabsList className="grid grid-cols-2 mb-4">
             <TabsTrigger value="basic" className="flex items-center justify-center">
-              <Bot className="mr-2 h-4 w-4" /> {t('provider') === 'Provider' ? 'Basic Settings' : '基本设置'}
+              <Bot className="mr-2 h-4 w-4" /> Basic Settings
             </TabsTrigger>
             <TabsTrigger value="advanced" className="flex items-center justify-center">
               <Sigma className="mr-2 h-4 w-4" /> Advanced Settings
