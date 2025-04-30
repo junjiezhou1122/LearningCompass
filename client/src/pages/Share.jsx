@@ -32,6 +32,15 @@ import {
   AvatarFallback,
   AvatarImage 
 } from '@/components/ui/avatar';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
 import { 
   Heart, 
   MessageSquare, 
@@ -46,7 +55,9 @@ import {
   Plus,
   X,
   Send,
-  Trash
+  Trash,
+  MoreVertical,
+  Edit,
 } from 'lucide-react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { toast } from '@/hooks/use-toast';
@@ -79,22 +90,40 @@ export default function Share() {
   const [likedPosts, setLikedPosts] = useState({});
   const [bookmarkedPosts, setBookmarkedPosts] = useState({});
   const queryClient = useQueryClient();
+  const [activeCommentId, setActiveCommentId] = useState(null);
   
   // Fetch all learning posts
   const { data: posts = [], isLoading: isPostsLoading } = useQuery({
     queryKey: ['/api/learning-posts'],
-    staleTime: 1000 * 60, // 1 minute
-    onSuccess: (posts) => {
-      // For each post, fetch comment counts and like counts
-      if (posts && posts.length > 0) {
-        fetchCommentCounts(posts);
-        fetchLikeCounts(posts);
-        if (isAuthenticated) {
-          checkLikedAndBookmarkedPosts(posts);
-        }
+    staleTime: 1000 * 30, // 30 seconds instead of 1 minute for more frequent refreshes
+  });
+  
+  // Use useEffect to load the comment counts, like counts, and user reactions when posts change
+  useEffect(() => {
+    if (posts && posts.length > 0) {
+      fetchCommentCounts(posts);
+      fetchLikeCounts(posts);
+      if (isAuthenticated) {
+        checkLikedAndBookmarkedPosts(posts);
       }
     }
-  });
+  }, [posts, isAuthenticated]);
+  
+  // Refresh data every 60 seconds
+  useEffect(() => {
+    const intervalId = setInterval(() => {
+      queryClient.invalidateQueries({ queryKey: ['/api/learning-posts'] });
+      
+      // If we have an expanded post, also refresh its comments
+      if (expandedPostId) {
+        queryClient.invalidateQueries({ 
+          queryKey: ['/api/learning-posts', expandedPostId, 'comments'] 
+        });
+      }
+    }, 60000); // every 60 seconds
+    
+    return () => clearInterval(intervalId);
+  }, [queryClient, expandedPostId]);
   
   // Fetch comment counts for posts
   const fetchCommentCounts = async (posts) => {
@@ -494,6 +523,85 @@ export default function Share() {
       toast({
         title: "Error",
         description: error.message || "Failed to delete post. Please try again.",
+        variant: "destructive",
+      });
+    }
+  });
+  
+  // Mutation for deleting a comment
+  const deleteCommentMutation = useMutation({
+    mutationFn: async ({ commentId, postId }) => {
+      if (!isAuthenticated) {
+        toast({
+          title: "Authentication Required",
+          description: "Please sign in to delete comments",
+          variant: "destructive",
+        });
+        return;
+      }
+      
+      // Get auth token from localStorage
+      const token = localStorage.getItem('token');
+      
+      const response = await fetch(`/api/learning-post-comments/${commentId}`, {
+        method: 'DELETE',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+      });
+      
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || 'Failed to delete comment');
+      }
+      
+      return { commentId, postId };
+    },
+    onSuccess: async (data) => {
+      if (!data) return;
+      
+      // Invalidate the comments query for this post
+      queryClient.invalidateQueries({ queryKey: ['/api/learning-posts', data.postId, 'comments'] });
+      
+      // Fetch the updated comment count
+      try {
+        const response = await fetch(`/api/learning-posts/${data.postId}/comments/count`);
+        if (response.ok) {
+          const countData = await response.json();
+          
+          // Update the comment count in our local state
+          setCommentCounts(prev => ({
+            ...prev,
+            [data.postId]: countData.count
+          }));
+          
+          // Update the comment count in the post itself
+          const updatedPosts = posts.map(post => {
+            if (post.id === data.postId) {
+              return {
+                ...post,
+                commentCount: countData.count
+              };
+            }
+            return post;
+          });
+          
+          // Update the posts in the cache
+          queryClient.setQueryData(['/api/learning-posts'], updatedPosts);
+        }
+      } catch (error) {
+        console.error('Error fetching updated comment count:', error);
+      }
+      
+      toast({
+        description: "Comment deleted successfully",
+      });
+    },
+    onError: (error) => {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to delete comment. Please try again.",
         variant: "destructive",
       });
     }
@@ -906,9 +1014,56 @@ export default function Share() {
                                         <span className="font-medium text-sm">
                                           {comment.user?.username || 'Anonymous'}
                                         </span>
-                                        <span className="text-xs text-gray-500">
-                                          {new Date(comment.createdAt).toLocaleDateString()}
-                                        </span>
+                                        <div className="flex items-center gap-2">
+                                          <span className="text-xs text-gray-500">
+                                            {new Date(comment.createdAt).toLocaleDateString()}
+                                          </span>
+                                          {isAuthenticated && (user?.id === comment.userId) && (
+                                            <Dialog>
+                                              <DialogTrigger asChild>
+                                                <Button 
+                                                  variant="ghost" 
+                                                  size="icon"
+                                                  className="h-6 w-6 p-0 text-gray-400 hover:text-red-500 hover:bg-transparent"
+                                                >
+                                                  <Trash size={14} />
+                                                </Button>
+                                              </DialogTrigger>
+                                              <DialogContent>
+                                                <DialogHeader>
+                                                  <DialogTitle>Delete Comment?</DialogTitle>
+                                                  <DialogDescription>
+                                                    This action cannot be undone. This will permanently delete your comment.
+                                                  </DialogDescription>
+                                                </DialogHeader>
+                                                <DialogFooter>
+                                                  <Button 
+                                                    variant="outline" 
+                                                    onClick={() => {
+                                                      const closeBtn = document.querySelector('[data-radix-collection-item]');
+                                                      if (closeBtn) closeBtn.click();
+                                                    }}
+                                                  >
+                                                    Cancel
+                                                  </Button>
+                                                  <Button 
+                                                    variant="destructive"
+                                                    onClick={() => {
+                                                      deleteCommentMutation.mutate({
+                                                        commentId: comment.id,
+                                                        postId: post.id
+                                                      });
+                                                      const closeBtn = document.querySelector('[data-radix-collection-item]');
+                                                      if (closeBtn) closeBtn.click();
+                                                    }}
+                                                  >
+                                                    Delete
+                                                  </Button>
+                                                </DialogFooter>
+                                              </DialogContent>
+                                            </Dialog>
+                                          )}
+                                        </div>
                                       </div>
                                       <p className="text-sm text-gray-700">{comment.content}</p>
                                     </div>
