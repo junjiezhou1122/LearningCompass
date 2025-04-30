@@ -1,7 +1,9 @@
 import { useState, useEffect, useRef } from "react";
 import { Link, useLocation } from "wouter";
 import { useAuth } from "../contexts/AuthContext";
+import { useLanguage } from "../contexts/LanguageContext";
 import AuthModals from "./AuthModals";
+import LanguageSwitcher from "./LanguageSwitcher";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -40,6 +42,7 @@ export default function Header() {
   const [searchQuery, setSearchQuery] = useState("");
   const [location, navigate] = useLocation();
   const { isAuthenticated, user, logout } = useAuth();
+  const { t } = useLanguage(); // Add the translation function
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [recentSearches, setRecentSearches] = useState([]);
   const [isSearchPopoverOpen, setIsSearchPopoverOpen] = useState(false);
