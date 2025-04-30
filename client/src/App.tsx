@@ -35,7 +35,7 @@ function Router() {
           <Route path="/profile" component={Profile} />
           <Route path="/share" component={Share} />
           <Route path="/post/:id" component={PostDetail} />
-          <Route path="/profile/:userId" component={UserProfile} />
+          <Route path="/users/:userId" component={UserProfile} />
           <Route component={NotFound} />
         </Switch>
       </main>

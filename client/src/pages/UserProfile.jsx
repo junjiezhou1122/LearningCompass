@@ -404,13 +404,13 @@ export default function UserProfile() {
                 {modalUsers.map(user => (
                   <div key={user.id} className="flex items-center justify-between p-2 hover:bg-orange-50 rounded-lg transition-colors">
                     <div className="flex items-center gap-3">
-                      <Avatar className="h-10 w-10 cursor-pointer" onClick={() => navigate(`/profile/${user.id}`)}>
+                      <Avatar className="h-10 w-10 cursor-pointer" onClick={() => navigate(`/users/${user.id}`)}>
                         <AvatarFallback className="bg-orange-100 text-orange-800">
                           {user.username?.charAt(0).toUpperCase() || 'U'}
                         </AvatarFallback>
                       </Avatar>
                       <div>
-                        <p className="font-medium hover:text-orange-600 cursor-pointer" onClick={() => navigate(`/profile/${user.id}`)}>
+                        <p className="font-medium hover:text-orange-600 cursor-pointer" onClick={() => navigate(`/users/${user.id}`)}>
                           {user.username}
                         </p>
                         {user.bio && (
@@ -424,7 +424,7 @@ export default function UserProfile() {
                         variant="outline" 
                         size="sm"
                         className="border-orange-300 hover:bg-orange-50 hover:text-orange-700"
-                        onClick={() => navigate(`/profile/${user.id}`)}
+                        onClick={() => navigate(`/users/${user.id}`)}
                       >
                         View Profile
                       </Button>
@@ -680,7 +680,7 @@ export default function UserProfile() {
                               className="flex items-center cursor-pointer hover:text-orange-600" 
                               onClick={(e) => { 
                                 e.stopPropagation(); 
-                                navigate(`/profile/${post.userId}`); 
+                                navigate(`/users/${post.userId}`); 
                               }}
                             >
                               <User size={14} className="mr-1 text-green-500" />
@@ -816,7 +816,7 @@ export default function UserProfile() {
                             className="ml-1 hover:text-orange-600 hover:underline cursor-pointer transition-colors" 
                             onClick={(e) => { 
                               e.stopPropagation(); 
-                              navigate(`/profile/${comment.postUserId}`); 
+                              navigate(`/users/${comment.postUserId}`); 
                             }}
                           >
                             {comment.postAuthor}
