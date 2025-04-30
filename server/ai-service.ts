@@ -204,6 +204,14 @@ export async function handleChatRequest(req: Request, res: Response) {
         console.log('Using Anthropic provider');
         responseMessage = await handleAnthropicChat(body);
         break;
+      case 'openrouter':
+        console.log('Using OpenRouter provider');
+        // Set the baseUrl to ensure OpenRouter works properly
+        if (!body.baseUrl || !body.baseUrl.includes('openrouter.ai')) {
+          body.baseUrl = 'https://openrouter.ai/api/v1';
+        }
+        responseMessage = await handleCustomAPIChat(body);
+        break;
       case 'custom':
         console.log('Using Custom API provider');
         responseMessage = await handleCustomAPIChat(body);

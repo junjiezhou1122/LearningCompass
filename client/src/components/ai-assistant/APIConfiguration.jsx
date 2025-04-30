@@ -63,7 +63,7 @@ const APIConfiguration = ({ initialSettings, onSave }) => {
       newSettings.model = '';
       newSettings.baseUrl = '';
     } else if (value === 'openrouter') {
-      newSettings.model = 'google/gemini-2.5-pro-exp-03-25';
+      newSettings.model = 'google/gemini-2.5-pro-preview';
       newSettings.baseUrl = 'https://openrouter.ai/api/v1';
     }
     
@@ -203,21 +203,39 @@ const APIConfiguration = ({ initialSettings, onSave }) => {
                     </SelectContent>
                   </Select>
                 ) : settings.provider === 'openrouter' ? (
-                  <Select 
-                    value={settings.model} 
-                    onValueChange={(value) => handleChange('model', value)}
-                  >
-                    <SelectTrigger id="model">
-                      <SelectValue placeholder="Select a model" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="google/gemini-2.5-pro-exp-03-25">Google Gemini 2.5 Pro</SelectItem>
-                      <SelectItem value="mistralai/mistral-8x7b">Mistral Large</SelectItem>
-                      <SelectItem value="anthropic/claude-3-5-sonnet">Claude 3.5 Sonnet</SelectItem>
-                      <SelectItem value="openai/gpt-4o">OpenAI GPT-4o</SelectItem>
-                      <SelectItem value="meta-llama/llama-3-70b-instruct">Meta Llama 3 70B</SelectItem>
-                    </SelectContent>
-                  </Select>
+                  <div className="space-y-2">
+                    <Input
+                      id="model"
+                      value={settings.model}
+                      onChange={(e) => handleChange('model', e.target.value)}
+                      placeholder="Enter model identifier (e.g., google/gemini-2.5-pro-preview)"
+                      className="font-mono"
+                    />
+                    <div className="pt-1">
+                      <p className="text-xs text-gray-500 mb-2">Popular models (click to select):</p>
+                      <div className="flex flex-wrap gap-1">
+                        {[
+                          { id: 'anthropic/claude-3-5-sonnet', name: 'Claude 3.5 Sonnet' },
+                          { id: 'google/gemini-2.5-pro-preview', name: 'Gemini 2.5 Pro' }, 
+                          { id: 'mistralai/mistral-8x7b', name: 'Mistral Large' },
+                          { id: 'openai/gpt-4o', name: 'GPT-4o' },
+                          { id: 'meta-llama/llama-3-70b-instruct', name: 'Llama 3 70B' }
+                        ].map(model => (
+                          <button
+                            key={model.id}
+                            onClick={() => handleChange('model', model.id)}
+                            className={`text-xs px-2 py-1 rounded-full 
+                              ${settings.model === model.id 
+                                ? 'bg-orange-600 text-white' 
+                                : 'bg-orange-50 text-orange-800 border border-orange-200 hover:bg-orange-100'
+                              }`}
+                          >
+                            {model.name}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
                 ) : (
                   <Input
                     id="model"
