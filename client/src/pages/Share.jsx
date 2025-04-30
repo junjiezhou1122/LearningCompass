@@ -72,14 +72,88 @@ export default function Share() {
   const [currentTag, setCurrentTag] = useState('');
   const [expandedPostId, setExpandedPostId] = useState(null);
   const [newComment, setNewComment] = useState('');
-  const [filterTag, setFilterTag] = useState('');
+  const [filterTag, setFilterTag] = useState('all-tags');
+  const [commentCounts, setCommentCounts] = useState({});
+  const [likedPosts, setLikedPosts] = useState({});
+  const [bookmarkedPosts, setBookmarkedPosts] = useState({});
   const queryClient = useQueryClient();
   
   // Fetch all learning posts
   const { data: posts = [], isLoading: isPostsLoading } = useQuery({
     queryKey: ['/api/learning-posts'],
     staleTime: 1000 * 60, // 1 minute
+    onSuccess: (posts) => {
+      // For each post, fetch comment counts
+      if (posts && posts.length > 0) {
+        fetchCommentCounts(posts);
+        if (isAuthenticated) {
+          checkLikedAndBookmarkedPosts(posts);
+        }
+      }
+    }
   });
+  
+  // Fetch comment counts for posts
+  const fetchCommentCounts = async (posts) => {
+    const commentCountsObj = {};
+    
+    for (const post of posts) {
+      try {
+        const response = await fetch(`/api/learning-posts/${post.id}/comments`);
+        if (response.ok) {
+          const comments = await response.json();
+          commentCountsObj[post.id] = comments.length;
+        }
+      } catch (error) {
+        console.error(`Error fetching comments for post ${post.id}:`, error);
+        commentCountsObj[post.id] = 0;
+      }
+    }
+    
+    setCommentCounts(commentCountsObj);
+  };
+  
+  // Check which posts the user has liked and bookmarked
+  const checkLikedAndBookmarkedPosts = async (posts) => {
+    if (!isAuthenticated) return;
+    
+    const token = localStorage.getItem('token');
+    const likedObj = {};
+    const bookmarkedObj = {};
+    
+    for (const post of posts) {
+      try {
+        // Check likes
+        const likeResponse = await fetch(`/api/learning-posts/${post.id}/like`, {
+          headers: {
+            'Authorization': `Bearer ${token}`
+          }
+        });
+        
+        if (likeResponse.ok) {
+          const likeData = await likeResponse.json();
+          likedObj[post.id] = !!likeData;
+        }
+        
+        // Check bookmarks
+        const bookmarkResponse = await fetch(`/api/learning-posts/${post.id}/bookmark`, {
+          headers: {
+            'Authorization': `Bearer ${token}`
+          }
+        });
+        
+        if (bookmarkResponse.ok) {
+          const bookmarkData = await bookmarkResponse.json();
+          bookmarkedObj[post.id] = !!bookmarkData;
+        }
+      } catch (error) {
+        console.error(`Error checking status for post ${post.id}:`, error);
+      }
+    }
+    
+    setLikedPosts(likedObj);
+    setBookmarkedPosts(bookmarkedObj);
+  };
   
   // Mutation for creating a new post
   const createPostMutation = useMutation({
@@ -188,14 +262,24 @@ export default function Share() {
   // Mutation for liking a post
   const likePostMutation = useMutation({
     mutationFn: async (postId) => {
+      if (!isAuthenticated) {
+        toast({
+          title: "Authentication Required",
+          description: "Please sign in to like posts",
+          variant: "destructive",
+        });
+        return;
+      }
+      
       // Get auth token from localStorage
       const token = localStorage.getItem('token');
+      const method = likedPosts[postId] ? 'DELETE' : 'POST';
       
       const response = await fetch(`/api/learning-posts/${postId}/like`, {
-        method: 'POST',
+        method: method,
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}` // Add authorization header
+          'Authorization': `Bearer ${token}` 
         },
       });
       
@@ -204,10 +288,21 @@ export default function Share() {
         throw new Error(errorData.message || 'Failed to like post');
       }
       
-      return await response.json();
+      return { postId, liked: !likedPosts[postId] };
     },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['/api/learning-posts'] });
+    onSuccess: (data) => {
+      if (data) {
+        setLikedPosts(prev => ({
+          ...prev,
+          [data.postId]: data.liked
+        }));
+        
+        queryClient.invalidateQueries({ queryKey: ['/api/learning-posts'] });
+        
+        toast({
+          description: data.liked ? "Post liked" : "Post unliked",
+        });
+      }
     },
     onError: (error) => {
       toast({
@@ -221,14 +316,24 @@ export default function Share() {
   // Mutation for bookmarking a post
   const bookmarkPostMutation = useMutation({
     mutationFn: async (postId) => {
+      if (!isAuthenticated) {
+        toast({
+          title: "Authentication Required",
+          description: "Please sign in to bookmark posts",
+          variant: "destructive",
+        });
+        return;
+      }
+      
       // Get auth token from localStorage
       const token = localStorage.getItem('token');
+      const method = bookmarkedPosts[postId] ? 'DELETE' : 'POST';
       
       const response = await fetch(`/api/learning-posts/${postId}/bookmark`, {
-        method: 'POST',
+        method: method,
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}` // Add authorization header
+          'Authorization': `Bearer ${token}`
         },
       });
       
@@ -237,12 +342,19 @@ export default function Share() {
         throw new Error(errorData.message || 'Failed to bookmark post');
       }
       
-      return await response.json();
+      return { postId, bookmarked: !bookmarkedPosts[postId] };
     },
-    onSuccess: () => {
-      toast({
-        description: "Post bookmarked successfully",
-      });
+    onSuccess: (data) => {
+      if (data) {
+        setBookmarkedPosts(prev => ({
+          ...prev,
+          [data.postId]: data.bookmarked
+        }));
+        
+        toast({
+          description: data.bookmarked ? "Post saved to bookmarks" : "Post removed from bookmarks",
+        });
+      }
     },
     onError: (error) => {
       toast({
