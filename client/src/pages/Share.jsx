@@ -46,9 +46,6 @@ import {
   X,
   Send
 } from 'lucide-react';
-import LearningHeader from '@/components/LearningHeader';
-import LearningFooter from '@/components/LearningFooter';
-
 // Mock data for the initial posts
 const initialPosts = [
   {
@@ -273,10 +270,8 @@ export default function Share() {
   });
 
   return (
-    <div className="flex flex-col min-h-screen">
-      <LearningHeader />
-      
-      <main className="flex-grow container mx-auto px-4 py-8">
+    <div>
+      <main className="container mx-auto px-4 py-8">
         <div className="max-w-5xl mx-auto">
           <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-8">
             <div>
@@ -609,8 +604,6 @@ export default function Share() {
           </div>
         </div>
       </main>
-      
-      <LearningFooter />
     </div>
   );
 }

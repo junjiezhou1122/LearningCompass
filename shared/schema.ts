@@ -1,4 +1,4 @@
-import { pgTable, text, serial, integer, boolean, doublePrecision, timestamp } from "drizzle-orm/pg-core";
+import { pgTable, text, serial, integer, boolean, doublePrecision, timestamp, varchar } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 import { relations } from "drizzle-orm";
@@ -182,3 +182,134 @@ export type InsertSubscriber = typeof subscribers.$inferInsert;
 
 export type Comment = typeof comments.$inferSelect;
 export type InsertComment = typeof comments.$inferInsert;
+
+// Learning Posts schema
+export const learningPosts = pgTable("learning_posts", {
+  id: serial("id").primaryKey(),
+  userId: integer("user_id").notNull(),
+  title: text("title").notNull(),
+  content: text("content").notNull(),
+  type: varchar("type", { length: 50 }).notNull(), // 'thought' or 'resource'
+  resourceLink: text("resource_link"),
+  tags: text("tags").array(), // Store tags as array
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at")
+});
+
+export const insertLearningPostSchema = createInsertSchema(learningPosts).pick({
+  userId: true,
+  title: true,
+  content: true,
+  type: true,
+  resourceLink: true,
+  tags: true,
+  updatedAt: true
+});
+
+// Learning Post Comments schema
+export const learningPostComments = pgTable("learning_post_comments", {
+  id: serial("id").primaryKey(),
+  postId: integer("post_id").notNull(),
+  userId: integer("user_id").notNull(),
+  content: text("content").notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at")
+});
+
+export const insertLearningPostCommentSchema = createInsertSchema(learningPostComments).pick({
+  postId: true,
+  userId: true,
+  content: true,
+  updatedAt: true
+});
+
+// Learning Post Likes schema
+export const learningPostLikes = pgTable("learning_post_likes", {
+  id: serial("id").primaryKey(),
+  postId: integer("post_id").notNull(),
+  userId: integer("user_id").notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull()
+});
+
+export const insertLearningPostLikeSchema = createInsertSchema(learningPostLikes).pick({
+  postId: true,
+  userId: true
+});
+
+// Learning Post Bookmarks schema
+export const learningPostBookmarks = pgTable("learning_post_bookmarks", {
+  id: serial("id").primaryKey(),
+  postId: integer("post_id").notNull(),
+  userId: integer("user_id").notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull()
+});
+
+export const insertLearningPostBookmarkSchema = createInsertSchema(learningPostBookmarks).pick({
+  postId: true,
+  userId: true
+});
+
+// Learning Post Relations
+export const learningPostsRelations = relations(learningPosts, ({ many, one }) => ({
+  user: one(users, {
+    fields: [learningPosts.userId],
+    references: [users.id]
+  }),
+  comments: many(learningPostComments),
+  likes: many(learningPostLikes),
+  bookmarks: many(learningPostBookmarks)
+}));
+
+export const learningPostCommentsRelations = relations(learningPostComments, ({ one }) => ({
+  post: one(learningPosts, {
+    fields: [learningPostComments.postId],
+    references: [learningPosts.id]
+  }),
+  user: one(users, {
+    fields: [learningPostComments.userId],
+    references: [users.id]
+  })
+}));
+
+export const learningPostLikesRelations = relations(learningPostLikes, ({ one }) => ({
+  post: one(learningPosts, {
+    fields: [learningPostLikes.postId],
+    references: [learningPosts.id]
+  }),
+  user: one(users, {
+    fields: [learningPostLikes.userId],
+    references: [users.id]
+  })
+}));
+
+export const learningPostBookmarksRelations = relations(learningPostBookmarks, ({ one }) => ({
+  post: one(learningPosts, {
+    fields: [learningPostBookmarks.postId],
+    references: [learningPosts.id]
+  }),
+  user: one(users, {
+    fields: [learningPostBookmarks.userId],
+    references: [users.id]
+  })
+}));
+
+// Update user relations to include learning posts
+export const usersLearningRelations = relations(users, ({ many }) => ({
+  learningPosts: many(learningPosts),
+  learningPostComments: many(learningPostComments),
+  learningPostLikes: many(learningPostLikes),
+  learningPostBookmarks: many(learningPostBookmarks)
+}));
+
+// Type definitions for learning posts
+export type LearningPost = typeof learningPosts.$inferSelect;
+export type InsertLearningPost = typeof learningPosts.$inferInsert;
+
+export type LearningPostComment = typeof learningPostComments.$inferSelect;
+export type InsertLearningPostComment = typeof learningPostComments.$inferInsert;
+
+export type LearningPostLike = typeof learningPostLikes.$inferSelect;
+export type InsertLearningPostLike = typeof learningPostLikes.$inferInsert;
+
+export type LearningPostBookmark = typeof learningPostBookmarks.$inferSelect;
+export type InsertLearningPostBookmark = typeof learningPostBookmarks.$inferInsert;

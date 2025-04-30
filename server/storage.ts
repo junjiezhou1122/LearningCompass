@@ -63,6 +63,42 @@ export interface IStorage {
   createComment(comment: InsertComment): Promise<Comment>;
   updateComment(id: number, content: string, rating?: number): Promise<Comment | undefined>;
   deleteComment(id: number, userId: number): Promise<boolean>;
+  
+  // Learning post operations
+  getLearningPost(id: number): Promise<LearningPost | undefined>;
+  getLearningPosts(options?: {
+    limit?: number;
+    offset?: number;
+    type?: string;
+    tag?: string;
+    userId?: number;
+  }): Promise<LearningPost[]>;
+  createLearningPost(post: InsertLearningPost): Promise<LearningPost>;
+  updateLearningPost(id: number, post: Partial<InsertLearningPost>): Promise<LearningPost | undefined>;
+  deleteLearningPost(id: number, userId: number): Promise<boolean>;
+  
+  // Learning post comment operations
+  getLearningPostComment(id: number): Promise<LearningPostComment | undefined>;
+  getLearningPostCommentsByPostId(postId: number): Promise<LearningPostComment[]>;
+  createLearningPostComment(comment: InsertLearningPostComment): Promise<LearningPostComment>;
+  updateLearningPostComment(id: number, content: string): Promise<LearningPostComment | undefined>;
+  deleteLearningPostComment(id: number, userId: number): Promise<boolean>;
+  
+  // Learning post like operations
+  getLearningPostLike(postId: number, userId: number): Promise<LearningPostLike | undefined>;
+  getLearningPostLikesByPostId(postId: number): Promise<LearningPostLike[]>;
+  createLearningPostLike(like: InsertLearningPostLike): Promise<LearningPostLike>;
+  deleteLearningPostLike(postId: number, userId: number): Promise<boolean>;
+  getLearningPostLikesCount(postId: number): Promise<number>;
+  
+  // Learning post bookmark operations
+  getLearningPostBookmark(postId: number, userId: number): Promise<LearningPostBookmark | undefined>;
+  getLearningPostBookmarksByUserId(userId: number): Promise<LearningPostBookmark[]>;
+  createLearningPostBookmark(bookmark: InsertLearningPostBookmark): Promise<LearningPostBookmark>;
+  deleteLearningPostBookmark(postId: number, userId: number): Promise<boolean>;
+  
+  // Learning post tag operations
+  getLearningPostTags(): Promise<string[]>;
 }
 
 export class DatabaseStorage implements IStorage {
