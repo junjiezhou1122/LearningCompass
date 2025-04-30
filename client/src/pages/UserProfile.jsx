@@ -85,7 +85,7 @@ export default function UserProfile() {
     data: isFollowingData,
     isLoading: isFollowingStatusLoading 
   } = useQuery({
-    queryKey: [`/api/users/${userId}/following/${userId}`],
+    queryKey: [`/api/users/${userId}/following/${currentUser?.id}`],
     enabled: !!userId && !!currentUser && currentUser.id !== parseInt(userId),
   });
   // Extract the actual boolean value from the response
@@ -112,7 +112,7 @@ export default function UserProfile() {
     onSuccess: () => {
       // Invalidate relevant queries to refresh data
       queryClient.invalidateQueries({ queryKey: [`/api/users/${userId}/followers/count`] });
-      queryClient.invalidateQueries({ queryKey: [`/api/users/${userId}/following/${userId}`] });
+      queryClient.invalidateQueries({ queryKey: [`/api/users/${userId}/following/${currentUser?.id}`] });
       
       toast({
         title: "Success",
@@ -149,7 +149,7 @@ export default function UserProfile() {
     onSuccess: () => {
       // Invalidate relevant queries to refresh data
       queryClient.invalidateQueries({ queryKey: [`/api/users/${userId}/followers/count`] });
-      queryClient.invalidateQueries({ queryKey: [`/api/users/${userId}/following/${userId}`] });
+      queryClient.invalidateQueries({ queryKey: [`/api/users/${userId}/following/${currentUser?.id}`] });
       
       toast({
         title: "Success",
@@ -359,17 +359,13 @@ export default function UserProfile() {
                   
                   <CardFooter className="border-t pt-4 flex flex-wrap items-center justify-between gap-4 bg-gray-50 group-hover:bg-orange-50 transition-colors duration-300">
                     <div className="flex flex-wrap items-center gap-4">
+                      <PostLikeStatus postId={post.id} />
+                      <PostCommentCount postId={post.id} />
                       <div className="flex items-center gap-1 text-gray-500">
-                        <Heart size={16} className={post.isLiked ? "text-red-500" : ""} fill={post.isLiked ? "currentColor" : "none"} />
-                        <span>{post.likeCount || 0}</span>
+                        <Eye size={16} className="text-blue-400" />
+                        <span>{post.views || 0}</span>
                       </div>
-                      <div className="flex items-center gap-1 text-gray-500">
-                        <MessageSquare size={16} />
-                        <span>{post.commentCount || 0}</span>
-                      </div>
-                      <div className="flex items-center gap-1 text-gray-500">
-                        <Bookmark size={16} className={post.isBookmarked ? "text-blue-500" : ""} fill={post.isBookmarked ? "currentColor" : "none"} />
-                      </div>
+                      <PostBookmarkStatus postId={post.id} />
                     </div>
                   </CardFooter>
                 </Card>
@@ -397,6 +393,59 @@ export default function UserProfile() {
           )}
         </TabsContent>
       </Tabs>
+    </div>
+  );
+}
+
+// Component to show post like status and count
+function PostLikeStatus({ postId }) {
+  const { data: likeData } = useQuery({
+    queryKey: [`/api/learning-posts/${postId}/like`],
+    enabled: !!postId,
+  });
+
+  return (
+    <div className="flex items-center gap-1 text-gray-500">
+      <Heart 
+        size={16} 
+        className={likeData?.liked ? "text-red-500" : ""} 
+        fill={likeData?.liked ? "currentColor" : "none"} 
+      />
+      <span>{likeData?.count || 0}</span>
+    </div>
+  );
+}
+
+// Component to show post comment count
+function PostCommentCount({ postId }) {
+  const { data: commentData } = useQuery({
+    queryKey: [`/api/learning-posts/${postId}/comments/count`],
+    enabled: !!postId,
+  });
+
+  return (
+    <div className="flex items-center gap-1 text-gray-500">
+      <MessageSquare size={16} className="text-orange-500" />
+      <span>{commentData?.count || 0}</span>
+    </div>
+  );
+}
+
+// Component to show post bookmark status
+function PostBookmarkStatus({ postId }) {
+  const { isAuthenticated } = useAuth();
+  const { data: bookmarkData } = useQuery({
+    queryKey: [`/api/learning-posts/${postId}/bookmark`],
+    enabled: !!postId && isAuthenticated,
+  });
+
+  return (
+    <div className="flex items-center gap-1 text-gray-500">
+      <Bookmark 
+        size={16} 
+        className={bookmarkData?.bookmarked ? "text-yellow-500" : ""} 
+        fill={bookmarkData?.bookmarked ? "currentColor" : "none"} 
+      />
     </div>
   );
 }
