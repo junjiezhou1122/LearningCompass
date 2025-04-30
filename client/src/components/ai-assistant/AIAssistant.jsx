@@ -198,6 +198,7 @@ const AIAssistant = () => {
                   <div className="text-xs px-2 py-1 bg-orange-100 text-orange-700 rounded-full">
                     {savedApiSettings.provider === 'openai' ? 'OpenAI' : 
                      savedApiSettings.provider === 'anthropic' ? 'Anthropic' : 
+                     savedApiSettings.provider === 'openrouter' ? 'OpenRouter' :
                      savedApiSettings.provider === 'custom' ? 'Custom API' : 
                      savedApiSettings.provider}
                   </div>
@@ -242,7 +243,12 @@ const AIAssistant = () => {
               </div>
               {savedApiSettings?.apiKey && (
                 <p className="text-xs text-gray-500 mt-2">
-                  Using {savedApiSettings.model || 'default model'} from {savedApiSettings.provider === 'openai' ? 'OpenAI' : savedApiSettings.provider === 'anthropic' ? 'Anthropic' : 'Custom API'}
+                  Using {savedApiSettings.model || 'default model'} from {
+                    savedApiSettings.provider === 'openai' ? 'OpenAI' : 
+                    savedApiSettings.provider === 'anthropic' ? 'Anthropic' : 
+                    savedApiSettings.provider === 'openrouter' ? 'OpenRouter' :
+                    'Custom API'
+                  }
                 </p>
               )}
             </div>
