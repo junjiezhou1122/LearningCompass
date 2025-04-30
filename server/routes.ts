@@ -1449,6 +1449,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // AI Assistant Chat API
   app.post("/api/ai/chat", async (req: Request, res: Response) => {
     try {
+      console.log("AI Chat API Request received:", {
+        provider: req.body.provider,
+        modelRequested: req.body.model,
+        messageCount: req.body?.messages?.length
+      });
+      
       // Pass request to the AI service handler
       await handleChatRequest(req, res);
     } catch (error) {

@@ -133,14 +133,34 @@ export async function handleChatRequest(req: Request, res: Response) {
   try {
     const body = req.body as AIRequestBody;
     
+    // Log the request body for debugging
+    console.log('AI request body:', {
+      provider: body.provider,
+      model: body.model,
+      hasApiKey: !!body.apiKey,
+      messageCount: body.messages?.length
+    });
+    
     if (!body.apiKey) {
+      console.log('API key missing');
       return res.status(400).json({ error: 'API key is required' });
     }
     
     if (!body.messages || !Array.isArray(body.messages) || body.messages.length === 0) {
+      console.log('Messages missing or invalid');
       return res.status(400).json({ error: 'Messages are required' });
     }
     
+    // Temporarily use mock response for testing instead of real API calls
+    // This will help debug frontend issues without needing real API keys
+    const lastUserMessage = body.messages.filter(msg => msg.role === 'user').pop()?.content || '';
+    const mockResponse = `I received your message: "${lastUserMessage}". This is a mock response for testing purposes. Provider: ${body.provider}, Model: ${body.model}`;
+    
+    console.log('Sending mock response for testing');
+    return res.json({ message: mockResponse });
+    
+    // Comment out real implementation for now to debug frontend issues
+    /*
     let responseMessage: string;
     
     switch (body.provider) {
@@ -158,6 +178,7 @@ export async function handleChatRequest(req: Request, res: Response) {
     }
     
     return res.json({ message: responseMessage });
+    */
   } catch (error: any) {
     console.error('AI Service Error:', error);
     return res.status(500).json({ 
