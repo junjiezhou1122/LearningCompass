@@ -292,12 +292,41 @@ export const learningPostBookmarksRelations = relations(learningPostBookmarks, (
   })
 }));
 
-// Update user relations to include learning posts
+// User follows table
+export const userFollows = pgTable("user_follows", {
+  id: serial("id").primaryKey(),
+  followerId: integer("follower_id").notNull().references(() => users.id),
+  followingId: integer("following_id").notNull().references(() => users.id),
+  createdAt: timestamp("created_at").defaultNow().notNull()
+});
+
+export const insertUserFollowSchema = createInsertSchema(userFollows).pick({
+  followerId: true,
+  followingId: true
+});
+
+// Follows relations
+export const userFollowsRelations = relations(userFollows, ({ one }) => ({
+  follower: one(users, {
+    fields: [userFollows.followerId],
+    references: [users.id],
+    relationName: "follower"
+  }),
+  following: one(users, {
+    fields: [userFollows.followingId],
+    references: [users.id],
+    relationName: "following"
+  })
+}));
+
+// Update user relations to include learning posts and follows
 export const usersLearningRelations = relations(users, ({ many }) => ({
   learningPosts: many(learningPosts),
   learningPostComments: many(learningPostComments),
   learningPostLikes: many(learningPostLikes),
-  learningPostBookmarks: many(learningPostBookmarks)
+  learningPostBookmarks: many(learningPostBookmarks),
+  followers: many(userFollows, { relationName: "following" }),
+  following: many(userFollows, { relationName: "follower" })
 }));
 
 // Type definitions for learning posts
@@ -312,3 +341,6 @@ export type InsertLearningPostLike = typeof learningPostLikes.$inferInsert;
 
 export type LearningPostBookmark = typeof learningPostBookmarks.$inferSelect;
 export type InsertLearningPostBookmark = typeof learningPostBookmarks.$inferInsert;
+
+export type UserFollow = typeof userFollows.$inferSelect;
+export type InsertUserFollow = typeof userFollows.$inferInsert;

@@ -205,7 +205,7 @@ export default function CourseDetail() {
 
   // Handle back button click
   const handleBackClick = () => {
-    navigate("/");
+    navigate("/courses");
   };
 
   // Format skills for display

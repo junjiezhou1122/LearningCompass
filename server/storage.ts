@@ -16,6 +16,16 @@ export interface IStorage {
   getUserByUsername(username: string): Promise<User | undefined>;
   getUserByEmail(email: string): Promise<User | undefined>;
   createUser(user: InsertUser): Promise<User>;
+  getUserPosts(userId: number): Promise<LearningPost[]>;
+  
+  // Follow operations
+  getFollowers(userId: number): Promise<User[]>;
+  getFollowing(userId: number): Promise<User[]>;
+  getFollowersCount(userId: number): Promise<number>;
+  getFollowingCount(userId: number): Promise<number>;
+  isFollowing(followerId: number, followingId: number): Promise<boolean>;
+  createFollow(follow: InsertUserFollow): Promise<UserFollow>;
+  deleteFollow(followerId: number, followingId: number): Promise<boolean>;
   
   // Course operations
   getCourse(id: number): Promise<Course | undefined>;
