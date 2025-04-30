@@ -418,37 +418,47 @@ export default function PostDetail() {
       <div className="max-w-4xl mx-auto">
         <Button 
           variant="ghost" 
-          className="mb-6" 
+          className="mb-6 hover:bg-orange-100 hover:text-orange-700 transition-all duration-300 group"
           onClick={() => navigate('/share')}
         >
-          <ArrowLeft size={16} className="mr-2" />
+          <ArrowLeft size={16} className="mr-2 transform group-hover:translate-x-[-2px] transition-transform duration-300" />
           Back to Posts
         </Button>
         
-        <Card className="mb-8">
-          <CardHeader className="pb-3">
+        <Card className="mb-8 overflow-hidden group border border-gray-200 hover:border-orange-200 transition-all duration-300 shadow-sm hover:shadow-md">
+          {/* Animated gradient top bar */}
+          <div className="h-1.5 w-full bg-gradient-to-r from-orange-300 via-orange-500 to-amber-500 transform origin-left scale-x-100"></div>
+                
+          <CardHeader className="pb-3 transition-colors duration-300 group-hover:bg-orange-50/50">
             <div className="flex justify-between items-start">
               <div className="flex items-start space-x-4">
-                <Avatar className="h-12 w-12">
-                  <AvatarFallback className="bg-orange-100 text-orange-800 text-lg">
+                <Avatar className="h-12 w-12 border-2 border-orange-100 transition-all duration-300 group-hover:border-orange-300 group-hover:shadow-md">
+                  <AvatarFallback className="bg-orange-100 text-orange-800 text-lg font-semibold transition-colors duration-300 group-hover:bg-orange-200">
                     {post.user?.username?.charAt(0).toUpperCase() || 'U'}
                   </AvatarFallback>
                 </Avatar>
                 <div>
-                  <CardTitle className="text-2xl font-bold">{post.title}</CardTitle>
-                  <CardDescription className="flex items-center mt-1">
+                  <CardTitle className="text-2xl font-bold transition-colors duration-300 group-hover:text-orange-700">{post.title}</CardTitle>
+                  <CardDescription className="flex flex-wrap items-center mt-1 gap-x-2">
                     <span className="font-medium">{post.user?.username || 'Anonymous'}</span>
-                    <span className="inline-block mx-2">•</span>
-                    <Calendar size={14} className="mr-1" />
-                    <span>{new Date(post.createdAt).toLocaleDateString()}</span>
-                    <span className="inline-block mx-2">•</span>
-                    <Eye size={14} className="mr-1" />
-                    <span>{post.views || 0} views</span>
+                    <span className="inline-block mx-1">•</span>
+                    <div className="flex items-center">
+                      <Calendar size={14} className="mr-1 text-orange-400" />
+                      <span>{new Date(post.createdAt).toLocaleDateString()}</span>
+                    </div>
+                    <span className="inline-block mx-1">•</span>
+                    <div className="flex items-center">
+                      <Eye size={14} className="mr-1 text-blue-400" />
+                      <span>{post.views || 0} views</span>
+                    </div>
                   </CardDescription>
                 </div>
               </div>
               <div className="flex items-start space-x-2">
-                <Badge variant={post.type === 'thought' ? 'secondary' : 'outline'} className="text-sm px-3 py-1">
+                <Badge 
+                  variant={post.type === 'thought' ? 'secondary' : 'outline'} 
+                  className="text-sm px-3 py-1 transition-all duration-300 group-hover:shadow-sm"
+                >
                   {post.type === 'thought' ? (
                     <Lightbulb size={14} className="mr-1 text-amber-500" />
                   ) : (
@@ -460,12 +470,12 @@ export default function PostDetail() {
             </div>
           </CardHeader>
           
-          <CardContent>
+          <CardContent className="transition-colors duration-300 group-hover:bg-orange-50/30">
             <div className="prose prose-orange max-w-none">
-              <p className="text-gray-700 whitespace-pre-wrap text-base leading-relaxed">{post.content}</p>
+              <p className="text-gray-700 whitespace-pre-wrap text-base leading-relaxed transition-colors duration-300 group-hover:text-gray-900">{post.content}</p>
               
               {post.type === 'resource' && post.resourceLink && (
-                <div className="mt-6 p-4 bg-blue-50 rounded-lg border border-blue-100">
+                <div className="mt-6 p-4 bg-blue-50 rounded-lg border border-blue-100 transition-all duration-300 group-hover:shadow-sm">
                   <h3 className="text-lg font-medium mb-2 flex items-center text-blue-800">
                     <BookOpen className="mr-2 h-5 w-5" />
                     Resource Link
@@ -474,7 +484,7 @@ export default function PostDetail() {
                     href={post.resourceLink} 
                     target="_blank" 
                     rel="noopener noreferrer"
-                    className="inline-block text-blue-600 hover:text-blue-800 hover:underline break-all"
+                    className="inline-flex items-center text-blue-600 hover:text-blue-800 hover:underline break-all transform transition-all duration-300 hover:translate-x-1"
                   >
                     {post.resourceLink}
                   </a>
@@ -487,7 +497,7 @@ export default function PostDetail() {
                     <Badge 
                       key={tag} 
                       variant="outline"
-                      className="cursor-pointer hover:bg-orange-50"
+                      className="cursor-pointer transition-all duration-300 hover:bg-orange-100 hover:text-orange-800 hover:scale-105"
                     >
                       {tag}
                     </Badge>
@@ -497,22 +507,22 @@ export default function PostDetail() {
             </div>
           </CardContent>
           
-          <CardFooter className="border-t pt-4 flex flex-wrap items-center justify-between gap-4">
+          <CardFooter className="border-t pt-4 flex flex-wrap items-center justify-between gap-4 bg-gray-50 group-hover:bg-orange-50 transition-colors duration-300">
             <div className="flex items-center space-x-4">
               <Button 
                 variant="ghost" 
                 size="sm" 
-                className={`${liked ? 'text-red-500' : 'text-gray-500'} hover:text-red-500`}
+                className={`${liked ? 'text-red-500' : 'text-gray-500'} hover:text-red-500 transition-all duration-300 hover:scale-110`}
                 onClick={() => likePostMutation.mutate()}
               >
-                <Heart className="mr-1 h-5 w-5" />
+                <Heart className={`mr-1 h-5 w-5 transform transition-transform duration-300 ${liked ? 'scale-110' : ''}`} fill={liked ? 'currentColor' : 'none'} />
                 <span>{likeCount || 0}</span>
               </Button>
               
               <Button 
                 variant="ghost" 
                 size="sm"
-                className="text-gray-500"
+                className="text-gray-500 hover:text-amber-500 transition-all duration-300 hover:scale-110"
                 onClick={() => {
                   document.getElementById('comment-input').focus();
                 }}
@@ -524,11 +534,11 @@ export default function PostDetail() {
               <Button 
                 variant="ghost" 
                 size="sm"
-                className={`${bookmarked ? 'text-blue-500' : 'text-gray-500'} hover:text-blue-500`}
+                className={`${bookmarked ? 'text-blue-500' : 'text-gray-500'} hover:text-blue-500 transition-all duration-300 hover:scale-110`}
                 onClick={() => bookmarkPostMutation.mutate()}
               >
                 {bookmarked ? (
-                  <Bookmark className="h-5 w-5" />
+                  <Bookmark className="h-5 w-5 transform scale-110" fill="currentColor" />
                 ) : (
                   <BookmarkPlus className="h-5 w-5" />
                 )}
@@ -537,7 +547,7 @@ export default function PostDetail() {
               <Button 
                 variant="ghost" 
                 size="sm"
-                className="text-gray-500"
+                className="text-gray-500 hover:text-green-500 transition-all duration-300 hover:scale-110"
                 onClick={() => {
                   navigator.clipboard.writeText(window.location.href);
                   toast({
@@ -558,45 +568,65 @@ export default function PostDetail() {
           </h3>
           
           {isAuthenticated ? (
-            <div className="mb-6 flex">
-              <Textarea 
-                id="comment-input"
-                placeholder="Add your thoughts..." 
-                value={newComment}
-                onChange={(e) => setNewComment(e.target.value)}
-                className="flex-1 mr-3"
-              />
-              <Button 
-                className="self-end bg-orange-500 hover:bg-orange-600"
-                onClick={handleAddComment}
-                disabled={!newComment.trim()}
-              >
-                <Send className="mr-2 h-4 w-4" />
-                Comment
-              </Button>
+            <div className="mb-6 flex space-x-3 group">
+              <Avatar className="h-10 w-10 mt-1 hidden sm:block border-2 border-orange-100 group-focus-within:border-orange-300 transition-colors duration-300">
+                <AvatarFallback className="bg-orange-100 text-orange-800 group-focus-within:bg-orange-200 transition-colors duration-300">
+                  {user?.username?.charAt(0).toUpperCase() || 'U'}
+                </AvatarFallback>
+              </Avatar>
+              <div className="flex-1 flex flex-col space-y-2">
+                <Textarea 
+                  id="comment-input"
+                  placeholder="Add your thoughts..." 
+                  value={newComment}
+                  onChange={(e) => setNewComment(e.target.value)}
+                  className="flex-1 transition-all duration-300 focus:border-orange-300 focus:ring-orange-200 min-h-[80px]"
+                />
+                <div className="self-end">
+                  <Button 
+                    className="bg-orange-500 hover:bg-orange-600 transition-all duration-300 hover:shadow-md transform hover:translate-y-[-2px]"
+                    onClick={handleAddComment}
+                    disabled={!newComment.trim()}
+                  >
+                    <Send className="mr-2 h-4 w-4" />
+                    Post Comment
+                  </Button>
+                </div>
+              </div>
             </div>
           ) : (
-            <div className="mb-6 p-4 border border-amber-200 bg-amber-50 rounded-md text-center">
-              <p className="text-amber-800">Sign in to join the conversation</p>
+            <div className="mb-6 p-5 border border-amber-200 bg-amber-50 rounded-lg text-center hover:bg-amber-100 transition-colors duration-300 shadow-sm hover:shadow">
+              <p className="text-amber-800 font-medium">Sign in to join the conversation</p>
+              <p className="text-amber-600 text-sm mt-1">Your insights help everyone learn better</p>
             </div>
           )}
           
           {isCommentsLoading ? (
-            <p>Loading comments...</p>
+            <div className="flex justify-center py-6">
+              <div className="animate-pulse flex space-x-4 w-full">
+                <div className="rounded-full bg-gray-200 h-10 w-10"></div>
+                <div className="flex-1 space-y-3 py-1">
+                  <div className="h-2 bg-gray-200 rounded w-1/4"></div>
+                  <div className="h-2 bg-gray-200 rounded w-1/2"></div>
+                  <div className="h-2 bg-gray-200 rounded w-3/4"></div>
+                </div>
+              </div>
+            </div>
           ) : comments.length > 0 ? (
             <div className="space-y-4">
               {comments.map(comment => (
-                <div key={comment.id} className="p-4 border rounded-lg">
+                <div key={comment.id} className="p-4 border border-gray-100 rounded-lg hover:border-orange-200 transition-all duration-300 hover:shadow-sm group">
                   <div className="flex justify-between">
                     <div className="flex items-center mb-2">
-                      <Avatar className="h-8 w-8 mr-2">
-                        <AvatarFallback className="bg-gray-100 text-gray-800">
+                      <Avatar className="h-8 w-8 mr-2 border border-orange-100 group-hover:border-orange-300 transition-all duration-300">
+                        <AvatarFallback className="bg-gray-100 text-gray-800 group-hover:bg-orange-100 transition-colors duration-300">
                           {comment.user?.username?.charAt(0).toUpperCase() || 'U'}
                         </AvatarFallback>
                       </Avatar>
                       <div>
-                        <p className="font-medium">{comment.user?.username || 'Anonymous'}</p>
-                        <p className="text-xs text-gray-500">
+                        <p className="font-medium group-hover:text-orange-700 transition-colors duration-300">{comment.user?.username || 'Anonymous'}</p>
+                        <p className="text-xs text-gray-500 flex items-center gap-1">
+                          <Calendar size={10} className="inline text-orange-400 opacity-75" />
                           {new Date(comment.createdAt).toLocaleDateString()} at {new Date(comment.createdAt).toLocaleTimeString()}
                         </p>
                       </div>
@@ -605,13 +635,17 @@ export default function PostDetail() {
                     {isAuthenticated && user?.id === comment.userId && (
                       <DropdownMenu>
                         <DropdownMenuTrigger asChild>
-                          <Button variant="ghost" size="icon" className="h-8 w-8">
+                          <Button 
+                            variant="ghost" 
+                            size="icon" 
+                            className="h-8 w-8 rounded-full opacity-70 hover:opacity-100 hover:bg-red-50 hover:text-red-500 transition-all duration-300 hover:scale-110"
+                          >
                             <MoreVertical size={16} />
                           </Button>
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="end">
                           <DropdownMenuItem 
-                            className="text-red-600 cursor-pointer"
+                            className="text-red-600 cursor-pointer hover:bg-red-50"
                             onClick={() => deleteCommentMutation.mutate(comment.id)}
                           >
                             <Trash className="mr-2 h-4 w-4" />
@@ -622,13 +656,13 @@ export default function PostDetail() {
                     )}
                   </div>
                   
-                  <p className="text-gray-700 whitespace-pre-line mt-2">{comment.content}</p>
+                  <p className="text-gray-700 whitespace-pre-line mt-2 px-2 py-1 group-hover:bg-orange-50/50 rounded transition-colors duration-300">{comment.content}</p>
                 </div>
               ))}
             </div>
           ) : (
-            <div className="text-center py-8 text-gray-500">
-              <MessageSquare className="mx-auto h-10 w-10 mb-2" />
+            <div className="text-center py-8 text-gray-500 border border-dashed border-gray-200 rounded-lg hover:border-orange-200 transition-all duration-700">
+              <MessageSquare className="mx-auto h-10 w-10 mb-2 animate-pulse text-orange-300" />
               <p>No comments yet. Be the first to share your thoughts!</p>
             </div>
           )}
