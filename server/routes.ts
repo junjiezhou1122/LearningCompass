@@ -620,8 +620,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const postData = insertLearningPostSchema.parse({
         ...req.body,
         userId,
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString()
+        updatedAt: new Date()
       });
       
       const newPost = await storage.createLearningPost(postData);
@@ -671,7 +670,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Update post
       const postData = {
         ...req.body,
-        updatedAt: new Date().toISOString()
+        updatedAt: new Date()
       };
       
       const updatedPost = await storage.updateLearningPost(postId, postData);
@@ -789,8 +788,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         postId,
         userId,
         content,
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString()
+        updatedAt: new Date()
       });
       
       const newComment = await storage.createLearningPostComment(commentData);
@@ -919,8 +917,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       const likeData = insertLearningPostLikeSchema.parse({
         postId,
-        userId,
-        createdAt: new Date().toISOString()
+        userId
       });
       
       await storage.createLearningPostLike(likeData);
@@ -1059,8 +1056,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       const bookmarkData = insertLearningPostBookmarkSchema.parse({
         postId,
-        userId,
-        createdAt: new Date().toISOString()
+        userId
       });
       
       const bookmark = await storage.createLearningPostBookmark(bookmarkData);
