@@ -213,7 +213,7 @@ export default function Header() {
                       ref={searchInputRef}
                       type="text"
                       placeholder="Search courses..."
-                      className="w-full pl-10 pr-4 py-2 rounded-r-none border-0 focus-visible:ring-amber-400"
+                      className="w-full pl-10 pr-4 py-2 rounded-r-none border-0 focus-visible:ring-amber-400 text-gray-800"
                       value={searchQuery}
                       onChange={handleSearchChange}
                       onKeyDown={handleSearchKeyPress}
@@ -394,7 +394,7 @@ export default function Header() {
                               <Input
                                 type="text"
                                 placeholder="Search courses..."
-                                className="w-full pl-10 pr-4 py-2 rounded-r-none border-0 focus-visible:ring-amber-400 bg-white"
+                                className="w-full pl-10 pr-4 py-2 rounded-r-none border-0 focus-visible:ring-amber-400 bg-white text-gray-800"
                                 value={searchQuery}
                                 onChange={handleSearchChange}
                                 onKeyDown={handleSearchKeyPress}
@@ -503,7 +503,7 @@ export default function Header() {
                   <Input
                     type="text"
                     placeholder="Search courses..."
-                    className="w-full pl-10 pr-4 py-2 rounded-r-none border-0 focus-visible:ring-amber-400"
+                    className="w-full pl-10 pr-4 py-2 rounded-r-none border-0 focus-visible:ring-amber-400 text-gray-800"
                     value={searchQuery}
                     onChange={handleSearchChange}
                     onKeyDown={handleSearchKeyPress}
