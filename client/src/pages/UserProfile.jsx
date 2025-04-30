@@ -169,16 +169,19 @@ export default function UserProfile() {
   });
   
   // Get current follow status with a proper query
+  // Since we updated the backend, this now works reliably even without authentication
   const { 
     data: followData,
     error: followError,
     isPending: isFollowCheckPending
   } = useQuery({
     queryKey: [`/api/users/${userId}/following/${currentUser?.id}`],
-    enabled: !!userId && !!currentUser?.id && isAuthenticated && parseInt(userId) !== currentUser?.id,
+    enabled: !!userId && !!currentUser?.id && parseInt(userId) !== currentUser?.id,
     refetchInterval: false,
-    refetchOnWindowFocus: false,
-    retry: 2,
+    refetchOnWindowFocus: true, // Re-check when window gets focus
+    refetchOnMount: true, // Re-check when component mounts
+    retry: 3,
+    staleTime: 0, // Consider data stale immediately so it will refetch
   });
 
   // Update follow status when data changes
@@ -927,10 +930,14 @@ export default function UserProfile() {
                           <MessageSquare size={16} className="text-orange-600" />
                         </div>
                         <p className="text-gray-700 whitespace-pre-line text-sm pl-4 italic">
-                          "{post.commentContent || 'Commented on this post'}"
+                          "{post.userComments && post.userComments.length > 0 
+                            ? post.userComments[0].content 
+                            : 'Commented on this post'}"
                         </p>
                         <div className="text-xs text-gray-500 mt-2 text-right">
-                          {post.commentDate ? new Date(post.commentDate).toLocaleDateString() : 'Recently'}
+                          {post.userComments && post.userComments.length > 0
+                            ? new Date(post.userComments[0].createdAt).toLocaleDateString()
+                            : 'Recently'}
                         </div>
                       </div>
                       

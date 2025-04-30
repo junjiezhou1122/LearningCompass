@@ -532,17 +532,31 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
   
-  // Check if current user is following another user
-  app.get("/api/users/:userId/following/:targetId", authenticateJWT, async (req: Request, res: Response) => {
+  // Check if current user is following another user - public endpoint with optional auth
+  app.get("/api/users/:userId/following/:targetId", async (req: Request, res: Response) => {
     try {
-      const userId = (req as any).user.id;
-      const targetId = parseInt(req.params.targetId);
-      
-      if (isNaN(targetId)) {
-        return res.status(400).json({ message: "Invalid target user ID" });
+      // Get ID from token if available, otherwise use ID from URL param for the check
+      let currentUserId;
+      if (req.headers.authorization) {
+        try {
+          const token = req.headers.authorization.split(' ')[1];
+          const decoded = jwt.verify(token, JWT_SECRET) as { id: number };
+          currentUserId = decoded.id;
+        } catch (err) {
+          // Token error, just continue with param
+          currentUserId = parseInt(req.params.targetId);
+        }
+      } else {
+        currentUserId = parseInt(req.params.targetId);
       }
       
-      const isFollowing = await storage.isFollowing(userId, targetId);
+      const userId = parseInt(req.params.userId);
+      
+      if (isNaN(userId) || isNaN(currentUserId)) {
+        return res.status(400).json({ message: "Invalid user IDs" });
+      }
+      
+      const isFollowing = await storage.isFollowing(currentUserId, userId);
       res.json({ following: isFollowing });
     } catch (error) {
       console.error("Error checking follow status:", error);
