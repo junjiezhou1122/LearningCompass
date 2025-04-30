@@ -38,7 +38,8 @@ import {
   Share2, 
   Filter, 
   Tag, 
-  BookmarkPlus, 
+  BookmarkPlus,
+  Bookmark,
   Lightbulb, 
   BookOpen, 
   Calendar,
@@ -663,9 +664,14 @@ export default function Share() {
                       </div>
                     </CardContent>
                     <CardFooter className="border-t pt-4 flex flex-wrap items-center gap-4">
-                      <Button variant="ghost" size="sm" className="text-gray-500 hover:text-red-500">
-                        <Heart size={18} className="mr-1" />
-                        {post.likes}
+                      <Button 
+                        variant="ghost" 
+                        size="sm" 
+                        className={`${likedPosts[post.id] ? 'text-red-500' : 'text-gray-500'} hover:text-red-500`}
+                        onClick={() => likePostMutation.mutate(post.id)}
+                      >
+                        <Heart size={18} className="mr-1" fill={likedPosts[post.id] ? 'currentColor' : 'none'} />
+                        {post.likes || 0}
                       </Button>
                       <Button 
                         variant="ghost" 
@@ -674,14 +680,41 @@ export default function Share() {
                         onClick={() => toggleComments(post.id)}
                       >
                         <MessageSquare size={18} className="mr-1" />
-                        0
+                        {commentCounts[post.id] || 0}
                       </Button>
-                      <Button variant="ghost" size="sm" className="text-gray-500 hover:text-green-500">
+                      <Button 
+                        variant="ghost" 
+                        size="sm" 
+                        className="text-gray-500 hover:text-green-500"
+                        onClick={() => {
+                          if (navigator.share) {
+                            navigator.share({
+                              title: post.title,
+                              text: post.content.substring(0, 100) + '...',
+                              url: window.location.href
+                            }).catch(err => console.error('Share failed:', err));
+                          } else {
+                            navigator.clipboard.writeText(window.location.href);
+                            toast({
+                              description: "Link copied to clipboard"
+                            });
+                          }
+                        }}
+                      >
                         <Share2 size={18} className="mr-1" />
                         Share
                       </Button>
-                      <Button variant="ghost" size="sm" className="text-gray-500 hover:text-blue-500">
-                        <BookmarkPlus size={18} className="mr-1" />
+                      <Button 
+                        variant="ghost" 
+                        size="sm" 
+                        className={`${bookmarkedPosts[post.id] ? 'text-blue-500' : 'text-gray-500'} hover:text-blue-500`}
+                        onClick={() => bookmarkPostMutation.mutate(post.id)}
+                      >
+                        {bookmarkedPosts[post.id] ? (
+                          <Bookmark size={18} className="mr-1" fill="currentColor" />
+                        ) : (
+                          <BookmarkPlus size={18} className="mr-1" />
+                        )}
                         Save
                       </Button>
                     </CardFooter>
