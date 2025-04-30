@@ -45,8 +45,8 @@ export default function Header() {
   const [isSearchPopoverOpen, setIsSearchPopoverOpen] = useState(false);
   const searchInputRef = useRef(null);
 
-  // Check if current page is ResourcesHub (home page)
-  const isResourcesHub = location === '/' || location.startsWith('/?');
+  // Check if current page is ResourcesHub (home page or courses page)
+  const isResourcesHub = location === '/' || location.startsWith('/?') || location === '/courses' || location.startsWith('/courses?');
 
   // Handle search input change
   const handleSearchChange = (e) => {
@@ -58,14 +58,16 @@ export default function Header() {
     e.preventDefault();
     if (searchQuery.trim()) {
       // Use wouter's navigate for SPA navigation (no page reload)
-      navigate(`/?search=${encodeURIComponent(searchQuery.trim())}`);
+      // Use current path to determine where to navigate
+      const targetPath = location.startsWith('/courses') ? '/courses' : '/';
+      navigate(`${targetPath}?search=${encodeURIComponent(searchQuery.trim())}`);
       
       // Need to also update the window URL using history API
       // to ensure the URL changes properly for the whole application
       window.history.pushState(
         {}, 
         '', 
-        `/?search=${encodeURIComponent(searchQuery.trim())}`
+        `${targetPath}?search=${encodeURIComponent(searchQuery.trim())}`
       );
       
       // Force update of search params in Home component using a custom event
@@ -152,8 +154,10 @@ export default function Header() {
     setIsSearchPopoverOpen(false);
     
     // Trigger search with the selected query
-    navigate(`/?search=${encodeURIComponent(query)}`);
-    window.history.pushState({}, '', `/?search=${encodeURIComponent(query)}`);
+    // Use current path to determine where to navigate
+    const targetPath = location.startsWith('/courses') ? '/courses' : '/';
+    navigate(`${targetPath}?search=${encodeURIComponent(query)}`);
+    window.history.pushState({}, '', `${targetPath}?search=${encodeURIComponent(query)}`);
     window.dispatchEvent(new CustomEvent('updateSearchParams', {
       detail: { search: query }
     }));
