@@ -1214,6 +1214,33 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.status(500).json({ message: "Error checking like status" });
     }
   });
+  
+  // Get likes count for a post - doesn't require authentication
+  app.get("/api/learning-posts/:postId/like/count", async (req: Request, res: Response) => {
+    try {
+      const postId = parseInt(req.params.postId);
+      
+      if (isNaN(postId)) {
+        return res.status(400).json({ message: "Invalid post ID" });
+      }
+      
+      // Check if post exists
+      const post = await storage.getLearningPost(postId);
+      if (!post) {
+        return res.status(404).json({ message: "Post not found" });
+      }
+      
+      // Get total likes count
+      const likeCount = await storage.getLearningPostLikesCount(postId);
+      
+      res.json({
+        count: likeCount
+      });
+    } catch (error) {
+      console.error("Error getting like count:", error);
+      res.status(500).json({ message: "Error getting like count" });
+    }
+  });
 
   // Learning Post Bookmark Routes
   // Get user's bookmarked learning posts

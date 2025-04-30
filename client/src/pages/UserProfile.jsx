@@ -215,9 +215,9 @@ export default function UserProfile() {
     <div className="container max-w-5xl py-8 mx-auto px-4">
       {/* Profile Header */}
       <Card className="mb-8 overflow-hidden border-none shadow-md bg-gradient-to-r from-orange-50 to-amber-50">
-        <div className="absolute top-0 left-0 w-full h-24 bg-gradient-to-r from-orange-300 via-orange-400 to-amber-300 opacity-70"></div>
+        <div className="absolute top-0 left-0 w-full h-24 bg-gradient-to-r from-orange-300 via-orange-400 to-amber-300 opacity-20"></div>
         
-        <CardHeader className="pt-16 pb-4 relative z-10">
+        <CardHeader className="pt-8 pb-4 relative z-10">
           <div className="flex flex-col sm:flex-row items-center sm:items-start gap-6">
             <Avatar className="h-24 w-24 border-4 border-white shadow-lg">
               <AvatarFallback className="bg-orange-100 text-orange-800 text-4xl font-bold">
