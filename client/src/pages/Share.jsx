@@ -721,48 +721,66 @@ export default function Share() {
     <div>
       <main className="container mx-auto px-4 py-8">
         <div className="max-w-5xl mx-auto">
-          <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-8">
-            <div>
-              <h1 className="text-3xl font-bold text-gray-900">Share & Connect</h1>
-              <p className="text-gray-600 mt-2">Share your thoughts, discoveries, and learning resources</p>
+          <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 animate-in fade-in duration-500">
+            <div className="animate-in slide-in-from-left-4 duration-500">
+              <h1 className="text-3xl font-bold text-gray-900 hover:text-orange-700 transition-colors duration-300">Share & Connect</h1>
+              <p className="text-gray-600 mt-2 animate-in fade-in duration-700 delay-100">Share your thoughts, discoveries, and learning resources</p>
             </div>
             
             {isAuthenticated ? (
               <Button 
-                className="mt-4 md:mt-0 bg-orange-500 hover:bg-orange-600"
+                className="mt-4 md:mt-0 bg-orange-500 hover:bg-orange-600 transition-all duration-300 hover:scale-105 hover:shadow-md animate-in slide-in-from-right-4 duration-500"
                 onClick={() => setShowNewPostForm(true)}
               >
-                <Plus size={18} className="mr-2" />
+                <Plus size={18} className="mr-2 transition-transform duration-300 group-hover:rotate-90" />
                 Create Post
               </Button>
             ) : (
-              <div className="mt-4 md:mt-0 text-sm bg-amber-50 border border-amber-300 rounded-md p-3">
+              <div className="mt-4 md:mt-0 text-sm bg-amber-50 border border-amber-300 rounded-md p-3 animate-in slide-in-from-right-4 duration-500 hover:bg-amber-100 hover:border-amber-400 transition-all duration-300 hover:shadow-md">
                 <p>Sign in to share your thoughts and resources</p>
               </div>
             )}
           </div>
           
           {/* Filter Controls */}
-          <div className="mb-6 bg-gray-50 p-4 rounded-lg space-y-4">
+          <div className="mb-6 bg-gray-50 p-4 rounded-lg space-y-4 transition-all duration-300 hover:shadow-md hover:bg-orange-50/30 animate-in fade-in slide-in-from-bottom-4 duration-500 delay-200">
             <div className="flex flex-col md:flex-row items-start md:items-center justify-between">
               <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full md:w-auto mb-4 md:mb-0">
-                <TabsList>
-                  <TabsTrigger value="all">All</TabsTrigger>
-                  <TabsTrigger value="thought">Thoughts</TabsTrigger>
-                  <TabsTrigger value="resource">Resources</TabsTrigger>
+                <TabsList className="transition-all duration-300 hover:shadow-md border border-transparent hover:border-orange-100">
+                  <TabsTrigger 
+                    value="all" 
+                    className="transition-all duration-300 hover:bg-orange-100 data-[state=active]:bg-orange-500 data-[state=active]:text-white data-[state=active]:shadow-md"
+                  >
+                    All
+                  </TabsTrigger>
+                  <TabsTrigger 
+                    value="thought"
+                    className="transition-all duration-300 hover:bg-orange-100 data-[state=active]:bg-orange-500 data-[state=active]:text-white data-[state=active]:shadow-md"
+                  >
+                    <Lightbulb size={16} className="mr-2 transition-all duration-300 data-[state=active]:text-white" />
+                    Thoughts
+                  </TabsTrigger>
+                  <TabsTrigger 
+                    value="resource"
+                    className="transition-all duration-300 hover:bg-orange-100 data-[state=active]:bg-orange-500 data-[state=active]:text-white data-[state=active]:shadow-md"
+                  >
+                    <BookOpen size={16} className="mr-2 transition-all duration-300 data-[state=active]:text-white" />
+                    Resources
+                  </TabsTrigger>
                 </TabsList>
               </Tabs>
               
-              <div className="flex items-center space-x-2">
-                <Filter size={16} className="text-gray-500" />
+              <div className="flex items-center space-x-2 animate-in fade-in slide-in-from-right-4 duration-500 delay-300">
+                <Filter size={16} className="text-gray-500 transition-colors duration-300 group-hover:text-orange-500" />
                 <div className="w-[220px]">
                   <div className="flex space-x-2">
-                    <div className="flex-1 relative">
+                    <div className="flex-1 relative group">
                       <Input 
                         value={currentTag}
                         onChange={(e) => setCurrentTag(e.target.value)}
                         placeholder="Search for a tag..." 
                         list="filter-tag-options"
+                        className="transition-all duration-300 focus:border-orange-300 focus:ring-orange-200 group-hover:border-orange-200"
                         onKeyDown={(e) => {
                           if (e.key === 'Enter' && currentTag) {
                             setFilterTag(currentTag);
@@ -784,6 +802,7 @@ export default function Share() {
                     <Button 
                       variant="outline" 
                       size="sm"
+                      className="transition-all duration-300 hover:bg-orange-100 hover:text-orange-700 hover:border-orange-300 hover:scale-105"
                       onClick={() => {
                         if (currentTag) {
                           setFilterTag(currentTag);
@@ -792,7 +811,7 @@ export default function Share() {
                         }
                       }}
                     >
-                      <Filter size={14} className="mr-1" />
+                      <Filter size={14} className="mr-1 transition-transform duration-300 group-hover:rotate-90" />
                       Filter
                     </Button>
                   </div>
@@ -801,35 +820,39 @@ export default function Share() {
             </div>
             
             {/* Search Bar */}
-            <div className="relative w-full">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={18} />
+            <div className="relative w-full animate-in fade-in slide-in-from-bottom-4 duration-500 delay-300 group">
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 transition-colors duration-300 group-hover:text-orange-500 group-focus-within:text-orange-500" size={18} />
               <Input
                 placeholder="Search by post title, content, or tags..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="pl-10 w-full"
+                className="pl-10 w-full transition-all duration-300 focus:border-orange-300 focus:ring-orange-200 group-hover:border-orange-200"
               />
               {searchQuery && (
                 <Button
                   variant="ghost"
                   size="icon"
-                  className="absolute right-2 top-1/2 transform -translate-y-1/2 h-8 w-8"
+                  className="absolute right-2 top-1/2 transform -translate-y-1/2 h-8 w-8 transition-all duration-300 hover:bg-red-50 hover:text-red-500"
                   onClick={() => setSearchQuery('')}
                 >
-                  <X size={16} />
+                  <X size={16} className="transition-transform duration-300 hover:scale-110" />
                 </Button>
               )}
             </div>
             
             {/* Show tags as filter badges */}
             {availableTags.length > 0 && (
-              <div className="flex flex-wrap gap-2 mt-2">
+              <div className="flex flex-wrap gap-2 mt-2 animate-in fade-in slide-in-from-bottom-4 duration-500 delay-400">
                 <span className="text-sm text-gray-500 self-center mr-1">Popular tags:</span>
                 {availableTags.slice(0, 8).map(tag => (
                   <Badge 
                     key={tag}
                     variant={filterTag === tag ? "default" : "outline"}
-                    className="cursor-pointer hover:bg-orange-50"
+                    className={`cursor-pointer transition-all duration-300 hover:scale-105 ${
+                      filterTag === tag 
+                        ? 'bg-orange-500 hover:bg-orange-600 shadow-sm' 
+                        : 'hover:bg-orange-100 hover:text-orange-700 hover:border-orange-300'
+                    }`}
                     onClick={() => filterTag === tag ? setFilterTag('all-tags') : setFilterTag(tag)}
                   >
                     {tag}
@@ -841,24 +864,28 @@ export default function Share() {
           
           {/* New Post Form (shown only when needed) */}
           {showNewPostForm && (
-            <Card className="mb-8 border-orange-200 bg-orange-50">
-              <CardHeader>
+            <Card className="mb-8 border-orange-200 bg-orange-50 animate-in fade-in zoom-in-95 duration-300 overflow-hidden">
+              {/* Animated gradient top bar */}
+              <div className="h-1.5 w-full bg-gradient-to-r from-orange-300 via-orange-500 to-amber-500"></div>
+              
+              <CardHeader className="transition-colors duration-300">
                 <div className="flex justify-between items-center">
-                  <CardTitle>Create New Post</CardTitle>
+                  <CardTitle className="animate-in slide-in-from-left-4 duration-500">Create New Post</CardTitle>
                   <Button 
                     variant="ghost" 
                     size="icon" 
                     onClick={() => setShowNewPostForm(false)}
+                    className="transition-all duration-300 hover:bg-red-50 hover:text-red-500 animate-in fade-in duration-500"
                   >
-                    <X size={18} />
+                    <X size={18} className="transition-transform duration-300 hover:scale-110" />
                   </Button>
                 </div>
               </CardHeader>
-              <CardContent>
+              <CardContent className="transition-colors duration-300">
                 <div className="space-y-4">
-                  <div>
+                  <div className="animate-in slide-in-from-right-4 duration-500 delay-100">
                     <Select value={newPost.type} onValueChange={handleTypeChange}>
-                      <SelectTrigger>
+                      <SelectTrigger className="transition-all duration-300 focus:border-orange-300 focus:ring-orange-200 hover:border-orange-200">
                         <SelectValue placeholder="Select post type" />
                       </SelectTrigger>
                       <SelectContent>
@@ -878,58 +905,62 @@ export default function Share() {
                     </Select>
                   </div>
                   
-                  <div>
+                  <div className="animate-in slide-in-from-right-4 duration-500 delay-150">
                     <Input 
                       placeholder="Post title" 
                       value={newPost.title}
                       onChange={(e) => setNewPost({...newPost, title: e.target.value})}
+                      className="transition-all duration-300 focus:border-orange-300 focus:ring-orange-200 hover:border-orange-200"
                     />
                   </div>
                   
-                  <div>
+                  <div className="animate-in slide-in-from-right-4 duration-500 delay-200">
                     <Textarea 
                       placeholder="What would you like to share?" 
                       rows={4}
                       value={newPost.content}
                       onChange={(e) => setNewPost({...newPost, content: e.target.value})}
+                      className="transition-all duration-300 focus:border-orange-300 focus:ring-orange-200 hover:border-orange-200"
                     />
                   </div>
                   
                   {newPost.type === 'resource' && (
-                    <div>
+                    <div className="animate-in slide-in-from-right-4 duration-500 delay-250">
                       <Input 
                         placeholder="Resource URL (optional)" 
                         value={newPost.resourceLink}
                         onChange={(e) => setNewPost({...newPost, resourceLink: e.target.value})}
+                        className="transition-all duration-300 focus:border-orange-300 focus:ring-orange-200 hover:border-orange-200"
                       />
                     </div>
                   )}
                   
-                  <div>
+                  <div className="animate-in slide-in-from-right-4 duration-500 delay-300">
                     <div className="text-sm font-medium mb-2">Tags</div>
                     <div className="flex flex-wrap gap-2 mb-2">
                       {newPost.tags.map(tag => (
                         <Badge 
                           key={tag} 
                           variant="secondary"
-                          className="cursor-pointer"
+                          className="cursor-pointer transition-all duration-300 hover:bg-orange-200 hover:text-orange-800 hover:scale-105 group"
                         >
                           {tag}
                           <X 
                             size={14} 
-                            className="ml-1" 
+                            className="ml-1 transition-colors duration-300 group-hover:text-red-500" 
                             onClick={() => handleRemoveTag(tag)}
                           />
                         </Badge>
                       ))}
                     </div>
                     <div className="flex space-x-2">
-                      <div className="flex-1">
+                      <div className="flex-1 group">
                         <Input 
                           value={currentTag}
                           onChange={(e) => setCurrentTag(e.target.value)}
                           placeholder="Create or search for a tag" 
                           list="tag-options"
+                          className="transition-all duration-300 focus:border-orange-300 focus:ring-orange-200 group-hover:border-orange-200"
                         />
                         <datalist id="tag-options">
                           {tagOptions
@@ -941,22 +972,31 @@ export default function Share() {
                           }
                         </datalist>
                       </div>
-                      <Button variant="outline" onClick={handleAddTag}>
-                        <Tag size={16} className="mr-2" />
+                      <Button 
+                        variant="outline" 
+                        onClick={handleAddTag}
+                        className="transition-all duration-300 hover:bg-orange-100 hover:text-orange-700 hover:border-orange-300 hover:scale-105"
+                      >
+                        <Tag size={16} className="mr-2 transition-transform duration-300 group-hover:rotate-12" />
                         Add
                       </Button>
                     </div>
                   </div>
                 </div>
               </CardContent>
-              <CardFooter className="flex justify-end space-x-2 border-t pt-4">
-                <Button variant="outline" onClick={() => setShowNewPostForm(false)}>
+              <CardFooter className="flex justify-end space-x-2 border-t pt-4 transition-colors duration-300">
+                <Button 
+                  variant="outline" 
+                  onClick={() => setShowNewPostForm(false)}
+                  className="transition-all duration-300 hover:bg-red-50 hover:text-red-500 hover:border-red-200"
+                >
                   Cancel
                 </Button>
                 <Button 
-                  className="bg-orange-500 hover:bg-orange-600"
+                  className="bg-orange-500 hover:bg-orange-600 transition-all duration-300 hover:shadow-md transform hover:translate-y-[-2px]"
                   onClick={handleCreatePost}
                 >
+                  <Send className="mr-2 h-4 w-4" />
                   Publish
                 </Button>
               </CardFooter>
