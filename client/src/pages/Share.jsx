@@ -108,15 +108,9 @@ export default function Share() {
     staleTime: 1000 * 30, // 30 seconds instead of 1 minute for more frequent refreshes
   });
   
-  // Use useEffect to load the comment counts, like counts, and user reactions when posts change
+  // Use useEffect to extract tags and populate comment/like info when posts load
   useEffect(() => {
     if (posts && posts.length > 0) {
-      fetchCommentCounts(posts);
-      fetchLikeCounts(posts);
-      if (isAuthenticated) {
-        checkLikedAndBookmarkedPosts(posts);
-      }
-      
       // Extract all unique tags from posts for filtering and search
       const allTags = new Set();
       posts.forEach(post => {
@@ -125,124 +119,90 @@ export default function Share() {
         }
       });
       setAvailableTags(Array.from(allTags));
+      
+      // Single consolidated fetch for all post metadata
+      fetchPostMetadata(posts);
     }
   }, [posts, isAuthenticated]);
   
-  // Refresh data more frequently
+  // Refresh data periodically
   useEffect(() => {
     const intervalId = setInterval(() => {
+      // Refresh posts data
       queryClient.invalidateQueries({ queryKey: ['/api/learning-posts'] });
       
-      // If we have an expanded post, also refresh its comments
+      // If there's an expanded post, refresh its comments
       if (expandedPostId) {
         queryClient.invalidateQueries({ 
           queryKey: ['/api/learning-posts', expandedPostId, 'comments'] 
         });
       }
-      
-      // Always refresh comment counts
-      if (posts && posts.length > 0) {
-        fetchCommentCounts(posts);
-      }
-    }, 10000); // every 10 seconds for better synchronization
+    }, 10000); // every 10 seconds
     
     return () => clearInterval(intervalId);
-  }, [queryClient, expandedPostId, posts]);
+  }, [queryClient, expandedPostId]);
   
-  // Fetch comment counts for posts
-  const fetchCommentCounts = async (posts) => {
+  // Consolidated function to fetch all post metadata in parallel
+  const fetchPostMetadata = async (posts) => {
+    if (!posts || posts.length === 0) return;
+    
+    const token = isAuthenticated ? localStorage.getItem('token') : null;
     const commentCountsObj = {};
-    
-    for (const post of posts) {
-      try {
-        const response = await fetch(`/api/learning-posts/${post.id}/comments/count`);
-        if (response.ok) {
-          const data = await response.json();
-          commentCountsObj[post.id] = data.count;
-          
-          // Update the post object directly to ensure it has the latest count
-          post.commentCount = data.count;
-        }
-      } catch (error) {
-        console.error(`Error fetching comment count for post ${post.id}:`, error);
-        commentCountsObj[post.id] = 0;
-        post.commentCount = 0;
-      }
-    }
-    
-    setCommentCounts(commentCountsObj);
-  };
-  
-  // Fetch like counts for posts - consistent endpoint
-  const fetchLikeCounts = async (posts) => {
-    for (const post of posts) {
-      try {
-        // Use a consistent endpoint for like counts
-        const response = await fetch(`/api/learning-posts/${post.id}/like/count`);
-        if (response.ok) {
-          const data = await response.json();
-          // Update the post object directly to ensure it has the latest count
-          post.likeCount = data.count || 0;
-          post.likes = data.count || 0; // Set both properties for consistency
-        }
-      } catch (error) {
-        console.error(`Error fetching like count for post ${post.id}:`, error);
-        // Don't reset to 0 on error to prevent flickering of UI
-        if (!post.likeCount && !post.likes) {
-          post.likeCount = 0;
-          post.likes = 0;
-        }
-      }
-    }
-  };
-  
-  // Check which posts the user has liked and bookmarked
-  const checkLikedAndBookmarkedPosts = async (posts) => {
-    if (!isAuthenticated) return;
-    
-    const token = localStorage.getItem('token');
     const likedObj = {};
     const bookmarkedObj = {};
     
-    for (const post of posts) {
+    // Create an array of promises for parallel execution
+    const fetchPromises = posts.map(async (post) => {
       try {
-        // Check likes
-        const likeResponse = await fetch(`/api/learning-posts/${post.id}/like`, {
-          headers: {
-            'Authorization': `Bearer ${token}`
-          }
-        });
-        
-        if (likeResponse.ok) {
-          const likeData = await likeResponse.json();
-          // Store the liked status (true/false)
-          likedObj[post.id] = likeData.liked === true;
+        // Make all requests in parallel
+        const [commentCountResponse, userDataResponse] = await Promise.all([
+          // Get comment count
+          fetch(`/api/learning-posts/${post.id}/comments/count`),
           
-          // Store the like count directly from the like status response
-          if (likeData.count !== undefined) {
-            post.likeCount = likeData.count;
-            post.likes = likeData.count;
-          }
+          // If authenticated, get like and bookmark status in one request
+          isAuthenticated ? fetch(`/api/learning-posts/${post.id}/like`, {
+            headers: { 'Authorization': `Bearer ${token}` }
+          }) : Promise.resolve(null)
+        ]);
+        
+        // Process comment count
+        if (commentCountResponse.ok) {
+          const commentData = await commentCountResponse.json();
+          commentCountsObj[post.id] = commentData.count;
+          post.commentCount = commentData.count;
         }
         
-        // Check bookmarks
-        const bookmarkResponse = await fetch(`/api/learning-posts/${post.id}/bookmark`, {
-          headers: {
-            'Authorization': `Bearer ${token}`
+        // Process like status and count (if authenticated)
+        if (userDataResponse && userDataResponse.ok) {
+          const likeData = await userDataResponse.json();
+          likedObj[post.id] = likeData.liked === true;
+          post.likeCount = likeData.count || 0;
+          post.likes = likeData.count || 0;
+          
+          // Also get bookmark status
+          const bookmarkResponse = await fetch(`/api/learning-posts/${post.id}/bookmark`, {
+            headers: { 'Authorization': `Bearer ${token}` }
+          });
+          
+          if (bookmarkResponse.ok) {
+            const bookmarkData = await bookmarkResponse.json();
+            bookmarkedObj[post.id] = bookmarkData.bookmarked === true;
           }
-        });
-        
-        if (bookmarkResponse.ok) {
-          const bookmarkData = await bookmarkResponse.json();
-          bookmarkedObj[post.id] = bookmarkData.bookmarked === true;
         }
       } catch (error) {
-        console.error(`Error checking status for post ${post.id}:`, error);
+        console.error(`Error fetching metadata for post ${post.id}:`, error);
       }
-    }
+    });
     
-    setLikedPosts(likedObj);
-    setBookmarkedPosts(bookmarkedObj);
+    // Wait for all promises to complete
+    await Promise.all(fetchPromises);
+    
+    // Update state with all the collected data
+    setCommentCounts(commentCountsObj);
+    if (isAuthenticated) {
+      setLikedPosts(likedObj);
+      setBookmarkedPosts(bookmarkedObj);
+    }
   };
   
   // Mutation for creating a new post
