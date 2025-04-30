@@ -13,6 +13,14 @@ import {
   CardTitle,
   CardDescription 
 } from '@/components/ui/card';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+  DialogClose
+} from '@/components/ui/dialog';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -103,6 +111,12 @@ export default function UserProfile() {
   const [activeTab, setActiveTab] = useState('posts');
   const { toast } = useToast();
   const queryClient = useQueryClient();
+  
+  // Modal state for followers/following
+  const [showFollowModal, setShowFollowModal] = useState(false);
+  const [modalType, setModalType] = useState('followers');
+  const [modalUsers, setModalUsers] = useState([]);
+  const [isModalLoading, setIsModalLoading] = useState(false);
   
   // Fetch user liked posts
   const [userLikes, setUserLikes] = useState([]);
@@ -256,6 +270,41 @@ export default function UserProfile() {
     }
   };
 
+  // Function to open modal and fetch followers or following
+  const handleViewFollows = async (type) => {
+    setModalType(type);
+    setShowFollowModal(true);
+    setIsModalLoading(true);
+    
+    try {
+      const endpoint = type === 'followers' 
+        ? `/api/users/${userId}/followers` 
+        : `/api/users/${userId}/following`;
+        
+      const response = await fetch(endpoint);
+      if (response.ok) {
+        const data = await response.json();
+        setModalUsers(data);
+      } else {
+        toast({
+          title: "Error",
+          description: `Failed to load ${type}`,
+          variant: "destructive",
+        });
+      }
+    } catch (error) {
+      console.error(`Error fetching ${type}:`, error);
+    } finally {
+      setIsModalLoading(false);
+    }
+  };
+  
+  // Function to close the followers/following modal
+  const closeModal = () => {
+    setShowFollowModal(false);
+    setModalUsers([]);
+  };
+  
   useEffect(() => {
     // Fetch user's liked posts when tab is 'likes'
     if (activeTab === 'likes' && !userLikes.length && !isLikesLoading) {
@@ -300,37 +349,29 @@ export default function UserProfile() {
   
   if (isProfileLoading) {
     return (
-      <>
-        <LearningHeader />
-        <div className="container max-w-5xl py-12 mx-auto px-4">
-          <div className="flex justify-center items-center min-h-[300px]">
-            <Loader2 className="h-8 w-8 animate-spin text-orange-500" />
-          </div>
+      <div className="container max-w-5xl py-12 mx-auto px-4">
+        <div className="flex justify-center items-center min-h-[300px]">
+          <Loader2 className="h-8 w-8 animate-spin text-orange-500" />
         </div>
-        <LearningFooter />
-      </>
+      </div>
     );
   }
 
   if (profileError || !profileData) {
     return (
-      <>
-        <LearningHeader />
-        <div className="container max-w-5xl py-12 mx-auto px-4">
-          <div className="text-center py-12">
-            <User className="h-16 w-16 mx-auto text-gray-300 mb-4" />
-            <h1 className="text-2xl font-bold text-gray-800 mb-2">User Not Found</h1>
-            <p className="text-gray-500 mb-6">The user you're looking for doesn't exist or has been removed.</p>
-            <Button 
-              onClick={() => navigate('/')}
-              className="bg-orange-500 hover:bg-orange-600"
-            >
-              Return Home
-            </Button>
-          </div>
+      <div className="container max-w-5xl py-12 mx-auto px-4">
+        <div className="text-center py-12">
+          <User className="h-16 w-16 mx-auto text-gray-300 mb-4" />
+          <h1 className="text-2xl font-bold text-gray-800 mb-2">User Not Found</h1>
+          <p className="text-gray-500 mb-6">The user you're looking for doesn't exist or has been removed.</p>
+          <Button 
+            onClick={() => navigate('/')}
+            className="bg-orange-500 hover:bg-orange-600"
+          >
+            Return Home
+          </Button>
         </div>
-        <LearningFooter />
-      </>
+      </div>
     );
   }
 
@@ -338,6 +379,85 @@ export default function UserProfile() {
     <>
       <LearningHeader />
       <div className="container max-w-5xl py-8 mx-auto px-4">
+        
+        {/* Followers/Following Modal */}
+        <Dialog open={showFollowModal} onOpenChange={setShowFollowModal}>
+          <DialogContent className="sm:max-w-md">
+            <DialogHeader>
+              <DialogTitle className="flex items-center gap-2">
+                {modalType === 'followers' ? (
+                  <><UserCheck className="h-5 w-5 text-orange-500" /> Followers</>
+                ) : (
+                  <><UserPlus className="h-5 w-5 text-orange-500" /> Following</>
+                )}
+              </DialogTitle>
+              <DialogDescription>
+                {modalType === 'followers' 
+                  ? `People who follow ${profileData?.username}` 
+                  : `People ${profileData?.username} follows`
+                }
+              </DialogDescription>
+            </DialogHeader>
+            
+            <div className="max-h-[60vh] overflow-y-auto py-4">
+              {isModalLoading ? (
+                <div className="flex justify-center items-center py-8">
+                  <Loader2 className="h-8 w-8 animate-spin text-orange-500" />
+                </div>
+              ) : modalUsers.length > 0 ? (
+                <div className="space-y-4">
+                  {modalUsers.map(user => (
+                    <div key={user.id} className="flex items-center justify-between p-2 hover:bg-orange-50 rounded-lg transition-colors">
+                      <div className="flex items-center gap-3">
+                        <Avatar className="h-10 w-10 cursor-pointer" onClick={() => navigate(`/profile/${user.id}`)}>
+                          <AvatarFallback className="bg-orange-100 text-orange-800">
+                            {user.username?.charAt(0).toUpperCase() || 'U'}
+                          </AvatarFallback>
+                        </Avatar>
+                        <div>
+                          <p className="font-medium hover:text-orange-600 cursor-pointer" onClick={() => navigate(`/profile/${user.id}`)}>
+                            {user.username}
+                          </p>
+                          {user.bio && (
+                            <p className="text-sm text-gray-500 line-clamp-1">{user.bio}</p>
+                          )}
+                        </div>
+                      </div>
+                      
+                      {isAuthenticated && currentUser?.id !== user.id && (
+                        <Button 
+                          variant="outline" 
+                          size="sm"
+                          className="border-orange-300 hover:bg-orange-50 hover:text-orange-700"
+                          onClick={() => navigate(`/profile/${user.id}`)}
+                        >
+                          View Profile
+                        </Button>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="text-center py-6">
+                  <p className="text-gray-500">
+                    {modalType === 'followers' 
+                      ? `${profileData?.username} doesn't have any followers yet.` 
+                      : `${profileData?.username} isn't following anyone yet.`
+                    }
+                  </p>
+                </div>
+              )}
+            </div>
+            
+            <div className="flex justify-end">
+              <DialogClose asChild>
+                <Button type="button" variant="secondary" onClick={closeModal}>
+                  Close
+                </Button>
+              </DialogClose>
+            </div>
+          </DialogContent>
+        </Dialog>
         {/* Profile Header */}
         <Card className="mb-8 overflow-hidden border-none shadow-md bg-gradient-to-r from-orange-50 to-amber-50">
           <div className="absolute top-0 left-0 w-full h-24 bg-gradient-to-r from-orange-300 via-orange-400 to-amber-300 opacity-20"></div>
@@ -361,14 +481,23 @@ export default function UserProfile() {
                     <User className="h-4 w-4 text-gray-500" />
                     <span>{userPosts?.length || 0} posts</span>
                   </div>
-                  <div className="flex items-center gap-1 text-gray-600">
+                  
+                  <div 
+                    className="flex items-center gap-1 text-gray-600 cursor-pointer hover:text-orange-600 transition-colors"
+                    onClick={() => handleViewFollows('followers')}
+                  >
                     <UserCheck className="h-4 w-4 text-gray-500" />
-                    <span>{followersCount || 0} followers</span>
+                    <span className="hover:underline">{followersCount || 0} followers</span>
                   </div>
-                  <div className="flex items-center gap-1 text-gray-600">
+                  
+                  <div 
+                    className="flex items-center gap-1 text-gray-600 cursor-pointer hover:text-orange-600 transition-colors"
+                    onClick={() => handleViewFollows('following')}
+                  >
                     <UserPlus className="h-4 w-4 text-gray-500" />
-                    <span>{followingCount || 0} following</span>
+                    <span className="hover:underline">{followingCount || 0} following</span>
                   </div>
+                  
                   <div className="flex items-center gap-1 text-gray-600">
                     <Calendar className="h-4 w-4 text-gray-500" />
                     <span>Joined {new Date(profileData.createdAt).toLocaleDateString()}</span>
