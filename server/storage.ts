@@ -80,6 +80,7 @@ export interface IStorage {
   createLearningPost(post: InsertLearningPost): Promise<LearningPost>;
   updateLearningPost(id: number, post: Partial<InsertLearningPost>): Promise<LearningPost | undefined>;
   deleteLearningPost(id: number, userId: number): Promise<boolean>;
+  incrementLearningPostViews(id: number): Promise<void>;
   
   // Learning post comment operations
   getLearningPostComment(id: number): Promise<LearningPostComment | undefined>;

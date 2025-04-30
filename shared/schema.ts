@@ -192,6 +192,7 @@ export const learningPosts = pgTable("learning_posts", {
   type: varchar("type", { length: 50 }).notNull(), // 'thought' or 'resource'
   resourceLink: text("resource_link"),
   tags: text("tags").array(), // Store tags as array
+  views: integer("views").default(0).notNull(), // Track number of views
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at")
 });
