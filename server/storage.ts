@@ -97,6 +97,7 @@ export interface IStorage {
   // Learning post comment operations
   getLearningPostComment(id: number): Promise<LearningPostComment | undefined>;
   getLearningPostCommentsByPostId(postId: number): Promise<LearningPostComment[]>;
+  getLearningPostCommentsByUserId(userId: number): Promise<LearningPostComment[]>;
   getLearningPostCommentsCount(postId: number): Promise<number>;
   createLearningPostComment(comment: InsertLearningPostComment): Promise<LearningPostComment>;
   updateLearningPostComment(id: number, content: string): Promise<LearningPostComment | undefined>;
@@ -105,6 +106,7 @@ export interface IStorage {
   // Learning post like operations
   getLearningPostLike(postId: number, userId: number): Promise<LearningPostLike | undefined>;
   getLearningPostLikesByPostId(postId: number): Promise<LearningPostLike[]>;
+  getLearningPostLikesByUserId(userId: number): Promise<LearningPostLike[]>;
   createLearningPostLike(like: InsertLearningPostLike): Promise<LearningPostLike>;
   deleteLearningPostLike(postId: number, userId: number): Promise<boolean>;
   getLearningPostLikesCount(postId: number): Promise<number>;
