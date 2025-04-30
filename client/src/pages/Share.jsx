@@ -1008,27 +1008,34 @@ export default function Share() {
             {filteredPosts.length > 0 ? (
               filteredPosts.map(post => (
                 <div key={post.id} className="space-y-4">
-                  <Card className="cursor-pointer hover:shadow-md transition-shadow">
-                    <div onClick={() => navigate(`/post/${post.id}`)}>
-                      <CardHeader>
+                  <Card className="cursor-pointer group overflow-hidden hover:shadow-lg transition-all duration-300 border border-transparent hover:border-orange-200">
+                    {/* Animated gradient top bar */}
+                    <div className="h-1 w-full bg-gradient-to-r from-orange-300 via-orange-500 to-amber-500 transform origin-left scale-x-0 group-hover:scale-x-100 transition-transform duration-500"></div>
+                    
+                    <div onClick={() => navigate(`/post/${post.id}`)} className="relative">
+                      <CardHeader className="pb-3 transition-colors duration-300 group-hover:bg-orange-50/50">
                         <div className="flex justify-between items-start">
                           <div className="flex items-start space-x-4">
-                            <Avatar>
-                              <AvatarFallback className="bg-orange-100 text-orange-800">
+                            <Avatar className="border-2 border-orange-100 transition-all duration-300 group-hover:border-orange-300 group-hover:shadow-md">
+                              <AvatarFallback className="bg-orange-100 text-orange-800 font-semibold transition-colors duration-300 group-hover:bg-orange-200">
                                 {post.user?.username?.charAt(0).toUpperCase() || 'U'}
                               </AvatarFallback>
                             </Avatar>
                             <div>
-                              <CardTitle className="text-lg">{post.title}</CardTitle>
+                              <CardTitle className="text-lg transition-colors duration-300 group-hover:text-orange-700">{post.title}</CardTitle>
                               <CardDescription className="flex items-center mt-1">
-                                <span>{post.user?.username || 'Anonymous'}</span>
+                                <span className="font-medium">{post.user?.username || 'Anonymous'}</span>
                                 <span className="inline-block mx-2">•</span>
+                                <Calendar size={14} className="mr-1 opacity-70" />
                                 <span>{new Date(post.createdAt).toLocaleDateString()}</span>
                               </CardDescription>
                             </div>
                           </div>
                           <div className="flex items-start space-x-2">
-                            <Badge variant={post.type === 'thought' ? 'secondary' : 'outline'}>
+                            <Badge 
+                              variant={post.type === 'thought' ? 'secondary' : 'outline'} 
+                              className="transition-all duration-300 group-hover:shadow-sm"
+                            >
                               {post.type === 'thought' ? (
                                 <Lightbulb size={14} className="mr-1 text-amber-500" />
                               ) : (
@@ -1039,18 +1046,18 @@ export default function Share() {
                           </div>
                         </div>
                       </CardHeader>
-                      <CardContent>
-                        <p className="text-gray-700 whitespace-pre-line line-clamp-3">{post.content}</p>
+                      <CardContent className="transition-colors duration-300 group-hover:bg-orange-50/30">
+                        <p className="text-gray-700 whitespace-pre-line line-clamp-3 transition-colors duration-300 group-hover:text-gray-900">{post.content}</p>
                         
                         {post.type === 'resource' && post.resourceLink && (
                           <a 
                             href={post.resourceLink} 
                             target="_blank" 
                             rel="noopener noreferrer"
-                            className="inline-block mt-3 text-blue-600 hover:text-blue-800 underline"
+                            className="inline-flex items-center mt-3 text-blue-600 hover:text-blue-800 underline transform transition-all duration-300 hover:translate-x-1"
                             onClick={(e) => e.stopPropagation()} // Prevent navigating to post detail
                           >
-                            View Resource →
+                            View Resource <ArrowRight size={16} className="ml-1" />
                           </a>
                         )}
                         
@@ -1059,7 +1066,7 @@ export default function Share() {
                             <Badge 
                               key={tag} 
                               variant="outline"
-                              className="cursor-pointer hover:bg-orange-50"
+                              className="cursor-pointer transition-all duration-300 hover:bg-orange-100 hover:text-orange-800 hover:scale-105"
                               onClick={(e) => {
                                 e.stopPropagation(); // Prevent navigating to post detail
                                 filterTag === tag ? setFilterTag('all-tags') : setFilterTag(tag);
@@ -1071,22 +1078,28 @@ export default function Share() {
                         </div>
                       </CardContent>
                     </div>
-                    <CardFooter className="border-t pt-4 flex flex-wrap items-center gap-4 justify-between">
+                    <CardFooter className="border-t pt-4 flex flex-wrap items-center gap-4 justify-between bg-gray-50 group-hover:bg-orange-50 transition-colors duration-300">
                       <div className="flex flex-wrap items-center gap-4">
                         <Button 
                           variant="ghost" 
                           size="sm" 
-                          className={`${likedPosts[post.id] ? 'text-red-500' : 'text-gray-500'} hover:text-red-500`}
-                          onClick={() => likePostMutation.mutate(post.id)}
+                          className={`${likedPosts[post.id] ? 'text-red-500' : 'text-gray-500'} hover:text-red-500 transition-all duration-300 hover:scale-110`}
+                          onClick={(e) => {
+                            e.stopPropagation(); // Prevent navigating to post detail
+                            likePostMutation.mutate(post.id);
+                          }}
                         >
-                          <Heart size={18} className="mr-1" fill={likedPosts[post.id] ? 'currentColor' : 'none'} />
+                          <Heart size={18} className={`mr-1 transform transition-transform duration-300 ${likedPosts[post.id] ? 'scale-110' : ''}`} fill={likedPosts[post.id] ? 'currentColor' : 'none'} />
                           {post.likeCount || post.likes || 0}
                         </Button>
                         <Button 
                           variant="ghost" 
                           size="sm" 
-                          className="text-gray-500 hover:text-amber-500"
-                          onClick={() => toggleComments(post.id)}
+                          className="text-gray-500 hover:text-amber-500 transition-all duration-300 hover:scale-110"
+                          onClick={(e) => {
+                            e.stopPropagation(); // Prevent navigating to post detail
+                            toggleComments(post.id);
+                          }}
                         >
                           <MessageSquare size={18} className="mr-1" />
                           {post.commentCount || commentCounts[post.id] || 0}
@@ -1094,8 +1107,9 @@ export default function Share() {
                         <Button 
                           variant="ghost" 
                           size="sm" 
-                          className="text-gray-500 hover:text-green-500"
-                          onClick={() => {
+                          className="text-gray-500 hover:text-green-500 transition-all duration-300 hover:scale-110"
+                          onClick={(e) => {
+                            e.stopPropagation(); // Prevent navigating to post detail
                             if (navigator.share) {
                               navigator.share({
                                 title: post.title,
@@ -1116,11 +1130,14 @@ export default function Share() {
                         <Button 
                           variant="ghost" 
                           size="sm" 
-                          className={`${bookmarkedPosts[post.id] ? 'text-blue-500' : 'text-gray-500'} hover:text-blue-500`}
-                          onClick={() => bookmarkPostMutation.mutate(post.id)}
+                          className={`${bookmarkedPosts[post.id] ? 'text-blue-500' : 'text-gray-500'} hover:text-blue-500 transition-all duration-300 hover:scale-110`}
+                          onClick={(e) => {
+                            e.stopPropagation(); // Prevent navigating to post detail
+                            bookmarkPostMutation.mutate(post.id);
+                          }}
                         >
                           {bookmarkedPosts[post.id] ? (
-                            <Bookmark size={18} className="mr-1" fill="currentColor" />
+                            <Bookmark size={18} className="mr-1 transform scale-110" fill="currentColor" />
                           ) : (
                             <BookmarkPlus size={18} className="mr-1" />
                           )}
@@ -1132,8 +1149,9 @@ export default function Share() {
                           <Button 
                             variant="ghost" 
                             size="sm"
-                            className="h-8 w-8 p-0 rounded-full text-gray-400 hover:text-red-500 hover:bg-gray-100"
-                            onClick={() => {
+                            className="h-9 w-9 p-0 rounded-full text-gray-400 hover:text-red-500 hover:bg-red-50 transition-all duration-300 hover:scale-110"
+                            onClick={(e) => {
+                              e.stopPropagation(); // Prevent navigating to post detail
                               if (window.confirm("Are you sure you want to delete this post? This action cannot be undone.")) {
                                 deletePostMutation.mutate(post.id);
                               }
