@@ -41,6 +41,12 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { 
   Heart, 
   MessageSquare, 
@@ -783,56 +789,46 @@ export default function Share() {
               
               <div className="flex items-center space-x-2">
                 <Filter size={16} className="text-gray-500" />
-                <div className="relative w-[220px]">
-                  <Input
-                    placeholder="Search or select tag..."
-                    value={currentTag}
-                    onChange={(e) => setCurrentTag(e.target.value)}
-                    className="w-full pr-10"
-                    onKeyDown={(e) => {
-                      if (e.key === 'Enter' && currentTag) {
-                        // Set the current tag as filter
-                        setFilterTag(currentTag);
-                        e.preventDefault();
-                      }
-                    }}
-                  />
-                  <div className="absolute right-2 top-1/2 transform -translate-y-1/2">
-                    <DropdownMenu>
-                      <DropdownMenuTrigger asChild>
-                        <Button variant="ghost" size="icon" className="h-6 w-6">
-                          <Filter size={14} />
-                        </Button>
-                      </DropdownMenuTrigger>
-                      <DropdownMenuContent align="end" className="w-[200px] max-h-[300px] overflow-y-auto">
-                        <div className="p-2">
-                          <Input
-                            placeholder="Search tags..."
-                            value={currentTag}
-                            onChange={(e) => setCurrentTag(e.target.value)}
-                            className="mb-2"
-                          />
-                        </div>
-                        <DropdownMenuItem onClick={() => {
-                          setFilterTag('all-tags');
-                          setCurrentTag('');
-                        }}>
-                          <span className="font-bold">All tags</span>
-                        </DropdownMenuItem>
+                <div className="w-[220px]">
+                  <div className="flex space-x-2">
+                    <div className="flex-1 relative">
+                      <Input 
+                        value={currentTag}
+                        onChange={(e) => setCurrentTag(e.target.value)}
+                        placeholder="Search for a tag..." 
+                        list="filter-tag-options"
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter' && currentTag) {
+                            setFilterTag(currentTag);
+                            e.preventDefault();
+                          }
+                        }}
+                      />
+                      <datalist id="filter-tag-options">
+                        <option value="all-tags">All tags</option>
                         {[...new Set([...tagOptions, ...availableTags])]
                           .sort()
                           .filter(tag => tag.toLowerCase().includes(currentTag.toLowerCase()))
                           .map(tag => (
-                            <DropdownMenuItem key={tag} onClick={() => {
-                              setFilterTag(tag);
-                              setCurrentTag(tag);
-                            }}>
-                              {tag}
-                            </DropdownMenuItem>
+                            <option key={tag} value={tag}>{tag}</option>
                           ))
                         }
-                      </DropdownMenuContent>
-                    </DropdownMenu>
+                      </datalist>
+                    </div>
+                    <Button 
+                      variant="outline" 
+                      size="sm"
+                      onClick={() => {
+                        if (currentTag) {
+                          setFilterTag(currentTag);
+                        } else {
+                          setFilterTag('all-tags');
+                        }
+                      }}
+                    >
+                      <Filter size={14} className="mr-1" />
+                      Filter
+                    </Button>
                   </div>
                 </div>
               </div>
