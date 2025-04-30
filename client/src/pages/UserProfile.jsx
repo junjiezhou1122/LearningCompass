@@ -171,8 +171,32 @@ export default function UserProfile() {
     isLoading: isFollowingStatusLoading 
   } = useQuery({
     queryKey: [`/api/users/${userId}/following/${currentUser?.id}`],
-    enabled: !!userId && !!currentUser && currentUser.id !== parseInt(userId),
+    queryFn: async () => {
+      // If not authenticated, don't make the request
+      if (!isAuthenticated || !currentUser) {
+        return { following: false };
+      }
+      
+      try {
+        const response = await fetch(`/api/users/${userId}/following/${currentUser.id}`, {
+          headers: {
+            'Authorization': `Bearer ${localStorage.getItem('token')}`
+          }
+        });
+        
+        if (!response.ok) {
+          return { following: false };
+        }
+        
+        return response.json();
+      } catch (error) {
+        console.error('Error checking follow status:', error);
+        return { following: false };
+      }
+    },
+    enabled: !!userId && !!currentUser && !!isAuthenticated && currentUser.id !== parseInt(userId),
   });
+  
   // Extract the actual boolean value from the response
   const isFollowing = isFollowingData?.following || false;
 
