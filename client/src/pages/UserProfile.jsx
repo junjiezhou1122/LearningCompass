@@ -168,59 +168,55 @@ export default function UserProfile() {
     error: null
   });
   
-  // Fetch follow status on component mount
+  // Get current follow status with a proper query
+  const { 
+    data: followData,
+    error: followError,
+    isPending: isFollowCheckPending
+  } = useQuery({
+    queryKey: [`/api/users/${userId}/following/${currentUser?.id}`],
+    enabled: !!userId && !!currentUser?.id && isAuthenticated && parseInt(userId) !== currentUser?.id,
+    refetchInterval: false,
+    refetchOnWindowFocus: false,
+    retry: 2,
+  });
+
+  // Update follow status when data changes
   useEffect(() => {
-    const checkFollowStatus = async () => {
-      // Reset state for new profile
+    // If we're checking, keep previous state but mark as loading
+    if (isFollowCheckPending) {
+      setFollowStatus(prev => ({ 
+        ...prev, 
+        isLoading: true 
+      }));
+      return;
+    }
+    
+    // If not authenticated or own profile, reset to not following
+    if (!isAuthenticated || !currentUser || currentUser.id === parseInt(userId)) {
       setFollowStatus({
         isFollowing: false,
-        isLoading: true,
+        isLoading: false,
         error: null
       });
-      
-      // Don't check if not authenticated or looking at own profile
-      if (!isAuthenticated || !currentUser || currentUser.id === parseInt(userId)) {
-        setFollowStatus({
-          isFollowing: false,
-          isLoading: false,
-          error: null
-        });
-        return;
-      }
-      
-      try {
-        const response = await fetch(`/api/users/${userId}/following/${currentUser.id}`, {
-          headers: {
-            'Authorization': `Bearer ${localStorage.getItem('token')}`
-          }
-        });
-        
-        if (response.ok) {
-          const data = await response.json();
-          setFollowStatus({
-            isFollowing: !!data.following,
-            isLoading: false,
-            error: null
-          });
-        } else {
-          setFollowStatus({
-            isFollowing: false,
-            isLoading: false,
-            error: 'Failed to check follow status'
-          });
-        }
-      } catch (error) {
-        console.error('Error checking follow status:', error);
-        setFollowStatus({
-          isFollowing: false,
-          isLoading: false,
-          error: 'Failed to check follow status'
-        });
-      }
-    };
+      return;
+    }
     
-    checkFollowStatus();
-  }, [userId, currentUser, isAuthenticated]);
+    // Update based on query results
+    if (followData) {
+      setFollowStatus({
+        isFollowing: !!followData.following,
+        isLoading: false,
+        error: null
+      });
+    } else if (followError) {
+      setFollowStatus({
+        isFollowing: false,
+        isLoading: false,
+        error: 'Failed to check follow status'
+      });
+    }
+  }, [followData, followError, isFollowCheckPending, userId, currentUser, isAuthenticated]);
 
   // Follow user function
   const followUser = async () => {
@@ -246,8 +242,11 @@ export default function UserProfile() {
       });
       
       if (response.ok) {
-        // Update followers count
+        // Update related queries
         queryClient.invalidateQueries({ queryKey: [`/api/users/${userId}/followers/count`] });
+        queryClient.invalidateQueries({ queryKey: [`/api/users/${userId}/following/${currentUser?.id}`] });
+        // Force update the cache
+        queryClient.setQueryData([`/api/users/${userId}/following/${currentUser?.id}`], { following: true });
         
         setFollowStatus({
           isFollowing: true,
@@ -318,8 +317,11 @@ export default function UserProfile() {
       });
       
       if (response.ok) {
-        // Update followers count
+        // Update related queries
         queryClient.invalidateQueries({ queryKey: [`/api/users/${userId}/followers/count`] });
+        queryClient.invalidateQueries({ queryKey: [`/api/users/${userId}/following/${currentUser?.id}`] });
+        // Force update the cache
+        queryClient.setQueryData([`/api/users/${userId}/following/${currentUser?.id}`], { following: false });
         
         setFollowStatus({
           isFollowing: false,
@@ -898,7 +900,7 @@ export default function UserProfile() {
                       
                       <CardContent className="transition-colors duration-300 group-hover:bg-orange-50/30">
                         <p className="text-gray-700 whitespace-pre-line line-clamp-3 transition-colors duration-300 group-hover:text-gray-900">
-                          {post.comments[0]?.content || 'Commented on this post'}
+                          {post.commentContent || 'Commented on this post'}
                         </p>
                       </CardContent>
                     </div>
