@@ -452,7 +452,7 @@ export default function Header() {
                         }}
                       >
                         <BookOpen className="h-5 w-5 mr-2" />
-                        ResourcesHub
+                        {t('resourcesHub')}
                       </Button>
                       <Button
                         variant="ghost"
@@ -463,7 +463,7 @@ export default function Header() {
                         }}
                       >
                         <MessageSquare className="h-5 w-5 mr-2" />
-                        Share & Connect
+                        {t('shareConnect')}
                       </Button>
                       {isAuthenticated && (
                         <Button
@@ -475,7 +475,7 @@ export default function Header() {
                           }}
                         >
                           <UserCircle className="h-5 w-5 mr-2" />
-                          Profile
+                          {t('profile')}
                         </Button>
                       )}
                     </div>
@@ -484,7 +484,7 @@ export default function Header() {
                       {isAuthenticated ? (
                         <Button onClick={handleLogout} variant="outline" className="w-full justify-start text-white border-white hover:bg-amber-700">
                           <LogOut className="mr-2 h-4 w-4" />
-                          Sign Out
+                          {t('signOut')}
                         </Button>
                       ) : (
                         <div className="space-y-2">

@@ -1,10 +1,13 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 
 // Define available languages
-export const LANGUAGES = {
+const LANGUAGES = {
   ENGLISH: 'en',
   CHINESE: 'zh',
 };
+
+// Export separately for compatibility with hot reloading
+export { LANGUAGES };
 
 // Define translations
 const translations = {
