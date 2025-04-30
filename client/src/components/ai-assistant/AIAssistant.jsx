@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect } from 'react';
 import { useToast } from '@/hooks/use-toast';
-import { Send, Bot, Settings, HelpCircle, Sparkles, Save, Trash2, BookOpen, X, Clock, RotateCcw, List } from 'lucide-react';
+import { Send, Bot, Settings, HelpCircle, Sparkles, Save, Trash2, BookOpen, X, Clock, RotateCcw, List, User, LogIn } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -9,12 +9,14 @@ import { Separator } from '@/components/ui/separator';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
+import { useAuth } from '../../contexts/AuthContext';
 import APIConfiguration from './APIConfiguration';
 import ChatMessage from './ChatMessage';
 import './ai-assistant.css';
 
 const AIAssistant = () => {
   const { toast } = useToast();
+  const { user, isAuthenticated, token } = useAuth();
   const [activeTab, setActiveTab] = useState('chat');
   const [messages, setMessages] = useState([
     { 
@@ -23,9 +25,11 @@ const AIAssistant = () => {
     }
   ]);
   const [savedConversations, setSavedConversations] = useState([]);
+  const [dbConversations, setDbConversations] = useState([]);
   const [showConversations, setShowConversations] = useState(false);
   const [input, setInput] = useState('');
   const [isTyping, setIsTyping] = useState(false);
+  const [isLoadingConversations, setIsLoadingConversations] = useState(false);
   const [apiSettings, setApiSettings] = useState({
     provider: 'openai',
     apiKey: '',
@@ -46,11 +50,67 @@ const AIAssistant = () => {
       setApiSettings(parsedSettings);
     }
     
-    const storedConversations = localStorage.getItem('aiAssistantConversations');
-    if (storedConversations) {
-      setSavedConversations(JSON.parse(storedConversations));
+    // Load conversations from localStorage for non-authenticated users
+    if (!isAuthenticated) {
+      const storedConversations = localStorage.getItem('aiAssistantConversations');
+      if (storedConversations) {
+        setSavedConversations(JSON.parse(storedConversations));
+      }
     }
-  }, []);
+  }, [isAuthenticated]);
+  
+  // Fetch conversations from database when user is authenticated
+  useEffect(() => {
+    if (isAuthenticated && user) {
+      fetchUserConversations();
+    }
+  }, [isAuthenticated, user]);
+  
+  // Function to fetch user's conversations from database
+  const fetchUserConversations = async () => {
+    if (!isAuthenticated || !token) return;
+    
+    setIsLoadingConversations(true);
+    try {
+      const response = await fetch('/api/ai/conversations', {
+        method: 'GET',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        }
+      });
+      
+      if (!response.ok) {
+        throw new Error(`Error: ${response.status}`);
+      }
+      
+      const data = await response.json();
+      
+      // Transform the database conversations to the expected format
+      const formattedConversations = data.map(conversation => ({
+        id: conversation.id.toString(),
+        title: conversation.title,
+        messages: typeof conversation.messages === 'string' 
+          ? JSON.parse(conversation.messages) 
+          : conversation.messages,
+        date: conversation.createdAt,
+        model: conversation.model,
+        provider: conversation.provider,
+        isDatabase: true
+      }));
+      
+      setDbConversations(formattedConversations);
+    } catch (error) {
+      console.error('Error fetching conversations:', error);
+      toast({
+        title: 'Error',
+        description: 'Failed to fetch your saved conversations.',
+        variant: 'destructive',
+      });
+    } finally {
+      setIsLoadingConversations(false);
+    }
+  };
 
   // Controlled scroll behavior - only auto-scroll for AI Assistant content
   useEffect(() => {
@@ -164,7 +224,7 @@ const AIAssistant = () => {
   };
   
   // Function to save current conversation
-  const saveCurrentConversation = () => {
+  const saveCurrentConversation = async () => {
     if (messages.length <= 1) {
       toast({
         title: "Cannot save empty conversation",
@@ -178,6 +238,72 @@ const AIAssistant = () => {
     const firstUserMessage = messages.find(m => m.role === 'user')?.content || '';
     const title = firstUserMessage.split(' ').slice(0, 4).join(' ') + '...';
     
+    // If user is authenticated, save to database
+    if (isAuthenticated && token) {
+      try {
+        const conversationData = {
+          title,
+          messages: messages,
+          model: savedApiSettings?.model || 'unknown',
+          provider: savedApiSettings?.provider || 'unknown',
+          createdAt: new Date().toISOString()
+        };
+        
+        const response = await fetch('/api/ai/conversations', {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify(conversationData)
+        });
+        
+        if (!response.ok) {
+          throw new Error(`Error: ${response.status}`);
+        }
+        
+        const savedConversation = await response.json();
+        
+        // Format the conversation for the UI
+        const formattedConversation = {
+          id: savedConversation.id.toString(),
+          title: savedConversation.title,
+          messages: typeof savedConversation.messages === 'string' 
+            ? JSON.parse(savedConversation.messages) 
+            : savedConversation.messages,
+          date: savedConversation.createdAt,
+          model: savedConversation.model,
+          provider: savedConversation.provider,
+          isDatabase: true
+        };
+        
+        // Add to state
+        setDbConversations(prev => [formattedConversation, ...prev]);
+        
+        toast({
+          title: "Conversation saved to your account",
+          description: "You can access it from your saved conversations.",
+          variant: "default",
+        });
+      } catch (error) {
+        console.error('Error saving conversation to database:', error);
+        toast({
+          title: 'Error',
+          description: 'Failed to save conversation to database. Saving locally instead.',
+          variant: 'destructive',
+        });
+        
+        // Fallback to local storage
+        saveToLocalStorage(title);
+      }
+    } else {
+      // Save to local storage for non-authenticated users
+      saveToLocalStorage(title);
+    }
+  };
+  
+  // Helper function to save to localStorage
+  const saveToLocalStorage = (title) => {
     const conversation = {
       id: Date.now().toString(),
       title,
@@ -192,7 +318,7 @@ const AIAssistant = () => {
     localStorage.setItem('aiAssistantConversations', JSON.stringify(updatedConversations));
     
     toast({
-      title: "Conversation saved",
+      title: "Conversation saved locally",
       description: "You can access it from your saved conversations.",
       variant: "default",
     });
