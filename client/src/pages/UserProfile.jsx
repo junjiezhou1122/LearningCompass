@@ -195,10 +195,19 @@ export default function UserProfile() {
       }
     },
     enabled: !!userId && !!currentUser && !!isAuthenticated && currentUser.id !== parseInt(userId),
+    staleTime: 30000, // Keep the data fresh for 30 seconds to prevent flashing
+    refetchOnWindowFocus: false, // Don't refetch on window focus
   });
   
   // Extract the actual boolean value from the response
-  const isFollowing = isFollowingData?.following || false;
+  const [isFollowing, setIsFollowing] = useState(false);
+  
+  // Update local state when the query data changes
+  useEffect(() => {
+    if (isFollowingData?.following !== undefined) {
+      setIsFollowing(isFollowingData.following);
+    }
+  }, [isFollowingData]);
 
   // Follow user mutation
   const followMutation = useMutation({
@@ -219,6 +228,9 @@ export default function UserProfile() {
       return await response.json();
     },
     onSuccess: () => {
+      // Immediately update local state
+      setIsFollowing(true);
+      
       // Invalidate relevant queries to refresh data
       queryClient.invalidateQueries({ queryKey: [`/api/users/${userId}/followers/count`] });
       queryClient.invalidateQueries({ queryKey: [`/api/users/${userId}/following`] });
@@ -260,6 +272,9 @@ export default function UserProfile() {
       return await response.json();
     },
     onSuccess: () => {
+      // Immediately update local state
+      setIsFollowing(false);
+      
       // Invalidate relevant queries to refresh data
       queryClient.invalidateQueries({ queryKey: [`/api/users/${userId}/followers/count`] });
       queryClient.invalidateQueries({ queryKey: [`/api/users/${userId}/following`] });
