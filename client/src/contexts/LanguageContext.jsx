@@ -25,6 +25,7 @@ const translations = {
     english: 'English',
     chinese: 'Chinese',
     learningHowToLearn: 'Learning How to Learn',
+    learning: 'Learning',
     // AI Assistant related translations
     chatWithAI: 'Chat with AI',
     sendMessage: 'Send Message',
@@ -79,6 +80,7 @@ const translations = {
     english: '英语',
     chinese: '中文',
     learningHowToLearn: '学习如何学习',
+    learning: '学习',
     // AI Assistant related translations
     chatWithAI: '与AI聊天',
     sendMessage: '发送消息',

@@ -201,7 +201,7 @@ export default function Header() {
               <div className="bg-white rounded-full p-1 mr-2">
                 <Brain className="text-orange-600 h-5 w-5" />
               </div>
-              <span className="text-xl font-bold">Learning How to Learn</span>
+              <span className="text-xl font-bold">{t('learningHowToLearn')}</span>
             </div>
           </Button>
 
@@ -353,12 +353,12 @@ export default function Header() {
                       </DropdownMenuItem>
                       <DropdownMenuItem className="cursor-pointer" onClick={() => navigate("/bookmarks")}>
                         <Bookmark className="mr-2 h-4 w-4" />
-                        <span>Bookmarks</span>
+                        <span>{t('bookmarks')}</span>
                       </DropdownMenuItem>
                       <DropdownMenuSeparator />
                       <DropdownMenuItem onClick={handleLogout} className="cursor-pointer">
                         <LogOut className="mr-2 h-4 w-4" />
-                        <span>Sign Out</span>
+                        <span>{t('signOut')}</span>
                       </DropdownMenuItem>
                     </DropdownMenuContent>
                   </DropdownMenu>
@@ -383,7 +383,7 @@ export default function Header() {
                         <div className="bg-white rounded-full p-1 mr-2">
                           <Brain className="text-orange-600 h-5 w-5" />
                         </div>
-                        <span className="text-xl font-bold">Learning</span>
+                        <span className="text-xl font-bold">{t('learning')}</span>
                       </div>
                       <Button variant="ghost" size="icon" className="text-white hover:bg-amber-700" onClick={() => setMobileMenuOpen(false)}>
                         <X className="h-6 w-6" />
@@ -441,7 +441,7 @@ export default function Header() {
                         }}
                       >
                         <Brain className="h-5 w-5 mr-2" />
-                        Learning How to Learn
+                        {t('learningHowToLearn')}
                       </Button>
                       <Button
                         variant="ghost"
