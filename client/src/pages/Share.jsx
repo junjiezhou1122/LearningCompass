@@ -750,20 +750,7 @@ export default function Share() {
                           </div>
                         </div>
                         <div className="flex items-start space-x-2">
-                          {isAuthenticated && user?.id === post.userId && (
-                            <Button 
-                              variant="ghost" 
-                              size="sm"
-                              className="h-8 w-8 p-0 rounded-full text-gray-400 hover:text-red-500 hover:bg-gray-100"
-                              onClick={() => {
-                                if (window.confirm("Are you sure you want to delete this post? This action cannot be undone.")) {
-                                  deletePostMutation.mutate(post.id);
-                                }
-                              }}
-                            >
-                              <Trash size={16} />
-                            </Button>
-                          )}
+
                           <Badge variant={post.type === 'thought' ? 'secondary' : 'outline'}>
                             {post.type === 'thought' ? (
                               <Lightbulb size={14} className="mr-1 text-amber-500" />
@@ -820,7 +807,7 @@ export default function Share() {
                           onClick={() => toggleComments(post.id)}
                         >
                           <MessageSquare size={18} className="mr-1" />
-                          {commentCounts[post.id] || 0}
+                          {post.commentCount || commentCounts[post.id] || 0}
                         </Button>
                         <Button 
                           variant="ghost" 
