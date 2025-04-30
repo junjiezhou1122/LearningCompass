@@ -1,1 +1,2 @@
 Version 1!
+Version 1.1! add ai assitant(basic verion ai assitant)
