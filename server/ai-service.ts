@@ -101,31 +101,72 @@ async function handleAnthropicChat(body: AIRequestBody): Promise<string> {
   return "No text response generated.";
 }
 
-// Custom API chat function
+// Custom API chat function (supports OpenRouter)
 async function handleCustomAPIChat(body: AIRequestBody): Promise<string> {
   if (!body.baseUrl) {
     throw new Error('Base URL is required for custom API');
   }
-
-  const response = await fetch(body.baseUrl, {
+  
+  console.log('Custom API request to:', body.baseUrl);
+  
+  // Convert messages to the expected format for OpenAI-compatible APIs
+  const formattedMessages = body.messages.map(msg => ({
+    role: (msg.role === 'system' || msg.role === 'user' || msg.role === 'assistant') 
+      ? msg.role as 'system' | 'user' | 'assistant'
+      : 'user', // Default to user if invalid role
+    content: msg.content
+  }));
+  
+  // Check if this is OpenRouter (based on URL)
+  const isOpenRouter = body.baseUrl.includes('openrouter.ai');
+  
+  // Prepare headers
+  const headers: Record<string, string> = {
+    'Content-Type': 'application/json',
+    'Authorization': `Bearer ${body.apiKey}`
+  };
+  
+  // Add OpenRouter specific headers
+  if (isOpenRouter) {
+    headers['HTTP-Referer'] = 'https://learninghowtolearn.app';
+    headers['X-Title'] = 'Learning How To Learn';
+  }
+  
+  // Construct endpoint URL - OpenRouter uses /api/v1/chat/completions
+  let endpointUrl = body.baseUrl;
+  if (isOpenRouter && !endpointUrl.endsWith('/chat/completions')) {
+    // Make sure we're using the correct endpoint for OpenRouter
+    endpointUrl = endpointUrl.endsWith('/') ? endpointUrl.slice(0, -1) : endpointUrl;
+    if (!endpointUrl.endsWith('/api/v1')) {
+      endpointUrl += '/api/v1';
+    }
+    endpointUrl += '/chat/completions';
+  }
+  
+  console.log('Using endpoint URL:', endpointUrl);
+  
+  // Make the API request
+  const response = await fetch(endpointUrl, {
     method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'Authorization': `Bearer ${body.apiKey}`
-    },
+    headers,
     body: JSON.stringify({
       model: body.model,
-      messages: body.messages,
+      messages: formattedMessages,
       temperature: body.temperature,
-      max_tokens: body.maxTokens,
-    }),
+      max_tokens: body.maxTokens
+    })
   });
-
+  
   if (!response.ok) {
-    throw new Error(`Custom API returned error: ${response.status}`);
+    const errorText = await response.text();
+    console.error('Custom API error response:', errorText);
+    throw new Error(`Custom API returned error ${response.status}: ${errorText}`);
   }
-
+  
   const data = await response.json();
+  console.log('Custom API response structure:', Object.keys(data));
+  
+  // Handle OpenAI/OpenRouter format response
   return data.choices?.[0]?.message?.content || data.content || "No response generated.";
 }
 
@@ -138,6 +179,7 @@ export async function handleChatRequest(req: Request, res: Response) {
       provider: body.provider,
       model: body.model,
       hasApiKey: !!body.apiKey,
+      baseUrl: body.baseUrl,
       messageCount: body.messages?.length
     });
     
@@ -151,34 +193,29 @@ export async function handleChatRequest(req: Request, res: Response) {
       return res.status(400).json({ error: 'Messages are required' });
     }
     
-    // Temporarily use mock response for testing instead of real API calls
-    // This will help debug frontend issues without needing real API keys
-    const lastUserMessage = body.messages.filter(msg => msg.role === 'user').pop()?.content || '';
-    const mockResponse = `I received your message: "${lastUserMessage}". This is a mock response for testing purposes. Provider: ${body.provider}, Model: ${body.model}`;
-    
-    console.log('Sending mock response for testing');
-    return res.json({ message: mockResponse });
-    
-    // Comment out real implementation for now to debug frontend issues
-    /*
     let responseMessage: string;
     
     switch (body.provider) {
       case 'openai':
+        console.log('Using OpenAI provider');
         responseMessage = await handleOpenAIChat(body);
         break;
       case 'anthropic':
+        console.log('Using Anthropic provider');
         responseMessage = await handleAnthropicChat(body);
         break;
       case 'custom':
+        console.log('Using Custom API provider');
         responseMessage = await handleCustomAPIChat(body);
         break;
       default:
+        console.log('Unsupported provider:', body.provider);
         return res.status(400).json({ error: 'Unsupported provider' });
     }
     
+    console.log('Successfully got response from AI provider');
     return res.json({ message: responseMessage });
-    */
+    
   } catch (error: any) {
     console.error('AI Service Error:', error);
     return res.status(500).json({ 

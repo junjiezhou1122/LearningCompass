@@ -62,6 +62,9 @@ const APIConfiguration = ({ initialSettings, onSave }) => {
     } else if (value === 'custom') {
       newSettings.model = '';
       newSettings.baseUrl = '';
+    } else if (value === 'openrouter') {
+      newSettings.model = 'google/gemini-2.5-pro-exp-03-25';
+      newSettings.baseUrl = 'https://openrouter.ai/api/v1';
     }
     
     setSettings(newSettings);
@@ -111,6 +114,7 @@ const APIConfiguration = ({ initialSettings, onSave }) => {
                   <SelectContent>
                     <SelectItem value="openai">OpenAI</SelectItem>
                     <SelectItem value="anthropic">Anthropic (Claude)</SelectItem>
+                    <SelectItem value="openrouter">OpenRouter</SelectItem>
                     <SelectItem value="custom">Custom API</SelectItem>
                   </SelectContent>
                 </Select>
@@ -134,7 +138,8 @@ const APIConfiguration = ({ initialSettings, onSave }) => {
                 />
                 <p className="text-xs text-gray-500 mt-1">
                   {settings.provider === 'openai' ? 'Get your API key from OpenAI dashboard' : 
-                   settings.provider === 'anthropic' ? 'Get your API key from Anthropic console' : 
+                   settings.provider === 'anthropic' ? 'Get your API key from Anthropic console' :
+                   settings.provider === 'openrouter' ? 'Get your API key from OpenRouter dashboard' :
                    'Enter the API key for your custom service'}
                 </p>
               </div>
@@ -197,6 +202,22 @@ const APIConfiguration = ({ initialSettings, onSave }) => {
                       <SelectItem value="claude-3-haiku-20240307">Claude 3 Haiku</SelectItem>
                     </SelectContent>
                   </Select>
+                ) : settings.provider === 'openrouter' ? (
+                  <Select 
+                    value={settings.model} 
+                    onValueChange={(value) => handleChange('model', value)}
+                  >
+                    <SelectTrigger id="model">
+                      <SelectValue placeholder="Select a model" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="google/gemini-2.5-pro-exp-03-25">Google Gemini 2.5 Pro</SelectItem>
+                      <SelectItem value="mistralai/mistral-8x7b">Mistral Large</SelectItem>
+                      <SelectItem value="anthropic/claude-3-5-sonnet">Claude 3.5 Sonnet</SelectItem>
+                      <SelectItem value="openai/gpt-4o">OpenAI GPT-4o</SelectItem>
+                      <SelectItem value="meta-llama/llama-3-70b-instruct">Meta Llama 3 70B</SelectItem>
+                    </SelectContent>
+                  </Select>
                 ) : (
                   <Input
                     id="model"
@@ -207,7 +228,8 @@ const APIConfiguration = ({ initialSettings, onSave }) => {
                 )}
                 <p className="text-xs text-gray-500 mt-1">
                   {settings.provider === 'openai' ? 'The OpenAI model to use' : 
-                   settings.provider === 'anthropic' ? 'The Claude model to use' : 
+                   settings.provider === 'anthropic' ? 'The Claude model to use' :
+                   settings.provider === 'openrouter' ? 'The model to access via OpenRouter' : 
                    'The model identifier for your custom API (optional)'}
                 </p>
               </div>
