@@ -254,7 +254,7 @@ export default function Header() {
                     <div className="flex items-center justify-between px-3 py-2 text-sm font-medium text-gray-600 bg-gray-50">
                       <div className="flex items-center">
                         <History className="h-4 w-4 mr-2" />
-                        <span>Recent Searches</span>
+                        <span>{t('recentSearches')}</span>
                       </div>
                       <button 
                         className="text-gray-400 hover:text-gray-600"
@@ -345,11 +345,11 @@ export default function Header() {
                       </Button>
                     </DropdownMenuTrigger>
                     <DropdownMenuContent align="end">
-                      <DropdownMenuLabel>My Account</DropdownMenuLabel>
+                      <DropdownMenuLabel>{t('myAccount')}</DropdownMenuLabel>
                       <DropdownMenuSeparator />
                       <DropdownMenuItem className="cursor-pointer" onClick={() => navigate("/profile")}>
                         <UserCircle className="mr-2 h-4 w-4" />
-                        <span>Profile</span>
+                        <span>{t('profile')}</span>
                       </DropdownMenuItem>
                       <DropdownMenuItem className="cursor-pointer" onClick={() => navigate("/bookmarks")}>
                         <Bookmark className="mr-2 h-4 w-4" />
@@ -548,7 +548,7 @@ export default function Header() {
                   onClick={() => setIsSearchPopoverOpen(!isSearchPopoverOpen)}
                 >
                   <History className="h-4 w-4 mr-2" />
-                  <span>{isSearchPopoverOpen ? "Hide" : "Show"} Recent Searches</span>
+                  <span>{isSearchPopoverOpen ? t('hide') : t('show')} {t('recentSearches')}</span>
                 </Button>
                 
                 {/* Mobile Recent Searches dropdown */}
@@ -557,7 +557,7 @@ export default function Header() {
                     <div className="flex items-center justify-between px-3 py-2 text-sm font-medium text-gray-600 bg-gray-50 rounded-t-md">
                       <div className="flex items-center">
                         <History className="h-4 w-4 mr-2" />
-                        <span>Recent Searches</span>
+                        <span>{t('recentSearches')}</span>
                       </div>
                       <button 
                         className="text-gray-400 hover:text-gray-600"
