@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useLocation } from 'wouter';
 import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
@@ -46,105 +46,8 @@ import {
   X,
   Send
 } from 'lucide-react';
-// Mock data for the initial posts
-const initialPosts = [
-  {
-    id: 1,
-    type: 'thought',
-    title: 'Understanding the Pomodoro Technique',
-    content: 'I\'ve been using the Pomodoro Technique for the past month, and I\'ve noticed a significant increase in my productivity and focus. The key is to really commit to the 25-minute distraction-free sessions and take those 5-minute breaks seriously!',
-    author: {
-      id: 1,
-      name: 'Alex Johnson',
-      avatar: null,
-    },
-    tags: ['productivity', 'focus', 'technique'],
-    likes: 24,
-    comments: 7,
-    timestamp: '2 hours ago',
-  },
-  {
-    id: 2,
-    type: 'resource',
-    title: 'The Science of Memory: Spaced Repetition',
-    content: 'Found this fantastic resource about spaced repetition and how it can improve long-term retention by up to 300%. The interactive demos really helped me understand how to implement it in my own studies.',
-    author: {
-      id: 2,
-      name: 'Maya Patel',
-      avatar: null,
-    },
-    resourceLink: 'https://www.coursera.org/articles/spaced-repetition',
-    tags: ['memory', 'retention', 'research'],
-    likes: 36,
-    comments: 12,
-    timestamp: '1 day ago',
-  },
-  {
-    id: 3,
-    type: 'thought',
-    title: 'Mind Mapping Changed How I Learn',
-    content: 'I was struggling with organizing complex topics until I started using mind maps. They provide a visual structure that helps me see connections between concepts. Anyone else use mind mapping regularly?',
-    author: {
-      id: 3,
-      name: 'Jordan Lee',
-      avatar: null,
-    },
-    tags: ['visualization', 'organization', 'comprehension'],
-    likes: 18,
-    comments: 5,
-    timestamp: '3 days ago',
-  }
-];
-
-// Mock comments for posts
-const initialComments = {
-  1: [
-    {
-      id: 101,
-      author: {
-        id: 4,
-        name: 'Chris Smith',
-        avatar: null,
-      },
-      content: "I've found that modifying the traditional Pomodoro to 35 minute work and 10 minute rest periods works better for me. Have you tried any variations?",
-      timestamp: '1 hour ago',
-    },
-    {
-      id: 102,
-      author: {
-        id: 5,
-        name: 'Sam Taylor',
-        avatar: null,
-      },
-      content: 'What app do you use to track your Pomodoro sessions?',
-      timestamp: '2 hours ago',
-    }
-  ],
-  2: [
-    {
-      id: 201,
-      author: {
-        id: 6,
-        name: 'Jamie Wilson',
-        avatar: null,
-      },
-      content: "This is exactly what I needed! I've been trying to memorize vocabulary for my language studies and traditional flashcards weren't cutting it.",
-      timestamp: '12 hours ago',
-    }
-  ],
-  3: [
-    {
-      id: 301,
-      author: {
-        id: 7,
-        name: 'Taylor Reed',
-        avatar: null,
-      },
-      content: 'Mind mapping has been a game changer for me too! I use it for brainstorming and planning as well.',
-      timestamp: '1 day ago',
-    }
-  ]
-};
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { toast } from '@/hooks/use-toast';
 
 // Predefined tag options
 const tagOptions = [
@@ -158,8 +61,6 @@ export default function Share() {
   const [, navigate] = useLocation();
   const { isAuthenticated, user } = useAuth();
   const [activeTab, setActiveTab] = useState('all');
-  const [posts, setPosts] = useState(initialPosts);
-  const [comments, setComments] = useState(initialComments);
   const [showNewPostForm, setShowNewPostForm] = useState(false);
   const [newPost, setNewPost] = useState({
     title: '',
@@ -172,6 +73,160 @@ export default function Share() {
   const [expandedPostId, setExpandedPostId] = useState(null);
   const [newComment, setNewComment] = useState('');
   const [filterTag, setFilterTag] = useState('');
+  const queryClient = useQueryClient();
+  
+  // Fetch all learning posts
+  const { data: posts = [], isLoading: isPostsLoading } = useQuery({
+    queryKey: ['/api/learning-posts'],
+    staleTime: 1000 * 60, // 1 minute
+  });
+  
+  // Mutation for creating a new post
+  const createPostMutation = useMutation({
+    mutationFn: async (postData) => {
+      const response = await fetch('/api/learning-posts', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(postData),
+      });
+      
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || 'Failed to create post');
+      }
+      
+      return await response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/learning-posts'] });
+      toast({
+        title: "Success!",
+        description: "Your post has been published.",
+      });
+      
+      // Reset form
+      setNewPost({
+        title: '',
+        content: '',
+        type: 'thought',
+        tags: [],
+        resourceLink: ''
+      });
+      setShowNewPostForm(false);
+    },
+    onError: (error) => {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to create post. Please try again.",
+        variant: "destructive",
+      });
+    }
+  });
+  
+  // Fetch comments for a specific post
+  const getComments = (postId) => {
+    return useQuery({
+      queryKey: [`/api/learning-posts/${postId}/comments`],
+      enabled: expandedPostId === postId,
+      staleTime: 1000 * 60, // 1 minute
+    });
+  };
+  
+  // Mutation for adding a comment
+  const addCommentMutation = useMutation({
+    mutationFn: async ({ postId, content }) => {
+      const response = await fetch(`/api/learning-posts/${postId}/comments`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ content }),
+      });
+      
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || 'Failed to add comment');
+      }
+      
+      return await response.json();
+    },
+    onSuccess: (_, variables) => {
+      queryClient.invalidateQueries({ queryKey: [`/api/learning-posts/${variables.postId}/comments`] });
+      setNewComment('');
+      toast({
+        description: "Comment added successfully",
+      });
+    },
+    onError: (error) => {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to add comment. Please try again.",
+        variant: "destructive",
+      });
+    }
+  });
+  
+  // Mutation for liking a post
+  const likePostMutation = useMutation({
+    mutationFn: async (postId) => {
+      const response = await fetch(`/api/learning-posts/${postId}/like`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      });
+      
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || 'Failed to like post');
+      }
+      
+      return await response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/learning-posts'] });
+    },
+    onError: (error) => {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to like post. Please try again.",
+        variant: "destructive",
+      });
+    }
+  });
+  
+  // Mutation for bookmarking a post
+  const bookmarkPostMutation = useMutation({
+    mutationFn: async (postId) => {
+      const response = await fetch(`/api/learning-posts/${postId}/bookmark`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      });
+      
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || 'Failed to bookmark post');
+      }
+      
+      return await response.json();
+    },
+    onSuccess: () => {
+      toast({
+        description: "Post bookmarked successfully",
+      });
+    },
+    onError: (error) => {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to bookmark post. Please try again.",
+        variant: "destructive",
+      });
+    }
+  });
   
   // Handle showing/hiding the comment section for a post
   const toggleComments = (postId) => {
@@ -181,59 +236,16 @@ export default function Share() {
 
   // Handle adding a new comment
   const handleAddComment = (postId) => {
-    if (!newComment.trim()) return;
+    if (!newComment.trim() || !isAuthenticated) return;
     
-    const newCommentObj = {
-      id: Date.now(),
-      author: {
-        id: user?.id || 999,
-        name: user?.firstName || user?.username || 'Anonymous User',
-        avatar: null,
-      },
-      content: newComment,
-      timestamp: 'Just now',
-    };
-    
-    setComments(prevComments => ({
-      ...prevComments,
-      [postId]: [...(prevComments[postId] || []), newCommentObj]
-    }));
-    
-    setNewComment('');
+    addCommentMutation.mutate({ postId, content: newComment });
   };
   
   // Handle new post submission
   const handleCreatePost = () => {
-    if (!newPost.title.trim() || !newPost.content.trim()) return;
+    if (!newPost.title.trim() || !newPost.content.trim() || !isAuthenticated) return;
     
-    const newPostObj = {
-      id: Date.now(),
-      ...newPost,
-      author: {
-        id: user?.id || 999,
-        name: user?.firstName || user?.username || 'Anonymous User',
-        avatar: null,
-      },
-      likes: 0,
-      comments: 0,
-      timestamp: 'Just now',
-    };
-    
-    setPosts([newPostObj, ...posts]);
-    setComments({
-      ...comments,
-      [newPostObj.id]: []
-    });
-    
-    // Reset form
-    setNewPost({
-      title: '',
-      content: '',
-      type: 'thought',
-      tags: [],
-      resourceLink: ''
-    });
-    setShowNewPostForm(false);
+    createPostMutation.mutate(newPost);
   };
   
   // Handle tag addition
