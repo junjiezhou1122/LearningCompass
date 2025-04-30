@@ -60,30 +60,36 @@ export default function UserProfile() {
 
   // Fetch followers count
   const { 
-    data: followersCount = 0,
+    data: followersCountData,
     isLoading: isFollowersCountLoading 
   } = useQuery({
     queryKey: [`/api/users/${userId}/followers/count`],
     enabled: !!userId,
   });
+  // Extract the actual count value from the response
+  const followersCount = followersCountData?.count || 0;
 
   // Fetch following count
   const { 
-    data: followingCount = 0,
+    data: followingCountData,
     isLoading: isFollowingCountLoading 
   } = useQuery({
     queryKey: [`/api/users/${userId}/following/count`],
     enabled: !!userId,
   });
+  // Extract the actual count value from the response
+  const followingCount = followingCountData?.count || 0;
 
   // Check if the current user is following this profile
   const { 
-    data: isFollowing = false,
+    data: isFollowingData,
     isLoading: isFollowingStatusLoading 
   } = useQuery({
     queryKey: [`/api/users/${userId}/following/${userId}`],
     enabled: !!userId && !!currentUser && currentUser.id !== parseInt(userId),
   });
+  // Extract the actual boolean value from the response
+  const isFollowing = isFollowingData?.isFollowing || false;
 
   // Follow user mutation
   const followMutation = useMutation({

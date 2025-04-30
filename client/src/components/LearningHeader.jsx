@@ -72,7 +72,7 @@ export default function LearningHeader() {
                   <DropdownMenuContent align="end">
                     <DropdownMenuLabel>My Account</DropdownMenuLabel>
                     <DropdownMenuSeparator />
-                    <DropdownMenuItem className="cursor-pointer" onClick={() => navigate("/profile")}>
+                    <DropdownMenuItem className="cursor-pointer" onClick={() => navigate(`/users/${user.id}`)}>
                       <UserCircle className="mr-2 h-4 w-4" />
                       <span>Profile</span>
                     </DropdownMenuItem>
@@ -149,7 +149,7 @@ export default function LearningHeader() {
                           variant="ghost"
                           className="w-full justify-start text-white hover:bg-amber-700 py-2 h-auto font-normal"
                           onClick={() => {
-                            navigate("/profile");
+                            navigate(`/users/${user.id}`);
                             setMobileMenuOpen(false);
                           }}
                         >
