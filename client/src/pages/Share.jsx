@@ -65,6 +65,8 @@ import {
   MoreVertical,
   Edit,
   Search,
+  Eye,
+  ArrowRight,
 } from 'lucide-react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { toast } from '@/hooks/use-toast';
@@ -790,7 +792,7 @@ export default function Share() {
                       />
                       <datalist id="filter-tag-options">
                         <option value="all-tags">All tags</option>
-                        {[...new Set([...tagOptions, ...availableTags])]
+                        {currentTag.trim() !== '' && [...new Set([...tagOptions, ...availableTags])]
                           .sort()
                           .filter(tag => tag.toLowerCase().includes(currentTag.toLowerCase()))
                           .map(tag => (
@@ -963,7 +965,7 @@ export default function Share() {
                           className="transition-all duration-300 focus:border-orange-300 focus:ring-orange-200 group-hover:border-orange-200"
                         />
                         <datalist id="tag-options">
-                          {tagOptions
+                          {currentTag.trim() !== '' && tagOptions
                             .filter(tag => !newPost.tags.includes(tag) && 
                                          tag.toLowerCase().includes(currentTag.toLowerCase()))
                             .map(tag => (
@@ -1028,6 +1030,9 @@ export default function Share() {
                                 <span className="inline-block mx-2">•</span>
                                 <Calendar size={14} className="mr-1 opacity-70" />
                                 <span>{new Date(post.createdAt).toLocaleDateString()}</span>
+                                <span className="inline-block mx-2">•</span>
+                                <Eye size={14} className="mr-1 text-blue-400" />
+                                <span>{post.views || 0} views</span>
                               </CardDescription>
                             </div>
                           </div>
