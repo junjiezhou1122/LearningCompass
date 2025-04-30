@@ -28,86 +28,121 @@ const ResourcesHubTab = () => {
   const [, navigate] = useLocation();
   
   return (
-    <div className="space-y-6">
-      <div className="flex flex-col items-center text-center md:flex-row md:text-left md:justify-between">
-        <div className="space-y-4 mb-6 md:mb-0 md:pr-10 md:w-3/5">
-          <h2 className="text-3xl font-bold tracking-tight text-primary-600">ResourcesHub</h2>
-          <p className="text-muted-foreground text-lg">
+    <div className="space-y-8">
+      <div className="flex flex-col items-center text-center md:flex-row md:text-left md:justify-between relative">
+        {/* Animated background element */}
+        <div className="absolute -z-10 w-full h-full opacity-70">
+          <div className="absolute top-20 right-20 w-40 h-40 bg-orange-300 rounded-full filter blur-3xl animate-blob"></div>
+          <div className="absolute bottom-10 left-20 w-40 h-40 bg-amber-300 rounded-full filter blur-3xl animate-blob animation-delay-2000"></div>
+        </div>
+        
+        <div className="space-y-5 mb-6 md:mb-0 md:pr-10 md:w-3/5 transform transition-all duration-500 hover:translate-x-2">
+          <h2 className="text-3xl font-bold tracking-tight text-orange-600 animate-fadeIn">ResourcesHub</h2>
+          <p className="text-gray-700 text-lg animate-fadeIn animation-delay-300">
             Discover a vast collection of curated learning resources to help you advance your skills and career. 
             From courses and tutorials to articles and tools, ResourcesHub provides personalized recommendations 
             tailored to your learning journey.
           </p>
           <Button 
             onClick={() => navigate('/')} 
-            className="bg-primary-600 bg-gray-50 text-black hover:bg-primary-700"
+            className="bg-gradient-to-r from-orange-500 to-amber-600 text-white hover:from-orange-600 hover:to-amber-700 
+                      transition-all duration-300 transform hover:translate-y-[-2px] hover:shadow-lg animate-fadeIn animation-delay-500"
           >
+            <Compass className="mr-2 h-5 w-5 animate-pulse" />
             Explore ResourcesHub
           </Button>
         </div>
-        <div className="bg-gray-100 p-8 rounded-xl md:w-2/5">
-          <div className="grid grid-cols-2 gap-4">
-            <div className="bg-white p-4 rounded-lg shadow-sm text-center">
-              <BookOpen className="h-8 w-8 mx-auto text-primary-600 mb-2" />
-              <p className="font-medium">2,500+ Courses</p>
+        
+        <div className="bg-gradient-to-br from-orange-50 to-amber-50 p-8 rounded-xl md:w-2/5 shadow-lg border border-amber-100 animate-slideIn">
+          <div className="grid grid-cols-2 gap-5">
+            <div className="bg-white p-5 rounded-lg shadow-sm text-center transform transition-all duration-300 hover:scale-105 hover:shadow-md hover:bg-gradient-to-br hover:from-orange-50 hover:to-amber-50">
+              <div className="flex justify-center items-center mb-3">
+                <div className="relative">
+                  <div className="absolute inset-0 bg-orange-300 rounded-full filter blur-md opacity-70 animate-pulse"></div>
+                  <BookOpen className="h-8 w-8 text-orange-600 relative z-10" />
+                </div>
+              </div>
+              <p className="font-medium text-gray-800">2,500+ Courses</p>
             </div>
-            <div className="bg-white p-4 rounded-lg shadow-sm text-center">
-              <Users className="h-8 w-8 mx-auto text-primary-600 mb-2" />
-              <p className="font-medium">Community Support</p>
+            
+            <div className="bg-white p-5 rounded-lg shadow-sm text-center transform transition-all duration-300 hover:scale-105 hover:shadow-md hover:bg-gradient-to-br hover:from-orange-50 hover:to-amber-50">
+              <div className="flex justify-center items-center mb-3">
+                <div className="relative">
+                  <div className="absolute inset-0 bg-amber-300 rounded-full filter blur-md opacity-70 animate-pulse"></div>
+                  <Users className="h-8 w-8 text-amber-600 relative z-10" />
+                </div>
+              </div>
+              <p className="font-medium text-gray-800">Community Support</p>
             </div>
-            <div className="bg-white p-4 rounded-lg shadow-sm text-center">
-              <Compass className="h-8 w-8 mx-auto text-primary-600 mb-2" />
-              <p className="font-medium">Personalized Path</p>
+            
+            <div className="bg-white p-5 rounded-lg shadow-sm text-center transform transition-all duration-300 hover:scale-105 hover:shadow-md hover:bg-gradient-to-br hover:from-orange-50 hover:to-amber-50">
+              <div className="flex justify-center items-center mb-3">
+                <div className="relative">
+                  <div className="absolute inset-0 bg-orange-300 rounded-full filter blur-md opacity-70 animate-pulse"></div>
+                  <Compass className="h-8 w-8 text-orange-600 relative z-10" />
+                </div>
+              </div>
+              <p className="font-medium text-gray-800">Personalized Path</p>
             </div>
-            <div className="bg-white p-4 rounded-lg shadow-sm text-center">
-              <BookMarked className="h-8 w-8 mx-auto text-primary-600 mb-2" />
-              <p className="font-medium">Save Favorites</p>
+            
+            <div className="bg-white p-5 rounded-lg shadow-sm text-center transform transition-all duration-300 hover:scale-105 hover:shadow-md hover:bg-gradient-to-br hover:from-orange-50 hover:to-amber-50">
+              <div className="flex justify-center items-center mb-3">
+                <div className="relative">
+                  <div className="absolute inset-0 bg-amber-300 rounded-full filter blur-md opacity-70 animate-pulse"></div>
+                  <BookMarked className="h-8 w-8 text-amber-600 relative z-10" />
+                </div>
+              </div>
+              <p className="font-medium text-gray-800">Save Favorites</p>
             </div>
           </div>
         </div>
       </div>
       
-      <Separator className="my-8" />
+      <Separator className="my-10 bg-gradient-to-r from-orange-200 to-amber-200" />
       
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        <Card>
+        <Card className="border-orange-100 shadow-sm transition-all duration-300 hover:shadow-md hover:-translate-y-1 overflow-hidden group">
+          <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-orange-400 to-amber-500 transform origin-left scale-x-0 group-hover:scale-x-100 transition-transform duration-300"></div>
           <CardHeader>
-            <CardTitle>Course Discovery</CardTitle>
-            <CardDescription>
+            <CardTitle className="text-orange-600 group-hover:translate-x-1 transition-transform duration-300">Course Discovery</CardTitle>
+            <CardDescription className="text-amber-700">
               Find courses that match your interests and goals
             </CardDescription>
           </CardHeader>
           <CardContent>
-            <p className="text-sm text-gray-600">
+            <p className="text-sm text-gray-600 group-hover:text-gray-800 transition-colors duration-300">
               Our intelligent recommendation system helps you discover relevant courses 
               based on your preferences, learning history, and career objectives.
             </p>
           </CardContent>
         </Card>
         
-        <Card>
+        <Card className="border-orange-100 shadow-sm transition-all duration-300 hover:shadow-md hover:-translate-y-1 overflow-hidden group">
+          <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-orange-400 to-amber-500 transform origin-left scale-x-0 group-hover:scale-x-100 transition-transform duration-300"></div>
           <CardHeader>
-            <CardTitle>Expert Reviews</CardTitle>
-            <CardDescription>
+            <CardTitle className="text-orange-600 group-hover:translate-x-1 transition-transform duration-300">Expert Reviews</CardTitle>
+            <CardDescription className="text-amber-700">
               Learn from the experiences of other students
             </CardDescription>
           </CardHeader>
           <CardContent>
-            <p className="text-sm text-gray-600">
+            <p className="text-sm text-gray-600 group-hover:text-gray-800 transition-colors duration-300">
               Read authentic reviews and ratings from fellow learners to make informed 
               decisions about which courses will best meet your needs.
             </p>
           </CardContent>
         </Card>
         
-        <Card>
+        <Card className="border-orange-100 shadow-sm transition-all duration-300 hover:shadow-md hover:-translate-y-1 overflow-hidden group">
+          <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-orange-400 to-amber-500 transform origin-left scale-x-0 group-hover:scale-x-100 transition-transform duration-300"></div>
           <CardHeader>
-            <CardTitle>Learning Paths</CardTitle>
-            <CardDescription>
+            <CardTitle className="text-orange-600 group-hover:translate-x-1 transition-transform duration-300">Learning Paths</CardTitle>
+            <CardDescription className="text-amber-700">
               Follow structured paths to master new skills
             </CardDescription>
           </CardHeader>
           <CardContent>
-            <p className="text-sm text-gray-600">
+            <p className="text-sm text-gray-600 group-hover:text-gray-800 transition-colors duration-300">
               Our curated learning paths guide you through a sequence of courses 
               designed to help you achieve specific career and skill goals.
             </p>
@@ -120,81 +155,111 @@ const ResourcesHubTab = () => {
 
 const TechniquesTab = () => (
   <div className="space-y-6">
-    <h2 className="text-3xl font-bold tracking-tight">Learning Techniques</h2>
-    <p className="text-lg text-muted-foreground">
-      Discover effective methods to enhance your learning capacity and retention.
-    </p>
+    <div className="relative">
+      {/* Background elements */}
+      <div className="absolute -z-10 -top-10 -right-10 w-40 h-40 bg-orange-200 rounded-full filter blur-3xl opacity-60 animate-blob"></div>
+      <div className="absolute -z-10 -bottom-10 -left-10 w-40 h-40 bg-amber-200 rounded-full filter blur-3xl opacity-60 animate-blob animation-delay-2000"></div>
+      
+      <h2 className="text-3xl font-bold tracking-tight text-orange-600 animate-fadeIn">Learning Techniques</h2>
+      <p className="text-lg text-gray-700 mt-2 animate-fadeIn animation-delay-300">
+        Discover effective methods to enhance your learning capacity and retention.
+      </p>
+    </div>
     
     <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-8">
-      <Card>
+      <Card className="transition-all duration-300 hover:-translate-y-2 hover:shadow-md group overflow-hidden border-orange-100">
+        <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-orange-500 to-amber-500 transform origin-left scale-x-0 group-hover:scale-x-100 transition-transform duration-500"></div>
         <CardHeader>
-          <div className="bg-primary-100 w-12 h-12 rounded-full flex items-center justify-center mb-4">
-            <Lightbulb className="h-6 w-6 text-primary-600" />
+          <div className="relative w-12 h-12 mb-4">
+            <div className="absolute inset-0 bg-orange-100 rounded-full filter blur-md animate-pulse"></div>
+            <div className="absolute inset-0 bg-gradient-to-br from-orange-400 to-amber-400 rounded-full flex items-center justify-center transform group-hover:scale-110 transition-transform duration-300">
+              <Lightbulb className="h-6 w-6 text-white" />
+            </div>
           </div>
-          <CardTitle>Pomodoro Technique</CardTitle>
+          <CardTitle className="group-hover:text-orange-600 transition-colors duration-300">
+            Pomodoro Technique
+          </CardTitle>
         </CardHeader>
         <CardContent>
-          <p className="text-gray-600">
+          <p className="text-gray-600 group-hover:text-gray-800 transition-colors duration-300">
             Work in focused 25-minute intervals, followed by short 5-minute breaks. 
             After completing four cycles, take a longer break of 15-30 minutes.
           </p>
         </CardContent>
-        <CardFooter className="flex justify-between">
-          <p className="text-sm text-gray-500">Improves focus and productivity</p>
+        <CardFooter className="flex justify-between bg-gradient-to-r from-orange-50 to-amber-50 group-hover:from-orange-100 group-hover:to-amber-100 transition-colors duration-300">
+          <p className="text-sm text-orange-700">Improves focus and productivity</p>
         </CardFooter>
       </Card>
       
-      <Card>
+      <Card className="transition-all duration-300 hover:-translate-y-2 hover:shadow-md group overflow-hidden border-orange-100">
+        <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-orange-500 to-amber-500 transform origin-left scale-x-0 group-hover:scale-x-100 transition-transform duration-500"></div>
         <CardHeader>
-          <div className="bg-primary-100 w-12 h-12 rounded-full flex items-center justify-center mb-4">
-            <Lightbulb className="h-6 w-6 text-primary-600" />
+          <div className="relative w-12 h-12 mb-4">
+            <div className="absolute inset-0 bg-orange-100 rounded-full filter blur-md animate-pulse animation-delay-300"></div>
+            <div className="absolute inset-0 bg-gradient-to-br from-amber-400 to-orange-400 rounded-full flex items-center justify-center transform group-hover:scale-110 transition-transform duration-300">
+              <Lightbulb className="h-6 w-6 text-white" />
+            </div>
           </div>
-          <CardTitle>Spaced Repetition</CardTitle>
+          <CardTitle className="group-hover:text-orange-600 transition-colors duration-300">
+            Spaced Repetition
+          </CardTitle>
         </CardHeader>
         <CardContent>
-          <p className="text-gray-600">
+          <p className="text-gray-600 group-hover:text-gray-800 transition-colors duration-300">
             Review information at increasing intervals over time, rather than cramming 
             all at once. This method enhances long-term retention of knowledge.
           </p>
         </CardContent>
-        <CardFooter className="flex justify-between">
-          <p className="text-sm text-gray-500">Best for long-term memory</p>
+        <CardFooter className="flex justify-between bg-gradient-to-r from-orange-50 to-amber-50 group-hover:from-orange-100 group-hover:to-amber-100 transition-colors duration-300">
+          <p className="text-sm text-orange-700">Best for long-term memory</p>
         </CardFooter>
       </Card>
       
-      <Card>
+      <Card className="transition-all duration-300 hover:-translate-y-2 hover:shadow-md group overflow-hidden border-orange-100">
+        <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-orange-500 to-amber-500 transform origin-left scale-x-0 group-hover:scale-x-100 transition-transform duration-500"></div>
         <CardHeader>
-          <div className="bg-primary-100 w-12 h-12 rounded-full flex items-center justify-center mb-4">
-            <Lightbulb className="h-6 w-6 text-primary-600" />
+          <div className="relative w-12 h-12 mb-4">
+            <div className="absolute inset-0 bg-orange-100 rounded-full filter blur-md animate-pulse animation-delay-600"></div>
+            <div className="absolute inset-0 bg-gradient-to-br from-orange-400 to-amber-400 rounded-full flex items-center justify-center transform group-hover:scale-110 transition-transform duration-300">
+              <Lightbulb className="h-6 w-6 text-white" />
+            </div>
           </div>
-          <CardTitle>Active Recall</CardTitle>
+          <CardTitle className="group-hover:text-orange-600 transition-colors duration-300">
+            Active Recall
+          </CardTitle>
         </CardHeader>
         <CardContent>
-          <p className="text-gray-600">
+          <p className="text-gray-600 group-hover:text-gray-800 transition-colors duration-300">
             Actively stimulate your memory by testing yourself on what you've learned, 
             rather than passively reviewing material. This helps strengthen neural connections.
           </p>
         </CardContent>
-        <CardFooter className="flex justify-between">
-          <p className="text-sm text-gray-500">Strengthens knowledge retention</p>
+        <CardFooter className="flex justify-between bg-gradient-to-r from-orange-50 to-amber-50 group-hover:from-orange-100 group-hover:to-amber-100 transition-colors duration-300">
+          <p className="text-sm text-orange-700">Strengthens knowledge retention</p>
         </CardFooter>
       </Card>
       
-      <Card>
+      <Card className="transition-all duration-300 hover:-translate-y-2 hover:shadow-md group overflow-hidden border-orange-100">
+        <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-orange-500 to-amber-500 transform origin-left scale-x-0 group-hover:scale-x-100 transition-transform duration-500"></div>
         <CardHeader>
-          <div className="bg-primary-100 w-12 h-12 rounded-full flex items-center justify-center mb-4">
-            <Lightbulb className="h-6 w-6 text-primary-600" />
+          <div className="relative w-12 h-12 mb-4">
+            <div className="absolute inset-0 bg-orange-100 rounded-full filter blur-md animate-pulse animation-delay-900"></div>
+            <div className="absolute inset-0 bg-gradient-to-br from-amber-400 to-orange-400 rounded-full flex items-center justify-center transform group-hover:scale-110 transition-transform duration-300">
+              <Lightbulb className="h-6 w-6 text-white" />
+            </div>
           </div>
-          <CardTitle>Feynman Technique</CardTitle>
+          <CardTitle className="group-hover:text-orange-600 transition-colors duration-300">
+            Feynman Technique
+          </CardTitle>
         </CardHeader>
         <CardContent>
-          <p className="text-gray-600">
+          <p className="text-gray-600 group-hover:text-gray-800 transition-colors duration-300">
             Explain concepts in simple terms as if teaching to someone else. This helps 
             identify gaps in your understanding and reinforces what you know.
           </p>
         </CardContent>
-        <CardFooter className="flex justify-between">
-          <p className="text-sm text-gray-500">Deepens conceptual understanding</p>
+        <CardFooter className="flex justify-between bg-gradient-to-r from-orange-50 to-amber-50 group-hover:from-orange-100 group-hover:to-amber-100 transition-colors duration-300">
+          <p className="text-sm text-orange-700">Deepens conceptual understanding</p>
         </CardFooter>
       </Card>
     </div>
@@ -203,60 +268,84 @@ const TechniquesTab = () => (
 
 const ToolsTab = () => (
   <div className="space-y-6">
-    <h2 className="text-3xl font-bold tracking-tight">Learning Tools</h2>
-    <p className="text-lg text-muted-foreground">
-      Discover digital tools that can enhance your learning experience and boost productivity.
-    </p>
+    <div className="relative">
+      {/* Background elements */}
+      <div className="absolute -z-10 -top-10 -right-10 w-40 h-40 bg-orange-200 rounded-full filter blur-3xl opacity-60 animate-blob animation-delay-1000"></div>
+      <div className="absolute -z-10 -bottom-10 -left-10 w-40 h-40 bg-amber-200 rounded-full filter blur-3xl opacity-60 animate-blob animation-delay-3000"></div>
+      
+      <h2 className="text-3xl font-bold tracking-tight text-orange-600 animate-fadeIn">Learning Tools</h2>
+      <p className="text-lg text-gray-700 mt-2 animate-fadeIn animation-delay-300">
+        Discover digital tools that can enhance your learning experience and boost productivity.
+      </p>
+    </div>
     
     <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mt-8">
-      <Card>
+      <Card className="border-orange-100 shadow-sm hover:shadow-md transition-all duration-300 hover:-translate-y-2 group">
+        <div className="absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-orange-400 to-amber-400 transform scale-x-0 group-hover:scale-x-100 transition-transform duration-500 origin-left"></div>
         <CardHeader>
-          <CardTitle>Note-Taking Apps</CardTitle>
+          <CardTitle className="text-orange-600 group-hover:translate-x-1 transition-transform duration-300">Note-Taking Apps</CardTitle>
         </CardHeader>
         <CardContent>
-          <ul className="space-y-2 text-sm text-gray-600 list-disc list-inside">
+          <ul className="space-y-2 text-sm text-gray-600 group-hover:text-gray-800 transition-colors duration-300 list-disc list-inside">
             <li>Notion - All-in-one workspace</li>
             <li>Evernote - Note organization</li>
             <li>Obsidian - Knowledge connections</li>
             <li>Roam Research - Networked thought</li>
           </ul>
         </CardContent>
-        <CardFooter>
-          <Button variant="outline" className="w-full">Learn More</Button>
+        <CardFooter className="bg-gradient-to-r from-orange-50 to-amber-50 group-hover:from-orange-100 group-hover:to-amber-100 transition-colors duration-300">
+          <Button 
+            variant="outline" 
+            className="w-full border-orange-200 text-orange-700 hover:bg-orange-100 hover:text-orange-800 transition-all duration-300 group-hover:scale-[1.01]"
+          >
+            Learn More
+          </Button>
         </CardFooter>
       </Card>
       
-      <Card>
+      <Card className="border-orange-100 shadow-sm hover:shadow-md transition-all duration-300 hover:-translate-y-2 group animation-delay-150">
+        <div className="absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-orange-400 to-amber-400 transform scale-x-0 group-hover:scale-x-100 transition-transform duration-500 origin-left"></div>
         <CardHeader>
-          <CardTitle>Flashcard Systems</CardTitle>
+          <CardTitle className="text-orange-600 group-hover:translate-x-1 transition-transform duration-300">Flashcard Systems</CardTitle>
         </CardHeader>
         <CardContent>
-          <ul className="space-y-2 text-sm text-gray-600 list-disc list-inside">
+          <ul className="space-y-2 text-sm text-gray-600 group-hover:text-gray-800 transition-colors duration-300 list-disc list-inside">
             <li>Anki - Spaced repetition</li>
             <li>Quizlet - Social learning</li>
             <li>Brainscape - Confidence-based repetition</li>
             <li>Memrise - Language learning</li>
           </ul>
         </CardContent>
-        <CardFooter>
-          <Button variant="outline" className="w-full">Learn More</Button>
+        <CardFooter className="bg-gradient-to-r from-orange-50 to-amber-50 group-hover:from-orange-100 group-hover:to-amber-100 transition-colors duration-300">
+          <Button 
+            variant="outline" 
+            className="w-full border-orange-200 text-orange-700 hover:bg-orange-100 hover:text-orange-800 transition-all duration-300 group-hover:scale-[1.01]"
+          >
+            Learn More
+          </Button>
         </CardFooter>
       </Card>
       
-      <Card>
+      <Card className="border-orange-100 shadow-sm hover:shadow-md transition-all duration-300 hover:-translate-y-2 group animation-delay-300">
+        <div className="absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-orange-400 to-amber-400 transform scale-x-0 group-hover:scale-x-100 transition-transform duration-500 origin-left"></div>
         <CardHeader>
-          <CardTitle>Focus & Productivity</CardTitle>
+          <CardTitle className="text-orange-600 group-hover:translate-x-1 transition-transform duration-300">Focus & Productivity</CardTitle>
         </CardHeader>
         <CardContent>
-          <ul className="space-y-2 text-sm text-gray-600 list-disc list-inside">
+          <ul className="space-y-2 text-sm text-gray-600 group-hover:text-gray-800 transition-colors duration-300 list-disc list-inside">
             <li>Forest - Focus gamification</li>
             <li>Freedom - Distraction blocker</li>
             <li>Todoist - Task management</li>
             <li>Focus@Will - Productivity music</li>
           </ul>
         </CardContent>
-        <CardFooter>
-          <Button variant="outline" className="w-full">Learn More</Button>
+        <CardFooter className="bg-gradient-to-r from-orange-50 to-amber-50 group-hover:from-orange-100 group-hover:to-amber-100 transition-colors duration-300">
+          <Button 
+            variant="outline" 
+            className="w-full border-orange-200 text-orange-700 hover:bg-orange-100 hover:text-orange-800 transition-all duration-300 group-hover:scale-[1.01]"
+          >
+            Learn More
+          </Button>
         </CardFooter>
       </Card>
     </div>
@@ -265,49 +354,102 @@ const ToolsTab = () => (
 
 const ScientificResearchTab = () => (
   <div className="space-y-6">
-    <h2 className="text-3xl font-bold tracking-tight">Scientific Research</h2>
-    <p className="text-lg text-muted-foreground">
-      Explore the science behind effective learning methods and cognitive enhancement.
-    </p>
+    <div className="relative">
+      {/* Background elements */}
+      <div className="absolute -z-10 -top-10 -right-10 w-48 h-48 bg-orange-200 rounded-full filter blur-3xl opacity-60 animate-blob animation-delay-4000"></div>
+      <div className="absolute -z-10 -bottom-10 -left-10 w-48 h-48 bg-amber-200 rounded-full filter blur-3xl opacity-60 animate-blob animation-delay-5000"></div>
+      
+      <h2 className="text-3xl font-bold tracking-tight text-orange-600 animate-fadeIn">Scientific Research</h2>
+      <p className="text-lg text-gray-700 mt-2 animate-fadeIn animation-delay-300">
+        Explore the science behind effective learning methods and cognitive enhancement.
+      </p>
+    </div>
     
     <div className="grid grid-cols-1 md:grid-cols-2 gap-8 mt-8">
-      <Card className="border-l-4 border-l-primary-600">
+      <Card className="border-l-4 border-l-orange-500 shadow-sm hover:shadow-md transition-all duration-300 hover:-translate-y-2 group overflow-hidden">
+        <div className="absolute inset-x-0 bottom-0 h-1 bg-gradient-to-r from-orange-400 to-amber-400 transform origin-left scale-x-0 group-hover:scale-x-100 transition-transform duration-500"></div>
         <CardHeader>
-          <CardTitle>Neuroplasticity</CardTitle>
-          <CardDescription>How the brain adapts during learning</CardDescription>
+          <CardTitle className="text-orange-600 group-hover:translate-x-1 transition-transform duration-300">Neuroplasticity</CardTitle>
+          <CardDescription className="text-amber-700">How the brain adapts during learning</CardDescription>
         </CardHeader>
         <CardContent>
-          <p className="text-gray-600">
+          <p className="text-gray-600 group-hover:text-gray-800 transition-colors duration-300">
             Research demonstrates that the brain continues to form new neural connections throughout life.
             Consistent learning creates and strengthens these pathways, enhancing cognitive abilities over time.
           </p>
-          <div className="mt-4">
-            <h4 className="font-medium text-sm">Key Findings:</h4>
-            <ul className="mt-2 space-y-1 text-sm text-gray-600 list-disc list-inside">
-              <li>Brain structure physically changes with learning</li>
-              <li>Deliberate practice strengthens neural pathways</li>
-              <li>Learning new skills increases cognitive reserve</li>
+          <div className="mt-4 transform transition-all duration-300 group-hover:translate-x-1">
+            <h4 className="font-medium text-sm text-orange-600">Key Findings:</h4>
+            <ul className="mt-2 space-y-1 text-sm text-gray-600 group-hover:text-gray-800 transition-colors duration-300 list-disc list-inside">
+              <li className="transform transition-transform duration-300 hover:translate-x-1">Brain structure physically changes with learning</li>
+              <li className="transform transition-transform duration-300 hover:translate-x-1">Deliberate practice strengthens neural pathways</li>
+              <li className="transform transition-transform duration-300 hover:translate-x-1">Learning new skills increases cognitive reserve</li>
             </ul>
           </div>
         </CardContent>
       </Card>
       
-      <Card className="border-l-4 border-l-primary-600">
+      <Card className="border-l-4 border-l-amber-500 shadow-sm hover:shadow-md transition-all duration-300 hover:-translate-y-2 group overflow-hidden">
+        <div className="absolute inset-x-0 bottom-0 h-1 bg-gradient-to-r from-amber-400 to-orange-400 transform origin-left scale-x-0 group-hover:scale-x-100 transition-transform duration-500"></div>
         <CardHeader>
-          <CardTitle>Memory Formation</CardTitle>
-          <CardDescription>The science of creating lasting memories</CardDescription>
+          <CardTitle className="text-orange-600 group-hover:translate-x-1 transition-transform duration-300">Memory Formation</CardTitle>
+          <CardDescription className="text-amber-700">The science of creating lasting memories</CardDescription>
         </CardHeader>
         <CardContent>
-          <p className="text-gray-600">
+          <p className="text-gray-600 group-hover:text-gray-800 transition-colors duration-300">
             Memory consolidation occurs during sleep and rest periods, converting short-term memories to 
             long-term storage. Studies show that spaced learning sessions optimize this process compared to cramming.
           </p>
-          <div className="mt-4">
-            <h4 className="font-medium text-sm">Key Findings:</h4>
-            <ul className="mt-2 space-y-1 text-sm text-gray-600 list-disc list-inside">
-              <li>Sleep is critical for memory consolidation</li>
-              <li>Emotional connections strengthen memory</li>
-              <li>Retrieval practice enhances long-term retention</li>
+          <div className="mt-4 transform transition-all duration-300 group-hover:translate-x-1">
+            <h4 className="font-medium text-sm text-orange-600">Key Findings:</h4>
+            <ul className="mt-2 space-y-1 text-sm text-gray-600 group-hover:text-gray-800 transition-colors duration-300 list-disc list-inside">
+              <li className="transform transition-transform duration-300 hover:translate-x-1">Sleep is critical for memory consolidation</li>
+              <li className="transform transition-transform duration-300 hover:translate-x-1">Emotional connections strengthen memory</li>
+              <li className="transform transition-transform duration-300 hover:translate-x-1">Retrieval practice enhances long-term retention</li>
+            </ul>
+          </div>
+        </CardContent>
+      </Card>
+      
+      {/* New research cards with animations */}
+      <Card className="border-l-4 border-l-orange-500 shadow-sm hover:shadow-md transition-all duration-300 hover:-translate-y-2 group overflow-hidden animate-fadeIn animation-delay-300">
+        <div className="absolute inset-x-0 bottom-0 h-1 bg-gradient-to-r from-orange-400 to-amber-400 transform origin-left scale-x-0 group-hover:scale-x-100 transition-transform duration-500"></div>
+        <CardHeader>
+          <CardTitle className="text-orange-600 group-hover:translate-x-1 transition-transform duration-300">Cognitive Load Theory</CardTitle>
+          <CardDescription className="text-amber-700">Optimizing mental workload for learning</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <p className="text-gray-600 group-hover:text-gray-800 transition-colors duration-300">
+            The theory examines how cognitive load affects our ability to process and retain information.
+            Learning becomes more effective when we manage the mental demands placed on our working memory.
+          </p>
+          <div className="mt-4 transform transition-all duration-300 group-hover:translate-x-1">
+            <h4 className="font-medium text-sm text-orange-600">Key Findings:</h4>
+            <ul className="mt-2 space-y-1 text-sm text-gray-600 group-hover:text-gray-800 transition-colors duration-300 list-disc list-inside">
+              <li className="transform transition-transform duration-300 hover:translate-x-1">Working memory has limited capacity</li>
+              <li className="transform transition-transform duration-300 hover:translate-x-1">Complex material requires chunking</li>
+              <li className="transform transition-transform duration-300 hover:translate-x-1">Visual and auditory processing use different channels</li>
+            </ul>
+          </div>
+        </CardContent>
+      </Card>
+      
+      <Card className="border-l-4 border-l-amber-500 shadow-sm hover:shadow-md transition-all duration-300 hover:-translate-y-2 group overflow-hidden animate-fadeIn animation-delay-500">
+        <div className="absolute inset-x-0 bottom-0 h-1 bg-gradient-to-r from-amber-400 to-orange-400 transform origin-left scale-x-0 group-hover:scale-x-100 transition-transform duration-500"></div>
+        <CardHeader>
+          <CardTitle className="text-orange-600 group-hover:translate-x-1 transition-transform duration-300">Dual Coding Theory</CardTitle>
+          <CardDescription className="text-amber-700">How visual and verbal information combine</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <p className="text-gray-600 group-hover:text-gray-800 transition-colors duration-300">
+            This theory proposes that combining visual and verbal information creates stronger memory connections.
+            When we engage multiple pathways in the brain, learning and retention are significantly enhanced.
+          </p>
+          <div className="mt-4 transform transition-all duration-300 group-hover:translate-x-1">
+            <h4 className="font-medium text-sm text-orange-600">Key Findings:</h4>
+            <ul className="mt-2 space-y-1 text-sm text-gray-600 group-hover:text-gray-800 transition-colors duration-300 list-disc list-inside">
+              <li className="transform transition-transform duration-300 hover:translate-x-1">Visual and verbal information process in parallel</li>
+              <li className="transform transition-transform duration-300 hover:translate-x-1">Combining text and images improves recall</li>
+              <li className="transform transition-transform duration-300 hover:translate-x-1">Mental imagery enhances memory formation</li>
             </ul>
           </div>
         </CardContent>

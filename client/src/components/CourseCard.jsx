@@ -119,34 +119,38 @@ export default function CourseCard({ course, bookmarked = false, onBookmarkChang
 
   return (
     <Card 
-      className={`course-card overflow-hidden h-full flex flex-col transition-all duration-300 hover:shadow-sm hover:-translate-y-1 rounded-xl ${isBookmarked ? 'border-[#4264f0]/20 shadow-sm' : 'border-gray-100'}`}
+      className={`course-card overflow-hidden h-full flex flex-col transition-all duration-300 
+        hover:shadow-lg hover:-translate-y-2 hover:scale-[1.02] rounded-xl 
+        ${isBookmarked ? 'border-orange-300 shadow-sm' : 'border-gray-100'}
+        transform perspective-1000 backface-hidden`}
       onClick={handleCardClick}
     >
-      <div className="relative">
+      <div className="relative overflow-hidden group">
         <img 
           src={course.imageUrl || "https://images.unsplash.com/photo-1516321318423-f06f85e504b3?ixlib=rb-4.0.3&ixid=MnwxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8&auto=format&fit=crop&w=400&h=225&q=80"} 
           alt={course.title} 
-          className="w-full h-44 object-cover"
+          className="w-full h-44 object-cover transition-transform duration-500 group-hover:scale-110"
         />
+        <div className="absolute inset-0 bg-gradient-to-t from-black/50 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
         <Button
           size="icon"
           variant={isBookmarked ? "default" : "ghost"}
           className={`absolute top-3 right-3 rounded-full h-8 w-8 z-10 transition-all duration-300 
                     ${isBookmarked 
-                      ? 'bg-[#4264f0] text-white shadow-sm hover:bg-[#3755d6]' 
-                      : 'bg-white/90 backdrop-blur-sm hover:bg-gray-50 border border-gray-100'}`}
+                      ? 'bg-gradient-to-r from-orange-500 to-amber-600 text-white shadow-md hover:from-orange-600 hover:to-amber-700' 
+                      : 'bg-white/90 backdrop-blur-sm hover:bg-gray-50 border border-gray-100 hover:shadow-md'}`}
           onClick={handleBookmarkToggle}
           disabled={isPending}
         >
           <Bookmark 
-            className={`h-4 w-4 ${isBookmarked ? 'fill-white text-white' : 'text-gray-500'}`} 
+            className={`h-4 w-4 ${isBookmarked ? 'fill-white text-white' : 'text-gray-500'} transition-transform duration-300 hover:scale-110`} 
           />
           {isPending && <span className="absolute inset-0 flex items-center justify-center">
             <span className="w-3 h-3 border-2 border-white border-t-transparent rounded-full animate-spin"></span>
           </span>}
         </Button>
         {course.courseType && (
-          <div className="absolute bottom-3 left-3 bg-white/90 text-gray-800 text-xs font-medium px-3 py-1.5 rounded-md backdrop-blur-sm shadow-sm border border-gray-100">
+          <div className="absolute bottom-3 left-3 bg-white/90 text-gray-800 text-xs font-medium px-3 py-1.5 rounded-md backdrop-blur-sm shadow-sm border border-gray-100 transition-all duration-300 group-hover:bg-orange-500 group-hover:text-white group-hover:border-orange-400">
             {course.courseType}
           </div>
         )}
@@ -155,18 +159,18 @@ export default function CourseCard({ course, bookmarked = false, onBookmarkChang
       <CardContent className="p-5 flex-grow">
         <div className="flex flex-wrap gap-2 mb-3">
           {course.category && (
-            <Badge variant="secondary" className="bg-[#f8fafc] text-[#4264f0] hover:bg-[#EEF2FF] border border-[#EEF2FF]">
+            <Badge variant="secondary" className="bg-orange-50 text-orange-600 hover:bg-orange-100 border border-orange-100 transition-all duration-300 hover:scale-105">
               {course.category}
             </Badge>
           )}
           {course.subCategory && (
-            <Badge variant="secondary" className="bg-[#f8fafc] text-gray-600 hover:bg-gray-100 border border-gray-100">
+            <Badge variant="secondary" className="bg-amber-50 text-amber-600 hover:bg-amber-100 border border-amber-100 transition-all duration-300 hover:scale-105">
               {course.subCategory}
             </Badge>
           )}
         </div>
         
-        <h3 className="text-lg font-bold text-gray-800 mb-2 line-clamp-2 leading-tight">
+        <h3 className="text-lg font-bold text-gray-800 mb-2 line-clamp-2 leading-tight group-hover:text-orange-600 transition-colors duration-300">
           {course.title}
         </h3>
         
@@ -178,7 +182,7 @@ export default function CourseCard({ course, bookmarked = false, onBookmarkChang
         
         {course.instructors && (
           <div className="flex items-center text-sm text-gray-500 mb-2">
-            <User className="h-4 w-4 mr-2 text-gray-400" />
+            <User className="h-4 w-4 mr-2 text-orange-400 transition-transform duration-300 hover:scale-110" />
             <span>{truncateText(course.instructors, 30)}</span>
           </div>
         )}
@@ -186,20 +190,20 @@ export default function CourseCard({ course, bookmarked = false, onBookmarkChang
         <div className="flex items-center text-sm text-gray-500 mb-3">
           {course.duration && (
             <div className="flex items-center mr-4">
-              <Clock className="h-4 w-4 mr-2 text-gray-400" />
+              <Clock className="h-4 w-4 mr-2 text-orange-400 transition-transform duration-300 hover:scale-110" />
               <span>{course.duration}</span>
             </div>
           )}
           {course.language && (
             <div className="flex items-center">
-              <Globe className="h-4 w-4 mr-2 text-gray-400" />
+              <Globe className="h-4 w-4 mr-2 text-orange-400 transition-transform duration-300 hover:scale-110" />
               <span>{course.language}</span>
             </div>
           )}
         </div>
       </CardContent>
       
-      <CardFooter className="border-t border-gray-100 px-5 py-3 bg-[#f8fafc] flex items-center justify-between">
+      <CardFooter className="border-t border-orange-100 px-5 py-3 bg-gradient-to-r from-orange-50 to-amber-50 flex items-center justify-between transition-colors duration-300">
         <div className="flex items-center">
           <StarRating rating={course.rating || 0} />
           <span className="ml-2 text-sm text-gray-700">
@@ -213,7 +217,7 @@ export default function CourseCard({ course, bookmarked = false, onBookmarkChang
         </div>
         
         {course.site && (
-          <div className="text-sm text-[#4264f0]">
+          <div className="text-sm text-orange-500 font-medium">
             {course.site}
           </div>
         )}
