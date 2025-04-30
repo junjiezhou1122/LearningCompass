@@ -27,9 +27,9 @@ const AIAssistant = () => {
   const [savedConversations, setSavedConversations] = useState([]);
   const [dbConversations, setDbConversations] = useState([]);
   const [showConversations, setShowConversations] = useState(false);
+  const [isLoadingConversations, setIsLoadingConversations] = useState(false);
   const [input, setInput] = useState('');
   const [isTyping, setIsTyping] = useState(false);
-  const [isLoadingConversations, setIsLoadingConversations] = useState(false);
   const [apiSettings, setApiSettings] = useState({
     provider: 'openai',
     apiKey: '',
@@ -438,6 +438,10 @@ const AIAssistant = () => {
               setShowConversations(true);
               // Don't change the active tab
               setActiveTab('chat');
+              // Refresh conversations when opening the modal
+              if (isAuthenticated && token) {
+                fetchUserConversations();
+              }
             }}
           >
             <BookOpen className="mr-2 h-4 w-4" /> History
@@ -616,67 +620,163 @@ const AIAssistant = () => {
             </div>
             
             <div className="flex-1 overflow-y-auto p-4">
-              {savedConversations.length === 0 ? (
+              {isLoadingConversations && (
+                <div className="text-center py-8 text-gray-500 flex flex-col items-center">
+                  <div className="typing-indicator mb-2">
+                    <span></span>
+                    <span></span>
+                    <span></span>
+                  </div>
+                  <p>Loading your conversations...</p>
+                </div>
+              )}
+              
+              {!isLoadingConversations && savedConversations.length === 0 && dbConversations.length === 0 && (
                 <div className="text-center py-8 text-gray-500 flex flex-col items-center">
                   <Bot className="h-12 w-12 text-gray-300 mb-2" />
                   <p>No saved conversations yet.</p>
                   <p className="text-sm mt-2">Have a chat and click the save button to store your conversations.</p>
                 </div>
-              ) : (
-                <div className="space-y-3">
-                  {savedConversations.map((convo) => (
-                    <div 
-                      key={convo.id} 
-                      className="bg-gray-50 rounded-lg p-3 hover:bg-orange-50 transition-colors border border-gray-200 cursor-pointer group"
-                      onClick={() => loadConversation(convo)}
-                    >
-                      <div className="flex items-start justify-between">
-                        <div className="flex items-start space-x-3">
-                          <div className="mt-1">
-                            <Clock className="h-4 w-4 text-orange-500" />
-                          </div>
-                          <div>
-                            <h4 className="font-medium text-gray-800 group-hover:text-orange-700">
-                              {convo.title}
-                            </h4>
-                            <div className="flex items-center mt-1 text-gray-500 text-xs">
-                              <span className="inline-block">
-                                {new Date(convo.date).toLocaleDateString('en-US', { 
-                                  year: 'numeric', 
-                                  month: 'short', 
-                                  day: 'numeric',
-                                  hour: '2-digit',
-                                  minute: '2-digit'
-                                })}
-                              </span>
-                              <span className="inline-block mx-2">•</span>
-                              <span className="font-mono">{convo.model.split('/').pop()}</span>
+              )}
+              
+              {!isLoadingConversations && (
+                <div className="space-y-4">
+                  {/* Database conversations section */}
+                  {isAuthenticated && dbConversations.length > 0 && (
+                    <div className="space-y-3">
+                      <div className="flex items-center">
+                        <div className="flex-grow h-px bg-gray-200"></div>
+                        <span className="px-2 text-xs font-medium text-gray-500">Account Conversations</span>
+                        <div className="flex-grow h-px bg-gray-200"></div>
+                      </div>
+                      
+                      {dbConversations.map((convo) => (
+                        <div 
+                          key={convo.id} 
+                          className="bg-gray-50 rounded-lg p-3 hover:bg-orange-50 transition-colors border border-gray-200 cursor-pointer group"
+                          onClick={() => loadConversation(convo)}
+                        >
+                          <div className="flex items-start justify-between">
+                            <div className="flex items-start space-x-3">
+                              <div className="mt-1">
+                                <User className="h-4 w-4 text-orange-500" />
+                              </div>
+                              <div>
+                                <h4 className="font-medium text-gray-800 group-hover:text-orange-700">
+                                  {convo.title}
+                                </h4>
+                                <div className="flex items-center mt-1 text-gray-500 text-xs">
+                                  <span className="inline-block">
+                                    {new Date(convo.date).toLocaleDateString('en-US', { 
+                                      year: 'numeric', 
+                                      month: 'short', 
+                                      day: 'numeric',
+                                      hour: '2-digit',
+                                      minute: '2-digit'
+                                    })}
+                                  </span>
+                                  <span className="inline-block mx-2">•</span>
+                                  <span className="font-mono">{convo.model.split('/').pop()}</span>
+                                </div>
+                                <p className="text-xs text-gray-500 mt-1 line-clamp-2">
+                                  {convo.messages.find(m => m.role === 'user')?.content || ''}
+                                </p>
+                              </div>
                             </div>
-                            <p className="text-xs text-gray-500 mt-1 line-clamp-2">
-                              {convo.messages.find(m => m.role === 'user')?.content || ''}
-                            </p>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className="opacity-0 group-hover:opacity-100 h-8 w-8 rounded-full p-0"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                deleteDbConversation(convo.id);
+                              }}
+                            >
+                              <Trash2 className="h-4 w-4 text-gray-500 hover:text-red-500" />
+                            </Button>
                           </div>
                         </div>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          className="opacity-0 group-hover:opacity-100 h-8 w-8 rounded-full p-0"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            const updatedConversations = savedConversations.filter(c => c.id !== convo.id);
-                            setSavedConversations(updatedConversations);
-                            localStorage.setItem('aiAssistantConversations', JSON.stringify(updatedConversations));
-                            toast({
-                              title: "Conversation deleted",
-                              variant: "default",
-                            });
-                          }}
-                        >
-                          <Trash2 className="h-4 w-4 text-gray-500 hover:text-red-500" />
-                        </Button>
-                      </div>
+                      ))}
                     </div>
-                  ))}
+                  )}
+                  
+                  {/* Local storage conversations section */}
+                  {savedConversations.length > 0 && (
+                    <div className="space-y-3">
+                      {isAuthenticated && dbConversations.length > 0 && (
+                        <div className="flex items-center">
+                          <div className="flex-grow h-px bg-gray-200"></div>
+                          <span className="px-2 text-xs font-medium text-gray-500">Local Conversations</span>
+                          <div className="flex-grow h-px bg-gray-200"></div>
+                        </div>
+                      )}
+                      
+                      {savedConversations.map((convo) => (
+                        <div 
+                          key={convo.id} 
+                          className="bg-gray-50 rounded-lg p-3 hover:bg-orange-50 transition-colors border border-gray-200 cursor-pointer group"
+                          onClick={() => loadConversation(convo)}
+                        >
+                          <div className="flex items-start justify-between">
+                            <div className="flex items-start space-x-3">
+                              <div className="mt-1">
+                                <Clock className="h-4 w-4 text-orange-500" />
+                              </div>
+                              <div>
+                                <h4 className="font-medium text-gray-800 group-hover:text-orange-700">
+                                  {convo.title}
+                                </h4>
+                                <div className="flex items-center mt-1 text-gray-500 text-xs">
+                                  <span className="inline-block">
+                                    {new Date(convo.date).toLocaleDateString('en-US', { 
+                                      year: 'numeric', 
+                                      month: 'short', 
+                                      day: 'numeric',
+                                      hour: '2-digit',
+                                      minute: '2-digit'
+                                    })}
+                                  </span>
+                                  <span className="inline-block mx-2">•</span>
+                                  <span className="font-mono">{convo.model.split('/').pop()}</span>
+                                </div>
+                                <p className="text-xs text-gray-500 mt-1 line-clamp-2">
+                                  {convo.messages.find(m => m.role === 'user')?.content || ''}
+                                </p>
+                              </div>
+                            </div>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className="opacity-0 group-hover:opacity-100 h-8 w-8 rounded-full p-0"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                deleteLocalConversation(convo.id);
+                              }}
+                            >
+                              <Trash2 className="h-4 w-4 text-gray-500 hover:text-red-500" />
+                            </Button>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
+              
+              {/* Show login prompt for non-authenticated users */}
+              {!isAuthenticated && savedConversations.length > 0 && (
+                <div className="mt-4 p-3 border border-orange-100 bg-orange-50 rounded-lg">
+                  <div className="flex items-start space-x-3">
+                    <LogIn className="h-5 w-5 text-orange-500 mt-0.5" />
+                    <div>
+                      <p className="text-sm text-gray-700">
+                        <span className="font-medium">Sign in</span> to save your conversations to your account.
+                      </p>
+                      <p className="text-xs text-gray-500 mt-1">
+                        Creating an account allows you to access your conversations from any device.
+                      </p>
+                    </div>
+                  </div>
                 </div>
               )}
             </div>
