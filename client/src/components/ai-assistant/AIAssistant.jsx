@@ -15,6 +15,51 @@ import APIConfiguration from './APIConfiguration';
 import ChatMessage from './ChatMessage';
 import './ai-assistant.css';
 
+// Helper function to safely get the first user message from conversations
+const getFirstUserMessage = (messages) => {
+  if (!messages) return '';
+  
+  // If it's a string (JSON), try to parse it
+  if (typeof messages === 'string') {
+    try {
+      const parsedMessages = JSON.parse(messages);
+      return parsedMessages.find(m => m.role === 'user')?.content || '';
+    } catch (e) {
+      console.error('Error parsing messages:', e);
+      return '';
+    }
+  }
+  
+  // If it's already an array, use it directly
+  if (Array.isArray(messages)) {
+    return messages.find(m => m.role === 'user')?.content || '';
+  }
+  
+  return '';
+};
+
+// Helper function to ensure messages is always an array
+const ensureMessagesArray = (messages) => {
+  if (!messages) return [];
+  
+  // If it's a string (JSON), try to parse it
+  if (typeof messages === 'string') {
+    try {
+      return JSON.parse(messages);
+    } catch (e) {
+      console.error('Error parsing messages:', e);
+      return [];
+    }
+  }
+  
+  // If it's already an array, return it
+  if (Array.isArray(messages)) {
+    return messages;
+  }
+  
+  return [];
+};
+
 const AIAssistant = ({ onApiConfigured }) => {
   const { toast } = useToast();
   const { user, isAuthenticated, token } = useAuth();
@@ -402,7 +447,7 @@ const AIAssistant = ({ onApiConfigured }) => {
   
   // Function to load a saved conversation
   const loadConversation = (conversation) => {
-    setMessages(conversation.messages);
+    setMessages(ensureMessagesArray(conversation.messages));
     setShowConversations(false);
     toast({
       title: "Conversation loaded",
@@ -616,7 +661,7 @@ const AIAssistant = ({ onApiConfigured }) => {
                 </div>
               )}
               
-              {messages.map((message, index) => (
+              {ensureMessagesArray(messages).map((message, index) => (
                 <ChatMessage key={index} message={message} />
               ))}
               
@@ -763,7 +808,7 @@ const AIAssistant = ({ onApiConfigured }) => {
                                   <span className="font-mono">{convo.model.split('/').pop()}</span>
                                 </div>
                                 <p className="text-xs text-gray-500 mt-1 line-clamp-2">
-                                  {convo.messages.find(m => m.role === 'user')?.content || ''}
+                                  {getFirstUserMessage(convo.messages)}
                                 </p>
                               </div>
                             </div>
@@ -824,7 +869,7 @@ const AIAssistant = ({ onApiConfigured }) => {
                                   <span className="font-mono">{convo.model.split('/').pop()}</span>
                                 </div>
                                 <p className="text-xs text-gray-500 mt-1 line-clamp-2">
-                                  {convo.messages.find(m => m.role === 'user')?.content || ''}
+                                  {getFirstUserMessage(convo.messages)}
                                 </p>
                               </div>
                             </div>
