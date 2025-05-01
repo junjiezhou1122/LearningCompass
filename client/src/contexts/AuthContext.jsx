@@ -1,12 +1,7 @@
 import { createContext, useState, useEffect, useContext } from "react";
 import { useToast } from "../hooks/use-toast";
-import {
-  signInWithPopup,
-  signInWithPhoneNumber,
-  RecaptchaVerifier,
-  GoogleAuthProvider,
-} from "firebase/auth";
-import { auth, googleProvider, githubProvider } from "../lib/firebase";
+import { RecaptchaVerifier } from "firebase/auth";
+import { auth, signInWithGoogle as firebaseSignInWithGoogle } from "../lib/firebase";
 import { getApiBaseUrl } from "../lib/utils";
 
 // Create auth context
@@ -144,10 +139,10 @@ export function AuthProvider({ children }) {
       setLoading(true);
 
       // Step 1: Use Firebase's direct authentication
-      const result = await signInWithPopup(auth, googleProvider);
+      const googleUser = await firebaseSignInWithGoogle();
 
       // Step 2: Get the Firebase ID token
-      const idToken = await result.user.getIdToken();
+      const idToken = await googleUser.getIdToken();
 
       if (!idToken) {
         throw new Error("Failed to get Firebase ID token");
@@ -163,7 +158,7 @@ export function AuthProvider({ children }) {
           firstName: data.user.firstName || null,
           lastName: data.user.lastName || null,
           phoneNumber: data.user.phoneNumber || null,
-          photoURL: data.user.photoURL || result.user.photoURL || null,
+          photoURL: data.user.photoURL || googleUser.photoURL || null,
         };
 
         // Save auth data from our database
@@ -191,22 +186,21 @@ export function AuthProvider({ children }) {
         });
 
         // Create a temporary user from Firebase data
-        const firebaseUser = result.user;
         const userData = {
-          id: firebaseUser.uid,
-          email: firebaseUser.email,
+          id: googleUser.uid,
+          email: googleUser.email,
           username:
-            firebaseUser.displayName || firebaseUser.email.split("@")[0],
-          photoURL: firebaseUser.photoURL,
-          firstName: firebaseUser.displayName
-            ? firebaseUser.displayName.split(" ")[0]
+            googleUser.displayName || googleUser.email.split("@")[0],
+          photoURL: googleUser.photoURL,
+          firstName: googleUser.displayName
+            ? googleUser.displayName.split(" ")[0]
             : null,
           lastName:
-            firebaseUser.displayName &&
-            firebaseUser.displayName.split(" ").length > 1
-              ? firebaseUser.displayName.split(" ").slice(1).join(" ")
+            googleUser.displayName &&
+            googleUser.displayName.split(" ").length > 1
+              ? googleUser.displayName.split(" ").slice(1).join(" ")
               : null,
-          phoneNumber: firebaseUser.phoneNumber || null,
+          phoneNumber: googleUser.phoneNumber || null,
         };
 
         // Save temporary user data
