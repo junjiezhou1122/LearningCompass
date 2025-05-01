@@ -51,6 +51,7 @@ function App() {
         <AuthProvider>
           <TooltipProvider>
             <Router />
+            <FloatingAIButton />
             <Toaster />
           </TooltipProvider>
         </AuthProvider>

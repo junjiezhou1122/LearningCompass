@@ -155,6 +155,7 @@ const AIAssistant = () => {
     }
     
     // For non-OpenRouter providers, require an API key
+    // Note: OpenRouter has a pre-configured fallback on the server
     if (savedApiSettings.provider !== 'openrouter' && !savedApiSettings.apiKey) {
       toast({
         title: 'API key missing',
