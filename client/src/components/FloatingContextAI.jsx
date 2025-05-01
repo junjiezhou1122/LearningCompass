@@ -593,12 +593,20 @@ const FloatingContextAI = ({ pageContext, onClose, onApiStatusChange }) => {
         throw new Error(`API error: ${response.status}`);
       }
       
-      const data = await response.text();
+      const data = await response.json();
+      console.log('AI Response data:', data);
+      
+      // Ensure we have a valid response message
+      if (!data || !data.message) {
+        console.error('Invalid AI response format:', data);
+        throw new Error('Received invalid response format from AI service');
+      }
       
       const aiResponse = {
         role: 'assistant',
-        content: data
+        content: data.message
       };
+      console.log('Formatted AI response:', aiResponse);
       
       setMessages(prev => [...prev, aiResponse]);
       
@@ -672,9 +680,21 @@ const FloatingContextAI = ({ pageContext, onClose, onApiStatusChange }) => {
       }
     } catch (error) {
       console.error('Error sending message:', error);
+      console.log('Error details:', error.message);
+      
+      // Check for common error types
+      let errorMessage = "There was an error communicating with the AI service";
+      if (error.message.includes('API key')) {
+        errorMessage = "There was an issue with your API key. Please update your AI settings.";
+      } else if (error.message.includes('format')) {
+        errorMessage = "There was a formatting issue with the AI response. Please try again.";
+      } else {
+        errorMessage = "There was an error: " + error.message;
+      }
+      
       toast({
         title: "Failed to send message",
-        description: "There was an error communicating with the AI service: " + error.message,
+        description: errorMessage,
         variant: "destructive",
       });
       
@@ -683,6 +703,9 @@ const FloatingContextAI = ({ pageContext, onClose, onApiStatusChange }) => {
         role: 'assistant',
         content: "I'm sorry, I encountered an error while processing your request. Please check your AI service configuration or try again later."
       };
+      
+      // Log the fallback response for debugging
+      console.log('Using fallback response:', fallbackResponse);
       
       setMessages(prev => [...prev, fallbackResponse]);
     } finally {

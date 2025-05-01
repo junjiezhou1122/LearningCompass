@@ -319,6 +319,10 @@ export async function handleChatRequest(req: Request, res: Response) {
     }
     
     console.log('Successfully got response from AI provider');
+    console.log('Response message type:', typeof responseMessage);
+    console.log('Response message preview:', responseMessage.substring(0, 100));
+    
+    // Ensure we're returning a proper JSON response with the message field
     return res.json({ message: responseMessage });
     
   } catch (error: any) {
