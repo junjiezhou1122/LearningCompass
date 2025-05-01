@@ -580,15 +580,21 @@ export default function UserProfile() {
     if (
       activeTab === "comments" &&
       !userComments.length &&
-      !isCommentsLoading
+      !isCommentsLoading &&
+      effectiveUserId // Make sure we have a valid user ID
     ) {
       const fetchComments = async () => {
         setIsCommentsLoading(true);
         try {
-          const response = await fetch(`/api/users/${userId}/comments`);
+          console.log(`Fetching comments for user ID: ${effectiveUserId}`);
+          // Use effectiveUserId to ensure we're getting the correct user's comments
+          const response = await fetch(`/api/users/${effectiveUserId}/comments`);
           if (response.ok) {
             const data = await response.json();
+            console.log("Fetched user comments:", data);
             setUserComments(data);
+          } else {
+            console.error(`Error response: ${response.status} ${response.statusText}`);
           }
         } catch (error) {
           console.error("Error fetching user comments:", error);
@@ -599,7 +605,7 @@ export default function UserProfile() {
 
       fetchComments();
     }
-  }, [activeTab, userId, userLikes.length, userComments.length]);
+  }, [activeTab, userId, effectiveUserId, userLikes.length, userComments.length, isCommentsLoading]);
 
   // Handle profile form changes
   const handleProfileChange = (e) => {
@@ -1480,20 +1486,25 @@ export default function UserProfile() {
                             className="text-orange-600"
                           />
                         </div>
-                        <p className="text-gray-700 whitespace-pre-line text-sm pl-4 italic">
-                          "
-                          {post.userComments && post.userComments.length > 0
-                            ? post.userComments[0].content
-                            : "Commented on this post"}
-                          "
-                        </p>
-                        <div className="text-xs text-gray-500 mt-2 text-right">
-                          {post.userComments && post.userComments.length > 0
-                            ? new Date(
-                                post.userComments[0].createdAt
-                              ).toLocaleDateString()
-                            : "Recently"}
-                        </div>
+                        {post.userComments && post.userComments.length > 0 ? (
+                          <div className="space-y-3">
+                            {post.userComments.map((comment, i) => (
+                              <div key={comment.id || i} className="mb-3 last:mb-0">
+                                <p className="text-gray-700 whitespace-pre-line text-sm pl-4 italic">
+                                  "{comment.content}"
+                                </p>
+                                <div className="text-xs text-gray-500 mt-1 text-right">
+                                  {new Date(comment.createdAt).toLocaleDateString()}
+                                </div>
+                                {i < post.userComments.length - 1 && <Separator className="mt-2" />}
+                              </div>
+                            ))}
+                          </div>
+                        ) : (
+                          <p className="text-gray-700 whitespace-pre-line text-sm pl-4 italic">
+                            "Commented on this post"
+                          </p>
+                        )}
                       </div>
 
                       <div className="flex justify-between items-center">
