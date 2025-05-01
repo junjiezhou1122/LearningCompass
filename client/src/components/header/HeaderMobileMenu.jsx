@@ -1,6 +1,6 @@
 import { useLocation } from "wouter";
 import { useAuth } from "@/contexts/AuthContext";
-import { useLanguage } from "@/contexts/LanguageContext";
+import { useLanguage, LANGUAGES } from "@/contexts/LanguageContext";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import {
@@ -12,9 +12,11 @@ import {
   UserCircle,
   LogOut,
   Bookmark,
+  Globe,
 } from "lucide-react";
 import HeaderSearch from "./HeaderSearch";
 import AuthModals from "../AuthModals";
+import LanguageSwitcher from "../LanguageSwitcher";
 
 export default function HeaderMobileMenu({
   isOpen,
@@ -23,7 +25,7 @@ export default function HeaderMobileMenu({
 }) {
   const [, navigate] = useLocation();
   const { user, isAuthenticated, logout } = useAuth();
-  const { t } = useLanguage();
+  const { language, setLanguage, t } = useLanguage();
 
   const handleLogout = () => {
     logout();
@@ -96,7 +98,7 @@ export default function HeaderMobileMenu({
                         className="px-0 h-auto text-amber-200 hover:text-white hover:bg-transparent"
                         onClick={() => handleNavigation(`/users/${user.id}`)}
                       >
-                        View Profile
+                        {t("viewProfile")}
                       </Button>
                     </div>
                   </div>
@@ -142,6 +144,40 @@ export default function HeaderMobileMenu({
                   </Button>
                 </>
               )}
+
+              {/* Language Switcher */}
+              <div className="pt-4">
+                <div className="flex items-center mb-2">
+                  <Globe className="h-5 w-5 mr-2" />
+                  <span>{t("language")}</span>
+                </div>
+                <div className="flex space-x-2 pl-2">
+                  <Button
+                    variant={language === LANGUAGES.ENGLISH ? "outline" : "ghost"}
+                    className={`px-3 py-1 h-auto ${language === LANGUAGES.ENGLISH 
+                      ? "bg-amber-700 border-white text-white" 
+                      : "text-white hover:bg-amber-700 transition-all duration-300"}`}
+                    onClick={() => {
+                      setLanguage(LANGUAGES.ENGLISH);
+                      localStorage.setItem('language', LANGUAGES.ENGLISH);
+                    }}
+                  >
+                    🇺🇸 {t("english")}
+                  </Button>
+                  <Button
+                    variant={language === LANGUAGES.CHINESE ? "outline" : "ghost"}
+                    className={`px-3 py-1 h-auto ${language === LANGUAGES.CHINESE 
+                      ? "bg-amber-700 border-white text-white" 
+                      : "text-white hover:bg-amber-700 transition-all duration-300"}`}
+                    onClick={() => {
+                      setLanguage(LANGUAGES.CHINESE);
+                      localStorage.setItem('language', LANGUAGES.CHINESE);
+                    }}
+                  >
+                    🇨🇳 {t("chinese")}
+                  </Button>
+                </div>
+              </div>
             </div>
 
             {/* Auth Section */}

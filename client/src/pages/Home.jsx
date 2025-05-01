@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useToast } from "@/hooks/use-toast";
+import { useLanguage } from "@/contexts/LanguageContext";
 import Hero from "@/components/Hero";
 import FilterSidebar from "@/components/FilterSidebar";
 import CourseList from "@/components/CourseList";
@@ -15,6 +16,7 @@ export default function Home() {
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 6;
   const { toast } = useToast();
+  const { t } = useLanguage();
 
   // Extract search query from URL and listen for search events
   useEffect(() => {
@@ -209,8 +211,8 @@ export default function Home() {
     setCurrentPage(1); // Reset to first page when applying filters
     
     toast({
-      title: "Filters applied",
-      description: "Showing courses matching your filters",
+      title: t('filtersApplied'),
+      description: t('showingCoursesMatchingFilters'),
     });
   };
 
@@ -220,8 +222,8 @@ export default function Home() {
     setActiveFilters([]);
     
     toast({
-      title: "Filters reset",
-      description: "Showing all courses",
+      title: t('filtersReset'),
+      description: t('showingAllCourses'),
     });
   };
 
@@ -284,8 +286,8 @@ export default function Home() {
             <div className="bg-white rounded-xl shadow-sm p-6 mb-6">
               <CourseListHeader
                 title={searchParams.get("search") 
-                  ? `Search Results: "${searchParams.get("search")}"`
-                  : "Recommended Courses"}
+                  ? t('searchResults').replace('{query}', searchParams.get("search"))
+                  : t('recommendedCourses')}
                 activeFilters={activeFilters}
                 onRemoveFilter={handleRemoveFilter}
                 sortBy={sortBy}

@@ -5,6 +5,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Separator } from "@/components/ui/separator";
 import { Skeleton } from "@/components/ui/skeleton";
 import { ChevronDown, ChevronUp } from "lucide-react";
+import { useLanguage } from "@/contexts/LanguageContext";
 import StarRating from "./StarRating";
 
 export default function FilterSidebar({ 
@@ -12,6 +13,7 @@ export default function FilterSidebar({
   onResetFilters,
   initialFilters = {}
 }) {
+  const { t } = useLanguage();
   // State for open/closed filter sections
   const [openSections, setOpenSections] = useState({
     category: true,
@@ -181,7 +183,7 @@ export default function FilterSidebar({
   
   return (
     <aside className="w-full bg-white rounded-xl border border-gray-100 p-6 h-fit sticky top-24">
-      <h2 className="text-xl font-semibold text-gray-800 mb-6">Filter Courses</h2>
+      <h2 className="text-xl font-semibold text-gray-800 mb-6">{t('filterBy')}</h2>
       
       {/* Category Filter */}
       <div className="mb-6">
@@ -189,7 +191,7 @@ export default function FilterSidebar({
           className="flex items-center justify-between w-full text-left font-medium text-gray-700 mb-3"
           onClick={() => toggleSection('category')}
         >
-          <span className="text-base font-medium text-gray-800">Category</span>
+          <span className="text-base font-medium text-gray-800">{t('category')}</span>
           {openSections.category ? 
             <ChevronUp className="h-4 w-4 text-gray-500" /> : 
             <ChevronDown className="h-4 w-4 text-gray-500" />
@@ -222,7 +224,7 @@ export default function FilterSidebar({
               </div>
             ))
           ) : (
-            <p className="text-sm text-gray-500">No categories available</p>
+            <p className="text-sm text-gray-500">{t('noCategoriesAvailable')}</p>
           )}
         </div>
       </div>
@@ -233,7 +235,7 @@ export default function FilterSidebar({
           className="flex items-center justify-between w-full text-left font-medium text-gray-700 mb-3"
           onClick={() => toggleSection('subCategory')}
         >
-          <span className="text-base font-medium text-gray-800">Sub-Category</span>
+          <span className="text-base font-medium text-gray-800">{t('subCategory')}</span>
           {openSections.subCategory ? 
             <ChevronUp className="h-4 w-4 text-gray-500" /> : 
             <ChevronDown className="h-4 w-4 text-gray-500" />
@@ -266,7 +268,7 @@ export default function FilterSidebar({
               </div>
             ))
           ) : (
-            <p className="text-sm text-gray-500">No subcategories available</p>
+            <p className="text-sm text-gray-500">{t('noSubCategoriesAvailable')}</p>
           )}
         </div>
       </div>
@@ -277,7 +279,7 @@ export default function FilterSidebar({
           className="flex items-center justify-between w-full text-left font-medium text-gray-700 mb-3"
           onClick={() => toggleSection('courseType')}
         >
-          <span className="text-base font-medium text-gray-800">Course Type</span>
+          <span className="text-base font-medium text-gray-800">{t('courseType')}</span>
           {openSections.courseType ? 
             <ChevronUp className="h-4 w-4 text-gray-500" /> : 
             <ChevronDown className="h-4 w-4 text-gray-500" />
@@ -310,7 +312,7 @@ export default function FilterSidebar({
               </div>
             ))
           ) : (
-            <p className="text-sm text-gray-500">No course types available</p>
+            <p className="text-sm text-gray-500">{t('noCourseTypesAvailable')}</p>
           )}
         </div>
       </div>
@@ -322,14 +324,14 @@ export default function FilterSidebar({
           onClick={applyFilters} 
           className="bg-[#4264f0] hover:bg-[#3755d6] text-white font-medium py-5 px-4 rounded-md text-sm h-auto"
         >
-          Apply Filters
+          {t('applyFilters')}
         </Button>
         <Button 
           variant="outline" 
           onClick={resetFilters} 
           className="border-gray-200 text-gray-600 font-normal hover:bg-gray-50 rounded-md py-2 h-auto"
         >
-          Reset All Filters
+          {t('resetFilters')}
         </Button>
       </div>
     </aside>

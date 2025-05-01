@@ -26,6 +26,7 @@ export default function HeaderNav() {
         <MessageSquare className="h-5 w-5 mr-2" />
         {t("shareConnect")}
       </Button>
+      <LanguageSwitcher />
     </div>
   );
 }

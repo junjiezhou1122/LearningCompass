@@ -1,9 +1,11 @@
 import { useEffect, useState } from 'react';
+import { useLanguage } from '@/contexts/LanguageContext';
 
 export default function Hero() {
   // Animation states
   const [isLoaded, setIsLoaded] = useState(false);
   const [floatingPosition, setFloatingPosition] = useState(0);
+  const { t } = useLanguage();
   
   // Set loaded state after component mounts
   useEffect(() => {
@@ -47,13 +49,12 @@ export default function Hero() {
           }}
         >
           <h1 className="text-4xl md:text-5xl font-bold mb-5 text-gray-800 leading-tight">
-            Discover Your <span className="text-[#4264f0] inline-block relative">
-              Learning Path
+            {t('discoverLearningPath')} <span className="text-[#4264f0] inline-block relative">
               <span className="absolute -bottom-1 left-0 w-full h-1 bg-[#4264f0]/30 rounded-full"></span>
             </span>
           </h1>
           <p className="text-lg mb-4 text-gray-600 max-w-md">
-            Personalized recommendations to help you advance your skills and career.
+            {t('personalizedRecommendations')}
           </p>
         </div>
         
@@ -80,7 +81,7 @@ export default function Hero() {
             ></div>
             <div className="relative bg-white rounded-2xl p-8 md:p-10 shadow-sm border border-gray-100 hover:shadow-md transition-shadow duration-300">
               <h2 className="text-3xl md:text-4xl font-bold text-gray-800">
-                Learn<span className="text-[#4264f0] animate-pulse">.</span>Grow<span className="text-[#4264f0] animate-pulse">.</span>Succeed
+                {t('learnGrowSucceed')}
               </h2>
               <div className="mt-4 w-20 h-1.5 bg-[#4264f0] rounded-full"></div>
             </div>

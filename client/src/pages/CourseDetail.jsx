@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useParams, useLocation } from "wouter";
 import { useAuth } from "../contexts/AuthContext";
+import { useLanguage } from "@/contexts/LanguageContext";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import {
@@ -35,6 +36,7 @@ export default function CourseDetail() {
   const [, navigate] = useLocation();
   const { isAuthenticated, token } = useAuth();
   const { toast } = useToast();
+  const { t } = useLanguage();
   const [isBookmarked, setIsBookmarked] = useState(false);
   const [isBookmarking, setIsBookmarking] = useState(false);
 
@@ -95,8 +97,8 @@ export default function CourseDetail() {
   const handleBookmarkToggle = async () => {
     if (!isAuthenticated) {
       toast({
-        title: "Authentication required",
-        description: "Please sign in to bookmark courses",
+        title: t("authRequired"),
+        description: t("pleaseSignInToBookmark"),
         variant: "destructive",
       });
       return;
@@ -110,8 +112,8 @@ export default function CourseDetail() {
 
       if (!storedToken) {
         toast({
-          title: "Authentication required",
-          description: "Please login again to bookmark courses",
+          title: t("authRequired"),
+          description: t("pleaseLoginAgain"),
           variant: "destructive",
         });
         return;
@@ -146,8 +148,8 @@ export default function CourseDetail() {
         if (response.status === 204 || response.status === 200) {
           setIsBookmarked(false);
           toast({
-            title: "Bookmark removed",
-            description: `${course.title} has been removed from your bookmarks`,
+            title: t("bookmarkRemoved"),
+            description: t("courseRemovedFromBookmarks", { title: course.title }),
           });
 
           // Invalidate bookmarks query to refresh the list
@@ -156,8 +158,8 @@ export default function CourseDetail() {
           // Bookmark not found
           setIsBookmarked(false);
           toast({
-            title: "Already removed",
-            description: "This course was already removed from your bookmarks",
+            title: t("alreadyRemoved"),
+            description: t("courseAlreadyRemoved"),
           });
 
           // Invalidate bookmarks query to refresh the list
@@ -210,8 +212,8 @@ export default function CourseDetail() {
         if (response.status === 201 || response.status === 200) {
           setIsBookmarked(true);
           toast({
-            title: "Bookmark added",
-            description: `${course.title} has been added to your bookmarks`,
+            title: t("bookmarkAdded"),
+            description: t("courseAddedToBookmarks", { title: course.title }),
           });
 
           // Invalidate bookmarks query to refresh the list
@@ -220,8 +222,8 @@ export default function CourseDetail() {
           // Bookmark already exists
           setIsBookmarked(true);
           toast({
-            title: "Already bookmarked",
-            description: `${course.title} is already in your bookmarks`,
+            title: t("alreadyBookmarked"),
+            description: t("courseAlreadyInBookmarks", { title: course.title }),
           });
 
           // Invalidate bookmarks query to refresh the list
@@ -249,10 +251,10 @@ export default function CourseDetail() {
     } catch (error) {
       console.error("Bookmark operation error:", error);
       toast({
-        title: "Operation Failed",
+        title: t("operationFailed"),
         description:
           error.message ||
-          "Failed to update bookmark. Please check your connection and try again.",
+          t("bookmarkUpdateFailed"),
         variant: "destructive",
       });
     } finally {
@@ -275,8 +277,8 @@ export default function CourseDetail() {
       // Fallback to clipboard
       navigator.clipboard.writeText(window.location.href);
       toast({
-        title: "Link copied",
-        description: "Course link copied to clipboard",
+        title: t("linkCopied"),
+        description: t("courseLinkCopied"),
       });
     }
   };
@@ -317,7 +319,7 @@ export default function CourseDetail() {
             className="text-gray-600 hover:text-primary-600"
           >
             <ArrowLeft className="h-4 w-4 mr-2" />
-            Back to Courses
+            {t("backToCourses")}
           </Button>
         </div>
 
@@ -361,7 +363,7 @@ export default function CourseDetail() {
       <div className="container mx-auto px-4 py-12 text-center">
         <div className="bg-white rounded-lg shadow-sm p-8 max-w-md mx-auto">
           <h2 className="text-2xl font-bold text-gray-900 mb-4">
-            Course Not Found
+            {t("courseNotFound")}
           </h2>
           <p className="text-gray-600 mb-6">
             We couldn't find the course you're looking for. It may have been
@@ -369,7 +371,7 @@ export default function CourseDetail() {
           </p>
           <Button onClick={handleBackClick}>
             <ArrowLeft className="h-4 w-4 mr-2" />
-            Back to Courses
+            {t("backToCourses")}
           </Button>
         </div>
       </div>
@@ -385,7 +387,7 @@ export default function CourseDetail() {
           className="text-gray-600 hover:text-primary-600"
         >
           <ArrowLeft className="h-4 w-4 mr-2" />
-          Back to Courses
+          {t("backToCourses")}
         </Button>
       </div>
 
@@ -464,7 +466,7 @@ export default function CourseDetail() {
               {/* Course Introduction */}
               <div>
                 <h3 className="text-xl font-semibold text-gray-800 mb-3">
-                  About This Course
+                  {t("aboutThisCourse")}
                 </h3>
                 <p className="text-gray-600">{course.shortIntro}</p>
               </div>
@@ -476,7 +478,7 @@ export default function CourseDetail() {
                   <div className="flex items-start">
                     <User className="h-5 w-5 mr-2 text-gray-400 mt-0.5" />
                     <div>
-                      <h4 className="font-medium text-gray-700">Instructors</h4>
+                      <h4 className="font-medium text-gray-700">{t("instructors")}</h4>
                       <p className="text-gray-600">{course.instructors}</p>
                     </div>
                   </div>
@@ -487,7 +489,7 @@ export default function CourseDetail() {
                   <div className="flex items-start">
                     <Clock className="h-5 w-5 mr-2 text-gray-400 mt-0.5" />
                     <div>
-                      <h4 className="font-medium text-gray-700">Duration</h4>
+                      <h4 className="font-medium text-gray-700">{t("duration")}</h4>
                       <p className="text-gray-600">{course.duration}</p>
                     </div>
                   </div>
@@ -498,7 +500,7 @@ export default function CourseDetail() {
                   <div className="flex items-start">
                     <Globe className="h-5 w-5 mr-2 text-gray-400 mt-0.5" />
                     <div>
-                      <h4 className="font-medium text-gray-700">Language</h4>
+                      <h4 className="font-medium text-gray-700">{t("language")}</h4>
                       <p className="text-gray-600">{course.language}</p>
                     </div>
                   </div>
@@ -509,7 +511,7 @@ export default function CourseDetail() {
                   <div className="flex items-start">
                     <Users className="h-5 w-5 mr-2 text-gray-400 mt-0.5" />
                     <div>
-                      <h4 className="font-medium text-gray-700">Enrolled</h4>
+                      <h4 className="font-medium text-gray-700">{t("enrolled")}</h4>
                       <p className="text-gray-600">
                         {new Intl.NumberFormat().format(course.numberOfViewers)}{" "}
                         students

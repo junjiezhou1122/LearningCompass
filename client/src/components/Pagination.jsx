@@ -1,11 +1,13 @@
 import { Button } from "@/components/ui/button";
 import { ChevronLeft, ChevronRight } from "lucide-react";
+import { useLanguage } from "@/contexts/LanguageContext";
 
 export default function Pagination({ 
   currentPage = 1, 
   totalPages = 1, 
   onPageChange 
 }) {
+  const { t } = useLanguage();
   // Don't render if only one page
   if (totalPages <= 1) {
     return null;
@@ -53,14 +55,14 @@ export default function Pagination({
   };
   
   return (
-    <nav className="flex justify-center">
+    <nav className="flex flex-col items-center justify-center space-y-2">
       <div className="flex items-center space-x-1.5">
         <Button
           variant="outline"
           size="icon"
           onClick={() => handlePageChange(currentPage - 1)}
           disabled={currentPage === 1}
-          aria-label="Previous page"
+          aria-label={t('previous')}
           className="h-8 w-8 rounded-md border-gray-200 text-gray-600 hover:bg-gray-50 disabled:opacity-40"
         >
           <ChevronLeft className="h-4 w-4" />
@@ -88,11 +90,14 @@ export default function Pagination({
           size="icon"
           onClick={() => handlePageChange(currentPage + 1)}
           disabled={currentPage === totalPages}
-          aria-label="Next page"
+          aria-label={t('next')}
           className="h-8 w-8 rounded-md border-gray-200 text-gray-600 hover:bg-gray-50 disabled:opacity-40"
         >
           <ChevronRight className="h-4 w-4" />
         </Button>
+      </div>
+      <div className="text-xs text-gray-500">
+        {t('page')} {currentPage} {t('of')} {totalPages}
       </div>
     </nav>
   );

@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { useLocation } from "wouter";
 import { useAuth } from "../contexts/AuthContext";
+import { useLanguage } from "@/contexts/LanguageContext";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
 import { Card, CardContent, CardFooter } from "@/components/ui/card";
@@ -16,6 +17,7 @@ export default function CourseCard({ course, bookmarked = false, onBookmarkChang
   const [, navigate] = useLocation();
   const { isAuthenticated } = useAuth();
   const { toast } = useToast();
+  const { t } = useLanguage();
 
   // Update bookmarked state if prop changes
   useEffect(() => {
@@ -29,8 +31,8 @@ export default function CourseCard({ course, bookmarked = false, onBookmarkChang
     
     if (!isAuthenticated) {
       toast({
-        title: "Authentication required",
-        description: "Please sign in to bookmark courses",
+        title: t("authRequired"),
+        description: t("signInToBookmark"),
         variant: "destructive",
       });
       return;
@@ -44,8 +46,8 @@ export default function CourseCard({ course, bookmarked = false, onBookmarkChang
       
       if (!token) {
         toast({
-          title: "Authentication required",
-          description: "Please login again to bookmark courses",
+          title: t("authRequired"),
+          description: t("loginAgainToBookmark"),
           variant: "destructive",
         });
         return;
@@ -58,8 +60,8 @@ export default function CourseCard({ course, bookmarked = false, onBookmarkChang
         if (response.status === 204) {
           setIsBookmarked(false);
           toast({
-            title: "Bookmark removed",
-            description: `${course.title} has been removed from your bookmarks`,
+            title: t("bookmarkRemoved"),
+            description: t("bookmarkRemovedDescription").replace('{title}', course.title),
           });
           
           // Call the callback if provided
@@ -78,8 +80,8 @@ export default function CourseCard({ course, bookmarked = false, onBookmarkChang
         if (response.status === 201) {
           setIsBookmarked(true);
           toast({
-            title: "Bookmark added",
-            description: `${course.title} has been added to your bookmarks`,
+            title: t("bookmarkAdded"),
+            description: t("bookmarkAddedDescription").replace('{title}', course.title),
           });
           
           // Call the callback if provided
@@ -90,8 +92,8 @@ export default function CourseCard({ course, bookmarked = false, onBookmarkChang
           // Bookmark already exists
           setIsBookmarked(true);
           toast({
-            title: "Already bookmarked",
-            description: `${course.title} is already in your bookmarks`,
+            title: t("alreadyBookmarked"),
+            description: t("alreadyBookmarkedDescription").replace('{title}', course.title),
           });
         } else {
           throw new Error("Failed to add bookmark");
@@ -100,8 +102,8 @@ export default function CourseCard({ course, bookmarked = false, onBookmarkChang
     } catch (error) {
       console.error("Bookmark error:", error);
       toast({
-        title: "Error",
-        description: "Failed to update bookmark. Please try again.",
+        title: t("error"),
+        description: t("bookmarkUpdateError"),
         variant: "destructive",
       });
     } finally {
@@ -141,6 +143,7 @@ export default function CourseCard({ course, bookmarked = false, onBookmarkChang
                       : 'bg-white/90 backdrop-blur-sm hover:bg-gray-50 border border-gray-100 hover:shadow-md'}`}
           onClick={handleBookmarkToggle}
           disabled={isPending}
+          aria-label={isBookmarked ? t("removeBookmark") : t("addBookmark")}
         >
           <Bookmark 
             className={`h-4 w-4 ${isBookmarked ? 'fill-white text-white' : 'text-gray-500'} transition-transform duration-300 hover:scale-110`} 
