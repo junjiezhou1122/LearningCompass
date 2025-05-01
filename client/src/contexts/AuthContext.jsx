@@ -1,7 +1,7 @@
 import { createContext, useState, useEffect, useContext } from "react";
 import { useToast } from "../hooks/use-toast";
 import { RecaptchaVerifier } from "firebase/auth";
-import { auth, signInWithGoogle as firebaseSignInWithGoogle } from "../lib/firebase";
+import { auth, signInWithGoogle as firebaseSignInWithGoogle, handleRedirectResult } from "../lib/firebase";
 import { getApiBaseUrl } from "../lib/utils";
 
 // Create auth context
@@ -14,24 +14,99 @@ export function AuthProvider({ children }) {
   const { toast } = useToast();
   const apiBaseUrl = getApiBaseUrl();
 
-  // Initialize auth state from localStorage
+  // Initialize auth state from localStorage and check for redirect auth result
   useEffect(() => {
-    const storedUser = localStorage.getItem("user");
-    const storedToken = localStorage.getItem("token");
-
-    if (storedUser && storedToken) {
+    const initAuth = async () => {
       try {
-        setUser(JSON.parse(storedUser));
-        setToken(storedToken);
-      } catch (error) {
-        console.error("Failed to parse stored user", error);
-        localStorage.removeItem("user");
-        localStorage.removeItem("token");
+        // First check if there's a stored user
+        const storedUser = localStorage.getItem("user");
+        const storedToken = localStorage.getItem("token");
+  
+        if (storedUser && storedToken) {
+          try {
+            setUser(JSON.parse(storedUser));
+            setToken(storedToken);
+          } catch (error) {
+            console.error("Failed to parse stored user", error);
+            localStorage.removeItem("user");
+            localStorage.removeItem("token");
+          }
+        }
+        
+        // Then check if there's a redirect result from Firebase authentication
+        const redirectResult = await handleRedirectResult();
+        if (redirectResult) {
+          console.log("Got Firebase redirect result:", redirectResult);
+          // Process the result similar to direct login
+          try {
+            // Get the Firebase ID token
+            const idToken = await redirectResult.getIdToken();
+            
+            if (idToken) {
+              // Try to send to backend
+              try {
+                const data = await handleAuthRequest("google", { token: idToken });
+                
+                // Process user data from backend
+                const normalizedUser = {
+                  ...data.user,
+                  firstName: data.user.firstName || null,
+                  lastName: data.user.lastName || null,
+                  phoneNumber: data.user.phoneNumber || null,
+                  photoURL: data.user.photoURL || redirectResult.photoURL || null,
+                };
+                
+                // Save auth data
+                localStorage.setItem("user", JSON.stringify(normalizedUser));
+                localStorage.setItem("token", data.token);
+                
+                setUser(normalizedUser);
+                setToken(data.token);
+                
+                toast({
+                  title: "Login successful",
+                  description: `Welcome, ${normalizedUser.username}!`,
+                });
+              } catch (serverError) {
+                console.error("Backend connection failed after redirect:", serverError);
+                
+                // Fallback to Firebase user if server is down
+                const userData = {
+                  id: redirectResult.uid,
+                  email: redirectResult.email,
+                  username: redirectResult.displayName || redirectResult.email.split("@")[0],
+                  photoURL: redirectResult.photoURL,
+                  firstName: redirectResult.displayName ? redirectResult.displayName.split(" ")[0] : null,
+                  lastName: redirectResult.displayName && redirectResult.displayName.split(" ").length > 1
+                    ? redirectResult.displayName.split(" ").slice(1).join(" ") : null,
+                  phoneNumber: redirectResult.phoneNumber || null,
+                };
+                
+                // Save temporary user data
+                localStorage.setItem("user", JSON.stringify(userData));
+                localStorage.setItem("token", idToken);
+                
+                setUser(userData);
+                setToken(idToken);
+                
+                toast({
+                  title: "Limited Login",
+                  description: "Connected to authentication but not to database. Some features may be limited.",
+                  variant: "warning",
+                });
+              }
+            }
+          } catch (tokenError) {
+            console.error("Failed to process redirect result:", tokenError);
+          }
+        }
+      } finally {
+        setLoading(false);
       }
-    }
-
-    setLoading(false);
-  }, []);
+    };
+    
+    initAuth();
+  }, [toast]);
 
   // Helper function to handle API requests
   const handleAuthRequest = async (endpoint, body) => {

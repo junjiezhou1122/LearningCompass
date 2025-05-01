@@ -7,11 +7,17 @@ export function cn(...inputs: ClassValue[]) {
 
 // Get the base API URL dynamically based on the current environment
 export function getApiBaseUrl() {
-  // Check if we're in a production environment (no port in URL)
+  // Get the current origin (base URL)
   const currentUrl = window.location.origin;
-
-  // Return the current origin (base URL) which will work across environments
-  return currentUrl;
+  
+  // If we're on Replit or production (not localhost), use the same origin for API
+  if (!currentUrl.includes('localhost')) {
+    return currentUrl;
+  }
+  
+  // For local development with different frontend/backend ports
+  const port = 5000;
+  return port ? `${window.location.protocol}//${window.location.hostname}:${port}` : currentUrl;
 }
 
 // Format number of viewers to a readable format

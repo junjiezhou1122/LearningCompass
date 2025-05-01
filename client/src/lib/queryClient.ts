@@ -1,15 +1,11 @@
 import { QueryClient, QueryFunction } from "@tanstack/react-query";
 
+// Import the API base URL function from utils
+import { getApiBaseUrl } from './utils';
+
 // Get the API base URL with the correct port
 function getServerBaseUrl() {
-  // In production, use the origin (same domain as client)
-  if (process.env.NODE_ENV === "production") {
-    return window.location.origin;
-  }
-
-  // In development, read port from env variable or use default (5000)
-  const devPort = import.meta.env.VITE_API_PORT || "5000";
-  return `http://localhost:${devPort}`;
+  return getApiBaseUrl();
 }
 
 async function throwIfResNotOk(res: Response) {
@@ -111,7 +107,9 @@ export async function apiRequest(
     }
 
     return res; // Return the response without throwing, let caller handle it
-  } catch (error) {
+  } catch (err) {
+    // Safely handle unknown error type
+    const error = err as Error;
     console.error("Network error during API request:", error);
 
     // Create a fake response instead of throwing to allow the caller to handle it gracefully
@@ -119,7 +117,7 @@ export async function apiRequest(
       JSON.stringify({
         message:
           "Network error. Please check your internet connection or try again later.",
-        originalError: error.message,
+        originalError: error.message || String(error),
       }),
       {
         status: 500,

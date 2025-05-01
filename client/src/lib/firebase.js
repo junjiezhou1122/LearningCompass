@@ -1,5 +1,13 @@
 import { initializeApp } from 'firebase/app';
-import { getAuth, GoogleAuthProvider, signInWithPopup, onAuthStateChanged, signOut } from 'firebase/auth';
+import { 
+  getAuth, 
+  GoogleAuthProvider, 
+  signInWithPopup, 
+  signInWithRedirect, 
+  getRedirectResult,
+  onAuthStateChanged, 
+  signOut 
+} from 'firebase/auth';
 
 const firebaseConfig = {
   apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
@@ -14,13 +22,51 @@ const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
 const googleProvider = new GoogleAuthProvider();
 
-// Google sign-in function
+// Add scopes for additional permissions if needed
+googleProvider.addScope('https://www.googleapis.com/auth/userinfo.email');
+googleProvider.addScope('https://www.googleapis.com/auth/userinfo.profile');
+
+// Google sign-in function with fallback from popup to redirect
 export const signInWithGoogle = async () => {
   try {
-    const result = await signInWithPopup(auth, googleProvider);
-    return result.user;
+    // Try popup first (works better on some platforms)
+    try {
+      const result = await signInWithPopup(auth, googleProvider);
+      return result.user;
+    } catch (popupError) {
+      console.log("Popup sign-in failed, trying redirect method", popupError);
+      
+      // If popup fails (especially for auth/unauthorized-domain), try redirect
+      if (popupError.code === 'auth/unauthorized-domain' || 
+          popupError.code === 'auth/popup-closed-by-user' ||
+          popupError.code === 'auth/popup-blocked') {
+        
+        // Use redirect method as fallback
+        await signInWithRedirect(auth, googleProvider);
+        // This line never executes immediately as the page redirects
+        return null;
+      } else {
+        // For other errors, rethrow
+        throw popupError;
+      }
+    }
   } catch (error) {
     console.error("Google sign-in error:", error);
+    throw error;
+  }
+};
+
+// Function to handle redirect result - call this on app initialization
+export const handleRedirectResult = async () => {
+  try {
+    const result = await getRedirectResult(auth);
+    if (result) {
+      // User signed in via redirect
+      return result.user;
+    }
+    return null;
+  } catch (error) {
+    console.error("Redirect result error:", error);
     throw error;
   }
 };

@@ -16,7 +16,46 @@ const authRoutes = require("./routes/auth.js");
 const app = express();
 app.use(express.json());
 app.use(express.urlencoded({ extended: false }));
-app.use(cors()); // Enable CORS for all routes
+
+// Configure CORS with specific options to fix the error
+app.use(cors({
+  origin: function(origin, callback) {
+    const allowedOrigins = [
+      'http://localhost:5000',
+      'http://localhost:3000',
+      'https://localhost:5000',
+      'https://localhost:3000',
+    ];
+    
+    // Add the Replit domain to allowed origins
+    if (process.env.REPLIT_DOMAIN) {
+      allowedOrigins.push(`https://${process.env.REPLIT_DOMAIN}`);
+    }
+    
+    // Check if domain appears to be a Replit domain
+    if (origin && (origin.includes('.replit.dev') || origin.includes('.repl.co'))) {
+      allowedOrigins.push(origin);
+    }
+    
+    // Allow requests with no origin (like mobile apps, curl, or Postman)
+    if (!origin) return callback(null, true);
+    
+    if (allowedOrigins.indexOf(origin) !== -1) {
+      callback(null, true);
+    } else {
+      console.log('CORS issue with origin:', origin);
+      // Allow all origins in development for easier debugging
+      if (process.env.NODE_ENV === 'development') {
+        callback(null, true);
+      } else {
+        callback(null, true); // Change to false in production when needed
+      }
+    }
+  },
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With']
+}));
 
 // Set up the auth routes
 app.use("/api/auth", authRoutes);

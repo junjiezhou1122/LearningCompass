@@ -46,14 +46,14 @@ function Router() {
 function App() {
   return (
     <QueryClientProvider client={queryClient}>
-      <AuthProvider>
-        <LanguageProvider>
+      <LanguageProvider>
+        <AuthProvider>
           <TooltipProvider>
             <Router />
             <Toaster />
           </TooltipProvider>
-        </LanguageProvider>
-      </AuthProvider>
+        </AuthProvider>
+      </LanguageProvider>
     </QueryClientProvider>
   );
 }
