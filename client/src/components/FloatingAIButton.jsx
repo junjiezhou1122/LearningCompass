@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Bot, AlertTriangle } from 'lucide-react';
+import { Bot, AlertTriangle, Sparkles } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { Dialog, DialogContent, DialogTrigger, DialogTitle } from '@/components/ui/dialog';
 import AIAssistant from './ai-assistant/AIAssistant';
@@ -62,19 +62,29 @@ const FloatingAIButton = () => {
           <TooltipTrigger asChild>
             <DialogTrigger asChild>
               <button
-                className="fixed bottom-6 right-6 p-3 rounded-full bg-gradient-to-r from-orange-500 to-amber-600 text-white shadow-lg hover:shadow-xl transition-all duration-300 z-50 flex items-center justify-center hover:rotate-6 active:scale-95 group"
+                className="fixed bottom-6 right-6 w-14 h-14 rounded-full bg-gradient-to-r from-blue-500 to-indigo-600 text-white shadow-lg hover:shadow-xl transition-all duration-300 z-50 flex items-center justify-center hover:scale-110 active:scale-95 group"
                 onClick={() => setIsOpen(true)}
                 aria-label="Open AI Assistant"
               >
-                <Bot className="h-6 w-6" />
+                <span className="absolute inset-0 rounded-full bg-white opacity-20 blur-sm"></span>
+                <span className="relative">
+                  {!apiConfigured ? (
+                    <Bot className="h-6 w-6" />
+                  ) : (
+                    <div className="relative">
+                      <Sparkles className="h-6 w-6 animate-pulse" />
+                      <span className="absolute inset-0 rounded-full animate-ping opacity-30 bg-blue-300"></span>
+                    </div>
+                  )}
+                </span>
                 {!apiConfigured && (
                   <span className="absolute -top-1 -right-1 w-3 h-3 bg-red-500 rounded-full animate-pulse"></span>
                 )}
               </button>
             </DialogTrigger>
           </TooltipTrigger>
-          <TooltipContent side="left">
-            <p>Ask questions to the AI assistant</p>
+          <TooltipContent side="left" className="bg-indigo-50 border-indigo-200">
+            <p className="text-indigo-700 font-medium">AI Learning Assistant</p>
             {!apiConfigured && (
               <div className="flex items-center gap-1 text-red-500 mt-1 text-xs">
                 <AlertTriangle className="h-3 w-3" />
@@ -85,7 +95,7 @@ const FloatingAIButton = () => {
         </Tooltip>
         
         <DialogContent 
-          className="sm:max-w-[600px] md:max-w-[700px] max-h-[90vh] overflow-hidden p-0 border-orange-200 shadow-xl" 
+          className="sm:max-w-[600px] md:max-w-[700px] lg:max-w-[800px] max-h-[90vh] overflow-hidden p-0 border-indigo-200 shadow-2xl rounded-xl" 
           aria-describedby="ai-assistant-description"
         >
           <DialogTitle className="sr-only">AI Assistant</DialogTitle>

@@ -1,5 +1,6 @@
 import { User, Bot, Sparkles } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
+import { motion } from 'framer-motion';
 
 const ChatMessage = ({ message }) => {
   const isUser = message.role === 'user';
@@ -7,68 +8,100 @@ const ChatMessage = ({ message }) => {
 
   if (isSystem) {
     return (
-      <div className="flex items-start space-x-3 bg-gradient-to-r from-amber-50 to-orange-50 p-4 rounded-xl border border-amber-100 shadow-sm">
-        <div className="bg-gradient-to-br from-amber-400 to-orange-400 text-white p-2 rounded-full flex-shrink-0 shadow-sm">
+      <motion.div 
+        initial={{ opacity: 0, y: 10 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.3 }}
+        className="flex items-start space-x-3 bg-gradient-to-r from-indigo-50 to-blue-50 p-4 rounded-xl border border-indigo-100 shadow-sm mb-4"
+      >
+        <div className="bg-gradient-to-br from-indigo-500 to-blue-500 text-white p-2 rounded-full flex-shrink-0 shadow-md">
           <Sparkles className="h-4 w-4" />
         </div>
-        <div className="text-amber-800 text-sm font-medium">
+        <div className="text-indigo-800 text-sm font-medium">
           {message.content}
         </div>
-      </div>
+      </motion.div>
     );
   }
 
-  // Chat bubble with tail design
+  // Chat bubble with enhanced design and animations
   return (
-    <div className={`flex items-end mb-4 ${isUser ? 'justify-end chat-message-user' : 'justify-start chat-message-ai'}`}>
+    <motion.div 
+      initial={{ opacity: 0, x: isUser ? 20 : -20 }}
+      animate={{ opacity: 1, x: 0 }}
+      transition={{ 
+        type: "spring",
+        stiffness: 260,
+        damping: 20
+      }}
+      className={`flex items-end mb-4 ${isUser ? 'justify-end' : 'justify-start'}`}
+    >
       {!isUser && (
         <div className="flex-shrink-0 mr-2 mb-1">
-          <div className="bg-gradient-to-br from-amber-500 to-orange-500 text-white p-1.5 rounded-full shadow-sm">
+          <motion.div 
+            whileHover={{ scale: 1.1 }}
+            className="bg-gradient-to-br from-blue-500 to-indigo-600 text-white p-2 rounded-full shadow-md"
+          >
             <Bot className="h-4 w-4" />
-          </div>
+          </motion.div>
         </div>
       )}
       
       <div className={`relative max-w-[85%] ${isUser ? 'ml-4' : 'mr-4'}`}>
         <div 
-          className={`px-4 py-3 rounded-2xl shadow-sm ${
+          className={`px-4 py-3 rounded-2xl shadow-md ${
             isUser 
-              ? 'bg-gradient-to-r from-orange-500 to-amber-600 text-white' 
+              ? 'bg-gradient-to-r from-blue-500 to-indigo-600 text-white' 
               : 'bg-white border border-gray-100 text-gray-800'
           }`}
         >
+          {/* Glass effect for AI messages */}
+          {!isUser && (
+            <div className="absolute inset-0 bg-white bg-opacity-10 rounded-2xl backdrop-blur-sm"></div>
+          )}
+          
           {/* Tail/pointer for chat bubble */}
           <div 
             className={`absolute bottom-[6px] w-3 h-3 transform rotate-45 ${
               isUser 
-                ? 'bg-amber-600 right-[-4px]' 
+                ? 'bg-indigo-600 right-[-4px]' 
                 : 'bg-white border-l border-b border-gray-100 left-[-4px]'
             }`}
           ></div>
           
-          {isUser ? (
-            <p className="text-sm">{message.content}</p>
-          ) : (
-            <div className="prose prose-sm max-w-none prose-p:leading-relaxed prose-headings:text-amber-700 prose-a:text-orange-600 ai-markdown">
-              <ReactMarkdown>{message.content}</ReactMarkdown>
-            </div>
-          )}
+          <div className="relative">
+            {isUser ? (
+              <p className="text-sm">{message.content}</p>
+            ) : (
+              <div className="prose prose-sm max-w-none prose-p:leading-relaxed prose-headings:text-blue-700 prose-a:text-indigo-600 ai-markdown">
+                <ReactMarkdown>{message.content}</ReactMarkdown>
+              </div>
+            )}
+          </div>
         </div>
         
-        {/* Time/read indicator - can be extended later to show actual times */}
-        <div className={`text-[10px] mt-1 text-gray-400 ${isUser ? 'text-right mr-1' : 'text-left ml-1'}`}>
+        {/* Time/read indicator with subtle fade-in */}
+        <motion.div 
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 0.8 }}
+          transition={{ delay: 0.3 }}
+          className={`text-[10px] mt-1 text-gray-500 ${isUser ? 'text-right mr-1' : 'text-left ml-1'}`}
+        >
           {isUser ? 'You' : 'AI Assistant'}
-        </div>
+        </motion.div>
       </div>
       
       {isUser && (
         <div className="flex-shrink-0 ml-2 mb-1">
-          <div className="bg-gradient-to-br from-orange-600 to-orange-700 text-white p-1.5 rounded-full shadow-sm">
+          <motion.div 
+            whileHover={{ scale: 1.1 }}
+            className="bg-gradient-to-br from-indigo-600 to-blue-700 text-white p-2 rounded-full shadow-md"
+          >
             <User className="h-4 w-4" />
-          </div>
+          </motion.div>
         </div>
       )}
-    </div>
+    </motion.div>
   );
 };
 

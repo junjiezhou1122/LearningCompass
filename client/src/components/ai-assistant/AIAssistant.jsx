@@ -473,28 +473,29 @@ const AIAssistant = ({ onApiConfigured }) => {
   return (
     <div className="space-y-6">
       <div className="relative">
-        {/* Background elements - made more subtle */}
-        <div className="absolute -z-10 -top-5 -right-5 w-36 h-36 bg-orange-100 rounded-full filter blur-3xl opacity-40 animate-blob"></div>
-        <div className="absolute -z-10 -bottom-5 -left-5 w-36 h-36 bg-amber-100 rounded-full filter blur-3xl opacity-40 animate-blob animation-delay-2000"></div>
+        {/* Modern background elements with blue/indigo styling */}
+        <div className="absolute -z-10 -top-5 -right-5 w-40 h-40 bg-blue-100 rounded-full filter blur-3xl opacity-40 animate-blob"></div>
+        <div className="absolute -z-10 -bottom-5 -left-5 w-40 h-40 bg-indigo-100 rounded-full filter blur-3xl opacity-40 animate-blob animation-delay-2000"></div>
+        <div className="absolute -z-10 top-10 left-10 w-24 h-24 bg-sky-100 rounded-full filter blur-2xl opacity-30 animate-blob animation-delay-4000"></div>
         
         <div className="flex items-center justify-between">
           <div>
-            <h2 className="text-2xl font-bold tracking-tight text-orange-600 animate-fadeIn flex items-center">
-              <Bot className="mr-2 h-6 w-6" /> 
+            <h2 className="text-2xl font-bold tracking-tight text-indigo-600 flex items-center">
+              <Sparkles className="mr-2 h-6 w-6 animate-pulse" /> 
               {t('chatWithAI')}
             </h2>
-            <p className="text-sm text-gray-600 mt-1 animate-fadeIn animation-delay-300">
+            <p className="text-sm text-gray-600 mt-1">
               {t('askQuestionsAboutAnyTopic')}
             </p>
           </div>
           
-          {/* Settings button in the header for quick access */}
+          {/* Settings button with improved hover effects */}
           {activeTab === 'chat' && savedApiSettings && (
             <Button 
               variant="ghost" 
               size="sm"
               onClick={() => setActiveTab('settings')}
-              className="text-gray-500 hover:text-orange-600"
+              className="text-gray-500 hover:text-indigo-600 transition-colors duration-200 hover:bg-indigo-50"
             >
               <Settings className="h-4 w-4 mr-1" /> 
               <span className="text-xs">{t('settings')}</span>
@@ -504,8 +505,8 @@ const AIAssistant = ({ onApiConfigured }) => {
       </div>
 
       <Tabs defaultValue="chat" value={activeTab} onValueChange={setActiveTab} className="w-full">
-        <TabsList className="grid grid-cols-3 mb-4 bg-gradient-to-r from-orange-50 to-amber-50 rounded-lg overflow-hidden shadow-sm border border-orange-100">
-          <TabsTrigger value="chat" className="flex items-center justify-center data-[state=active]:bg-white data-[state=active]:text-orange-700 data-[state=active]:shadow-sm">
+        <TabsList className="grid grid-cols-3 mb-4 ai-assistant-header-gradient rounded-lg overflow-hidden shadow-md border border-indigo-100">
+          <TabsTrigger value="chat" className="flex items-center justify-center data-[state=active]:bg-white data-[state=active]:text-indigo-700 data-[state=active]:shadow-sm">
             <Bot className="mr-2 h-4 w-4" /> {t('chat')}
           </TabsTrigger>
           <TabsTrigger 
@@ -525,17 +526,17 @@ const AIAssistant = ({ onApiConfigured }) => {
           >
             <BookOpen className="mr-2 h-4 w-4" /> {t('history')}
           </TabsTrigger>
-          <TabsTrigger value="settings" className="flex items-center justify-center data-[state=active]:bg-white data-[state=active]:text-orange-700 data-[state=active]:shadow-sm">
+          <TabsTrigger value="settings" className="flex items-center justify-center data-[state=active]:bg-white data-[state=active]:text-indigo-700 data-[state=active]:shadow-md">
             <Settings className="mr-2 h-4 w-4" /> {t('settings')}
           </TabsTrigger>
         </TabsList>
 
         <TabsContent value="chat" className="space-y-4">
           {!savedApiSettings && (
-            <Card className="border-amber-200 bg-gradient-to-r from-amber-50 to-orange-50 shadow-sm">
+            <Card className="border-indigo-200 bg-gradient-to-r from-indigo-50 to-blue-50 shadow-md">
               <CardHeader className="pb-2">
-                <CardTitle className="text-orange-700 text-lg flex items-center">
-                  <HelpCircle className="h-5 w-5 mr-2 text-orange-500" />
+                <CardTitle className="text-indigo-700 text-lg flex items-center">
+                  <HelpCircle className="h-5 w-5 mr-2 text-indigo-500" />
                   {t('chatWithAI')}
                 </CardTitle>
               </CardHeader>
@@ -547,7 +548,7 @@ const AIAssistant = ({ onApiConfigured }) => {
               </CardContent>
               <CardFooter>
                 <Button 
-                  className="bg-gradient-to-r from-orange-500 to-amber-500 text-white hover:from-orange-600 hover:to-amber-600 shadow-sm"
+                  className="ai-button-gradient text-white shadow-md"
                   onClick={() => setActiveTab('settings')}
                 >
                   <Settings className="mr-2 h-4 w-4" /> Configure AI Settings
@@ -556,21 +557,21 @@ const AIAssistant = ({ onApiConfigured }) => {
             </Card>
           )}
 
-          <div className="bg-white rounded-lg border border-gray-200 overflow-hidden shadow-md min-h-[60vh] max-h-[70vh] flex flex-col">
-            <div className="p-3 ai-assistant-gradient border-b border-orange-100 flex items-center">
-              <div className="flex items-center bg-white rounded-full px-3 py-1 shadow-sm border border-orange-100">
-                <Bot className="h-4 w-4 text-orange-600 mr-1" />
+          <div className="bg-white rounded-lg border border-gray-200 overflow-hidden shadow-lg min-h-[60vh] max-h-[70vh] flex flex-col">
+            <div className="p-3 ai-assistant-gradient border-b border-indigo-100 flex items-center">
+              <div className="flex items-center glass-effect rounded-full px-3 py-1 shadow-md border border-indigo-100">
+                <Sparkles className="h-4 w-4 text-indigo-600 mr-1" />
                 <span className="text-sm font-medium text-gray-800">Learning AI</span>
               </div>
               
-              {/* Chat controls - simplified to avoid duplication */}
+              {/* Chat controls with improved styling and animations */}
               <div className="ml-2 flex items-center">
                 <div className="flex space-x-1">
                   <Button 
                     variant="ghost" 
                     size="icon" 
                     onClick={saveCurrentConversation}
-                    className="h-7 w-7 rounded-full hover:bg-orange-100 hover:text-orange-700"
+                    className="h-7 w-7 rounded-full hover:bg-indigo-100 hover:text-indigo-700 transition-colors duration-200"
                     title="Save this conversation"
                   >
                     <Save className="h-3.5 w-3.5" />
@@ -580,7 +581,7 @@ const AIAssistant = ({ onApiConfigured }) => {
                     variant="ghost" 
                     size="icon"
                     onClick={clearConversation}
-                    className="h-7 w-7 rounded-full hover:bg-orange-100 hover:text-orange-700"
+                    className="h-7 w-7 rounded-full hover:bg-indigo-100 hover:text-indigo-700 transition-colors duration-200"
                     title="Clear current conversation"
                   >
                     <RotateCcw className="h-3.5 w-3.5" />
@@ -590,7 +591,7 @@ const AIAssistant = ({ onApiConfigured }) => {
               
               <div className="ml-auto flex items-center space-x-2">
                 {savedApiSettings?.provider && (
-                  <div className="text-xs px-2 py-1 bg-white border border-orange-100 text-orange-700 rounded-full shadow-sm">
+                  <div className="text-xs px-2 py-1 glass-effect border border-indigo-100 text-indigo-700 rounded-full shadow-md">
                     {savedApiSettings.provider === 'openai' ? 'OpenAI' : 
                      savedApiSettings.provider === 'anthropic' ? 'Anthropic' : 
                      savedApiSettings.provider === 'openrouter' ? 'OpenRouter' :
@@ -605,9 +606,13 @@ const AIAssistant = ({ onApiConfigured }) => {
             
             <div className="flex-grow overflow-y-auto p-4 space-y-4 bg-gray-50 ai-chat-scrollbar">
               {messages.length === 0 && !isTyping && savedApiSettings && (
-                <div className="flex flex-col items-center justify-center h-full opacity-70">
-                  <Sparkles className="h-8 w-8 text-orange-300 mb-2" />
-                  <p className="text-sm text-gray-500 text-center">Ask me anything about learning techniques,<br/>subject explanations, or study strategies!</p>
+                <div className="flex flex-col items-center justify-center h-full opacity-80">
+                  <div className="animate-bounce mb-2">
+                    <Sparkles className="h-10 w-10 text-indigo-400" />
+                  </div>
+                  <p className="text-sm text-gray-600 text-center font-medium">
+                    Ask me anything about learning techniques,<br/>subject explanations, or study strategies!
+                  </p>
                 </div>
               )}
               
@@ -616,13 +621,13 @@ const AIAssistant = ({ onApiConfigured }) => {
               ))}
               
               {isTyping && (
-                <div className="flex items-center text-gray-500 text-sm bg-white p-3 rounded-lg border border-gray-100 shadow-sm">
+                <div className="flex items-center text-gray-600 text-sm bg-white p-3 rounded-lg border border-indigo-100 shadow-md">
                   <div className="typing-indicator">
                     <span></span>
                     <span></span>
                     <span></span>
                   </div>
-                  <span className="ml-2">AI is thinking...</span>
+                  <span className="ml-2 font-medium">AI is thinking...</span>
                 </div>
               )}
               <div ref={messagesEndRef} />
@@ -635,13 +640,13 @@ const AIAssistant = ({ onApiConfigured }) => {
                   onChange={(e) => setInput(e.target.value)}
                   onKeyDown={handleKeyDown}
                   placeholder={t('typeYourMessage')}
-                  className="flex-grow rounded-full border-orange-200 focus:border-orange-300 focus:ring-orange-200 shadow-sm input-focus-effect"
+                  className="flex-grow rounded-full border-indigo-200 focus:border-indigo-400 focus:ring-indigo-200 shadow-md input-focus-effect"
                   disabled={(isTyping || !savedApiSettings)}
                 />
                 <Button 
                   onClick={sendMessage} 
                   disabled={!input.trim() || !savedApiSettings || isTyping}
-                  className="bg-gradient-to-r from-orange-500 to-amber-500 text-white hover:from-orange-600 hover:to-amber-600 rounded-full shadow-sm aspect-square p-2"
+                  className="ai-button-gradient text-white rounded-full shadow-md aspect-square p-2 transition-all duration-300"
                 >
                   <Send className="h-4 w-4" />
                 </Button>
@@ -666,7 +671,7 @@ const AIAssistant = ({ onApiConfigured }) => {
           <Button 
             variant="ghost" 
             onClick={() => setActiveTab('chat')}
-            className="text-gray-500 hover:text-orange-600 mb-2"
+            className="text-gray-500 hover:text-indigo-600 mb-2 transition-colors duration-200"
             size="sm"
           >
             <span className="text-xs">← {t('chat')}</span>
@@ -679,20 +684,20 @@ const AIAssistant = ({ onApiConfigured }) => {
         </TabsContent>
       </Tabs>
       
-      {/* Saved Conversations Modal */}
+      {/* Saved Conversations Modal with glass morphism effect */}
       {showConversations && (
-        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
-          <div className="bg-white rounded-xl shadow-lg w-full max-w-2xl max-h-[80vh] flex flex-col overflow-hidden">
-            <div className="p-4 border-b flex items-center justify-between bg-gradient-to-r from-orange-50 to-amber-50">
-              <h3 className="text-lg font-semibold text-orange-700 flex items-center">
-                <BookOpen className="h-5 w-5 mr-2 text-orange-600" />
+        <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4 backdrop-blur-sm">
+          <div className="bg-white rounded-xl shadow-xl w-full max-w-2xl max-h-[80vh] flex flex-col overflow-hidden">
+            <div className="p-4 border-b flex items-center justify-between ai-assistant-header-gradient">
+              <h3 className="text-lg font-semibold text-indigo-700 flex items-center">
+                <BookOpen className="h-5 w-5 mr-2 text-indigo-600" />
                 {t('conversations')}
               </h3>
               <Button
                 variant="ghost"
                 size="sm"
                 onClick={() => setShowConversations(false)}
-                className="rounded-full h-8 w-8 p-0"
+                className="rounded-full h-8 w-8 p-0 hover:bg-indigo-100 hover:text-indigo-700 transition-colors duration-200"
               >
                 <X className="h-4 w-4" />
               </Button>
@@ -732,16 +737,16 @@ const AIAssistant = ({ onApiConfigured }) => {
                       {dbConversations.map((convo) => (
                         <div 
                           key={convo.id} 
-                          className="bg-gray-50 rounded-lg p-3 hover:bg-orange-50 transition-colors border border-gray-200 cursor-pointer group"
+                          className="bg-gray-50 rounded-lg p-3 hover:bg-indigo-50 transition-colors border border-gray-200 cursor-pointer group shadow-sm hover:shadow-md"
                           onClick={() => loadConversation(convo)}
                         >
                           <div className="flex items-start justify-between">
                             <div className="flex items-start space-x-3">
                               <div className="mt-1">
-                                <User className="h-4 w-4 text-orange-500" />
+                                <User className="h-4 w-4 text-indigo-500" />
                               </div>
                               <div>
-                                <h4 className="font-medium text-gray-800 group-hover:text-orange-700">
+                                <h4 className="font-medium text-gray-800 group-hover:text-indigo-700 transition-colors duration-200">
                                   {convo.title}
                                 </h4>
                                 <div className="flex items-center mt-1 text-gray-500 text-xs">
@@ -765,13 +770,13 @@ const AIAssistant = ({ onApiConfigured }) => {
                             <Button
                               variant="ghost"
                               size="sm"
-                              className="opacity-0 group-hover:opacity-100 h-8 w-8 rounded-full p-0"
+                              className="opacity-0 group-hover:opacity-100 h-8 w-8 rounded-full p-0 transition-opacity duration-200"
                               onClick={(e) => {
                                 e.stopPropagation();
                                 deleteDbConversation(convo.id);
                               }}
                             >
-                              <Trash2 className="h-4 w-4 text-gray-500 hover:text-red-500" />
+                              <Trash2 className="h-4 w-4 text-gray-500 hover:text-red-500 transition-colors duration-200" />
                             </Button>
                           </div>
                         </div>
@@ -793,16 +798,16 @@ const AIAssistant = ({ onApiConfigured }) => {
                       {savedConversations.map((convo) => (
                         <div 
                           key={convo.id} 
-                          className="bg-gray-50 rounded-lg p-3 hover:bg-orange-50 transition-colors border border-gray-200 cursor-pointer group"
+                          className="bg-gray-50 rounded-lg p-3 hover:bg-indigo-50 transition-colors border border-gray-200 cursor-pointer group shadow-sm hover:shadow-md"
                           onClick={() => loadConversation(convo)}
                         >
                           <div className="flex items-start justify-between">
                             <div className="flex items-start space-x-3">
                               <div className="mt-1">
-                                <Clock className="h-4 w-4 text-orange-500" />
+                                <Clock className="h-4 w-4 text-indigo-500" />
                               </div>
                               <div>
-                                <h4 className="font-medium text-gray-800 group-hover:text-orange-700">
+                                <h4 className="font-medium text-gray-800 group-hover:text-indigo-700 transition-colors duration-200">
                                   {convo.title}
                                 </h4>
                                 <div className="flex items-center mt-1 text-gray-500 text-xs">
@@ -826,13 +831,13 @@ const AIAssistant = ({ onApiConfigured }) => {
                             <Button
                               variant="ghost"
                               size="sm"
-                              className="opacity-0 group-hover:opacity-100 h-8 w-8 rounded-full p-0"
+                              className="opacity-0 group-hover:opacity-100 h-8 w-8 rounded-full p-0 transition-opacity duration-200"
                               onClick={(e) => {
                                 e.stopPropagation();
                                 deleteLocalConversation(convo.id);
                               }}
                             >
-                              <Trash2 className="h-4 w-4 text-gray-500 hover:text-red-500" />
+                              <Trash2 className="h-4 w-4 text-gray-500 hover:text-red-500 transition-colors duration-200" />
                             </Button>
                           </div>
                         </div>
@@ -844,9 +849,9 @@ const AIAssistant = ({ onApiConfigured }) => {
               
               {/* Show login prompt for non-authenticated users */}
               {!isAuthenticated && savedConversations.length > 0 && (
-                <div className="mt-4 p-3 border border-orange-100 bg-orange-50 rounded-lg">
+                <div className="mt-4 p-3 border border-indigo-100 bg-indigo-50 rounded-lg shadow-sm">
                   <div className="flex items-start space-x-3">
-                    <LogIn className="h-5 w-5 text-orange-500 mt-0.5" />
+                    <LogIn className="h-5 w-5 text-indigo-500 mt-0.5" />
                     <div>
                       <p className="text-sm text-gray-700">
                         <span className="font-medium">Sign in</span> to save your conversations to your account.
@@ -865,7 +870,7 @@ const AIAssistant = ({ onApiConfigured }) => {
                 variant="outline"
                 size="sm"
                 onClick={() => setShowConversations(false)}
-                className="w-full"
+                className="w-full hover:bg-indigo-50 hover:text-indigo-600 hover:border-indigo-200 transition-colors duration-200"
               >
                 {t('cancel')}
               </Button>
