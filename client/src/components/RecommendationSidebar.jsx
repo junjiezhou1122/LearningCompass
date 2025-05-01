@@ -5,9 +5,9 @@ import CalendarPanel from '@/components/sidebar/CalendarPanel';
 export default function RecommendationSidebar() {
   return (
     <aside className="w-full">
-      <CalendarPanel />
       <TasksPanel />
       <RecommendationsPanel />
+      <CalendarPanel />
     </aside>
   );
 }
