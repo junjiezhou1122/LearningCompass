@@ -2,7 +2,7 @@ Version 1!
 Version 1.1! add ai assitant(basic verion ai assitant)
 Version 1.2! improve the ui design 
 Version 1.3! add google login(solve many bugs, may remain some of them)
-
+Version 1.3.1 fix most of bugs(more roboust version)
 
 
 

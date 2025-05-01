@@ -565,60 +565,50 @@ export default function UserProfile() {
     setIsCommentsLoading(false);
   }, [userId]);
 
+  // Using TanStack Query for data fetching with proper caching
+  const { data: userLikesData } = useQuery({
+    queryKey: [`/api/users/${effectiveUserId}/likes`],
+    queryFn: async () => {
+      if (!effectiveUserId) return [];
+      console.log(`Fetching likes for user ID: ${effectiveUserId}`);
+      const response = await fetch(`/api/users/${effectiveUserId}/likes`);
+      if (!response.ok) throw new Error(`Error fetching likes: ${response.statusText}`);
+      return response.json();
+    },
+    enabled: activeTab === "likes" && !!effectiveUserId,
+  });
+  
+  // Update local state when query data changes
   useEffect(() => {
-    // Fetch user's liked posts when tab is 'likes'
-    if (activeTab === "likes" && !isLikesLoading && effectiveUserId) {
-      const fetchLikes = async () => {
-        setIsLikesLoading(true);
-        try {
-          console.log(`Fetching likes for user ID: ${effectiveUserId}`);
-          const response = await fetch(`/api/users/${effectiveUserId}/likes`);
-          if (response.ok) {
-            const data = await response.json();
-            console.log("Fetched user likes:", data);
-            setUserLikes(data);
-          } else {
-            console.error(`Error response: ${response.status} ${response.statusText}`);
-          }
-        } catch (error) {
-          console.error("Error fetching liked posts:", error);
-        } finally {
-          setIsLikesLoading(false);
-        }
-      };
-
-      fetchLikes();
+    if (userLikesData) {
+      setUserLikes(userLikesData);
     }
+  }, [userLikesData]);
 
-    // Fetch user's comments when tab is 'comments'
-    if (
-      activeTab === "comments" &&
-      !isCommentsLoading &&
-      effectiveUserId // Make sure we have a valid user ID
-    ) {
-      const fetchComments = async () => {
-        setIsCommentsLoading(true);
-        try {
-          console.log(`Fetching comments for user ID: ${effectiveUserId}`);
-          // Use effectiveUserId to ensure we're getting the correct user's comments
-          const response = await fetch(`/api/users/${effectiveUserId}/comments`);
-          if (response.ok) {
-            const data = await response.json();
-            console.log("Fetched user comments:", data);
-            setUserComments(data);
-          } else {
-            console.error(`Error response: ${response.status} ${response.statusText}`);
-          }
-        } catch (error) {
-          console.error("Error fetching user comments:", error);
-        } finally {
-          setIsCommentsLoading(false);
-        }
-      };
-
-      fetchComments();
+  // Use TanStack Query for comments fetching with proper caching
+  const { data: userCommentsData, isLoading: commentsQueryLoading } = useQuery({
+    queryKey: [`/api/users/${effectiveUserId}/comments`],
+    queryFn: async () => {
+      if (!effectiveUserId) return [];
+      console.log(`Fetching comments for user ID: ${effectiveUserId}`);
+      const response = await fetch(`/api/users/${effectiveUserId}/comments`);
+      if (!response.ok) throw new Error(`Error fetching comments: ${response.statusText}`);
+      return response.json();
+    },
+    enabled: activeTab === "comments" && !!effectiveUserId,
+  });
+  
+  // Update comments loading state based on query status
+  useEffect(() => {
+    setIsCommentsLoading(commentsQueryLoading);
+  }, [commentsQueryLoading]);
+  
+  // Update local state when comments query data changes
+  useEffect(() => {
+    if (userCommentsData) {
+      setUserComments(userCommentsData);
     }
-  }, [activeTab, effectiveUserId, isLikesLoading, isCommentsLoading]);
+  }, [userCommentsData]);
 
   // Handle profile form changes
   const handleProfileChange = (e) => {
