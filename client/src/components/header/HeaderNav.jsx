@@ -4,33 +4,28 @@ import { Button } from "@/components/ui/button";
 import { BookOpen, MessageSquare } from "lucide-react";
 import LanguageSwitcher from "../LanguageSwitcher";
 
-export default function HeaderNav({ isResourcesHub }) {
-  const [, navigate] = useLocation();
+export default function HeaderNav() {
+  const [location, navigate] = useLocation();
   const { t } = useLanguage();
 
   return (
-    <>
-      {/* Main Navigation Links */}
+    <div className="hidden md:flex items-center space-x-2">
       <Button
         variant="ghost"
-        className="text-white hover:text-white hover:bg-amber-600 font-medium"
-        onClick={() => navigate(isResourcesHub ? "/" : "/courses")}
+        className="text-white hover:text-white hover:bg-amber-600/80 transition-all duration-500"
+        onClick={() => navigate("/courses")}
       >
-        <BookOpen className="h-4 w-4 mr-2" />
-        {isResourcesHub ? t("learningPlatform") : t("resourcesHub")}
+        <BookOpen className="h-5 w-5 mr-2" />
+        {t("resourcesHub")}
       </Button>
-
       <Button
         variant="ghost"
-        className="text-white hover:text-white hover:bg-amber-600 font-medium"
+        className="text-white hover:text-white hover:bg-amber-600/80 transition-all duration-500"
         onClick={() => navigate("/share")}
       >
-        <MessageSquare className="h-4 w-4 mr-2" />
+        <MessageSquare className="h-5 w-5 mr-2" />
         {t("shareConnect")}
       </Button>
-
-      {/* Language Switcher */}
-      <LanguageSwitcher />
-    </>
+    </div>
   );
 }

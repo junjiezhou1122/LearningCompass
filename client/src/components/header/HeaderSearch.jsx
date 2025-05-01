@@ -13,6 +13,7 @@ export default function HeaderSearch({ isMobile = false }) {
   const { t } = useLanguage();
   const [recentSearches, setRecentSearches] = useState([]);
   const [isSearchPopoverOpen, setIsSearchPopoverOpen] = useState(false);
+  const [isFocused, setIsFocused] = useState(false);
   const searchContainerRef = useRef(null);
   const searchInputRef = useRef(null);
 
@@ -152,7 +153,10 @@ export default function HeaderSearch({ isMobile = false }) {
   // Close popover when clicking outside
   useEffect(() => {
     const handleClickOutside = (event) => {
-      if (searchContainerRef.current && !searchContainerRef.current.contains(event.target)) {
+      if (
+        searchContainerRef.current &&
+        !searchContainerRef.current.contains(event.target)
+      ) {
         setIsSearchPopoverOpen(false);
       }
     };
@@ -162,32 +166,49 @@ export default function HeaderSearch({ isMobile = false }) {
   }, []);
 
   return (
-    <div ref={searchContainerRef} className="relative w-full max-w-md mx-auto">
+    <div ref={searchContainerRef} className="relative w-full max-w-sm mx-auto">
       <form onSubmit={handleSearchSubmit}>
-        <div className="relative flex shadow-sm hover:shadow-md transition-shadow duration-300">
+        <div
+          className={`relative flex shadow-sm hover:shadow-md transition-all duration-500 ease-in-out transform hover:scale-[1.02] ${
+            isFocused ? "scale-[1.02] shadow-lg" : ""
+          }`}
+        >
           <div className="relative flex-grow">
-            <div className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 pointer-events-none transition-transform duration-300 group-focus-within:scale-110">
+            <div
+              className={`absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 pointer-events-none transition-all duration-500 ${
+                isFocused ? "scale-110 text-amber-500" : ""
+              }`}
+            >
               <Search className="h-4 w-4" />
             </div>
             <Input
               ref={searchInputRef}
               type="text"
               placeholder={t("searchPlaceholder")}
-              className="w-full pl-10 pr-4 h-9 rounded-r-none border-0 focus-visible:ring-amber-400 text-gray-800 bg-white/95 backdrop-blur-sm transition-all duration-300 hover:bg-white focus:bg-white group"
+              className={`w-full pl-10 pr-4 h-8 rounded-r-none border-0 focus-visible:ring-amber-400 text-gray-800 bg-white/95 backdrop-blur-sm transition-all duration-500 ${
+                isFocused ? "bg-white shadow-inner" : "hover:bg-white/98"
+              }`}
               value={searchQuery}
               onChange={handleSearchChange}
               onKeyDown={handleSearchKeyPress}
               onFocus={() => {
+                setIsFocused(true);
                 if (isAuthenticated && recentSearches.length > 0) {
                   setIsSearchPopoverOpen(true);
                 }
               }}
+              onBlur={() => {
+                setIsFocused(false);
+              }}
             />
-            {/* History button */}
             {isAuthenticated && recentSearches.length > 0 && (
               <button
                 type="button"
-                className="absolute right-2 top-1/2 transform -translate-y-1/2 cursor-pointer p-1 rounded-full hover:bg-gray-100 transition-all duration-300"
+                className={`absolute right-2 top-1/2 transform -translate-y-1/2 cursor-pointer p-1 rounded-full transition-all duration-500 ${
+                  isSearchPopoverOpen
+                    ? "bg-amber-100 text-amber-700"
+                    : "hover:bg-gray-100"
+                }`}
                 onClick={(e) => {
                   e.preventDefault();
                   e.stopPropagation();
@@ -195,9 +216,9 @@ export default function HeaderSearch({ isMobile = false }) {
                 }}
               >
                 <History
-                  className={`h-4 w-4 ${
+                  className={`h-4 w-4 transition-all duration-500 ${
                     isSearchPopoverOpen ? "text-amber-700" : "text-gray-400"
-                  } hover:text-amber-700 transition-colors duration-300`}
+                  }`}
                 />
               </button>
             )}
@@ -205,7 +226,9 @@ export default function HeaderSearch({ isMobile = false }) {
           <Button
             type="submit"
             size="sm"
-            className="rounded-l-none bg-amber-600 hover:bg-amber-700 border-0 px-3 h-9 transition-all duration-300 hover:shadow-md"
+            className={`rounded-l-none bg-amber-600 hover:bg-amber-700 border-0 px-3 h-8 transition-all duration-500 ${
+              isFocused ? "shadow-lg" : "hover:shadow-md"
+            }`}
           >
             <Search className="h-4 w-4 text-white" />
           </Button>
@@ -221,7 +244,7 @@ export default function HeaderSearch({ isMobile = false }) {
               <Button
                 variant="outline"
                 size="sm"
-                className="w-full flex justify-center items-center text-white border-white/20 hover:bg-amber-700/20 transition-all duration-300"
+                className="w-full flex justify-center items-center text-white border-white/20 hover:bg-amber-700/20 transition-all duration-500 hover:scale-[1.02]"
                 onClick={() => setIsSearchPopoverOpen(!isSearchPopoverOpen)}
               >
                 <History className="h-4 w-4 mr-2" />
@@ -232,14 +255,14 @@ export default function HeaderSearch({ isMobile = false }) {
               </Button>
 
               {isSearchPopoverOpen && (
-                <div className="mt-2 bg-white rounded-md shadow-lg border border-orange-100">
+                <div className="mt-2 bg-white rounded-md shadow-lg border border-orange-100 animate-fadeIn">
                   <div className="flex items-center justify-between px-3 py-2 text-sm font-medium text-gray-600 bg-orange-50/50 rounded-t-md border-b border-orange-100">
                     <div className="flex items-center">
                       <History className="h-4 w-4 mr-2 text-orange-500" />
                       <span>{t("recentSearches")}</span>
                     </div>
                     <button
-                      className="text-gray-400 hover:text-gray-600 transition-colors duration-300 p-1 hover:bg-orange-100 rounded-full"
+                      className="text-gray-400 hover:text-gray-600 transition-all duration-500 p-1 hover:bg-orange-100 rounded-full hover:rotate-90"
                       onClick={() => setIsSearchPopoverOpen(false)}
                     >
                       <X className="h-4 w-4" />
@@ -247,11 +270,18 @@ export default function HeaderSearch({ isMobile = false }) {
                   </div>
                   <div className="max-h-[200px] overflow-y-auto">
                     <div className="py-1">
-                      {recentSearches.map((item) => (
+                      {recentSearches.map((item, index) => (
                         <button
                           key={item.id}
-                          className="flex items-center justify-between w-full px-3 py-2 text-sm text-gray-700 hover:bg-orange-50 transition-colors duration-300"
-                          onClick={() => handleRecentSearchClick(item.searchQuery)}
+                          className="flex items-center justify-between w-full px-3 py-2 text-sm text-gray-700 hover:bg-orange-50 transition-all duration-500 hover:translate-x-1"
+                          onClick={() =>
+                            handleRecentSearchClick(item.searchQuery)
+                          }
+                          style={{
+                            animationDelay: `${index * 50}ms`,
+                            animation: "slideIn 0.3s ease-out forwards",
+                            opacity: 0,
+                          }}
                         >
                           <div className="flex items-center">
                             <Clock className="h-3.5 w-3.5 mr-2 text-orange-400" />
@@ -270,11 +300,15 @@ export default function HeaderSearch({ isMobile = false }) {
           ) : (
             // Desktop dropdown
             <div
-              className={`absolute top-full left-0 right-0 mt-1 bg-white rounded-md shadow-lg border border-orange-100 z-50 transform transition-all duration-300 ${
+              className={`absolute top-full left-0 right-0 mt-1 bg-white rounded-md shadow-lg border border-orange-100 z-50 transform transition-all duration-500 ${
                 isSearchPopoverOpen
                   ? "opacity-100 translate-y-0"
                   : "opacity-0 -translate-y-2 pointer-events-none"
               }`}
+              style={{
+                marginTop: "0.5rem",
+                transformOrigin: "top center",
+              }}
             >
               <div className="py-2">
                 <div className="flex items-center justify-between px-3 py-2 text-sm font-medium text-gray-600 bg-orange-50/50 border-b border-orange-100">
@@ -283,7 +317,7 @@ export default function HeaderSearch({ isMobile = false }) {
                     <span>{t("recentSearches")}</span>
                   </div>
                   <button
-                    className="text-gray-400 hover:text-gray-600 transition-colors duration-300 p-1 hover:bg-orange-100 rounded-full"
+                    className="text-gray-400 hover:text-gray-600 transition-all duration-500 p-1 hover:bg-orange-100 rounded-full hover:rotate-90"
                     onClick={() => setIsSearchPopoverOpen(false)}
                   >
                     <X className="h-4 w-4" />
@@ -291,11 +325,18 @@ export default function HeaderSearch({ isMobile = false }) {
                 </div>
                 <div className="max-h-[300px] overflow-y-auto">
                   <div className="py-1">
-                    {recentSearches.map((item) => (
+                    {recentSearches.map((item, index) => (
                       <button
                         key={item.id}
-                        className="flex items-center justify-between w-full px-3 py-2 text-sm text-gray-700 hover:bg-orange-50 transition-colors duration-300"
-                        onClick={() => handleRecentSearchClick(item.searchQuery)}
+                        className="flex items-center justify-between w-full px-3 py-2 text-sm text-gray-700 hover:bg-orange-50 transition-all duration-500 hover:translate-x-1"
+                        onClick={() =>
+                          handleRecentSearchClick(item.searchQuery)
+                        }
+                        style={{
+                          animationDelay: `${index * 50}ms`,
+                          animation: "slideIn 0.3s ease-out forwards",
+                          opacity: 0,
+                        }}
                       >
                         <div className="flex items-center">
                           <Clock className="h-3.5 w-3.5 mr-2 text-orange-400" />
@@ -313,6 +354,32 @@ export default function HeaderSearch({ isMobile = false }) {
           )}
         </>
       )}
+
+      <style jsx global>{`
+        @keyframes slideIn {
+          from {
+            opacity: 0;
+            transform: translateX(-10px);
+          }
+          to {
+            opacity: 1;
+            transform: translateX(0);
+          }
+        }
+        @keyframes fadeIn {
+          from {
+            opacity: 0;
+            transform: translateY(-10px);
+          }
+          to {
+            opacity: 1;
+            transform: translateY(0);
+          }
+        }
+        .animate-fadeIn {
+          animation: fadeIn 0.3s ease-out forwards;
+        }
+      `}</style>
     </div>
   );
 }

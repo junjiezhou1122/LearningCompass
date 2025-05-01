@@ -160,14 +160,16 @@ export default function AuthModals() {
         <Button 
           variant="ghost" 
           onClick={() => setIsLoginOpen(true)}
-          className="text-gray-600 hover:text-primary-600"
+          className="text-white hover:text-white hover:bg-amber-600/80 transition-all duration-500 flex items-center gap-2"
         >
+          <LogIn className="h-4 w-4" />
           Sign In
         </Button>
         <Button 
           onClick={() => setIsRegisterOpen(true)}
-          className="bg-primary-600 hover:bg-primary-700 text-white"
+          className="bg-white hover:bg-orange-50 text-orange-600 hover:text-orange-700 transition-all duration-500 flex items-center gap-2"
         >
+          <UserPlus className="h-4 w-4" />
           Sign Up
         </Button>
       </div>
