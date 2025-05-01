@@ -19,6 +19,7 @@ const LanguageSwitcher = () => {
           variant="ghost" 
           size="icon" 
           className="text-white hover:text-white hover:bg-amber-600"
+          aria-label={t('language')}
         >
           <Globe className="h-5 w-5" />
         </Button>
@@ -28,13 +29,19 @@ const LanguageSwitcher = () => {
           className={`cursor-pointer ${language === LANGUAGES.ENGLISH ? 'font-bold bg-amber-50' : ''}`}
           onClick={() => setLanguage(LANGUAGES.ENGLISH)}
         >
-          🇺🇸 {t('english')}
+          <div className="flex items-center">
+            <span className="mr-2">🇺🇸</span>
+            <span>{t('english')}</span>
+          </div>
         </DropdownMenuItem>
         <DropdownMenuItem 
           className={`cursor-pointer ${language === LANGUAGES.CHINESE ? 'font-bold bg-amber-50' : ''}`}
           onClick={() => setLanguage(LANGUAGES.CHINESE)}
         >
-          🇨🇳 {t('chinese')}
+          <div className="flex items-center">
+            <span className="mr-2">🇨🇳</span>
+            <span>{t('chinese')}</span>
+          </div>
         </DropdownMenuItem>
       </DropdownMenuContent>
     </DropdownMenu>

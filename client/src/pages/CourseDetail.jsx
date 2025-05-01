@@ -366,8 +366,7 @@ export default function CourseDetail() {
             {t("courseNotFound")}
           </h2>
           <p className="text-gray-600 mb-6">
-            We couldn't find the course you're looking for. It may have been
-            removed or you might have followed an invalid link.
+            {t("courseNotFoundMessage")}
           </p>
           <Button onClick={handleBackClick}>
             <ArrowLeft className="h-4 w-4 mr-2" />
@@ -514,7 +513,7 @@ export default function CourseDetail() {
                       <h4 className="font-medium text-gray-700">{t("enrolled")}</h4>
                       <p className="text-gray-600">
                         {new Intl.NumberFormat().format(course.numberOfViewers)}{" "}
-                        students
+                        {t("students")}
                       </p>
                     </div>
                   </div>
@@ -525,7 +524,7 @@ export default function CourseDetail() {
               {course.subtitleLanguages && (
                 <div>
                   <h3 className="text-lg font-semibold text-gray-800 mb-2">
-                    Subtitles Available In
+                    {t("subtitlesAvailableIn")}
                   </h3>
                   <div className="flex flex-wrap gap-2">
                     {formatSubtitleLanguages(course.subtitleLanguages).map(
@@ -547,7 +546,7 @@ export default function CourseDetail() {
               {course.skills && (
                 <div>
                   <h3 className="text-lg font-semibold text-gray-800 mb-2">
-                    Skills You'll Gain
+                    {t("skillsYoullGain")}
                   </h3>
                   <div className="flex flex-wrap gap-2">
                     {formatSkills(course.skills).map((skill, index) => (
@@ -570,14 +569,14 @@ export default function CourseDetail() {
         <div>
           <Card className="sticky top-24">
             <CardHeader>
-              <CardTitle className="text-xl">Enroll in This Course</CardTitle>
+              <CardTitle className="text-xl">{t("enrollInThisCourse")}</CardTitle>
             </CardHeader>
 
             <CardContent className="space-y-4">
               {/* Course Provider */}
               {course.site && (
                 <div className="flex items-center justify-between text-gray-700">
-                  <span>Provider</span>
+                  <span>{t("courseProvider")}</span>
                   <span className="font-medium">{course.site}</span>
                 </div>
               )}
@@ -585,7 +584,7 @@ export default function CourseDetail() {
               {/* Course Type */}
               {course.courseType && (
                 <div className="flex items-center justify-between text-gray-700">
-                  <span>Type</span>
+                  <span>{t("type")}</span>
                   <span className="font-medium">{course.courseType}</span>
                 </div>
               )}
@@ -593,7 +592,7 @@ export default function CourseDetail() {
               {/* Duration */}
               {course.duration && (
                 <div className="flex items-center justify-between text-gray-700">
-                  <span>Duration</span>
+                  <span>{t("duration")}</span>
                   <span className="font-medium">{course.duration}</span>
                 </div>
               )}
@@ -608,7 +607,7 @@ export default function CourseDetail() {
                   onClick={() => window.open(course.url, "_blank")}
                 >
                   <ExternalLink className="h-4 w-4 mr-2 text-white" />
-                  <span className="text-white font-medium">Go to Course</span>
+                  <span className="text-white font-medium">{t("goToCourse")}</span>
                 </Button>
 
                 <div className="flex gap-2">
@@ -640,7 +639,7 @@ export default function CourseDetail() {
                           : "text-gray-700"
                       }
                     >
-                      {isBookmarked ? "Bookmarked" : "Bookmark"}
+                      {isBookmarked ? t("bookmarked") : t("bookmark")}
                     </span>
                   </Button>
 
@@ -650,7 +649,7 @@ export default function CourseDetail() {
                     className="font-medium border border-gray-300 hover:bg-gray-50"
                   >
                     <Share2 className="h-4 w-4 mr-2 text-gray-600" />
-                    <span className="text-gray-700">Share</span>
+                    <span className="text-gray-700">{t("share")}</span>
                   </Button>
                 </div>
               </div>
@@ -661,8 +660,8 @@ export default function CourseDetail() {
               {course.numberOfViewers
                 ? `${new Intl.NumberFormat().format(
                     course.numberOfViewers
-                  )} students enrolled`
-                : "Be the first to enroll!"}
+                  )} ${t("studentsEnrolled")}`
+                : t("beFirstToEnroll")}
             </CardFooter>
           </Card>
         </div>

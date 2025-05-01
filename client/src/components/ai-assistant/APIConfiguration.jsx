@@ -154,7 +154,7 @@ const APIConfiguration = ({ initialSettings, onSave }) => {
           <CardTitle className="text-xl text-orange-700">{t('apiSettings')}</CardTitle>
         </div>
         <CardDescription>
-          {t('provider') === 'Provider' ? 'Configure your AI provider credentials and preferences' : '配置您的AI提供商凭证和首选项'}
+          {t('aiProvider') === 'Provider' ? 'Configure your AI provider credentials and preferences' : '配置您的AI提供商凭证和首选项'}
         </CardDescription>
       </CardHeader>
       
