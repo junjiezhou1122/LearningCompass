@@ -11,7 +11,11 @@ import {
   // AI conversations schemas and types
   aiConversations, AiConversation, InsertAiConversation,
   // Method applications schemas and types
-  methodApplications, MethodApplication, InsertMethodApplication
+  methodApplications, MethodApplication, InsertMethodApplication,
+  // Gamification schemas and types
+  userGamification, userBadges, userRecommendations,
+  UserGamification, InsertUserGamification, UserBadge, InsertUserBadge,
+  UserRecommendation, InsertUserRecommendation
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, and, like, desc, asc, sql, or, inArray, arrayContains } from "drizzle-orm";
@@ -143,6 +147,23 @@ export interface IStorage {
   getActiveMethodApplicationsByUserId(userId: number): Promise<MethodApplication[]>;
   getCompletedMethodApplicationsByUserId(userId: number): Promise<MethodApplication[]>;
   getMethodApplicationsCount(methodPostId: number): Promise<number>;
+  
+  // Gamification operations
+  getUserGamification(userId: number): Promise<UserGamification | undefined>;
+  createUserGamification(gamification: InsertUserGamification): Promise<UserGamification>;
+  updateUserGamification(userId: number, data: Partial<InsertUserGamification>): Promise<UserGamification | undefined>;
+  addUserPoints(userId: number, points: number): Promise<UserGamification | undefined>;
+  incrementUserStreak(userId: number): Promise<UserGamification | undefined>;
+  
+  // User badges operations
+  getUserBadges(userId: number): Promise<UserBadge[]>;
+  createUserBadge(badge: InsertUserBadge): Promise<UserBadge>;
+  
+  // Recommendations operations
+  getUserRecommendations(userId: number, limit?: number): Promise<(UserRecommendation & { course: Course })[]>;
+  createUserRecommendation(recommendation: InsertUserRecommendation): Promise<UserRecommendation>;
+  updateUserRecommendation(id: number, data: Partial<InsertUserRecommendation>): Promise<UserRecommendation | undefined>;
+  generateRecommendations(userId: number): Promise<(UserRecommendation & { course: Course })[]>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -929,6 +950,292 @@ export class DatabaseStorage implements IStorage {
     .where(eq(methodApplications.methodPostId, methodPostId));
     
     return Number(result[0]?.count || 0);
+  }
+
+  // Gamification operations
+  async getUserGamification(userId: number): Promise<UserGamification | undefined> {
+    const [gamification] = await db.select().from(userGamification)
+      .where(eq(userGamification.userId, userId));
+    return gamification || undefined;
+  }
+  
+  async createUserGamification(data: InsertUserGamification): Promise<UserGamification> {
+    const [gamification] = await db.insert(userGamification).values(data).returning();
+    return gamification;
+  }
+  
+  async updateUserGamification(userId: number, data: Partial<InsertUserGamification>): Promise<UserGamification | undefined> {
+    const [updated] = await db.update(userGamification)
+      .set({
+        ...data,
+        updatedAt: new Date()
+      })
+      .where(eq(userGamification.userId, userId))
+      .returning();
+    
+    return updated;
+  }
+  
+  async addUserPoints(userId: number, points: number): Promise<UserGamification | undefined> {
+    // Get current user gamification
+    let userGamificationData = await this.getUserGamification(userId);
+    
+    if (!userGamificationData) {
+      // Create new gamification record if it doesn't exist
+      userGamificationData = await this.createUserGamification({
+        userId,
+        points,
+        level: 1,
+        streak: 0
+      });
+    } else {
+      // Add points to existing record
+      const newPoints = userGamificationData.points + points;
+      let newLevel = userGamificationData.level;
+      
+      // Simple level up logic
+      const pointsForNextLevel = newLevel * 100; // Each level requires level * 100 points
+      if (newPoints >= pointsForNextLevel) {
+        newLevel += 1;
+      }
+      
+      userGamificationData = await this.updateUserGamification(userId, {
+        points: newPoints,
+        level: newLevel,
+        lastActivity: new Date()
+      });
+    }
+    
+    return userGamificationData;
+  }
+  
+  async incrementUserStreak(userId: number): Promise<UserGamification | undefined> {
+    // Get current user gamification
+    let userGamificationData = await this.getUserGamification(userId);
+    
+    if (!userGamificationData) {
+      // Create new gamification record if it doesn't exist
+      userGamificationData = await this.createUserGamification({
+        userId,
+        points: 5, // Bonus points for first streak
+        level: 1,
+        streak: 1
+      });
+    } else {
+      const now = new Date();
+      const lastActivity = userGamificationData.lastActivity;
+      
+      // Check if streak should be reset (more than 48 hours since last activity)
+      let newStreak = userGamificationData.streak;
+      if (!lastActivity || (now.getTime() - lastActivity.getTime() > 48 * 60 * 60 * 1000)) {
+        newStreak = 1; // Reset streak
+      } else if (now.getTime() - lastActivity.getTime() > 20 * 60 * 60 * 1000) {
+        // If more than 20 hours since last activity, increment streak
+        newStreak += 1;
+      }
+      
+      // Update streak
+      userGamificationData = await this.updateUserGamification(userId, {
+        streak: newStreak,
+        lastActivity: now,
+        points: userGamificationData.points + 5 // Add 5 points for maintaining streak
+      });
+    }
+    
+    return userGamificationData;
+  }
+  
+  // User badges operations
+  async getUserBadges(userId: number): Promise<UserBadge[]> {
+    return await db.select().from(userBadges)
+      .where(eq(userBadges.userId, userId))
+      .orderBy(desc(userBadges.awardedAt));
+  }
+  
+  async createUserBadge(badge: InsertUserBadge): Promise<UserBadge> {
+    // Check if badge already exists
+    const [existingBadge] = await db.select().from(userBadges)
+      .where(and(
+        eq(userBadges.userId, badge.userId),
+        eq(userBadges.badgeId, badge.badgeId)
+      ));
+    
+    if (existingBadge) {
+      return existingBadge; // Badge already awarded
+    }
+    
+    // Award new badge and add points
+    const [newBadge] = await db.insert(userBadges).values(badge).returning();
+    
+    // Add 25 points for earning a badge
+    await this.addUserPoints(badge.userId, 25);
+    
+    return newBadge;
+  }
+  
+  // Recommendations operations
+  async getUserRecommendations(userId: number, limit: number = 5): Promise<(UserRecommendation & { course: Course })[]> {
+    const recommendations = await db.select({
+      recommendation: userRecommendations,
+      course: courses
+    })
+    .from(userRecommendations)
+    .innerJoin(courses, eq(userRecommendations.courseId, courses.id))
+    .where(eq(userRecommendations.userId, userId))
+    .orderBy(desc(userRecommendations.score))
+    .limit(limit);
+    
+    return recommendations.map(r => ({
+      ...r.recommendation,
+      course: r.course
+    }));
+  }
+  
+  async createUserRecommendation(recommendation: InsertUserRecommendation): Promise<UserRecommendation> {
+    // Check if recommendation already exists
+    const [existingRec] = await db.select().from(userRecommendations)
+      .where(and(
+        eq(userRecommendations.userId, recommendation.userId),
+        eq(userRecommendations.courseId, recommendation.courseId)
+      ));
+    
+    if (existingRec) {
+      // Update existing recommendation with new score if provided
+      if (recommendation.score !== undefined) {
+        const [updated] = await db.update(userRecommendations)
+          .set({
+            score: recommendation.score,
+            reason: recommendation.reason,
+            trending: recommendation.trending,
+            updatedAt: new Date()
+          })
+          .where(eq(userRecommendations.id, existingRec.id))
+          .returning();
+          
+        return updated;
+      }
+      return existingRec;
+    }
+    
+    // Create new recommendation
+    const [newRec] = await db.insert(userRecommendations).values(recommendation).returning();
+    return newRec;
+  }
+  
+  async updateUserRecommendation(id: number, data: Partial<InsertUserRecommendation>): Promise<UserRecommendation | undefined> {
+    const [updated] = await db.update(userRecommendations)
+      .set({
+        ...data,
+        updatedAt: new Date()
+      })
+      .where(eq(userRecommendations.id, id))
+      .returning();
+    
+    return updated;
+  }
+  
+  async generateRecommendations(userId: number): Promise<(UserRecommendation & { course: Course })[]> {
+    // First check for existing recommendations
+    const existing = await this.getUserRecommendations(userId);
+    if (existing.length > 0) {
+      return existing;
+    }
+    
+    // If no recommendations exist, generate some based on:
+    // 1. User's bookmarks
+    // 2. User's search history
+    // 3. Popular courses in general
+    
+    // Get user's bookmarks
+    const bookmarks = await this.getBookmarksByUserId(userId);
+    const bookmarkedCourseIds = bookmarks.map(b => b.courseId);
+    
+    // Get courses from bookmarks for category analysis
+    const bookmarkedCourses = await this.getCoursesByIds(bookmarkedCourseIds);
+    
+    // Extract categories and skills from bookmarked courses
+    const categories = new Set<string>();
+    const subCategories = new Set<string>();
+    const skills = new Set<string>();
+    
+    bookmarkedCourses.forEach(course => {
+      if (course.category) categories.add(course.category);
+      if (course.subCategory) subCategories.add(course.subCategory);
+      if (course.skills) {
+        course.skills.split(',').forEach(skill => {
+          skills.add(skill.trim());
+        });
+      }
+    });
+    
+    // Get recommended courses based on user interests
+    let recommendedCourses: Course[] = [];
+    
+    if (categories.size > 0) {
+      // Get courses in same categories
+      const categoryCourses = await this.getCourses({
+        category: Array.from(categories)[0], // Use first category
+        limit: 10,
+        sortBy: 'rating_high'
+      });
+      
+      recommendedCourses = [...recommendedCourses, ...categoryCourses];
+    }
+    
+    if (recommendedCourses.length < 5) {
+      // Get popular courses as fallback
+      const popularCourses = await this.getCourses({
+        limit: 10,
+        sortBy: 'popular'
+      });
+      
+      recommendedCourses = [...recommendedCourses, ...popularCourses];
+    }
+    
+    // Filter out duplicates and already bookmarked courses
+    const uniqueCourses = recommendedCourses
+      .filter((course, index, self) => 
+        index === self.findIndex(c => c.id === course.id))
+      .filter(course => !bookmarkedCourseIds.includes(course.id))
+      .slice(0, 5); // Limit to 5 recommendations
+    
+    // Create recommendation records
+    const recommendations: (UserRecommendation & { course: Course })[] = [];
+    
+    for (const course of uniqueCourses) {
+      // Generate reason based on course attributes
+      let reason = "Based on your interests";
+      if (categories.has(course.category)) {
+        reason = `Similar to courses you've bookmarked in ${course.category}`;
+      } else if (course.rating && course.rating > 4.5) {
+        reason = "Highly rated course you might enjoy";
+      } else if (course.numberOfViewers && course.numberOfViewers > 10000) {
+        reason = "Popular with many learners";
+      }
+      
+      // Calculate score (simple algorithm)
+      let score = 0.5; // base score
+      
+      if (categories.has(course.category)) score += 0.2;
+      if (subCategories.has(course.subCategory)) score += 0.1;
+      if (course.rating) score += course.rating / 10; // Up to 0.5 for a 5.0 rating
+      
+      // Create recommendation
+      const recommendation = await this.createUserRecommendation({
+        userId,
+        courseId: course.id,
+        score,
+        reason,
+        trending: course.numberOfViewers > 50000
+      });
+      
+      recommendations.push({
+        ...recommendation,
+        course
+      });
+    }
+    
+    return recommendations;
   }
 }
 

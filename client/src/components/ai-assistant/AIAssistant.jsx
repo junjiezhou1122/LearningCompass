@@ -15,7 +15,7 @@ import APIConfiguration from './APIConfiguration';
 import ChatMessage from './ChatMessage';
 import './ai-assistant.css';
 
-const AIAssistant = () => {
+const AIAssistant = ({ onApiConfigured }) => {
   const { toast } = useToast();
   const { user, isAuthenticated, token } = useAuth();
   const { t } = useLanguage();
@@ -45,21 +45,51 @@ const AIAssistant = () => {
 
   // Check if API settings and saved conversations are in localStorage
   useEffect(() => {
-    const storedSettings = localStorage.getItem('aiAssistantSettings');
-    if (storedSettings) {
-      const parsedSettings = JSON.parse(storedSettings);
-      setSavedApiSettings(parsedSettings);
-      setApiSettings(parsedSettings);
-    }
-    
-    // Load conversations from localStorage for non-authenticated users
-    if (!isAuthenticated) {
-      const storedConversations = localStorage.getItem('aiAssistantConversations');
-      if (storedConversations) {
-        setSavedConversations(JSON.parse(storedConversations));
+    try {
+      const storedSettings = localStorage.getItem('aiAssistantSettings');
+      if (storedSettings) {
+        const parsedSettings = JSON.parse(storedSettings);
+        // Make sure we have valid settings with all required fields
+        if (parsedSettings && parsedSettings.provider) {
+          setSavedApiSettings(parsedSettings);
+          setApiSettings(parsedSettings);
+          console.log('Loaded AI settings from localStorage:', parsedSettings.provider);
+          
+          // Notify parent component about API configuration status
+          if (onApiConfigured) {
+            onApiConfigured(true);
+          }
+        } else {
+          if (onApiConfigured) {
+            onApiConfigured(false);
+          }
+        }
+      } else {
+        // No settings found
+        if (onApiConfigured) {
+          onApiConfigured(false);
+        }
+      }
+      
+      // Load conversations from localStorage for non-authenticated users
+      if (!isAuthenticated) {
+        const storedConversations = localStorage.getItem('aiAssistantConversations');
+        if (storedConversations) {
+          setSavedConversations(JSON.parse(storedConversations));
+        }
+      }
+    } catch (error) {
+      console.error('Error loading AI settings from localStorage:', error);
+      // Reset to default if there's an error with stored settings
+      localStorage.removeItem('aiAssistantSettings');
+      setSavedApiSettings(null);
+      
+      // Notify parent component about API configuration failure
+      if (onApiConfigured) {
+        onApiConfigured(false);
       }
     }
-  }, [isAuthenticated]);
+  }, [isAuthenticated, onApiConfigured]);
   
   // Fetch conversations from database when user is authenticated
   useEffect(() => {
@@ -136,6 +166,12 @@ const AIAssistant = () => {
       description: 'Your API settings have been saved.',
       variant: 'default',
     });
+    
+    // Notify parent component that API is now configured
+    if (onApiConfigured) {
+      onApiConfigured(true);
+    }
+    
     setActiveTab('chat');
   };
 
@@ -174,17 +210,27 @@ const AIAssistant = () => {
     setIsTyping(true);
 
     try {
-      // Prepare request body based on provider
-      const requestBody = {
+      // Create a clean copy of the API settings for this request
+      const currentSettings = {
         provider: savedApiSettings.provider,
-        apiKey: savedApiSettings.apiKey,
+        apiKey: savedApiSettings.apiKey || '',
         baseUrl: savedApiSettings.baseUrl || undefined,
         model: savedApiSettings.model,
-        temperature: savedApiSettings.temperature,
-        maxTokens: savedApiSettings.maxTokens,
-        messages: [...messages, userMessage].map(msg => ({ role: msg.role, content: msg.content }))
+        temperature: savedApiSettings.temperature || 0.7,
+        maxTokens: savedApiSettings.maxTokens || 1000
+      };
+      
+      // Prepare request body based on provider
+      const requestBody = {
+        ...currentSettings,
+        messages: [...messages, userMessage].map(msg => ({ 
+          role: msg.role, 
+          content: msg.content 
+        }))
       };
 
+      console.log('Sending message with provider:', currentSettings.provider);
+      
       // Make API request to backend
       const response = await fetch('/api/ai/chat', {
         method: 'POST',
@@ -194,24 +240,51 @@ const AIAssistant = () => {
         body: JSON.stringify(requestBody),
       });
 
+      // Handle error responses
       if (!response.ok) {
-        throw new Error(`Error: ${response.status}`);
+        const errorData = await response.json().catch(() => ({ error: 'Unknown error' }));
+        
+        // Show a more helpful error message based on status code
+        if (response.status === 401) {
+          throw new Error('Authentication failed. Please check your API key and try again.');
+        } else if (response.status === 400) {
+          throw new Error(errorData.error || 'Invalid request. Please check your settings.');
+        } else {
+          throw new Error(errorData.error || errorData.details || `Error: ${response.status}`);
+        }
       }
 
       const data = await response.json();
       setMessages(prev => [...prev, { role: 'assistant', content: data.message }]);
     } catch (error) {
       console.error('Error calling AI API:', error);
+      
+      // Add a more informative error message to the chat
+      let errorMessage = 'I apologize, but I encountered an error. ';
+      
+      if (error.message) {
+        if (error.message.includes('API key')) {
+          errorMessage += 'Your API key may be invalid or expired. Please update your API settings.';
+          // Switch to settings tab since there's likely a configuration issue
+          setActiveTab('settings');
+        } else {
+          errorMessage += error.message;
+        }
+      } else {
+        errorMessage += 'Please check your API settings or try again later.';
+      }
+      
       setMessages(prev => [
         ...prev, 
         { 
           role: 'assistant', 
-          content: 'I apologize, but I encountered an error. Please check your API settings or try again later.' 
+          content: errorMessage
         }
       ]);
+      
       toast({
-        title: 'Error',
-        description: 'Failed to get a response from the AI service. Please check your settings.',
+        title: 'API Error',
+        description: errorMessage,
         variant: 'destructive',
       });
     } finally {

@@ -1,0 +1,33 @@
+Warning: Received &#x60;true&#x60; for a non-boolean attribute &#x60;global&#x60;.
+
+If you want to write it to the DOM, pass a string instead: global=&quot;true&quot; or global={value.toString()}.
+    at style
+    at Provider (https://70ea3102-2ef9-4e5c-a86e-8a759578bf35-00-33jgai8552pbj.sisko.replit.dev/@fs/home/runner/workspace/node_modules/.vite/deps/chunk-E7IAXTU4.js?v=1ca06b36:38:15)
+    at Provider (https://70ea3102-2ef9-4e5c-a86e-8a759578bf35-00-33jgai8552pbj.sisko.replit.dev/@fs/home/runner/workspace/node_modules/.vite/deps/chunk-E7IAXTU4.js?v=1ca06b36:38:15)
+    at Provider (https://70ea3102-2ef9-4e5c-a86e-8a759578bf35-00-33jgai8552pbj.sisko.replit.dev/@fs/home/runner/workspace/node_modules/.vite/deps/chunk-E7IAXTU4.js?v=1ca06b36:38:15)
+    at Popper (https://70ea3102-2ef9-4e5c-a86e-8a759578bf35-00-33jgai8552pbj.sisko.replit.dev/@fs/home/runner/workspace/node_modules/.vite/deps/chunk-NVURRC7D.js?v=1ca06b36:1919:11)
+    at Menu (https://70ea3102-2ef9-4e5c-a86e-8a759578bf35-00-33jgai8552pbj.sisko.replit.dev/@fs/home/runner/workspace/node_modules/.vite/deps/@radix-ui_react-dropdown-menu.js?v=1ca06b36:96:11)
+    at Provider (https://70ea3102-2ef9-4e5c-a86e-8a759578bf35-00-33jgai8552pbj.sisko.replit.dev/@fs/home/runner/workspace/node_modules/.vite/deps/chunk-E7IAXTU4.js?v=1ca06b36:38:15)
+    at DropdownMenu (https://70ea3102-2ef9-4e5c-a86e-8a759578bf35-00-33jgai8552pbj.sisko.replit.dev/@fs/home/runner/workspace/node_modules/.vite/deps/@radix-ui_react-dropdown-menu.js?v=1ca06b36:907:5)
+    at HeaderUserMenu (https://70ea3102-2ef9-4e5c-a86e-8a759578bf35-00-33jgai8552pbj.sisko.replit.dev/src/components/header/HeaderUserMenu.jsx:35:24)
+    at div
+    at div
+    at div
+    at div
+    at header
+    at Header (https://70ea3102-2ef9-4e5c-a86e-8a759578bf35-00-33jgai8552pbj.sisko.replit.dev/src/components/Header.jsx:30:32)
+    at div
+    at Router (https://70ea3102-2ef9-4e5c-a86e-8a759578bf35-00-33jgai8552pbj.sisko.replit.dev/src/App.tsx?v=0DLFsMzBYuZAWa5qWYGWM:38:22)
+    at Provider (https://70ea3102-2ef9-4e5c-a86e-8a759578bf35-00-33jgai8552pbj.sisko.replit.dev/@fs/home/runner/workspace/node_modules/.vite/deps/chunk-E7IAXTU4.js?v=1ca06b36:38:15)
+    at TooltipProvider (https://70ea3102-2ef9-4e5c-a86e-8a759578bf35-00-33jgai8552pbj.sisko.replit.dev/@fs/home/runner/workspace/node_modules/.vite/deps/@radix-ui_react-tooltip.js?v=1ca06b36:61:5)
+    at AuthProvider (https://70ea3102-2ef9-4e5c-a86e-8a759578bf35-00-33jgai8552pbj.sisko.replit.dev/src/contexts/AuthContext.jsx:24:32)
+    at LanguageProvider (https://70ea3102-2ef9-4e5c-a86e-8a759578bf35-00-33jgai8552pbj.sisko.replit.dev/src/contexts/LanguageContext.jsx:137:36)
+    at QueryClientProvider (https://70ea3102-2ef9-4e5c-a86e-8a759578bf35-00-33jgai8552pbj.sisko.replit.dev/@fs/home/runner/workspace/node_modules/.vite/deps/@tanstack_react-query.js?v=1ca06b36:2805:3)
+    at App
+Error calling AI API: 
+Error {}
+message: "Error: 500"
+stack: "Error: Error: 500↵ at sendMessage (https://70ea3102-2ef9-4e5c-a86e-8a759578bf35-00-33jgai8552pbj.sisko.replit.dev/src/components/ai-assistant/AIAssistant.jsx:180:15)"
+get stack: ƒ ()
+set stack: ƒ ()
+[[Prototype]]: Object

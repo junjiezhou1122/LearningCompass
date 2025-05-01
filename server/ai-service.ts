@@ -143,11 +143,20 @@ async function handleCustomAPIChat(body: AIRequestBody): Promise<string> {
   }
   
   // Set Authorization header with appropriate API key
-  headers['Authorization'] = `Bearer ${apiKey}`;
+  if (apiKey) {
+    headers['Authorization'] = `Bearer ${apiKey}`;
+    
+    // Debug log for authorization header
+    console.log('Authorization header set:', `Bearer ${apiKey.substring(0, 5)}...`);
+  } else {
+    console.error('No API key available for authorization header');
+    throw new Error('API key is required for authorization');
+  }
   console.log('Authorization header set with API key');
   
   // Add OpenRouter specific headers
   if (isOpenRouter) {
+    // OpenRouter requires these headers
     headers['HTTP-Referer'] = 'https://learninghowtolearn.app';
     headers['X-Title'] = 'Learning How To Learn';
     
@@ -214,10 +223,19 @@ export async function handleChatRequest(req: Request, res: Response) {
       messageCount: body.messages?.length
     });
     
-    // Skip API key check if provider is OpenRouter (we'll use env var)
+    // Validate required fields
+    if (!body.provider) {
+      return res.status(400).json({ error: 'Provider is required' });
+    }
+    
+    if (!body.model) {
+      return res.status(400).json({ error: 'Model is required' });
+    }
+    
+    // Skip API key check if provider is OpenRouter (we'll use env var if needed)
     if (body.provider !== 'openrouter' && !body.apiKey) {
       console.log('API key missing and provider is not OpenRouter');
-      return res.status(400).json({ error: 'API key is required' });
+      return res.status(400).json({ error: 'API key is required for ' + body.provider });
     }
     
     if (!body.messages || !Array.isArray(body.messages) || body.messages.length === 0) {
@@ -225,37 +243,79 @@ export async function handleChatRequest(req: Request, res: Response) {
       return res.status(400).json({ error: 'Messages are required' });
     }
     
+    // Validate API keys have correct format before using them
+    if (body.apiKey) {
+      const keyValidation = validateApiKey(body.provider, body.apiKey);
+      if (!keyValidation.valid) {
+        return res.status(400).json({ error: keyValidation.message });
+      }
+    }
+    
     let responseMessage: string;
     
-    switch (body.provider) {
-      case 'openai':
-        console.log('Using OpenAI provider');
-        responseMessage = await handleOpenAIChat(body);
-        break;
-      case 'anthropic':
-        console.log('Using Anthropic provider');
-        responseMessage = await handleAnthropicChat(body);
-        break;
-      case 'openrouter':
-        console.log('Using OpenRouter provider');
-        // Set the baseUrl to ensure OpenRouter works properly
-        if (!body.baseUrl || !body.baseUrl.includes('openrouter.ai')) {
-          body.baseUrl = 'https://openrouter.ai/api/v1';
-        }
-        // Use environment API key only if user didn't provide one
-        if (!body.apiKey && process.env.OPENROUTER_API_KEY) {
-          console.log('Using OpenRouter API key from environment (user did not provide one)');
-          body.apiKey = process.env.OPENROUTER_API_KEY;
-        }
-        responseMessage = await handleCustomAPIChat(body);
-        break;
-      case 'custom':
-        console.log('Using Custom API provider');
-        responseMessage = await handleCustomAPIChat(body);
-        break;
-      default:
-        console.log('Unsupported provider:', body.provider);
-        return res.status(400).json({ error: 'Unsupported provider' });
+    try {
+      switch (body.provider) {
+        case 'openai':
+          console.log('Using OpenAI provider');
+          responseMessage = await handleOpenAIChat(body);
+          break;
+        case 'anthropic':
+          console.log('Using Anthropic provider');
+          responseMessage = await handleAnthropicChat(body);
+          break;
+        case 'openrouter':
+          console.log('Using OpenRouter provider');
+          // Set the baseUrl to ensure OpenRouter works properly
+          if (!body.baseUrl || !body.baseUrl.includes('openrouter.ai')) {
+            body.baseUrl = 'https://openrouter.ai/api/v1';
+          }
+          
+          // Use environment API key only if user didn't provide one
+          if (!body.apiKey) {
+            if (process.env.OPENROUTER_API_KEY) {
+              console.log('Using OpenRouter API key from environment (user did not provide one)');
+              body.apiKey = process.env.OPENROUTER_API_KEY;
+            } else {
+              console.log('No OpenRouter API key available (neither user-provided nor environment)');
+              return res.status(401).json({ 
+                error: 'Authentication failed. No API key available for OpenRouter.',
+                details: 'Please provide your own OpenRouter API key in the settings.'
+              });
+            }
+          } else {
+            console.log('Using user-provided OpenRouter API key');
+          }
+          
+          responseMessage = await handleCustomAPIChat(body);
+          break;
+        case 'custom':
+          console.log('Using Custom API provider');
+          if (!body.baseUrl) {
+            return res.status(400).json({ error: 'Base URL is required for custom API provider' });
+          }
+          responseMessage = await handleCustomAPIChat(body);
+          break;
+        default:
+          console.log('Unsupported provider:', body.provider);
+          return res.status(400).json({ error: 'Unsupported provider' });
+      }
+    } catch (apiError: any) {
+      console.error(`Error calling ${body.provider} API:`, apiError);
+      
+      // Handle different types of API errors with appropriate status codes
+      if (apiError.message && apiError.message.includes('401')) {
+        return res.status(401).json({ 
+          error: 'Authentication failed',
+          details: 'Your API key was rejected. Please check your API key and try again.'
+        });
+      } else if (apiError.message && apiError.message.includes('429')) {
+        return res.status(429).json({ 
+          error: 'Rate limit exceeded',
+          details: 'You have exceeded the rate limit for this API. Please try again later.'
+        });
+      } else {
+        throw apiError; // Re-throw for the outer catch block
+      }
     }
     
     console.log('Successfully got response from AI provider');
@@ -268,4 +328,40 @@ export async function handleChatRequest(req: Request, res: Response) {
       details: error?.message || String(error)
     });
   }
+}
+
+// Helper function to validate API keys have correct format
+function validateApiKey(provider: string, apiKey: string): { valid: boolean, message: string } {
+  if (!apiKey) {
+    return { valid: false, message: 'API key is required' };
+  }
+  
+  switch (provider) {
+    case 'openai':
+      if (!apiKey.startsWith('sk-')) {
+        return { 
+          valid: false, 
+          message: 'Invalid OpenAI API key format. Keys should start with "sk-"' 
+        };
+      }
+      break;
+    case 'anthropic':
+      if (!apiKey.startsWith('sk-ant-')) {
+        return { 
+          valid: false, 
+          message: 'Invalid Anthropic API key format. Keys should start with "sk-ant-"'
+        };
+      }
+      break;
+    case 'openrouter':
+      if (!apiKey.startsWith('sk-or-')) {
+        return { 
+          valid: false, 
+          message: 'Invalid OpenRouter API key format. Keys should start with "sk-or-"' 
+        };
+      }
+      break;
+  }
+  
+  return { valid: true, message: '' };
 }

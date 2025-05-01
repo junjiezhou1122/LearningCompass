@@ -2029,6 +2029,136 @@ export async function registerRoutes(app: Express): Promise<Server> {
       });
     }
   });
+  
+  // User Gamification endpoints
+  app.get("/api/user/gamification", authenticateJWT, async (req: Request, res: Response) => {
+    try {
+      const userId = (req as any).user.id;
+      
+      // Get user gamification data
+      let gamification = await storage.getUserGamification(userId);
+      
+      // If no gamification data exists yet, create a default record
+      if (!gamification) {
+        gamification = await storage.createUserGamification({
+          userId,
+          level: 1,
+          points: 0,
+          streak: 0
+        });
+      }
+      
+      // Get badges
+      const badges = await storage.getUserBadges(userId);
+      
+      // Calculate points needed for next level
+      const nextLevelPoints = gamification.level * 100;
+      
+      res.json({
+        ...gamification,
+        nextLevelPoints,
+        badges
+      });
+    } catch (error) {
+      console.error("Error fetching gamification data:", error);
+      res.status(500).json({ message: "Error fetching gamification data" });
+    }
+  });
+  
+  // User recommendations endpoints
+  app.get("/api/recommendations", authenticateJWT, async (req: Request, res: Response) => {
+    try {
+      const userId = (req as any).user.id;
+      
+      // Generate recommendations if they don't exist yet
+      const recommendations = await storage.generateRecommendations(userId);
+      
+      // Format for frontend
+      const formattedRecommendations = recommendations.map(rec => ({
+        id: rec.course.id,
+        title: rec.course.title,
+        shortIntro: rec.course.shortIntro,
+        category: rec.course.category,
+        trending: rec.trending,
+        reason: rec.reason
+      }));
+      
+      res.json(formattedRecommendations);
+    } catch (error) {
+      console.error("Error fetching recommendations:", error);
+      res.status(500).json({ message: "Error fetching recommendations" });
+    }
+  });
+  
+  // Anonymous recommendations (for non-authenticated users)
+  app.get("/api/recommendations/anonymous", async (req: Request, res: Response) => {
+    try {
+      // Get top rated courses as recommendations for anonymous users
+      const topCourses = await storage.getCourses({
+        limit: 5,
+        sortBy: 'rating_high'
+      });
+      
+      // Format for frontend
+      const anonymousRecommendations = topCourses.map(course => ({
+        id: course.id,
+        title: course.title,
+        shortIntro: course.shortIntro,
+        category: course.category,
+        trending: course.numberOfViewers > 50000,
+        reason: "Highly rated course you might enjoy"
+      }));
+      
+      res.json(anonymousRecommendations);
+    } catch (error) {
+      console.error("Error fetching anonymous recommendations:", error);
+      res.status(500).json({ message: "Error fetching recommendations" });
+    }
+  });
+  
+  // Increment streak endpoint
+  app.post("/api/user/streak", authenticateJWT, async (req: Request, res: Response) => {
+    try {
+      const userId = (req as any).user.id;
+      const updatedGamification = await storage.incrementUserStreak(userId);
+      
+      // Calculate points needed for next level
+      const nextLevelPoints = updatedGamification.level * 100;
+      
+      res.json({
+        ...updatedGamification,
+        nextLevelPoints
+      });
+    } catch (error) {
+      console.error("Error updating streak:", error);
+      res.status(500).json({ message: "Error updating streak" });
+    }
+  });
+  
+  // Add points endpoint
+  app.post("/api/user/points", authenticateJWT, async (req: Request, res: Response) => {
+    try {
+      const userId = (req as any).user.id;
+      const { points } = req.body;
+      
+      if (!points || typeof points !== 'number') {
+        return res.status(400).json({ message: "Invalid points value" });
+      }
+      
+      const updatedGamification = await storage.addUserPoints(userId, points);
+      
+      // Calculate points needed for next level
+      const nextLevelPoints = updatedGamification.level * 100;
+      
+      res.json({
+        ...updatedGamification,
+        nextLevelPoints
+      });
+    } catch (error) {
+      console.error("Error adding points:", error);
+      res.status(500).json({ message: "Error adding points" });
+    }
+  });
 
   const httpServer = createServer(app);
   return httpServer;

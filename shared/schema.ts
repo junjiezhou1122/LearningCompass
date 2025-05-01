@@ -496,3 +496,130 @@ export const learningPostMethodRelations = relations(
 
 export type MethodApplication = typeof methodApplications.$inferSelect;
 export type InsertMethodApplication = typeof methodApplications.$inferInsert;
+
+// User Gamification schema
+export const userGamification = pgTable("user_gamification", {
+  id: serial("id").primaryKey(),
+  userId: integer("user_id")
+    .notNull()
+    .references(() => users.id),
+  level: integer("level").notNull().default(1),
+  points: integer("points").notNull().default(0),
+  streak: integer("streak").notNull().default(0),
+  lastActivity: timestamp("last_activity").defaultNow(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at"),
+});
+
+export const insertUserGamificationSchema = createInsertSchema(
+  userGamification
+).pick({
+  userId: true,
+  level: true,
+  points: true,
+  streak: true,
+  lastActivity: true,
+  updatedAt: true,
+});
+
+// User Badges schema
+export const userBadges = pgTable("user_badges", {
+  id: serial("id").primaryKey(),
+  userId: integer("user_id")
+    .notNull()
+    .references(() => users.id),
+  badgeId: integer("badge_id").notNull(),
+  badgeName: text("badge_name").notNull(),
+  badgeDescription: text("badge_description").notNull(),
+  badgeIcon: text("badge_icon").notNull(),
+  awardedAt: timestamp("awarded_at").defaultNow().notNull(),
+});
+
+export const insertUserBadgeSchema = createInsertSchema(
+  userBadges
+).pick({
+  userId: true,
+  badgeId: true,
+  badgeName: true,
+  badgeDescription: true,
+  badgeIcon: true,
+});
+
+// User recommendations
+export const userRecommendations = pgTable("user_recommendations", {
+  id: serial("id").primaryKey(),
+  userId: integer("user_id")
+    .notNull()
+    .references(() => users.id),
+  courseId: integer("course_id")
+    .notNull()
+    .references(() => courses.id),
+  score: doublePrecision("score").notNull(),
+  reason: text("reason").notNull(),
+  trending: boolean("trending").default(false),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at"),
+});
+
+export const insertUserRecommendationSchema = createInsertSchema(
+  userRecommendations
+).pick({
+  userId: true,
+  courseId: true,
+  score: true,
+  reason: true,
+  trending: true,
+  updatedAt: true,
+});
+
+// Gamification relations
+export const userGamificationRelations = relations(
+  userGamification,
+  ({ one }) => ({
+    user: one(users, {
+      fields: [userGamification.userId],
+      references: [users.id],
+    }),
+  })
+);
+
+export const userBadgesRelations = relations(
+  userBadges,
+  ({ one }) => ({
+    user: one(users, {
+      fields: [userBadges.userId],
+      references: [users.id],
+    }),
+  })
+);
+
+export const userRecommendationsRelations = relations(
+  userRecommendations,
+  ({ one }) => ({
+    user: one(users, {
+      fields: [userRecommendations.userId],
+      references: [users.id],
+    }),
+    course: one(courses, {
+      fields: [userRecommendations.courseId],
+      references: [courses.id],
+    }),
+  })
+);
+
+// Update user relations to include gamification
+export const usersGamificationRelations = relations(users, ({ one, many }) => ({
+  gamification: one(userGamification),
+  badges: many(userBadges),
+  recommendations: many(userRecommendations),
+}));
+
+// Type definitions for user gamification
+export type UserGamification = typeof userGamification.$inferSelect;
+export type InsertUserGamification = typeof userGamification.$inferInsert;
+
+export type UserBadge = typeof userBadges.$inferSelect;
+export type InsertUserBadge = typeof userBadges.$inferInsert;
+
+export type UserRecommendation = typeof userRecommendations.$inferSelect;
+export type InsertUserRecommendation = typeof userRecommendations.$inferInsert;

@@ -19,11 +19,13 @@ import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { Slider } from '@/components/ui/slider';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { HelpCircle, Bot, KeyRound, Save, Globe, Thermometer, Sigma } from 'lucide-react';
+import { HelpCircle, Bot, KeyRound, Save, Globe, Thermometer, Sigma, AlertCircle, RotateCw } from 'lucide-react';
 import { useLanguage } from '@/contexts/LanguageContext';
+import { useToast } from '@/hooks/use-toast';
 
 const APIConfiguration = ({ initialSettings, onSave }) => {
   const { t } = useLanguage();
+  const { toast } = useToast();
   const [settings, setSettings] = useState(initialSettings || {
     provider: 'openai',
     apiKey: '',
@@ -34,6 +36,7 @@ const APIConfiguration = ({ initialSettings, onSave }) => {
   });
   
   const [activeTab, setActiveTab] = useState('basic');
+  const [isResetting, setIsResetting] = useState(false);
 
   useEffect(() => {
     if (initialSettings) {
@@ -74,7 +77,73 @@ const APIConfiguration = ({ initialSettings, onSave }) => {
   };
 
   const handleSave = () => {
-    onSave(settings);
+    // Validate the API key format based on provider
+    let isValidKey = true;
+    let errorMessage = '';
+    
+    if (settings.provider === 'openai' && settings.apiKey) {
+      if (!settings.apiKey.startsWith('sk-')) {
+        isValidKey = false;
+        errorMessage = 'Invalid OpenAI API key format. Keys should start with "sk-"';
+      }
+    } else if (settings.provider === 'anthropic' && settings.apiKey) {
+      if (!settings.apiKey.startsWith('sk-ant-')) {
+        isValidKey = false;
+        errorMessage = 'Invalid Anthropic API key format. Keys should start with "sk-ant-"';
+      }
+    } else if (settings.provider === 'openrouter' && settings.apiKey) {
+      if (!settings.apiKey.startsWith('sk-or-')) {
+        isValidKey = false;
+        errorMessage = 'Invalid OpenRouter API key format. Keys should start with "sk-or-"';
+      }
+    }
+    
+    if (!isValidKey) {
+      toast({
+        title: 'Invalid API Key',
+        description: errorMessage,
+        variant: 'destructive',
+      });
+      return;
+    }
+    
+    // Create a clean copy of settings for storage
+    const cleanSettings = {
+      provider: settings.provider,
+      apiKey: settings.apiKey.trim(),
+      baseUrl: settings.baseUrl ? settings.baseUrl.trim() : '',
+      model: settings.model,
+      temperature: Number(settings.temperature) || 0.7,
+      maxTokens: Number(settings.maxTokens) || 1000
+    };
+    
+    // Save validated settings
+    onSave(cleanSettings);
+  };
+  
+  const resetSettings = () => {
+    setIsResetting(true);
+    
+    // Default settings based on current provider
+    const defaultSettings = {
+      provider: settings.provider,
+      apiKey: '',
+      baseUrl: settings.provider === 'openrouter' ? 'https://openrouter.ai/api/v1' : '',
+      model: settings.provider === 'openai' ? 'gpt-4o' : 
+             settings.provider === 'anthropic' ? 'claude-3-7-sonnet-20250219' : 
+             settings.provider === 'openrouter' ? 'mistralai/mistral-7b-instruct' : '',
+      temperature: 0.7,
+      maxTokens: settings.provider === 'openrouter' ? 100 : 1000
+    };
+    
+    setTimeout(() => {
+      setSettings(defaultSettings);
+      setIsResetting(false);
+      toast({
+        title: 'Settings Reset',
+        description: 'API settings have been reset to defaults',
+      });
+    }, 500);
   };
 
   return (
@@ -326,19 +395,31 @@ const APIConfiguration = ({ initialSettings, onSave }) => {
       </CardContent>
       
       <CardFooter className="bg-gradient-to-r from-orange-50 to-amber-50 border-t border-orange-100 flex justify-between">
-        <Button variant="outline" onClick={() => setActiveTab(activeTab === 'basic' ? 'advanced' : 'basic')}>
-          {activeTab === 'basic' ? 
-            <><Sigma className="mr-2 h-4 w-4" /> Advanced Settings</> : 
-            <><Bot className="mr-2 h-4 w-4" /> Basic Settings</>
-          }
-        </Button>
+        <div className="flex gap-2">
+          <Button variant="outline" onClick={() => setActiveTab(activeTab === 'basic' ? 'advanced' : 'basic')}>
+            {activeTab === 'basic' ? 
+              <><Sigma className="mr-2 h-4 w-4" /> Advanced</> : 
+              <><Bot className="mr-2 h-4 w-4" /> Basic</>
+            }
+          </Button>
+          <Button 
+            variant="outline" 
+            onClick={resetSettings}
+            disabled={isResetting}
+            className="text-red-600 hover:text-red-700 border-red-200 hover:border-red-300"
+          >
+            <RotateCw className={`mr-2 h-4 w-4 ${isResetting ? 'animate-spin' : ''}`} />
+            Reset
+          </Button>
+        </div>
+        
         <Button 
           onClick={handleSave}
           className="bg-gradient-to-r from-orange-500 to-amber-600 text-white hover:from-orange-600 hover:to-amber-700"
           disabled={
             (settings.provider !== 'openrouter' && !settings.apiKey) || 
             (settings.provider === 'custom' && !settings.baseUrl) ||
-            !settings.model
+            !settings.model || isResetting
           }
         >
           <Save className="mr-2 h-4 w-4" />

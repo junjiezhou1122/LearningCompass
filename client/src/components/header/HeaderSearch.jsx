@@ -355,7 +355,8 @@ export default function HeaderSearch({ isMobile = false }) {
         </>
       )}
 
-      <style jsx global>{`
+      <style dangerouslySetInnerHTML={{
+        __html: `
         @keyframes slideIn {
           from {
             opacity: 0;
@@ -379,7 +380,7 @@ export default function HeaderSearch({ isMobile = false }) {
         .animate-fadeIn {
           animation: fadeIn 0.3s ease-out forwards;
         }
-      `}</style>
+        `}} />
     </div>
   );
 }

@@ -101,7 +101,8 @@ export default function HeaderUserMenu() {
         </DropdownMenuItem>
       </DropdownMenuContent>
 
-      <style jsx global>{`
+      <style dangerouslySetInnerHTML={{
+        __html: `
         @keyframes slideIn {
           from {
             opacity: 0;
@@ -128,7 +129,7 @@ export default function HeaderUserMenu() {
         .animate-fadeIn {
           animation: fadeIn 0.3s ease-out forwards;
         }
-      `}</style>
+        `}} />
     </DropdownMenu>
   );
 }
