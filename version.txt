@@ -1,2 +1,3 @@
 Version 1!
 Version 1.1! add ai assitant(basic verion ai assitant)
+Version 1.2! improve the ui design 
