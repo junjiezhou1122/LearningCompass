@@ -116,6 +116,13 @@ export default function Share() {
   // Fetch all learning posts
   const { data: posts = [], isLoading: isPostsLoading } = useQuery({
     queryKey: ["/api/learning-posts"],
+    queryFn: async () => {
+      const response = await fetch("/api/learning-posts");
+      if (!response.ok) {
+        throw new Error("Failed to fetch learning posts");
+      }
+      return await response.json();
+    },
     staleTime: 1000 * 30, // 30 seconds instead of 1 minute for more frequent refreshes
   });
 

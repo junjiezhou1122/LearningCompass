@@ -1,16 +1,25 @@
 import express, { type Request, Response, NextFunction } from "express";
 import { registerRoutes } from "./routes";
 import { setupVite, serveStatic, log } from "./vite";
-// Import already completed, no need to import again
-// import { importData } from "./data-import";
 import { storage } from "./storage";
 import { db } from "./db";
 import { courses } from "@shared/schema";
 import { sql } from "drizzle-orm";
+import cors from "cors";
+import { createRequire } from "module";
+
+// Create a require function to import CommonJS modules in ES Module environment
+const require = createRequire(import.meta.url);
+// Import auth routes using the created require function
+const authRoutes = require("./routes/auth.js");
 
 const app = express();
 app.use(express.json());
 app.use(express.urlencoded({ extended: false }));
+app.use(cors()); // Enable CORS for all routes
+
+// Set up the auth routes
+app.use("/api/auth", authRoutes);
 
 app.use((req, res, next) => {
   const start = Date.now();
@@ -39,6 +48,28 @@ app.use((req, res, next) => {
     }
   });
 
+  next();
+});
+
+// Debug middleware to log incoming requests
+app.use((req, res, next) => {
+  if (req.path.includes("/api/auth")) {
+    console.log(`Auth Request: ${req.method} ${req.path}`);
+    console.log("Headers:", req.headers);
+    if (req.body && Object.keys(req.body).length > 0) {
+      console.log("Body:", JSON.stringify(req.body));
+    }
+  }
+  next();
+});
+
+// Debug middleware to ensure proper content type
+app.use((req, res, next) => {
+  const originalJson = res.json;
+  res.json = function (body) {
+    res.setHeader("Content-Type", "application/json");
+    return originalJson.call(this, body);
+  };
   next();
 });
 
@@ -74,5 +105,6 @@ app.use((req, res, next) => {
     log(`serving on port ${port}`);
     log(`You can access the application at: http://localhost:${port}`);
     log(`API endpoints are available at: http://localhost:${port}/api/*`);
+    log(`Auth endpoints are available at: http://localhost:${port}/api/auth/*`);
   });
 })();

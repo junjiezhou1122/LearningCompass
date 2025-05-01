@@ -25,6 +25,16 @@ export default function HeaderUserMenu() {
     navigate("/");
   };
 
+  const navigateToProfile = () => {
+    // Make sure we have a valid user ID before navigating
+    if (user && user.id) {
+      console.log("Navigating to profile with ID:", user.id);
+      navigate(`/users/${user.id}`);
+    } else {
+      console.error("Cannot navigate to profile - user ID is missing", user);
+    }
+  };
+
   if (!isAuthenticated) {
     return <AuthModals />;
   }
@@ -35,27 +45,31 @@ export default function HeaderUserMenu() {
         <Button
           variant="ghost"
           className={`group flex items-center space-x-1 text-white hover:text-white transition-all duration-500 ${
-            isOpen ? 'bg-amber-600/90' : 'hover:bg-amber-600/80'
+            isOpen ? "bg-amber-600/90" : "hover:bg-amber-600/80"
           }`}
         >
-          <div className={`w-8 h-8 rounded-full flex items-center justify-center text-orange-600 font-medium transition-all duration-500 ${
-            isOpen 
-              ? 'bg-orange-50 scale-110 shadow-lg' 
-              : 'bg-white/95 group-hover:bg-orange-50 group-hover:scale-105 group-hover:shadow-md'
-          }`}>
+          <div
+            className={`w-8 h-8 rounded-full flex items-center justify-center text-orange-600 font-medium transition-all duration-500 ${
+              isOpen
+                ? "bg-orange-50 scale-110 shadow-lg"
+                : "bg-white/95 group-hover:bg-orange-50 group-hover:scale-105 group-hover:shadow-md"
+            }`}
+          >
             {user?.firstName?.[0] || user?.username?.[0] || "U"}
           </div>
-          <span className={`text-sm font-medium ml-2 hidden md:inline-block transition-all duration-500 ${
-            isOpen ? 'scale-110' : 'group-hover:scale-105'
-          }`}>
+          <span
+            className={`text-sm font-medium ml-2 hidden md:inline-block transition-all duration-500 ${
+              isOpen ? "scale-110" : "group-hover:scale-105"
+            }`}
+          >
             {user?.firstName || user?.username || "User"}
           </span>
         </Button>
       </DropdownMenuTrigger>
-      <DropdownMenuContent 
-        align="end" 
+      <DropdownMenuContent
+        align="end"
         className={`w-56 p-2 bg-white/95 backdrop-blur-sm border-orange-100 shadow-lg transform transition-all duration-500 ${
-          isOpen ? 'scale-100 opacity-100' : 'scale-95 opacity-0'
+          isOpen ? "scale-100 opacity-100" : "scale-95 opacity-0"
         }`}
       >
         <DropdownMenuLabel className="flex items-center px-2 py-2 text-orange-700 font-medium animate-fadeIn">
@@ -65,7 +79,7 @@ export default function HeaderUserMenu() {
         <DropdownMenuSeparator className="bg-orange-100" />
         <DropdownMenuItem
           className="px-2 py-2 cursor-pointer transition-all duration-500 hover:bg-orange-50 hover:text-orange-700 focus:bg-orange-50 focus:text-orange-700 rounded-md focus:ring-1 focus:ring-orange-200 focus:ring-offset-1 animate-slideIn"
-          onClick={() => navigate(`/users/${user.id}`)}
+          onClick={navigateToProfile}
         >
           <UserCircle className="mr-2 h-4 w-4" />
           <span>{t("profile")}</span>

@@ -4,8 +4,10 @@ import {
   signInWithPopup,
   signInWithPhoneNumber,
   RecaptchaVerifier,
+  GoogleAuthProvider,
 } from "firebase/auth";
 import { auth, googleProvider, githubProvider } from "../lib/firebase";
+import { getApiBaseUrl } from "../lib/utils";
 
 // Create auth context
 const AuthContext = createContext(null);
@@ -15,6 +17,7 @@ export function AuthProvider({ children }) {
   const [token, setToken] = useState(null);
   const [loading, setLoading] = useState(true);
   const { toast } = useToast();
+  const apiBaseUrl = getApiBaseUrl();
 
   // Initialize auth state from localStorage
   useEffect(() => {
@@ -35,43 +38,100 @@ export function AuthProvider({ children }) {
     setLoading(false);
   }, []);
 
-  // Register a new user
-  const register = async (userData) => {
+  // Helper function to handle API requests
+  const handleAuthRequest = async (endpoint, body) => {
     try {
-      setLoading(true);
-      const response = await fetch("/api/auth/register", {
+      console.log(`Making request to ${apiBaseUrl}/api/auth/${endpoint}`);
+
+      const response = await fetch(`${apiBaseUrl}/api/auth/${endpoint}`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
         },
-        body: JSON.stringify(userData),
+        body: JSON.stringify(body),
+        credentials: "include", // Include cookies for cross-origin requests
       });
 
-      const data = await response.json();
-
+      // Check if response is ok before trying to parse JSON
       if (!response.ok) {
-        throw new Error(data.message || "Registration failed");
+        const errorText = await response.text();
+        console.error(`Error response from server: ${errorText}`);
+
+        try {
+          // Try to parse as JSON if possible
+          const errorData = JSON.parse(errorText);
+          throw new Error(
+            errorData.message ||
+              `${endpoint} failed with status: ${response.status}`
+          );
+        } catch (e) {
+          // If not JSON, throw with status code
+          throw new Error(
+            `${endpoint} failed with status: ${response.status}. Server might not be running or endpoint is incorrect.`
+          );
+        }
       }
 
+      // Now we know response is ok, try to parse JSON
+      try {
+        const contentType = response.headers.get("content-type");
+        if (!contentType || !contentType.includes("application/json")) {
+          const text = await response.text();
+          console.error(
+            `Server returned non-JSON content type: ${contentType}`
+          );
+          console.error(`Response body: ${text.substring(0, 200)}...`);
+          throw new Error(
+            `Server returned non-JSON response. API endpoint may be incorrect or server is not running.`
+          );
+        }
+
+        return await response.json();
+      } catch (error) {
+        console.error(`JSON parsing error: ${error.message}`);
+        throw new Error(`Invalid JSON response from server: ${error.message}`);
+      }
+    } catch (error) {
+      console.error(`${endpoint} error:`, error);
+      toast({
+        title: `${endpoint.charAt(0).toUpperCase() + endpoint.slice(1)} failed`,
+        description: error.message,
+        variant: "destructive",
+      });
+      throw error;
+    }
+  };
+
+  // Register a new user
+  const register = async (userData) => {
+    try {
+      setLoading(true);
+      const data = await handleAuthRequest("register", userData);
+
+      // Ensure user object has all necessary fields
+      const normalizedUser = {
+        ...data.user,
+        firstName: data.user.firstName || null,
+        lastName: data.user.lastName || null,
+        phoneNumber: data.user.phoneNumber || null,
+        photoURL: data.user.photoURL || null,
+      };
+
       // Save auth data
-      localStorage.setItem("user", JSON.stringify(data.user));
+      localStorage.setItem("user", JSON.stringify(normalizedUser));
       localStorage.setItem("token", data.token);
 
-      setUser(data.user);
+      setUser(normalizedUser);
       setToken(data.token);
 
       toast({
         title: "Registration successful",
-        description: "Welcome to EduRecommend!",
+        description: "Welcome to Learning Compass!",
       });
 
       return data;
     } catch (error) {
-      toast({
-        title: "Registration failed",
-        description: error.message,
-        variant: "destructive",
-      });
+      console.error("Registration error:", error);
       throw error;
     } finally {
       setLoading(false);
@@ -82,45 +142,84 @@ export function AuthProvider({ children }) {
   const loginWithGoogle = async () => {
     try {
       setLoading(true);
+
+      // Step 1: Use Firebase's direct authentication
       const result = await signInWithPopup(auth, googleProvider);
 
-      // Send the Google token to your backend
-      const response = await fetch("http://localhost:5000/api/auth/google", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          token: await result.user.getIdToken(),
-        }),
-      });
+      // Step 2: Get the Firebase ID token
+      const idToken = await result.user.getIdToken();
 
-      const data = await response.json();
-
-      if (!response.ok) {
-        throw new Error(data.message || "Google login failed");
+      if (!idToken) {
+        throw new Error("Failed to get Firebase ID token");
       }
 
-      // Save auth data
-      localStorage.setItem("user", JSON.stringify(data.user));
-      localStorage.setItem("token", data.token);
+      // Step 3: Send the token to our backend for database integration
+      try {
+        const data = await handleAuthRequest("google", { token: idToken });
 
-      setUser(data.user);
-      setToken(data.token);
+        // Ensure user object has all necessary fields
+        const normalizedUser = {
+          ...data.user,
+          firstName: data.user.firstName || null,
+          lastName: data.user.lastName || null,
+          phoneNumber: data.user.phoneNumber || null,
+          photoURL: data.user.photoURL || result.user.photoURL || null,
+        };
 
-      toast({
-        title: "Login successful",
-        description: `Welcome, ${data.user.username}!`,
-      });
+        // Save auth data from our database
+        localStorage.setItem("user", JSON.stringify(normalizedUser));
+        localStorage.setItem("token", data.token);
 
-      return data;
+        setUser(normalizedUser);
+        setToken(data.token);
+
+        toast({
+          title: "Login successful",
+          description: `Welcome, ${normalizedUser.username}!`,
+        });
+
+        return { user: normalizedUser, token: data.token };
+      } catch (serverError) {
+        console.error("Backend server connection failed:", serverError);
+
+        // Fallback to using just Firebase user if server is down
+        toast({
+          title: "Limited Login",
+          description:
+            "Connected to authentication but not to database. Some features may be limited.",
+          variant: "warning",
+        });
+
+        // Create a temporary user from Firebase data
+        const firebaseUser = result.user;
+        const userData = {
+          id: firebaseUser.uid,
+          email: firebaseUser.email,
+          username:
+            firebaseUser.displayName || firebaseUser.email.split("@")[0],
+          photoURL: firebaseUser.photoURL,
+          firstName: firebaseUser.displayName
+            ? firebaseUser.displayName.split(" ")[0]
+            : null,
+          lastName:
+            firebaseUser.displayName &&
+            firebaseUser.displayName.split(" ").length > 1
+              ? firebaseUser.displayName.split(" ").slice(1).join(" ")
+              : null,
+          phoneNumber: firebaseUser.phoneNumber || null,
+        };
+
+        // Save temporary user data
+        localStorage.setItem("user", JSON.stringify(userData));
+        localStorage.setItem("token", idToken);
+
+        setUser(userData);
+        setToken(idToken);
+
+        return { user: userData, token: idToken };
+      }
     } catch (error) {
       console.error("Google login error:", error);
-      toast({
-        title: "Google login failed",
-        description: error.message,
-        variant: "destructive",
-      });
       throw error;
     } finally {
       setLoading(false);
@@ -131,44 +230,87 @@ export function AuthProvider({ children }) {
   const loginWithGithub = async () => {
     try {
       setLoading(true);
+
+      // Step 1: Use Firebase's direct authentication
       const result = await signInWithPopup(auth, githubProvider);
 
-      // Send the GitHub token to your backend
-      const response = await fetch("/api/auth/github", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          token: await result.user.getIdToken(),
-        }),
-      });
+      // Step 2: Get the Firebase ID token
+      const idToken = await result.user.getIdToken();
 
-      const data = await response.json();
-
-      if (!response.ok) {
-        throw new Error(data.message || "GitHub login failed");
+      if (!idToken) {
+        throw new Error("Failed to get Firebase ID token");
       }
 
-      // Save auth data
-      localStorage.setItem("user", JSON.stringify(data.user));
-      localStorage.setItem("token", data.token);
+      // Step 3: Send the token to our backend for database integration
+      try {
+        const data = await handleAuthRequest("github", { token: idToken });
 
-      setUser(data.user);
-      setToken(data.token);
+        // Ensure user object has all necessary fields
+        const normalizedUser = {
+          ...data.user,
+          firstName: data.user.firstName || null,
+          lastName: data.user.lastName || null,
+          phoneNumber: data.user.phoneNumber || null,
+          photoURL: data.user.photoURL || result.user.photoURL || null,
+        };
 
-      toast({
-        title: "Login successful",
-        description: `Welcome, ${data.user.username}!`,
-      });
+        // Save auth data from our database
+        localStorage.setItem("user", JSON.stringify(normalizedUser));
+        localStorage.setItem("token", data.token);
 
-      return data;
+        setUser(normalizedUser);
+        setToken(data.token);
+
+        toast({
+          title: "Login successful",
+          description: `Welcome, ${normalizedUser.username}!`,
+        });
+
+        return { user: normalizedUser, token: data.token };
+      } catch (serverError) {
+        console.error("Backend server connection failed:", serverError);
+
+        // Fallback to using just Firebase user if server is down
+        toast({
+          title: "Limited Login",
+          description:
+            "Connected to authentication but not to database. Some features may be limited.",
+          variant: "warning",
+        });
+
+        // Create a temporary user from Firebase data
+        const firebaseUser = result.user;
+        const userData = {
+          id: firebaseUser.uid,
+          email: firebaseUser.email,
+          username:
+            firebaseUser.displayName ||
+            (firebaseUser.email
+              ? firebaseUser.email.split("@")[0]
+              : `user_${firebaseUser.uid.substring(0, 8)}`),
+          photoURL: firebaseUser.photoURL,
+          firstName: firebaseUser.displayName
+            ? firebaseUser.displayName.split(" ")[0]
+            : null,
+          lastName:
+            firebaseUser.displayName &&
+            firebaseUser.displayName.split(" ").length > 1
+              ? firebaseUser.displayName.split(" ").slice(1).join(" ")
+              : null,
+          phoneNumber: firebaseUser.phoneNumber || null,
+        };
+
+        // Save temporary user data
+        localStorage.setItem("user", JSON.stringify(userData));
+        localStorage.setItem("token", idToken);
+
+        setUser(userData);
+        setToken(idToken);
+
+        return { user: userData, token: idToken };
+      }
     } catch (error) {
-      toast({
-        title: "GitHub login failed",
-        description: error.message,
-        variant: "destructive",
-      });
+      console.error("GitHub login error:", error);
       throw error;
     } finally {
       setLoading(false);
@@ -229,43 +371,70 @@ export function AuthProvider({ children }) {
     try {
       setLoading(true);
       const result = await window.confirmationResult.confirm(code);
+      const idToken = await result.user.getIdToken();
 
-      // Send the phone auth token to your backend
-      const response = await fetch("/api/auth/phone", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          token: await result.user.getIdToken(),
-        }),
-      });
+      // Try to connect to the backend server
+      try {
+        const data = await handleAuthRequest("phone", { token: idToken });
 
-      const data = await response.json();
+        // Ensure user object has all necessary fields
+        const normalizedUser = {
+          ...data.user,
+          firstName: data.user.firstName || null,
+          lastName: data.user.lastName || null,
+          phoneNumber: data.user.phoneNumber || result.user.phoneNumber || null,
+          photoURL: data.user.photoURL || null,
+        };
 
-      if (!response.ok) {
-        throw new Error(data.message || "Phone verification failed");
+        // Save auth data from our database
+        localStorage.setItem("user", JSON.stringify(normalizedUser));
+        localStorage.setItem("token", data.token);
+
+        setUser(normalizedUser);
+        setToken(data.token);
+
+        toast({
+          title: "Login successful",
+          description: `Welcome, ${normalizedUser.username}!`,
+        });
+
+        return { user: normalizedUser, token: data.token };
+      } catch (serverError) {
+        console.error("Backend server connection failed:", serverError);
+
+        // Fallback to using just Firebase user if server is down
+        toast({
+          title: "Limited Login",
+          description:
+            "Connected to authentication but not to database. Some features may be limited.",
+          variant: "warning",
+        });
+
+        // Create a temporary user from Firebase data
+        const firebaseUser = result.user;
+        const userData = {
+          id: firebaseUser.uid,
+          email: firebaseUser.email,
+          username:
+            firebaseUser.displayName ||
+            `user_${firebaseUser.uid.substring(0, 8)}`,
+          photoURL: firebaseUser.photoURL,
+          firstName: null,
+          lastName: null,
+          phoneNumber: firebaseUser.phoneNumber || null,
+        };
+
+        // Save temporary user data
+        localStorage.setItem("user", JSON.stringify(userData));
+        localStorage.setItem("token", idToken);
+
+        setUser(userData);
+        setToken(idToken);
+
+        return { user: userData, token: idToken };
       }
-
-      // Save auth data
-      localStorage.setItem("user", JSON.stringify(data.user));
-      localStorage.setItem("token", data.token);
-
-      setUser(data.user);
-      setToken(data.token);
-
-      toast({
-        title: "Login successful",
-        description: `Welcome, ${data.user.username}!`,
-      });
-
-      return data;
     } catch (error) {
-      toast({
-        title: "Verification failed",
-        description: error.message,
-        variant: "destructive",
-      });
+      console.error("Phone verification error:", error);
       throw error;
     } finally {
       setLoading(false);
@@ -276,39 +445,32 @@ export function AuthProvider({ children }) {
   const login = async (credentials) => {
     try {
       setLoading(true);
-      const response = await fetch("/api/auth/login", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify(credentials),
-      });
+      const data = await handleAuthRequest("login", credentials);
 
-      const data = await response.json();
-
-      if (!response.ok) {
-        throw new Error(data.message || "Login failed");
-      }
+      // Ensure user object has all necessary fields
+      const normalizedUser = {
+        ...data.user,
+        firstName: data.user.firstName || null,
+        lastName: data.user.lastName || null,
+        phoneNumber: data.user.phoneNumber || null,
+        photoURL: data.user.photoURL || null,
+      };
 
       // Save auth data
-      localStorage.setItem("user", JSON.stringify(data.user));
+      localStorage.setItem("user", JSON.stringify(normalizedUser));
       localStorage.setItem("token", data.token);
 
-      setUser(data.user);
+      setUser(normalizedUser);
       setToken(data.token);
 
       toast({
         title: "Login successful",
-        description: `Welcome back, ${data.user.username}!`,
+        description: `Welcome back, ${normalizedUser.username}!`,
       });
 
-      return data;
+      return { user: normalizedUser, token: data.token };
     } catch (error) {
-      toast({
-        title: "Login failed",
-        description: error.message,
-        variant: "destructive",
-      });
+      console.error("Login error:", error);
       throw error;
     } finally {
       setLoading(false);
@@ -321,6 +483,11 @@ export function AuthProvider({ children }) {
     localStorage.removeItem("token");
     setUser(null);
     setToken(null);
+
+    // Also sign out from Firebase
+    auth.signOut().catch((error) => {
+      console.error("Firebase signout error:", error);
+    });
 
     toast({
       title: "Logged out successfully",

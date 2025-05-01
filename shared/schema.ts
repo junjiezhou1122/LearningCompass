@@ -1,4 +1,13 @@
-import { pgTable, text, serial, integer, boolean, doublePrecision, timestamp, varchar } from "drizzle-orm/pg-core";
+import {
+  pgTable,
+  text,
+  serial,
+  integer,
+  boolean,
+  doublePrecision,
+  timestamp,
+  varchar,
+} from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 import { relations } from "drizzle-orm";
@@ -9,18 +18,26 @@ export const users = pgTable("users", {
   username: text("username").notNull().unique(),
   password: text("password").notNull(),
   email: text("email").notNull().unique(),
+  phoneNumber: text("phone_number"),
   firstName: text("first_name"),
   lastName: text("last_name"),
-  createdAt: text("created_at").notNull()
+  photoURL: text("photo_url"),
+  authProvider: text("auth_provider"),
+  providerId: text("provider_id"),
+  createdAt: text("created_at").notNull(),
 });
 
 export const insertUserSchema = createInsertSchema(users).pick({
   username: true,
   password: true,
   email: true,
+  phoneNumber: true,
   firstName: true,
   lastName: true,
-  createdAt: true
+  photoURL: true,
+  authProvider: true,
+  providerId: true,
+  createdAt: true,
 });
 
 // Course schema
@@ -66,13 +83,13 @@ export const bookmarks = pgTable("bookmarks", {
   id: serial("id").primaryKey(),
   userId: integer("user_id").notNull(),
   courseId: integer("course_id").notNull(),
-  createdAt: text("created_at").notNull()
+  createdAt: text("created_at").notNull(),
 });
 
 export const insertBookmarkSchema = createInsertSchema(bookmarks).pick({
   userId: true,
   courseId: true,
-  createdAt: true
+  createdAt: true,
 });
 
 // Search history schema
@@ -80,21 +97,23 @@ export const searchHistory = pgTable("search_history", {
   id: serial("id").primaryKey(),
   userId: integer("user_id").notNull(),
   searchQuery: text("search_query").notNull(),
-  createdAt: text("created_at").notNull()
+  createdAt: text("created_at").notNull(),
 });
 
-export const insertSearchHistorySchema = createInsertSchema(searchHistory).pick({
-  userId: true,
-  searchQuery: true,
-  createdAt: true
-});
+export const insertSearchHistorySchema = createInsertSchema(searchHistory).pick(
+  {
+    userId: true,
+    searchQuery: true,
+    createdAt: true,
+  }
+);
 
 // Subscribers schema
 export const subscribers = pgTable("subscribers", {
   id: serial("id").primaryKey(),
   email: text("email").notNull().unique(),
   createdAt: text("created_at").notNull(),
-  status: text("status").notNull()
+  status: text("status").notNull(),
 });
 
 export const insertSubscriberSchema = createInsertSchema(subscribers).pick({
@@ -111,7 +130,7 @@ export const comments = pgTable("comments", {
   content: text("content").notNull(),
   rating: integer("rating"),
   createdAt: text("created_at").notNull(),
-  updatedAt: text("updated_at")
+  updatedAt: text("updated_at"),
 });
 
 export const insertCommentSchema = createInsertSchema(comments).pick({
@@ -120,48 +139,48 @@ export const insertCommentSchema = createInsertSchema(comments).pick({
   content: true,
   rating: true,
   createdAt: true,
-  updatedAt: true
+  updatedAt: true,
 });
 
 // Relations
 export const usersRelations = relations(users, ({ many }) => ({
   bookmarks: many(bookmarks),
   searchHistory: many(searchHistory),
-  comments: many(comments)
+  comments: many(comments),
 }));
 
 export const coursesRelations = relations(courses, ({ many }) => ({
   bookmarks: many(bookmarks),
-  comments: many(comments)
+  comments: many(comments),
 }));
 
 export const bookmarksRelations = relations(bookmarks, ({ one }) => ({
   user: one(users, {
     fields: [bookmarks.userId],
-    references: [users.id]
+    references: [users.id],
   }),
   course: one(courses, {
     fields: [bookmarks.courseId],
-    references: [courses.id]
-  })
+    references: [courses.id],
+  }),
 }));
 
 export const searchHistoryRelations = relations(searchHistory, ({ one }) => ({
   user: one(users, {
     fields: [searchHistory.userId],
-    references: [users.id]
-  })
+    references: [users.id],
+  }),
 }));
 
 export const commentsRelations = relations(comments, ({ one }) => ({
   user: one(users, {
     fields: [comments.userId],
-    references: [users.id]
+    references: [users.id],
   }),
   course: one(courses, {
     fields: [comments.courseId],
-    references: [courses.id]
-  })
+    references: [courses.id],
+  }),
 }));
 
 // Type definitions
@@ -194,7 +213,7 @@ export const learningPosts = pgTable("learning_posts", {
   tags: text("tags").array(), // Store tags as array
   views: integer("views").default(0).notNull(), // Track number of views
   createdAt: timestamp("created_at").defaultNow().notNull(),
-  updatedAt: timestamp("updated_at")
+  updatedAt: timestamp("updated_at"),
 });
 
 export const insertLearningPostSchema = createInsertSchema(learningPosts).pick({
@@ -203,7 +222,7 @@ export const insertLearningPostSchema = createInsertSchema(learningPosts).pick({
   content: true,
   type: true,
   resourceLink: true,
-  tags: true
+  tags: true,
 });
 
 // Learning Post Comments schema
@@ -213,13 +232,15 @@ export const learningPostComments = pgTable("learning_post_comments", {
   userId: integer("user_id").notNull(),
   content: text("content").notNull(),
   createdAt: timestamp("created_at").defaultNow().notNull(),
-  updatedAt: timestamp("updated_at")
+  updatedAt: timestamp("updated_at"),
 });
 
-export const insertLearningPostCommentSchema = createInsertSchema(learningPostComments).pick({
+export const insertLearningPostCommentSchema = createInsertSchema(
+  learningPostComments
+).pick({
   postId: true,
   userId: true,
-  content: true
+  content: true,
 });
 
 // Learning Post Likes schema
@@ -227,12 +248,14 @@ export const learningPostLikes = pgTable("learning_post_likes", {
   id: serial("id").primaryKey(),
   postId: integer("post_id").notNull(),
   userId: integer("user_id").notNull(),
-  createdAt: timestamp("created_at").defaultNow().notNull()
+  createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 
-export const insertLearningPostLikeSchema = createInsertSchema(learningPostLikes).pick({
+export const insertLearningPostLikeSchema = createInsertSchema(
+  learningPostLikes
+).pick({
   postId: true,
-  userId: true
+  userId: true,
 });
 
 // Learning Post Bookmarks schema
@@ -240,69 +263,87 @@ export const learningPostBookmarks = pgTable("learning_post_bookmarks", {
   id: serial("id").primaryKey(),
   postId: integer("post_id").notNull(),
   userId: integer("user_id").notNull(),
-  createdAt: timestamp("created_at").defaultNow().notNull()
+  createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 
-export const insertLearningPostBookmarkSchema = createInsertSchema(learningPostBookmarks).pick({
+export const insertLearningPostBookmarkSchema = createInsertSchema(
+  learningPostBookmarks
+).pick({
   postId: true,
-  userId: true
+  userId: true,
 });
 
 // Learning Post Relations
-export const learningPostsRelations = relations(learningPosts, ({ many, one }) => ({
-  user: one(users, {
-    fields: [learningPosts.userId],
-    references: [users.id]
-  }),
-  comments: many(learningPostComments),
-  likes: many(learningPostLikes),
-  bookmarks: many(learningPostBookmarks)
-}));
-
-export const learningPostCommentsRelations = relations(learningPostComments, ({ one }) => ({
-  post: one(learningPosts, {
-    fields: [learningPostComments.postId],
-    references: [learningPosts.id]
-  }),
-  user: one(users, {
-    fields: [learningPostComments.userId],
-    references: [users.id]
+export const learningPostsRelations = relations(
+  learningPosts,
+  ({ many, one }) => ({
+    user: one(users, {
+      fields: [learningPosts.userId],
+      references: [users.id],
+    }),
+    comments: many(learningPostComments),
+    likes: many(learningPostLikes),
+    bookmarks: many(learningPostBookmarks),
   })
-}));
+);
 
-export const learningPostLikesRelations = relations(learningPostLikes, ({ one }) => ({
-  post: one(learningPosts, {
-    fields: [learningPostLikes.postId],
-    references: [learningPosts.id]
-  }),
-  user: one(users, {
-    fields: [learningPostLikes.userId],
-    references: [users.id]
+export const learningPostCommentsRelations = relations(
+  learningPostComments,
+  ({ one }) => ({
+    post: one(learningPosts, {
+      fields: [learningPostComments.postId],
+      references: [learningPosts.id],
+    }),
+    user: one(users, {
+      fields: [learningPostComments.userId],
+      references: [users.id],
+    }),
   })
-}));
+);
 
-export const learningPostBookmarksRelations = relations(learningPostBookmarks, ({ one }) => ({
-  post: one(learningPosts, {
-    fields: [learningPostBookmarks.postId],
-    references: [learningPosts.id]
-  }),
-  user: one(users, {
-    fields: [learningPostBookmarks.userId],
-    references: [users.id]
+export const learningPostLikesRelations = relations(
+  learningPostLikes,
+  ({ one }) => ({
+    post: one(learningPosts, {
+      fields: [learningPostLikes.postId],
+      references: [learningPosts.id],
+    }),
+    user: one(users, {
+      fields: [learningPostLikes.userId],
+      references: [users.id],
+    }),
   })
-}));
+);
+
+export const learningPostBookmarksRelations = relations(
+  learningPostBookmarks,
+  ({ one }) => ({
+    post: one(learningPosts, {
+      fields: [learningPostBookmarks.postId],
+      references: [learningPosts.id],
+    }),
+    user: one(users, {
+      fields: [learningPostBookmarks.userId],
+      references: [users.id],
+    }),
+  })
+);
 
 // User follows table
 export const userFollows = pgTable("user_follows", {
   id: serial("id").primaryKey(),
-  followerId: integer("follower_id").notNull().references(() => users.id),
-  followingId: integer("following_id").notNull().references(() => users.id),
-  createdAt: timestamp("created_at").defaultNow().notNull()
+  followerId: integer("follower_id")
+    .notNull()
+    .references(() => users.id),
+  followingId: integer("following_id")
+    .notNull()
+    .references(() => users.id),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 
 export const insertUserFollowSchema = createInsertSchema(userFollows).pick({
   followerId: true,
-  followingId: true
+  followingId: true,
 });
 
 // Follows relations
@@ -310,13 +351,13 @@ export const userFollowsRelations = relations(userFollows, ({ one }) => ({
   follower: one(users, {
     fields: [userFollows.followerId],
     references: [users.id],
-    relationName: "follower"
+    relationName: "follower",
   }),
   following: one(users, {
     fields: [userFollows.followingId],
     references: [users.id],
-    relationName: "following"
-  })
+    relationName: "following",
+  }),
 }));
 
 // Update user relations to include learning posts and follows
@@ -326,7 +367,7 @@ export const usersLearningRelations = relations(users, ({ many }) => ({
   learningPostLikes: many(learningPostLikes),
   learningPostBookmarks: many(learningPostBookmarks),
   followers: many(userFollows, { relationName: "following" }),
-  following: many(userFollows, { relationName: "follower" })
+  following: many(userFollows, { relationName: "follower" }),
 }));
 
 // Type definitions for learning posts
@@ -334,13 +375,15 @@ export type LearningPost = typeof learningPosts.$inferSelect;
 export type InsertLearningPost = typeof learningPosts.$inferInsert;
 
 export type LearningPostComment = typeof learningPostComments.$inferSelect;
-export type InsertLearningPostComment = typeof learningPostComments.$inferInsert;
+export type InsertLearningPostComment =
+  typeof learningPostComments.$inferInsert;
 
 export type LearningPostLike = typeof learningPostLikes.$inferSelect;
 export type InsertLearningPostLike = typeof learningPostLikes.$inferInsert;
 
 export type LearningPostBookmark = typeof learningPostBookmarks.$inferSelect;
-export type InsertLearningPostBookmark = typeof learningPostBookmarks.$inferInsert;
+export type InsertLearningPostBookmark =
+  typeof learningPostBookmarks.$inferInsert;
 
 export type UserFollow = typeof userFollows.$inferSelect;
 export type InsertUserFollow = typeof userFollows.$inferInsert;
@@ -348,34 +391,41 @@ export type InsertUserFollow = typeof userFollows.$inferInsert;
 // AI Conversations schema
 export const aiConversations = pgTable("ai_conversations", {
   id: serial("id").primaryKey(),
-  userId: integer("user_id").notNull().references(() => users.id),
+  userId: integer("user_id")
+    .notNull()
+    .references(() => users.id),
   title: text("title").notNull(),
   provider: text("provider").notNull(), // openai, anthropic, openrouter, custom
   model: text("model").notNull(), // Model identifier
   messages: text("messages").notNull(), // JSON string of messages
   createdAt: timestamp("created_at").defaultNow().notNull(),
-  updatedAt: timestamp("updated_at")
+  updatedAt: timestamp("updated_at"),
 });
 
-export const insertAiConversationSchema = createInsertSchema(aiConversations).pick({
+export const insertAiConversationSchema = createInsertSchema(
+  aiConversations
+).pick({
   userId: true,
   title: true,
   provider: true,
   model: true,
   messages: true,
-  updatedAt: true
+  updatedAt: true,
 });
 
-export const aiConversationsRelations = relations(aiConversations, ({ one }) => ({
-  user: one(users, {
-    fields: [aiConversations.userId],
-    references: [users.id]
+export const aiConversationsRelations = relations(
+  aiConversations,
+  ({ one }) => ({
+    user: one(users, {
+      fields: [aiConversations.userId],
+      references: [users.id],
+    }),
   })
-}));
+);
 
 // Update user relations to include AI conversations
 export const usersAiRelations = relations(users, ({ many }) => ({
-  aiConversations: many(aiConversations)
+  aiConversations: many(aiConversations),
 }));
 
 export type AiConversation = typeof aiConversations.$inferSelect;
@@ -384,8 +434,12 @@ export type InsertAiConversation = typeof aiConversations.$inferInsert;
 // Method applications schema - for tracking when users apply methods
 export const methodApplications = pgTable("method_applications", {
   id: serial("id").primaryKey(),
-  methodPostId: integer("method_post_id").notNull().references(() => learningPosts.id),
-  userId: integer("user_id").notNull().references(() => users.id),
+  methodPostId: integer("method_post_id")
+    .notNull()
+    .references(() => learningPosts.id),
+  userId: integer("user_id")
+    .notNull()
+    .references(() => users.id),
   status: varchar("status", { length: 50 }).notNull(), // 'active', 'completed', 'abandoned'
   startDate: timestamp("start_date").defaultNow().notNull(),
   endDate: timestamp("end_date"),
@@ -393,10 +447,12 @@ export const methodApplications = pgTable("method_applications", {
   feedback: text("feedback"), // User feedback about their experience
   progress: text("progress"), // JSON for tracking steps or progress
   createdAt: timestamp("created_at").defaultNow().notNull(),
-  updatedAt: timestamp("updated_at")
+  updatedAt: timestamp("updated_at"),
 });
 
-export const insertMethodApplicationSchema = createInsertSchema(methodApplications).pick({
+export const insertMethodApplicationSchema = createInsertSchema(
+  methodApplications
+).pick({
   methodPostId: true,
   userId: true,
   status: true,
@@ -405,30 +461,36 @@ export const insertMethodApplicationSchema = createInsertSchema(methodApplicatio
   rating: true,
   feedback: true,
   progress: true,
-  updatedAt: true
+  updatedAt: true,
 });
 
 // Method application relations
-export const methodApplicationsRelations = relations(methodApplications, ({ one }) => ({
-  post: one(learningPosts, {
-    fields: [methodApplications.methodPostId],
-    references: [learningPosts.id]
-  }),
-  user: one(users, {
-    fields: [methodApplications.userId],
-    references: [users.id]
+export const methodApplicationsRelations = relations(
+  methodApplications,
+  ({ one }) => ({
+    post: one(learningPosts, {
+      fields: [methodApplications.methodPostId],
+      references: [learningPosts.id],
+    }),
+    user: one(users, {
+      fields: [methodApplications.userId],
+      references: [users.id],
+    }),
   })
-}));
+);
 
 // Update user relations to include method applications
 export const usersMethodRelations = relations(users, ({ many }) => ({
-  methodApplications: many(methodApplications)
+  methodApplications: many(methodApplications),
 }));
 
 // Update learning post relations to include method applications
-export const learningPostMethodRelations = relations(learningPosts, ({ many }) => ({
-  methodApplications: many(methodApplications)
-}));
+export const learningPostMethodRelations = relations(
+  learningPosts,
+  ({ many }) => ({
+    methodApplications: many(methodApplications),
+  })
+);
 
 export type MethodApplication = typeof methodApplications.$inferSelect;
 export type InsertMethodApplication = typeof methodApplications.$inferInsert;

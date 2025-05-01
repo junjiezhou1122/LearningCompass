@@ -84,7 +84,9 @@ export default function CourseDetail() {
   // Check if course is bookmarked
   useEffect(() => {
     if (bookmarks.length > 0 && course) {
-      const bookmarked = bookmarks.some((bookmark) => bookmark.id === course.id);
+      const bookmarked = bookmarks.some(
+        (bookmark) => bookmark.id === course.id
+      );
       setIsBookmarked(bookmarked);
     }
   }, [bookmarks, course]);
@@ -105,7 +107,7 @@ export default function CourseDetail() {
 
       // Get the authentication token
       const storedToken = localStorage.getItem("token");
-      
+
       if (!storedToken) {
         toast({
           title: "Authentication required",
@@ -115,17 +117,39 @@ export default function CourseDetail() {
         return;
       }
 
+      console.log("Attempting to toggle bookmark for course:", course.id);
+
       if (isBookmarked) {
         // Remove bookmark
-        const response = await apiRequest("DELETE", `/api/bookmarks/${course.id}`, undefined, storedToken);
-        
-        if (response.status === 204) {
+        const response = await apiRequest(
+          "DELETE",
+          `/api/bookmarks/${course.id}`,
+          undefined,
+          storedToken
+        );
+
+        // Check for server connectivity issues first (our fake 503 response)
+        if (response.status === 503) {
+          const errorData = await response.json();
+          throw new Error(
+            errorData.message || "Server is currently unavailable"
+          );
+        }
+
+        // Check for network errors (our fake 500 response)
+        if (response.status === 500) {
+          const errorData = await response.json();
+          throw new Error(errorData.message || "Network error occurred");
+        }
+
+        // Handle success cases
+        if (response.status === 204 || response.status === 200) {
           setIsBookmarked(false);
           toast({
             title: "Bookmark removed",
             description: `${course.title} has been removed from your bookmarks`,
           });
-          
+
           // Invalidate bookmarks query to refresh the list
           queryClient.invalidateQueries(["/api/bookmarks"]);
         } else if (response.status === 404) {
@@ -135,25 +159,61 @@ export default function CourseDetail() {
             title: "Already removed",
             description: "This course was already removed from your bookmarks",
           });
-          
+
           // Invalidate bookmarks query to refresh the list
           queryClient.invalidateQueries(["/api/bookmarks"]);
         } else {
-          throw new Error("Failed to remove bookmark");
+          // Handle other error cases
+          let errorMessage = "Failed to remove bookmark";
+          try {
+            const errorData = await response.json();
+            errorMessage =
+              errorData.message ||
+              `Error: ${response.status} ${response.statusText}`;
+          } catch (e) {
+            // If we can't parse JSON
+            try {
+              const errorText = await response.text();
+              errorMessage = errorText || errorMessage;
+            } catch (textError) {
+              console.error("Could not read error response:", textError);
+            }
+          }
+          throw new Error(errorMessage);
         }
       } else {
         // Add bookmark
-        const response = await apiRequest("POST", "/api/bookmarks", {
-          courseId: course.id,
-        }, storedToken);
-        
-        if (response.status === 201) {
+        const response = await apiRequest(
+          "POST",
+          "/api/bookmarks",
+          {
+            courseId: course.id,
+          },
+          storedToken
+        );
+
+        // Check for server connectivity issues (our fake 503 response)
+        if (response.status === 503) {
+          const errorData = await response.json();
+          throw new Error(
+            errorData.message || "Server is currently unavailable"
+          );
+        }
+
+        // Check for network errors (our fake 500 response)
+        if (response.status === 500) {
+          const errorData = await response.json();
+          throw new Error(errorData.message || "Network error occurred");
+        }
+
+        // Handle success cases
+        if (response.status === 201 || response.status === 200) {
           setIsBookmarked(true);
           toast({
             title: "Bookmark added",
             description: `${course.title} has been added to your bookmarks`,
           });
-          
+
           // Invalidate bookmarks query to refresh the list
           queryClient.invalidateQueries(["/api/bookmarks"]);
         } else if (response.status === 409) {
@@ -163,18 +223,36 @@ export default function CourseDetail() {
             title: "Already bookmarked",
             description: `${course.title} is already in your bookmarks`,
           });
-          
+
           // Invalidate bookmarks query to refresh the list
           queryClient.invalidateQueries(["/api/bookmarks"]);
         } else {
-          throw new Error("Failed to add bookmark");
+          // Handle other error cases
+          let errorMessage = "Failed to add bookmark";
+          try {
+            const errorData = await response.json();
+            errorMessage =
+              errorData.message ||
+              `Error: ${response.status} ${response.statusText}`;
+          } catch (e) {
+            // If we can't parse JSON
+            try {
+              const errorText = await response.text();
+              errorMessage = errorText || errorMessage;
+            } catch (textError) {
+              console.error("Could not read error response:", textError);
+            }
+          }
+          throw new Error(errorMessage);
         }
       }
     } catch (error) {
-      console.error("Bookmark error:", error);
+      console.error("Bookmark operation error:", error);
       toast({
-        title: "Error",
-        description: "Failed to update bookmark. Please try again.",
+        title: "Operation Failed",
+        description:
+          error.message ||
+          "Failed to update bookmark. Please check your connection and try again.",
         variant: "destructive",
       });
     } finally {
@@ -233,12 +311,16 @@ export default function CourseDetail() {
     return (
       <div className="container mx-auto px-4 py-6">
         <div className="mb-4">
-          <Button variant="ghost" onClick={handleBackClick} className="text-gray-600 hover:text-primary-600">
+          <Button
+            variant="ghost"
+            onClick={handleBackClick}
+            className="text-gray-600 hover:text-primary-600"
+          >
             <ArrowLeft className="h-4 w-4 mr-2" />
             Back to Courses
           </Button>
         </div>
-        
+
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           <div className="lg:col-span-2">
             <Card>
@@ -254,7 +336,7 @@ export default function CourseDetail() {
               </CardContent>
             </Card>
           </div>
-          
+
           <div>
             <Card>
               <CardHeader>
@@ -278,9 +360,12 @@ export default function CourseDetail() {
     return (
       <div className="container mx-auto px-4 py-12 text-center">
         <div className="bg-white rounded-lg shadow-sm p-8 max-w-md mx-auto">
-          <h2 className="text-2xl font-bold text-gray-900 mb-4">Course Not Found</h2>
+          <h2 className="text-2xl font-bold text-gray-900 mb-4">
+            Course Not Found
+          </h2>
           <p className="text-gray-600 mb-6">
-            We couldn't find the course you're looking for. It may have been removed or you might have followed an invalid link.
+            We couldn't find the course you're looking for. It may have been
+            removed or you might have followed an invalid link.
           </p>
           <Button onClick={handleBackClick}>
             <ArrowLeft className="h-4 w-4 mr-2" />
@@ -294,12 +379,16 @@ export default function CourseDetail() {
   return (
     <div className="container mx-auto px-4 py-6">
       <div className="mb-4">
-        <Button variant="ghost" onClick={handleBackClick} className="text-gray-600 hover:text-primary-600">
+        <Button
+          variant="ghost"
+          onClick={handleBackClick}
+          className="text-gray-600 hover:text-primary-600"
+        >
           <ArrowLeft className="h-4 w-4 mr-2" />
           Back to Courses
         </Button>
       </div>
-      
+
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Course Details */}
         <div className="lg:col-span-2">
@@ -307,12 +396,18 @@ export default function CourseDetail() {
             <CardHeader>
               <div className="flex flex-wrap gap-2 mb-2">
                 {course.category && (
-                  <Badge variant="secondary" className="bg-gray-100 text-gray-800">
+                  <Badge
+                    variant="secondary"
+                    className="bg-gray-100 text-gray-800"
+                  >
                     {course.category}
                   </Badge>
                 )}
                 {course.subCategory && (
-                  <Badge variant="secondary" className="bg-gray-100 text-gray-800">
+                  <Badge
+                    variant="secondary"
+                    className="bg-gray-100 text-gray-800"
+                  >
                     {course.subCategory}
                   </Badge>
                 )}
@@ -322,11 +417,11 @@ export default function CourseDetail() {
                   </Badge>
                 )}
               </div>
-              
+
               <CardTitle className="text-2xl md:text-3xl font-bold text-gray-900">
                 {course.title}
               </CardTitle>
-              
+
               <div className="flex flex-wrap items-center gap-4 mt-2 text-sm text-gray-600">
                 {course.rating && (
                   <div className="flex items-center">
@@ -336,12 +431,14 @@ export default function CourseDetail() {
                     </span>
                     {course.numberOfViewers && (
                       <span className="ml-1 text-gray-500">
-                        ({new Intl.NumberFormat().format(course.numberOfViewers)})
+                        (
+                        {new Intl.NumberFormat().format(course.numberOfViewers)}
+                        )
                       </span>
                     )}
                   </div>
                 )}
-                
+
                 {course.site && (
                   <div className="flex items-center">
                     <School className="h-4 w-4 mr-1 text-gray-400" />
@@ -350,23 +447,28 @@ export default function CourseDetail() {
                 )}
               </div>
             </CardHeader>
-            
+
             <CardContent className="space-y-6">
               {/* Course Image */}
               <div className="rounded-lg overflow-hidden">
                 <img
-                  src={course.imageUrl || "https://images.unsplash.com/photo-1516321318423-f06f85e504b3?ixlib=rb-4.0.3&ixid=MnwxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8&auto=format&fit=crop&w=1000&q=80"}
+                  src={
+                    course.imageUrl ||
+                    "https://images.unsplash.com/photo-1516321318423-f06f85e504b3?ixlib=rb-4.0.3&ixid=MnwxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8&auto=format&fit=crop&w=1000&q=80"
+                  }
                   alt={course.title}
                   className="w-full object-cover h-auto max-h-[400px]"
                 />
               </div>
-              
+
               {/* Course Introduction */}
               <div>
-                <h3 className="text-xl font-semibold text-gray-800 mb-3">About This Course</h3>
+                <h3 className="text-xl font-semibold text-gray-800 mb-3">
+                  About This Course
+                </h3>
                 <p className="text-gray-600">{course.shortIntro}</p>
               </div>
-              
+
               {/* Course Details */}
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 {/* Instructors */}
@@ -379,7 +481,7 @@ export default function CourseDetail() {
                     </div>
                   </div>
                 )}
-                
+
                 {/* Duration */}
                 {course.duration && (
                   <div className="flex items-start">
@@ -390,7 +492,7 @@ export default function CourseDetail() {
                     </div>
                   </div>
                 )}
-                
+
                 {/* Language */}
                 {course.language && (
                   <div className="flex items-start">
@@ -401,40 +503,57 @@ export default function CourseDetail() {
                     </div>
                   </div>
                 )}
-                
+
                 {/* Viewers */}
                 {course.numberOfViewers && (
                   <div className="flex items-start">
                     <Users className="h-5 w-5 mr-2 text-gray-400 mt-0.5" />
                     <div>
                       <h4 className="font-medium text-gray-700">Enrolled</h4>
-                      <p className="text-gray-600">{new Intl.NumberFormat().format(course.numberOfViewers)} students</p>
+                      <p className="text-gray-600">
+                        {new Intl.NumberFormat().format(course.numberOfViewers)}{" "}
+                        students
+                      </p>
                     </div>
                   </div>
                 )}
               </div>
-              
+
               {/* Subtitle Languages */}
               {course.subtitleLanguages && (
                 <div>
-                  <h3 className="text-lg font-semibold text-gray-800 mb-2">Subtitles Available In</h3>
+                  <h3 className="text-lg font-semibold text-gray-800 mb-2">
+                    Subtitles Available In
+                  </h3>
                   <div className="flex flex-wrap gap-2">
-                    {formatSubtitleLanguages(course.subtitleLanguages).map((language, index) => (
-                      <Badge key={index} variant="outline" className="text-gray-700">
-                        {language}
-                      </Badge>
-                    ))}
+                    {formatSubtitleLanguages(course.subtitleLanguages).map(
+                      (language, index) => (
+                        <Badge
+                          key={index}
+                          variant="outline"
+                          className="text-gray-700"
+                        >
+                          {language}
+                        </Badge>
+                      )
+                    )}
                   </div>
                 </div>
               )}
-              
+
               {/* Skills */}
               {course.skills && (
                 <div>
-                  <h3 className="text-lg font-semibold text-gray-800 mb-2">Skills You'll Gain</h3>
+                  <h3 className="text-lg font-semibold text-gray-800 mb-2">
+                    Skills You'll Gain
+                  </h3>
                   <div className="flex flex-wrap gap-2">
                     {formatSkills(course.skills).map((skill, index) => (
-                      <Badge key={index} variant="secondary" className="bg-primary-100 text-primary-800">
+                      <Badge
+                        key={index}
+                        variant="secondary"
+                        className="bg-primary-100 text-primary-800"
+                      >
                         {skill}
                       </Badge>
                     ))}
@@ -444,14 +563,14 @@ export default function CourseDetail() {
             </CardContent>
           </Card>
         </div>
-        
+
         {/* Action Sidebar */}
         <div>
           <Card className="sticky top-24">
             <CardHeader>
               <CardTitle className="text-xl">Enroll in This Course</CardTitle>
             </CardHeader>
-            
+
             <CardContent className="space-y-4">
               {/* Course Provider */}
               {course.site && (
@@ -460,7 +579,7 @@ export default function CourseDetail() {
                   <span className="font-medium">{course.site}</span>
                 </div>
               )}
-              
+
               {/* Course Type */}
               {course.courseType && (
                 <div className="flex items-center justify-between text-gray-700">
@@ -468,7 +587,7 @@ export default function CourseDetail() {
                   <span className="font-medium">{course.courseType}</span>
                 </div>
               )}
-              
+
               {/* Duration */}
               {course.duration && (
                 <div className="flex items-center justify-between text-gray-700">
@@ -476,27 +595,27 @@ export default function CourseDetail() {
                   <span className="font-medium">{course.duration}</span>
                 </div>
               )}
-              
+
               <Separator />
-              
+
               {/* Action Buttons */}
               <div className="pt-2">
                 <Button
                   className="w-full mb-3 bg-blue-600 hover:bg-blue-700 shadow-md"
                   size="lg"
-                  onClick={() => window.open(course.url, '_blank')}
+                  onClick={() => window.open(course.url, "_blank")}
                 >
                   <ExternalLink className="h-4 w-4 mr-2 text-white" />
                   <span className="text-white font-medium">Go to Course</span>
                 </Button>
-                
+
                 <div className="flex gap-2">
                   <Button
                     variant={isBookmarked ? "default" : "outline"}
                     className={`flex-1 font-medium ${
-                      isBookmarked 
-                        ? 'bg-green-600 hover:bg-green-700 shadow-md border-0' 
-                        : 'border border-gray-300 hover:bg-gray-50 text-gray-700'
+                      isBookmarked
+                        ? "bg-green-600 hover:bg-green-700 shadow-md border-0"
+                        : "border border-gray-300 hover:bg-gray-50 text-gray-700"
                     }`}
                     onClick={handleBookmarkToggle}
                     disabled={isBookmarking}
@@ -506,17 +625,25 @@ export default function CourseDetail() {
                     ) : (
                       <Bookmark
                         className={`h-4 w-4 mr-2 ${
-                          isBookmarked ? "fill-white text-white" : "text-gray-600"
+                          isBookmarked
+                            ? "fill-white text-white"
+                            : "text-gray-600"
                         }`}
                       />
                     )}
-                    <span className={isBookmarked ? "text-white font-medium" : "text-gray-700"}>
+                    <span
+                      className={
+                        isBookmarked
+                          ? "text-white font-medium"
+                          : "text-gray-700"
+                      }
+                    >
                       {isBookmarked ? "Bookmarked" : "Bookmark"}
                     </span>
                   </Button>
-                  
-                  <Button 
-                    variant="outline" 
+
+                  <Button
+                    variant="outline"
                     onClick={handleShare}
                     className="font-medium border border-gray-300 hover:bg-gray-50"
                   >
@@ -526,17 +653,19 @@ export default function CourseDetail() {
                 </div>
               </div>
             </CardContent>
-            
+
             <CardFooter className="text-sm text-gray-500 flex items-center justify-center">
               <BookOpen className="h-4 w-4 mr-1" />
               {course.numberOfViewers
-                ? `${new Intl.NumberFormat().format(course.numberOfViewers)} students enrolled`
+                ? `${new Intl.NumberFormat().format(
+                    course.numberOfViewers
+                  )} students enrolled`
                 : "Be the first to enroll!"}
             </CardFooter>
           </Card>
         </div>
       </div>
-      
+
       {/* Comments Section */}
       <div className="mt-8">
         <CommentSection courseId={id} />

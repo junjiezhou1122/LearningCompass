@@ -15,13 +15,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import { Textarea } from "@/components/ui/textarea";
-import {
-  MessageSquare,
-  User,
-  Edit,
-  Trash2,
-  AlertCircle,
-} from "lucide-react";
+import { MessageSquare, User, Edit, Trash2, AlertCircle } from "lucide-react";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -67,17 +61,50 @@ export default function CommentSection({ courseId }) {
   // Add comment mutation
   const addCommentMutation = useMutation({
     mutationFn: async (commentData) => {
-      const response = await apiRequest(
-        "POST",
-        `/api/courses/${courseId}/comments`,
-        commentData,
-        token
-      );
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.message || "Failed to add comment");
+      try {
+        // Get the latest token from localStorage
+        const currentToken = localStorage.getItem("token");
+
+        if (!currentToken) {
+          throw new Error(
+            "Authentication token not found. Please log in again."
+          );
+        }
+
+        console.log("Submitting new comment for course:", courseId);
+
+        const response = await apiRequest(
+          "POST",
+          `/api/courses/${courseId}/comments`,
+          commentData,
+          currentToken
+        );
+
+        if (!response.ok) {
+          if (response.status === 401) {
+            throw new Error("Your session has expired. Please log in again.");
+          }
+
+          // Try to get a detailed error message
+          try {
+            const errorData = await response.json();
+            throw new Error(
+              errorData.message ||
+                `Failed to add comment (Status: ${response.status})`
+            );
+          } catch (parseError) {
+            // If we can't parse JSON, use the status text
+            throw new Error(
+              `Failed to add comment: ${response.statusText || response.status}`
+            );
+          }
+        }
+
+        return response.json();
+      } catch (error) {
+        console.error("Error adding comment:", error);
+        throw error;
       }
-      return response.json();
     },
     onSuccess: () => {
       setNewComment("");
@@ -100,17 +127,56 @@ export default function CommentSection({ courseId }) {
   // Edit comment mutation
   const editCommentMutation = useMutation({
     mutationFn: async ({ commentId, content }) => {
-      const response = await apiRequest(
-        "PUT",
-        `/api/comments/${commentId}`,
-        { content },
-        token
-      );
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.message || "Failed to update comment");
+      try {
+        // Get the latest token from localStorage
+        const currentToken = localStorage.getItem("token");
+
+        if (!currentToken) {
+          throw new Error(
+            "Authentication token not found. Please log in again."
+          );
+        }
+
+        console.log(`Updating comment ID ${commentId} for course:`, courseId);
+
+        const response = await apiRequest(
+          "PUT",
+          `/api/comments/${commentId}`,
+          { content },
+          currentToken
+        );
+
+        if (!response.ok) {
+          if (response.status === 401) {
+            throw new Error("Your session has expired. Please log in again.");
+          }
+
+          if (response.status === 403) {
+            throw new Error("You don't have permission to edit this comment.");
+          }
+
+          // Try to get a detailed error message
+          try {
+            const errorData = await response.json();
+            throw new Error(
+              errorData.message ||
+                `Failed to update comment (Status: ${response.status})`
+            );
+          } catch (parseError) {
+            // If we can't parse JSON, use the status text
+            throw new Error(
+              `Failed to update comment: ${
+                response.statusText || response.status
+              }`
+            );
+          }
+        }
+
+        return response.json();
+      } catch (error) {
+        console.error("Error updating comment:", error);
+        throw error;
       }
-      return response.json();
     },
     onSuccess: () => {
       setEditingCommentId(null);
@@ -134,17 +200,62 @@ export default function CommentSection({ courseId }) {
   // Delete comment mutation
   const deleteCommentMutation = useMutation({
     mutationFn: async (commentId) => {
-      const response = await apiRequest(
-        "DELETE",
-        `/api/comments/${commentId}`,
-        undefined,
-        token
-      );
-      if (!response.ok && response.status !== 204) {
-        const errorData = await response.json();
-        throw new Error(errorData.message || "Failed to delete comment");
+      try {
+        // Get the latest token from localStorage
+        const currentToken = localStorage.getItem("token");
+
+        if (!currentToken) {
+          throw new Error(
+            "Authentication token not found. Please log in again."
+          );
+        }
+
+        console.log(`Deleting comment ID ${commentId}`);
+
+        const response = await apiRequest(
+          "DELETE",
+          `/api/comments/${commentId}`,
+          undefined,
+          currentToken
+        );
+
+        if (!response.ok && response.status !== 204) {
+          if (response.status === 401) {
+            throw new Error("Your session has expired. Please log in again.");
+          }
+
+          if (response.status === 403) {
+            throw new Error(
+              "You don't have permission to delete this comment."
+            );
+          }
+
+          if (response.status === 404) {
+            throw new Error("Comment not found or already deleted.");
+          }
+
+          // Try to get a detailed error message
+          try {
+            const errorData = await response.json();
+            throw new Error(
+              errorData.message ||
+                `Failed to delete comment (Status: ${response.status})`
+            );
+          } catch (parseError) {
+            // If we can't parse JSON, use the status text
+            throw new Error(
+              `Failed to delete comment: ${
+                response.statusText || response.status
+              }`
+            );
+          }
+        }
+
+        return true;
+      } catch (error) {
+        console.error("Error deleting comment:", error);
+        throw error;
       }
-      return true;
     },
     onSuccess: () => {
       toast({
@@ -166,7 +277,7 @@ export default function CommentSection({ courseId }) {
   // Handle adding a new comment
   const handleAddComment = async (e) => {
     e.preventDefault();
-    
+
     if (!newComment.trim()) {
       toast({
         title: "Comment required",
@@ -186,7 +297,7 @@ export default function CommentSection({ courseId }) {
     }
 
     setIsSubmitting(true);
-    
+
     try {
       await addCommentMutation.mutateAsync({
         content: newComment.trim(),
@@ -214,7 +325,7 @@ export default function CommentSection({ courseId }) {
     }
 
     setIsSubmitting(true);
-    
+
     try {
       await editCommentMutation.mutateAsync({
         commentId,
@@ -228,7 +339,7 @@ export default function CommentSection({ courseId }) {
   // Handle deleting a comment
   const handleDeleteComment = async (commentId) => {
     setIsSubmitting(true);
-    
+
     try {
       await deleteCommentMutation.mutateAsync(commentId);
     } finally {
@@ -297,7 +408,9 @@ export default function CommentSection({ courseId }) {
 
         {/* Comments List */}
         {isLoading ? (
-          <div className="py-4 text-center text-gray-500">Loading comments...</div>
+          <div className="py-4 text-center text-gray-500">
+            Loading comments...
+          </div>
         ) : error ? (
           <div className="py-4 text-center text-red-500">
             Error loading comments. Please try again.

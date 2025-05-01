@@ -115,6 +115,12 @@ export default function UserProfile() {
   const queryClient = useQueryClient();
   const { user: currentUser, isAuthenticated, logout } = useAuth();
 
+  // Debug logs to see what parameters we're working with
+  useEffect(() => {
+    console.log("UserProfile params:", { userId });
+    console.log("Current user:", currentUser);
+  }, [userId, currentUser]);
+
   // Determine if this is a personal profile or public profile
   const isPersonalProfile =
     isAuthenticated && (!userId || parseInt(userId) === currentUser?.id);
@@ -141,27 +147,64 @@ export default function UserProfile() {
     confirmPassword: "",
   });
 
-  // Get user profile data
+  // Get user profile data - make sure we're always using a valid userId
+  const effectiveUserId =
+    userId || (currentUser?.id ? String(currentUser.id) : null);
+
   const {
     data: profileData,
     isLoading: isProfileLoading,
     error: profileError,
   } = useQuery({
-    queryKey: [`/api/users/${userId}`],
-    enabled: !!userId,
+    queryKey: [`/api/users/${effectiveUserId}`],
+    queryFn: async () => {
+      if (!effectiveUserId) {
+        throw new Error("No user ID available");
+      }
+      console.log(`Fetching profile for user ID: ${effectiveUserId}`);
+      const response = await fetch(`/api/users/${effectiveUserId}`);
+      if (!response.ok) {
+        throw new Error(`Error fetching user profile: ${response.statusText}`);
+      }
+      return await response.json();
+    },
+    enabled: !!effectiveUserId, // Only run when we have a valid userId
   });
 
-  // Get user posts
+  // Get user posts with the validated ID
   const { data: userPosts = [], isLoading: isPostsLoading } = useQuery({
-    queryKey: [`/api/users/${userId}/posts`],
-    enabled: !!userId,
+    queryKey: [`/api/users/${effectiveUserId}/posts`],
+    queryFn: async () => {
+      if (!effectiveUserId) return [];
+      console.log(`Fetching posts for user ID: ${effectiveUserId}`);
+      const response = await fetch(`/api/users/${effectiveUserId}/posts`);
+      if (!response.ok) {
+        throw new Error(`Error fetching user posts: ${response.statusText}`);
+      }
+      return await response.json();
+    },
+    enabled: !!effectiveUserId,
   });
 
   // Get followers count
   const { data: followersCountData, isLoading: isFollowersCountLoading } =
     useQuery({
-      queryKey: [`/api/users/${userId}/followers/count`],
-      enabled: !!userId,
+      queryKey: [`/api/users/${effectiveUserId}/followers/count`],
+      queryFn: async () => {
+        if (!effectiveUserId) return { count: 0 };
+        console.log(`Fetching followers count for user ID: ${effectiveUserId}`);
+        const response = await fetch(
+          `/api/users/${effectiveUserId}/followers/count`
+        );
+        if (!response.ok) {
+          console.error(
+            `Error fetching followers count: ${response.statusText}`
+          );
+          return { count: 0 };
+        }
+        return await response.json();
+      },
+      enabled: !!effectiveUserId,
     });
   // Extract the actual count value from the response
   const followersCount = followersCountData?.count || 0;
@@ -169,8 +212,22 @@ export default function UserProfile() {
   // Get following count
   const { data: followingCountData, isLoading: isFollowingCountLoading } =
     useQuery({
-      queryKey: [`/api/users/${userId}/following/count`],
-      enabled: !!userId,
+      queryKey: [`/api/users/${effectiveUserId}/following/count`],
+      queryFn: async () => {
+        if (!effectiveUserId) return { count: 0 };
+        console.log(`Fetching following count for user ID: ${effectiveUserId}`);
+        const response = await fetch(
+          `/api/users/${effectiveUserId}/following/count`
+        );
+        if (!response.ok) {
+          console.error(
+            `Error fetching following count: ${response.statusText}`
+          );
+          return { count: 0 };
+        }
+        return await response.json();
+      },
+      enabled: !!effectiveUserId,
     });
   // Extract the actual count value from the response
   const followingCount = followingCountData?.count || 0;
@@ -183,13 +240,35 @@ export default function UserProfile() {
   });
 
   // Get current follow status with a proper query
-  // Since we updated the backend, this now works reliably even without authentication
   const {
     data: followData,
     error: followError,
     isPending: isFollowCheckPending,
   } = useQuery({
     queryKey: [`/api/users/${userId}/following/${currentUser?.id}`],
+    queryFn: async () => {
+      if (!userId || !currentUser?.id || parseInt(userId) === currentUser.id) {
+        return { following: false };
+      }
+      console.log(
+        `Checking follow status: currentUser ${currentUser.id} following userId ${userId}`
+      );
+      try {
+        const response = await fetch(
+          `/api/users/${userId}/following/${currentUser.id}`
+        );
+        if (!response.ok) {
+          console.error(`Error checking follow status: ${response.statusText}`);
+          return { following: false };
+        }
+        const data = await response.json();
+        console.log("Follow status response:", data);
+        return data;
+      } catch (error) {
+        console.error("Follow status check error:", error);
+        return { following: false };
+      }
+    },
     enabled:
       !!userId && !!currentUser?.id && parseInt(userId) !== currentUser?.id,
     refetchInterval: false,
@@ -344,6 +423,8 @@ export default function UserProfile() {
     setFollowStatus((prev) => ({ ...prev, isLoading: true }));
 
     try {
+      console.log(`Attempting to unfollow user with ID: ${userId}`);
+
       const response = await fetch(`/api/users/${userId}/follow`, {
         method: "DELETE",
         headers: {
@@ -351,6 +432,8 @@ export default function UserProfile() {
           Authorization: `Bearer ${localStorage.getItem("token")}`,
         },
       });
+
+      console.log("Unfollow response status:", response.status);
 
       if (response.ok) {
         // Update related queries
@@ -377,17 +460,24 @@ export default function UserProfile() {
           description: `You have unfollowed ${profileData?.username}`,
         });
       } else {
-        const errorData = await response.json();
+        // Try to get error message from response
+        let errorMessage = "Failed to unfollow user";
+        try {
+          const errorData = await response.json();
+          errorMessage = errorData.message || errorMessage;
+        } catch (e) {
+          console.error("Error parsing error response:", e);
+        }
 
         setFollowStatus((prev) => ({
           ...prev,
           isLoading: false,
-          error: errorData.message || "Failed to unfollow user",
+          error: errorMessage,
         }));
 
         toast({
           title: "Error",
-          description: errorData.message || "Failed to unfollow user",
+          description: errorMessage,
           variant: "destructive",
         });
       }
@@ -655,7 +745,8 @@ export default function UserProfile() {
     );
   }
 
-  if (profileError || !profileData) {
+  if ((profileError || !profileData) && effectiveUserId) {
+    console.error("Profile error:", profileError);
     return (
       <div className="min-h-screen">
         <div className="container max-w-5xl py-12 mx-auto px-4">
