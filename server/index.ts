@@ -44,8 +44,8 @@ app.use((req, res, next) => {
 
 (async () => {
   // We'll skip importing courses for now since you already have many courses in the database
-  console.log('Starting server without course import');
-  
+  console.log("Starting server without course import");
+
   // Register API routes
   const server = await registerRoutes(app);
 
@@ -68,13 +68,11 @@ app.use((req, res, next) => {
 
   // ALWAYS serve the app on port 5000
   // this serves both the API and the client.
-  // It is the only port that is not firewalled.
-  const port = 5000;
-  server.listen({
-    port,
-    host: "0.0.0.0",
-    reusePort: true,
-  }, () => {
+  // Modified to remove options that might cause issues
+  const port = process.env.PORT || 5000;
+  server.listen(port, () => {
     log(`serving on port ${port}`);
+    log(`You can access the application at: http://localhost:${port}`);
+    log(`API endpoints are available at: http://localhost:${port}/api/*`);
   });
 })();
