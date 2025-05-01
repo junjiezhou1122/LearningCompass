@@ -136,14 +136,30 @@ app.use((req, res, next) => {
     serveStatic(app);
   }
 
-  // ALWAYS serve the app on port 5000
-  // this serves both the API and the client.
-  // Modified to remove options that might cause issues
-  const port = process.env.PORT || 5000;
-  server.listen(port, () => {
-    log(`serving on port ${port}`);
-    log(`You can access the application at: http://localhost:${port}`);
-    log(`API endpoints are available at: http://localhost:${port}/api/*`);
-    log(`Auth endpoints are available at: http://localhost:${port}/api/auth/*`);
-  });
+  // Try multiple ports in sequence if the primary port is unavailable
+  const tryPorts = [5000, 3000, 4000, 8000];
+  let currentPortIndex = 0;
+
+  function tryListen() {
+    const port = process.env.PORT || tryPorts[currentPortIndex];
+    server.listen(port, '0.0.0.0')
+      .on('error', (err: any) => {
+        if (err.code === 'EADDRINUSE' && currentPortIndex < tryPorts.length - 1) {
+          currentPortIndex++;
+          server.close();
+          tryListen();
+        } else {
+          console.error('Port error:', err);
+          process.exit(1);
+        }
+      })
+      .on('listening', () => {
+        log(`serving on port ${port}`);
+        log(`You can access the application at: http://0.0.0.0:${port}`);
+        log(`API endpoints are available at: http://0.0.0.0:${port}/api/*`);
+        log(`Auth endpoints are available at: http://0.0.0.0:${port}/api/auth/*`);
+      });
+  }
+
+  tryListen();
 })();
