@@ -243,69 +243,78 @@ const FloatingContextAI = ({ pageContext, onClose }) => {
 
   // Prepare context summary
   useEffect(() => {
-    if (pageContext) {
-      console.log("Preparing context summary from:", pageContext);
-      let summary = "";
-      
-      switch (pageContext.pageType) {
-        case 'share':
-          if (pageContext.data?.specificPost) {
-            summary = `Viewing post: "${pageContext.data.post.title}" with ${pageContext.data.comments?.length || 0} comments`;
-            console.log("Share page - specific post:", pageContext.data.post);
-          } else {
-            summary = `Browsing ${pageContext.data?.posts?.length || 0} posts in the share page`;
-            console.log("Share page - browsing posts count:", pageContext.data?.posts?.length);
-          }
-          break;
-        case 'search':
-          summary = `Searching for: "${pageContext.data?.searchQuery}" with filter: ${pageContext.data?.filter}`;
-          console.log("Search page context:", { 
-            query: pageContext.data?.searchQuery,
-            filter: pageContext.data?.filter
-          });
-          break;
-        case 'course':
-          summary = `Viewing course: "${pageContext.data?.course?.title}"`;
-          console.log("Course page context:", pageContext.data?.course);
-          break;
-        case 'home':
-          summary = `Browsing the home page with ${pageContext.data?.recommendations?.length || 0} recommendations`;
-          console.log("Home page recommendations count:", pageContext.data?.recommendations?.length);
-          break;
-        default:
-          summary = "Browsing the platform";
-          console.log("Unknown page type:", pageContext.pageType);
-      }
-      
-      // Add user context
-      if (pageContext.userContext) {
-        const bookmarks = pageContext.userContext.bookmarks?.length || 0;
-        summary += `\nYou have ${bookmarks} bookmarked items`;
-        console.log("User context available:", {
-          bookmarks: bookmarks,
-          searchHistory: pageContext.userContext.searchHistory?.length || 0,
-          profile: pageContext.userContext.profile ? "available" : "not available"
-        });
-      } else {
-        console.log("No user context available - user may not be logged in");
-      }
-      
-      console.log("Final context summary:", summary);
-      setContextSummary(summary);
-      
-      // Add initial message
-      const initialMessage = `I'm your AI learning assistant. I can see you're ${summary.toLowerCase()}. How can I help you?`;
-      console.log("Setting initial assistant message:", initialMessage);
-      
+    if (!pageContext) {
+      console.log("No page context provided to FloatingContextAI");
+      // Set a default message for when no context is available
+      setContextSummary("browsing this page");
       setMessages([
         {
           role: 'assistant',
-          content: initialMessage
+          content: "I'm your AI learning assistant. How can I help you with your learning journey today?"
         }
       ]);
-    } else {
-      console.log("No page context provided to FloatingContextAI");
+      return;
     }
+    
+    console.log("Preparing context summary from:", pageContext);
+    let summary = "";
+    
+    switch (pageContext.pageType) {
+      case 'share':
+        if (pageContext.data?.specificPost) {
+          summary = `Viewing post: "${pageContext.data.post.title}" with ${pageContext.data.comments?.length || 0} comments`;
+          console.log("Share page - specific post:", pageContext.data.post);
+        } else {
+          summary = `Browsing ${pageContext.data?.posts?.length || 0} posts in the share page`;
+          console.log("Share page - browsing posts count:", pageContext.data?.posts?.length);
+        }
+        break;
+      case 'search':
+        summary = `Searching for: "${pageContext.data?.searchQuery}" with filter: ${pageContext.data?.filter}`;
+        console.log("Search page context:", { 
+          query: pageContext.data?.searchQuery,
+          filter: pageContext.data?.filter
+        });
+        break;
+      case 'course':
+        summary = `Viewing course: "${pageContext.data?.course?.title}"`;
+        console.log("Course page context:", pageContext.data?.course);
+        break;
+      case 'home':
+        summary = `Browsing the home page with ${pageContext.data?.recommendations?.length || 0} recommendations`;
+        console.log("Home page recommendations count:", pageContext.data?.recommendations?.length);
+        break;
+      default:
+        summary = "Browsing the platform";
+        console.log("Unknown page type:", pageContext.pageType);
+    }
+    
+    // Add user context
+    if (pageContext.userContext) {
+      const bookmarks = pageContext.userContext.bookmarks?.length || 0;
+      summary += `\nYou have ${bookmarks} bookmarked items`;
+      console.log("User context available:", {
+        bookmarks: bookmarks,
+        searchHistory: pageContext.userContext.searchHistory?.length || 0,
+        profile: pageContext.userContext.profile ? "available" : "not available"
+      });
+    } else {
+      console.log("No user context available - user may not be logged in");
+    }
+    
+    console.log("Final context summary:", summary);
+    setContextSummary(summary);
+    
+    // Add initial message
+    const initialMessage = `I'm your AI learning assistant. I can see you're ${summary.toLowerCase()}. How can I help you?`;
+    console.log("Setting initial assistant message:", initialMessage);
+    
+    setMessages([
+      {
+        role: 'assistant',
+        content: initialMessage
+      }
+    ]);
   }, [pageContext]);
 
   // Auto-scroll to bottom on new messages
@@ -337,7 +346,7 @@ const FloatingContextAI = ({ pageContext, onClose }) => {
           response = {
             role: 'assistant',
             content: `Based on the content you're currently viewing${
-              pageContext.userContext 
+              pageContext?.userContext 
                 ? ' and your previous activity' 
                 : ''
             }, here are some personalized recommendations:\n\n* Explore courses on similar topics\n* Check related discussions in the community\n* Consider saving this content for later reference`
@@ -609,14 +618,16 @@ const FloatingContextAI = ({ pageContext, onClose }) => {
         
         <div className="flex">
           <motion.button
+            whileHover={{ scale: 1.05 }}
+            whileTap={{ scale: 0.95 }}
             type="button"
-            whileHover={{ scale: 1.1 }}
-            whileTap={{ scale: 0.9 }}
-            disabled={isTyping}
             onClick={startListening}
-            className={`p-2 ${
-              isListening ? 'bg-red-500' : 'bg-indigo-200 hover:bg-indigo-300'
-            } text-indigo-700 border-t border-b border-indigo-200 transition-colors`}
+            disabled={isListening || isTyping}
+            className={`p-2 rounded-none border border-l-0 border-indigo-200 ${
+              isListening 
+                ? 'bg-red-50 text-red-600' 
+                : 'bg-indigo-50 text-indigo-600 hover:bg-indigo-100'
+            } transition-colors`}
           >
             <Mic className="h-4 w-4" />
           </motion.button>
@@ -624,42 +635,12 @@ const FloatingContextAI = ({ pageContext, onClose }) => {
           <Button 
             type="submit"
             disabled={!input.trim() || isTyping}
-            className="rounded-r-lg border border-indigo-600 bg-gradient-to-r from-blue-500 to-indigo-600 py-2 px-4 h-full"
+            className="rounded-l-none rounded-r-lg px-3 py-2 h-auto bg-gradient-to-r from-indigo-600 to-blue-500 hover:from-indigo-700 hover:to-blue-600 text-white border border-l-0 border-indigo-200"
           >
-            <AnimatePresence mode="wait">
-              {isTyping ? (
-                <motion.div
-                  key="loading"
-                  initial={{ opacity: 0 }}
-                  animate={{ opacity: 1 }}
-                  exit={{ opacity: 0 }}
-                >
-                  <div className="h-4 w-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                </motion.div>
-              ) : (
-                <motion.div
-                  key="send"
-                  initial={{ opacity: 0 }}
-                  animate={{ opacity: 1 }}
-                  exit={{ opacity: 0 }}
-                  whileHover={{ x: 2 }}
-                >
-                  <ArrowRight className="h-4 w-4 text-white" />
-                </motion.div>
-              )}
-            </AnimatePresence>
+            <ArrowRight className="h-4 w-4" />
           </Button>
         </div>
       </form>
-      
-      {/* Minimize/Expand button */}
-      <motion.button
-        whileHover={{ y: -2 }}
-        whileTap={{ scale: 0.95 }}
-        className="absolute top-0 left-1/2 -translate-x-1/2 -translate-y-1/2 h-6 w-10 bg-indigo-600 rounded-full flex items-center justify-center shadow-md"
-      >
-        <MoveUp className="h-3 w-3 text-white" />
-      </motion.button>
     </motion.div>
   );
 };
