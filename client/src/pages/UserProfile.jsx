@@ -123,7 +123,7 @@ export default function UserProfile() {
 
   // Determine if this is a personal profile or public profile
   const isPersonalProfile =
-    isAuthenticated && (!userId || parseInt(userId) === currentUser?.id);
+    isAuthenticated && (!userId || String(userId) === String(currentUser?.id));
 
   // State for UI
   const [activeTab, setActiveTab] = useState("posts");
@@ -247,7 +247,7 @@ export default function UserProfile() {
   } = useQuery({
     queryKey: [`/api/users/${userId}/following/${currentUser?.id}`],
     queryFn: async () => {
-      if (!userId || !currentUser?.id || parseInt(userId) === currentUser.id) {
+      if (!userId || !currentUser?.id || String(userId) === String(currentUser.id)) {
         return { following: false };
       }
       console.log(
@@ -270,7 +270,7 @@ export default function UserProfile() {
       }
     },
     enabled:
-      !!userId && !!currentUser?.id && parseInt(userId) !== currentUser?.id,
+      !!userId && !!currentUser?.id && String(userId) !== String(currentUser.id),
     refetchInterval: false,
     refetchOnWindowFocus: true, // Re-check when window gets focus
     refetchOnMount: true, // Re-check when component mounts
@@ -293,7 +293,7 @@ export default function UserProfile() {
     if (
       !isAuthenticated ||
       !currentUser ||
-      currentUser.id === parseInt(userId)
+      String(currentUser.id) === String(userId)
     ) {
       setFollowStatus({
         isFollowing: false,
@@ -555,16 +555,30 @@ export default function UserProfile() {
     setModalUsers([]);
   };
 
+  // Clear user data when user ID changes
+  useEffect(() => {
+    // Reset all user-specific data when userId changes
+    setUserLikes([]);
+    setUserComments([]);
+    // Reset loading states
+    setIsLikesLoading(false);
+    setIsCommentsLoading(false);
+  }, [userId]);
+
   useEffect(() => {
     // Fetch user's liked posts when tab is 'likes'
-    if (activeTab === "likes" && !userLikes.length && !isLikesLoading) {
+    if (activeTab === "likes" && !isLikesLoading && effectiveUserId) {
       const fetchLikes = async () => {
         setIsLikesLoading(true);
         try {
-          const response = await fetch(`/api/users/${userId}/likes`);
+          console.log(`Fetching likes for user ID: ${effectiveUserId}`);
+          const response = await fetch(`/api/users/${effectiveUserId}/likes`);
           if (response.ok) {
             const data = await response.json();
+            console.log("Fetched user likes:", data);
             setUserLikes(data);
+          } else {
+            console.error(`Error response: ${response.status} ${response.statusText}`);
           }
         } catch (error) {
           console.error("Error fetching liked posts:", error);
@@ -579,7 +593,6 @@ export default function UserProfile() {
     // Fetch user's comments when tab is 'comments'
     if (
       activeTab === "comments" &&
-      !userComments.length &&
       !isCommentsLoading &&
       effectiveUserId // Make sure we have a valid user ID
     ) {
@@ -605,7 +618,7 @@ export default function UserProfile() {
 
       fetchComments();
     }
-  }, [activeTab, userId, effectiveUserId, userLikes.length, userComments.length, isCommentsLoading]);
+  }, [activeTab, effectiveUserId, isLikesLoading, isCommentsLoading]);
 
   // Handle profile form changes
   const handleProfileChange = (e) => {
@@ -928,7 +941,7 @@ export default function UserProfile() {
               </div>
             </div>
 
-            {isAuthenticated && currentUser?.id !== parseInt(userId) && (
+            {isAuthenticated && String(currentUser?.id) !== String(userId) && (
               <div className="mt-4 sm:mt-0">
                 <Button
                   variant={followStatus.isFollowing ? "outline" : "default"}
@@ -1261,12 +1274,12 @@ export default function UserProfile() {
                   No posts yet
                 </h3>
                 <p className="text-gray-500">
-                  {parseInt(userId) === currentUser?.id
+                  {String(userId) === String(currentUser?.id)
                     ? "You haven't shared any posts yet. Start sharing your learning journey!"
                     : `${profileData.username} hasn't shared any posts yet.`}
                 </p>
 
-                {parseInt(userId) === currentUser?.id && (
+                {String(userId) === String(currentUser?.id) && (
                   <Button
                     className="mt-6 bg-orange-500 hover:bg-orange-600"
                     onClick={() => navigate("/share")}
@@ -1392,7 +1405,7 @@ export default function UserProfile() {
                   No liked posts yet
                 </h3>
                 <p className="text-gray-500">
-                  {parseInt(userId) === currentUser?.id
+                  {String(userId) === String(currentUser?.id)
                     ? "You haven't liked any posts yet. Explore content and show your appreciation!"
                     : `${profileData.username} hasn't liked any posts yet.`}
                 </p>
@@ -1556,12 +1569,12 @@ export default function UserProfile() {
                   No comments yet
                 </h3>
                 <p className="text-gray-500 max-w-md mx-auto">
-                  {parseInt(userId) === currentUser?.id
+                  {String(userId) === String(currentUser?.id)
                     ? "You haven't commented on any posts yet. Join the conversation to share your thoughts!"
                     : `${profileData.username} hasn't commented on any posts yet.`}
                 </p>
 
-                {parseInt(userId) === currentUser?.id && (
+                {String(userId) === String(currentUser?.id) && (
                   <Button
                     className="mt-6 bg-orange-500 hover:bg-orange-600 transition-all duration-300 hover:shadow-md"
                     onClick={() => navigate("/")}

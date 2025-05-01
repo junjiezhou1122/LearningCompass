@@ -76,6 +76,41 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Auth routes
+  
+  // Test endpoint to generate tokens (for development only)
+  app.get("/api/auth/test-token/:userId", async (req: Request, res: Response) => {
+    try {
+      const userId = req.params.userId;
+      
+      // Find user by numeric ID, firebase ID, or username
+      let user;
+      const numericId = parseInt(userId);
+      
+      if (!isNaN(numericId)) {
+        user = await storage.getUser(numericId);
+      } 
+      
+      if (!user && /^[A-Za-z0-9]{20,}$/.test(userId)) {
+        user = await storage.getUserByFirebaseId(userId);
+      }
+      
+      if (!user && userId.length < 20) {
+        user = await storage.getUserByUsername(userId);
+      }
+      
+      if (!user) {
+        return res.status(404).json({ message: "User not found" });
+      }
+      
+      // Generate token
+      const token = generateToken(user);
+      res.json({ token, user: { ...user, password: undefined } });
+    } catch (error) {
+      console.error("Error generating test token:", error);
+      res.status(500).json({ message: "Error generating test token" });
+    }
+  });
+  
   app.post("/api/auth/register", async (req: Request, res: Response) => {
     try {
       const userData = insertUserSchema.parse({
@@ -357,13 +392,25 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Get user by ID for profile view
   app.get("/api/users/:userId", async (req: Request, res: Response) => {
     try {
-      const userId = parseInt(req.params.userId);
+      // Handle both numeric and string user IDs (for Firebase auth integration)
+      let user;
+      const userIdParam = req.params.userId;
       
-      if (isNaN(userId)) {
-        return res.status(400).json({ message: "Invalid user ID" });
+      // Try to find user by numeric ID first (if it looks like a number)
+      const numericId = parseInt(userIdParam);
+      if (!isNaN(numericId)) {
+        user = await storage.getUser(numericId);
       }
       
-      const user = await storage.getUser(userId);
+      // If not found and looks like a Firebase ID, try to find by firebase ID
+      if (!user && /^[A-Za-z0-9]{20,}$/.test(userIdParam)) {
+        user = await storage.getUserByFirebaseId(userIdParam);
+      }
+      
+      // If still not found, try to find by username as fallback
+      if (!user && userIdParam.length < 20) {
+        user = await storage.getUserByUsername(userIdParam);
+      }
       
       if (!user) {
         return res.status(404).json({ message: "User not found" });
@@ -381,13 +428,31 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Get user's posts
   app.get("/api/users/:userId/posts", async (req: Request, res: Response) => {
     try {
-      const userId = parseInt(req.params.userId);
+      // Handle both numeric and string user IDs (for Firebase auth integration)
+      let user;
+      const userIdParam = req.params.userId;
       
-      if (isNaN(userId)) {
-        return res.status(400).json({ message: "Invalid user ID" });
+      // Try to find user by numeric ID first (if it looks like a number)
+      const numericId = parseInt(userIdParam);
+      if (!isNaN(numericId)) {
+        user = await storage.getUser(numericId);
       }
       
-      const posts = await storage.getUserPosts(userId);
+      // If not found and looks like a Firebase ID, try to find by firebase ID
+      if (!user && /^[A-Za-z0-9]{20,}$/.test(userIdParam)) {
+        user = await storage.getUserByFirebaseId(userIdParam);
+      }
+      
+      // If still not found, try to find by username as fallback
+      if (!user && userIdParam.length < 20) {
+        user = await storage.getUserByUsername(userIdParam);
+      }
+      
+      if (!user) {
+        return res.status(404).json({ message: "User not found" });
+      }
+      
+      const posts = await storage.getUserPosts(user.id);
       res.json(posts);
     } catch (error) {
       console.error("Error fetching user posts:", error);
@@ -397,13 +462,31 @@ export async function registerRoutes(app: Express): Promise<Server> {
   
   app.get("/api/users/:userId/likes", async (req: Request, res: Response) => {
     try {
-      const userId = parseInt(req.params.userId);
+      // Handle both numeric and string user IDs (for Firebase auth integration)
+      let user;
+      const userIdParam = req.params.userId;
       
-      if (isNaN(userId)) {
-        return res.status(400).json({ message: "Invalid user ID" });
+      // Try to find user by numeric ID first (if it looks like a number)
+      const numericId = parseInt(userIdParam);
+      if (!isNaN(numericId)) {
+        user = await storage.getUser(numericId);
       }
       
-      const likes = await storage.getLearningPostLikesByUserId(userId);
+      // If not found and looks like a Firebase ID, try to find by firebase ID
+      if (!user && /^[A-Za-z0-9]{20,}$/.test(userIdParam)) {
+        user = await storage.getUserByFirebaseId(userIdParam);
+      }
+      
+      // If still not found, try to find by username as fallback
+      if (!user && userIdParam.length < 20) {
+        user = await storage.getUserByUsername(userIdParam);
+      }
+      
+      if (!user) {
+        return res.status(404).json({ message: "User not found" });
+      }
+      
+      const likes = await storage.getLearningPostLikesByUserId(user.id);
       
       // Get the full post details for each liked post
       if (likes.length > 0) {
@@ -422,13 +505,31 @@ export async function registerRoutes(app: Express): Promise<Server> {
   
   app.get("/api/users/:userId/comments", async (req: Request, res: Response) => {
     try {
-      const userId = parseInt(req.params.userId);
+      // Handle both numeric and string user IDs (for Firebase auth integration)
+      let user;
+      const userIdParam = req.params.userId;
       
-      if (isNaN(userId)) {
-        return res.status(400).json({ message: "Invalid user ID" });
+      // Try to find user by numeric ID first (if it looks like a number)
+      const numericId = parseInt(userIdParam);
+      if (!isNaN(numericId)) {
+        user = await storage.getUser(numericId);
       }
       
-      const comments = await storage.getLearningPostCommentsByUserId(userId);
+      // If not found and looks like a Firebase ID, try to find by firebase ID
+      if (!user && /^[A-Za-z0-9]{20,}$/.test(userIdParam)) {
+        user = await storage.getUserByFirebaseId(userIdParam);
+      }
+      
+      // If still not found, try to find by username as fallback
+      if (!user && userIdParam.length < 20) {
+        user = await storage.getUserByUsername(userIdParam);
+      }
+      
+      if (!user) {
+        return res.status(404).json({ message: "User not found" });
+      }
+      
+      const comments = await storage.getLearningPostCommentsByUserId(user.id);
       
       // Get the full post details for each commented post
       if (comments.length > 0) {
@@ -458,13 +559,31 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Get user's followers
   app.get("/api/users/:userId/followers", async (req: Request, res: Response) => {
     try {
-      const userId = parseInt(req.params.userId);
+      // Handle both numeric and string user IDs (for Firebase auth integration)
+      let user;
+      const userIdParam = req.params.userId;
       
-      if (isNaN(userId)) {
-        return res.status(400).json({ message: "Invalid user ID" });
+      // Try to find user by numeric ID first (if it looks like a number)
+      const numericId = parseInt(userIdParam);
+      if (!isNaN(numericId)) {
+        user = await storage.getUser(numericId);
       }
       
-      const followers = await storage.getFollowers(userId);
+      // If not found and looks like a Firebase ID, try to find by firebase ID
+      if (!user && /^[A-Za-z0-9]{20,}$/.test(userIdParam)) {
+        user = await storage.getUserByFirebaseId(userIdParam);
+      }
+      
+      // If still not found, try to find by username as fallback
+      if (!user && userIdParam.length < 20) {
+        user = await storage.getUserByUsername(userIdParam);
+      }
+      
+      if (!user) {
+        return res.status(404).json({ message: "User not found" });
+      }
+      
+      const followers = await storage.getFollowers(user.id);
       
       // Remove sensitive data
       const safeFollowers = followers.map(follower => {
@@ -482,13 +601,31 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Get user's following
   app.get("/api/users/:userId/following", async (req: Request, res: Response) => {
     try {
-      const userId = parseInt(req.params.userId);
+      // Handle both numeric and string user IDs (for Firebase auth integration)
+      let user;
+      const userIdParam = req.params.userId;
       
-      if (isNaN(userId)) {
-        return res.status(400).json({ message: "Invalid user ID" });
+      // Try to find user by numeric ID first (if it looks like a number)
+      const numericId = parseInt(userIdParam);
+      if (!isNaN(numericId)) {
+        user = await storage.getUser(numericId);
       }
       
-      const following = await storage.getFollowing(userId);
+      // If not found and looks like a Firebase ID, try to find by firebase ID
+      if (!user && /^[A-Za-z0-9]{20,}$/.test(userIdParam)) {
+        user = await storage.getUserByFirebaseId(userIdParam);
+      }
+      
+      // If still not found, try to find by username as fallback
+      if (!user && userIdParam.length < 20) {
+        user = await storage.getUserByUsername(userIdParam);
+      }
+      
+      if (!user) {
+        return res.status(404).json({ message: "User not found" });
+      }
+      
+      const following = await storage.getFollowing(user.id);
       
       // Remove sensitive data
       const safeFollowing = following.map(followedUser => {
@@ -506,13 +643,31 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Get user's followers count
   app.get("/api/users/:userId/followers/count", async (req: Request, res: Response) => {
     try {
-      const userId = parseInt(req.params.userId);
+      // Handle both numeric and string user IDs (for Firebase auth integration)
+      let user;
+      const userIdParam = req.params.userId;
       
-      if (isNaN(userId)) {
-        return res.status(400).json({ message: "Invalid user ID" });
+      // Try to find user by numeric ID first (if it looks like a number)
+      const numericId = parseInt(userIdParam);
+      if (!isNaN(numericId)) {
+        user = await storage.getUser(numericId);
       }
       
-      const count = await storage.getFollowersCount(userId);
+      // If not found and looks like a Firebase ID, try to find by firebase ID
+      if (!user && /^[A-Za-z0-9]{20,}$/.test(userIdParam)) {
+        user = await storage.getUserByFirebaseId(userIdParam);
+      }
+      
+      // If still not found, try to find by username as fallback
+      if (!user && userIdParam.length < 20) {
+        user = await storage.getUserByUsername(userIdParam);
+      }
+      
+      if (!user) {
+        return res.status(404).json({ message: "User not found" });
+      }
+      
+      const count = await storage.getFollowersCount(user.id);
       res.json({ count });
     } catch (error) {
       console.error("Error fetching followers count:", error);
@@ -523,13 +678,31 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Get user's following count
   app.get("/api/users/:userId/following/count", async (req: Request, res: Response) => {
     try {
-      const userId = parseInt(req.params.userId);
+      // Handle both numeric and string user IDs (for Firebase auth integration)
+      let user;
+      const userIdParam = req.params.userId;
       
-      if (isNaN(userId)) {
-        return res.status(400).json({ message: "Invalid user ID" });
+      // Try to find user by numeric ID first (if it looks like a number)
+      const numericId = parseInt(userIdParam);
+      if (!isNaN(numericId)) {
+        user = await storage.getUser(numericId);
       }
       
-      const count = await storage.getFollowingCount(userId);
+      // If not found and looks like a Firebase ID, try to find by firebase ID
+      if (!user && /^[A-Za-z0-9]{20,}$/.test(userIdParam)) {
+        user = await storage.getUserByFirebaseId(userIdParam);
+      }
+      
+      // If still not found, try to find by username as fallback
+      if (!user && userIdParam.length < 20) {
+        user = await storage.getUserByUsername(userIdParam);
+      }
+      
+      if (!user) {
+        return res.status(404).json({ message: "User not found" });
+      }
+      
+      const count = await storage.getFollowingCount(user.id);
       res.json({ count });
     } catch (error) {
       console.error("Error fetching following count:", error);
@@ -541,27 +714,56 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get("/api/users/:userId/following/:targetId", async (req: Request, res: Response) => {
     try {
       // Get ID from token if available, otherwise use ID from URL param for the check
-      let currentUserId;
-      if (req.headers.authorization) {
-        try {
-          const token = req.headers.authorization.split(' ')[1];
-          const decoded = jwt.verify(token, JWT_SECRET) as { id: number };
-          currentUserId = decoded.id;
-        } catch (err) {
-          // Token error, just continue with param
-          currentUserId = parseInt(req.params.targetId);
-        }
-      } else {
-        currentUserId = parseInt(req.params.targetId);
+      let currentUser;
+      let targetUser;
+      
+      // First, find the target user
+      const targetIdParam = req.params.targetId;
+      
+      // Try numeric ID first
+      const targetNumericId = parseInt(targetIdParam);
+      if (!isNaN(targetNumericId)) {
+        targetUser = await storage.getUser(targetNumericId);
       }
       
-      const userId = parseInt(req.params.userId);
-      
-      if (isNaN(userId) || isNaN(currentUserId)) {
-        return res.status(400).json({ message: "Invalid user IDs" });
+      // If not found and looks like a Firebase ID, try to find by firebase ID
+      if (!targetUser && /^[A-Za-z0-9]{20,}$/.test(targetIdParam)) {
+        targetUser = await storage.getUserByFirebaseId(targetIdParam);
       }
       
-      const isFollowing = await storage.isFollowing(currentUserId, userId);
+      // If still not found, try to find by username as fallback
+      if (!targetUser && targetIdParam.length < 20) {
+        targetUser = await storage.getUserByUsername(targetIdParam);
+      }
+      
+      if (!targetUser) {
+        return res.status(404).json({ message: "Target user not found" });
+      }
+      
+      // Now find the user being followed
+      const userIdParam = req.params.userId;
+      
+      // Try numeric ID first
+      const userNumericId = parseInt(userIdParam);
+      if (!isNaN(userNumericId)) {
+        currentUser = await storage.getUser(userNumericId);
+      }
+      
+      // If not found and looks like a Firebase ID, try to find by firebase ID
+      if (!currentUser && /^[A-Za-z0-9]{20,}$/.test(userIdParam)) {
+        currentUser = await storage.getUserByFirebaseId(userIdParam);
+      }
+      
+      // If still not found, try to find by username as fallback
+      if (!currentUser && userIdParam.length < 20) {
+        currentUser = await storage.getUserByUsername(userIdParam);
+      }
+      
+      if (!currentUser) {
+        return res.status(404).json({ message: "User not found" });
+      }
+      
+      const isFollowing = await storage.isFollowing(targetUser.id, currentUser.id);
       res.json({ following: isFollowing });
     } catch (error) {
       console.error("Error checking follow status:", error);
@@ -573,20 +775,35 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post("/api/users/:userId/follow", authenticateJWT, async (req: Request, res: Response) => {
     try {
       const followerId = (req as any).user.id;
-      const followingId = parseInt(req.params.userId);
       
-      if (isNaN(followingId)) {
-        return res.status(400).json({ message: "Invalid user ID" });
+      // Find the user to follow by ID, Firebase ID, or username
+      let userToFollow;
+      const userIdParam = req.params.userId;
+      
+      // Try numeric ID first
+      const numericId = parseInt(userIdParam);
+      if (!isNaN(numericId)) {
+        userToFollow = await storage.getUser(numericId);
       }
+      
+      // If not found and looks like a Firebase ID, try to find by firebase ID
+      if (!userToFollow && /^[A-Za-z0-9]{20,}$/.test(userIdParam)) {
+        userToFollow = await storage.getUserByFirebaseId(userIdParam);
+      }
+      
+      // If still not found, try to find by username as fallback
+      if (!userToFollow && userIdParam.length < 20) {
+        userToFollow = await storage.getUserByUsername(userIdParam);
+      }
+      
+      if (!userToFollow) {
+        return res.status(404).json({ message: "User to follow not found" });
+      }
+      
+      const followingId = userToFollow.id;
       
       if (followerId === followingId) {
         return res.status(400).json({ message: "You cannot follow yourself" });
-      }
-      
-      // Check if target user exists
-      const targetUser = await storage.getUser(followingId);
-      if (!targetUser) {
-        return res.status(404).json({ message: "User to follow not found" });
       }
       
       const follow = await storage.createFollow({
@@ -597,7 +814,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.status(201).json(follow);
     } catch (error) {
       console.error("Error following user:", error);
-      if (error.message === "Already following this user") {
+      if (error instanceof Error && error.message === "Already following this user") {
         return res.status(400).json({ message: error.message });
       }
       res.status(500).json({ message: "Error following user" });
@@ -608,11 +825,32 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.delete("/api/users/:userId/follow", authenticateJWT, async (req: Request, res: Response) => {
     try {
       const followerId = (req as any).user.id;
-      const followingId = parseInt(req.params.userId);
       
-      if (isNaN(followingId)) {
-        return res.status(400).json({ message: "Invalid user ID" });
+      // Find the user to unfollow by ID, Firebase ID, or username
+      let userToUnfollow;
+      const userIdParam = req.params.userId;
+      
+      // Try numeric ID first
+      const numericId = parseInt(userIdParam);
+      if (!isNaN(numericId)) {
+        userToUnfollow = await storage.getUser(numericId);
       }
+      
+      // If not found and looks like a Firebase ID, try to find by firebase ID
+      if (!userToUnfollow && /^[A-Za-z0-9]{20,}$/.test(userIdParam)) {
+        userToUnfollow = await storage.getUserByFirebaseId(userIdParam);
+      }
+      
+      // If still not found, try to find by username as fallback
+      if (!userToUnfollow && userIdParam.length < 20) {
+        userToUnfollow = await storage.getUserByUsername(userIdParam);
+      }
+      
+      if (!userToUnfollow) {
+        return res.status(404).json({ message: "User to unfollow not found" });
+      }
+      
+      const followingId = userToUnfollow.id;
       
       const result = await storage.deleteFollow(followerId, followingId);
       

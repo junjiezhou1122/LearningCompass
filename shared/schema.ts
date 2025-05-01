@@ -24,6 +24,7 @@ export const users = pgTable("users", {
   photoURL: text("photo_url"),
   authProvider: text("auth_provider"),
   providerId: text("provider_id"),
+  firebaseId: text("firebase_id").unique(),
   createdAt: text("created_at").notNull(),
 });
 
@@ -37,6 +38,7 @@ export const insertUserSchema = createInsertSchema(users).pick({
   photoURL: true,
   authProvider: true,
   providerId: true,
+  firebaseId: true,
   createdAt: true,
 });
 

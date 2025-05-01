@@ -21,6 +21,7 @@ export interface IStorage {
   getUser(id: number): Promise<User | undefined>;
   getUserByUsername(username: string): Promise<User | undefined>;
   getUserByEmail(email: string): Promise<User | undefined>;
+  getUserByFirebaseId(firebaseId: string): Promise<User | undefined>;
   createUser(user: InsertUser): Promise<User>;
   getUserPosts(userId: number): Promise<LearningPost[]>;
   
@@ -158,6 +159,23 @@ export class DatabaseStorage implements IStorage {
   async getUserByEmail(email: string): Promise<User | undefined> {
     const [user] = await db.select().from(users).where(eq(users.email, email));
     return user || undefined;
+  }
+  
+  async getUserByFirebaseId(firebaseId: string): Promise<User | undefined> {
+    try {
+      // First try to find by firebaseId
+      let [user] = await db.select().from(users).where(eq(users.firebaseId, firebaseId));
+      
+      // If not found, try to find by providerId
+      if (!user) {
+        [user] = await db.select().from(users).where(eq(users.providerId, firebaseId));
+      }
+      
+      return user || undefined;
+    } catch (error) {
+      console.error("Error fetching user by Firebase ID:", error);
+      return undefined;
+    }
   }
 
   async createUser(insertUser: InsertUser): Promise<User> {
