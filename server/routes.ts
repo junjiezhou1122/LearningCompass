@@ -2159,6 +2159,265 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.status(500).json({ message: "Error adding points" });
     }
   });
+  
+  // User Events Routes
+  app.get("/api/events", authenticateJWT, async (req: Request, res: Response) => {
+    try {
+      const userId = (req as any).user.id;
+      const { startDate, endDate, limit, upcoming, eventType } = req.query;
+      
+      const options: {
+        startDate?: Date;
+        endDate?: Date;
+        limit?: number;
+        upcoming?: boolean;
+        eventType?: string;
+      } = {};
+      
+      if (startDate) {
+        options.startDate = new Date(startDate as string);
+      }
+      
+      if (endDate) {
+        options.endDate = new Date(endDate as string);
+      }
+      
+      if (limit && !isNaN(Number(limit))) {
+        options.limit = Number(limit);
+      }
+      
+      if (upcoming === 'true') {
+        options.upcoming = true;
+      }
+      
+      if (eventType && typeof eventType === 'string') {
+        options.eventType = eventType;
+      }
+      
+      const events = await storage.getUserEvents(userId, options);
+      
+      // If associated with courses, fetch course data
+      const eventsWithDetails = await Promise.all(events.map(async (event) => {
+        if (event.relatedCourseId) {
+          const course = await storage.getCourse(event.relatedCourseId);
+          return {
+            ...event,
+            course: course || null
+          };
+        }
+        return event;
+      }));
+      
+      res.json(eventsWithDetails);
+    } catch (error) {
+      console.error("Error fetching events:", error);
+      res.status(500).json({ message: "Error fetching events" });
+    }
+  });
+  
+  app.get("/api/events/upcoming", authenticateJWT, async (req: Request, res: Response) => {
+    try {
+      const userId = (req as any).user.id;
+      const { limit } = req.query;
+      
+      let limitNum = 5; // Default limit
+      if (limit && !isNaN(Number(limit))) {
+        limitNum = Number(limit);
+      }
+      
+      const events = await storage.getUpcomingEvents(userId, limitNum);
+      
+      // If associated with courses, fetch course data
+      const eventsWithDetails = await Promise.all(events.map(async (event) => {
+        if (event.relatedCourseId) {
+          const course = await storage.getCourse(event.relatedCourseId);
+          return {
+            ...event,
+            course: course || null
+          };
+        }
+        return event;
+      }));
+      
+      res.json(eventsWithDetails);
+    } catch (error) {
+      console.error("Error fetching upcoming events:", error);
+      res.status(500).json({ message: "Error fetching upcoming events" });
+    }
+  });
+  
+  app.get("/api/events/:id", authenticateJWT, async (req: Request, res: Response) => {
+    try {
+      const userId = (req as any).user.id;
+      const eventId = parseInt(req.params.id);
+      
+      if (isNaN(eventId)) {
+        return res.status(400).json({ message: "Invalid event ID" });
+      }
+      
+      const event = await storage.getUserEvent(eventId);
+      
+      if (!event) {
+        return res.status(404).json({ message: "Event not found" });
+      }
+      
+      // Ensure the user owns this event
+      if (event.userId !== userId) {
+        return res.status(403).json({ message: "You don't have permission to access this event" });
+      }
+      
+      // Get course details if associated with a course
+      let courseDetails = null;
+      if (event.relatedCourseId) {
+        courseDetails = await storage.getCourse(event.relatedCourseId);
+      }
+      
+      res.json({
+        ...event,
+        course: courseDetails
+      });
+    } catch (error) {
+      console.error("Error fetching event:", error);
+      res.status(500).json({ message: "Error fetching event" });
+    }
+  });
+  
+  app.post("/api/events", authenticateJWT, async (req: Request, res: Response) => {
+    try {
+      const userId = (req as any).user.id;
+      
+      // Add userId to the event data
+      const eventData = {
+        ...req.body,
+        userId,
+      };
+      
+      // Validate and format dates
+      if (typeof eventData.startDate === 'string') {
+        eventData.startDate = new Date(eventData.startDate);
+      }
+      
+      if (typeof eventData.endDate === 'string') {
+        eventData.endDate = new Date(eventData.endDate);
+      }
+      
+      if (typeof eventData.reminderTime === 'string') {
+        eventData.reminderTime = new Date(eventData.reminderTime);
+      }
+      
+      // Create event
+      const event = await storage.createUserEvent(eventData);
+      
+      // Add course details if the event is associated with a course
+      let courseDetails = null;
+      if (event.relatedCourseId) {
+        courseDetails = await storage.getCourse(event.relatedCourseId);
+      }
+      
+      res.status(201).json({
+        ...event,
+        course: courseDetails,
+        message: "Event created successfully"
+      });
+    } catch (error) {
+      console.error("Error creating event:", error);
+      
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ message: "Invalid event data", errors: error.errors });
+      }
+      
+      res.status(500).json({ message: "Error creating event" });
+    }
+  });
+  
+  app.put("/api/events/:id", authenticateJWT, async (req: Request, res: Response) => {
+    try {
+      const userId = (req as any).user.id;
+      const eventId = parseInt(req.params.id);
+      
+      if (isNaN(eventId)) {
+        return res.status(400).json({ message: "Invalid event ID" });
+      }
+      
+      // Check if the event exists and belongs to the user
+      const existingEvent = await storage.getUserEvent(eventId);
+      if (!existingEvent) {
+        return res.status(404).json({ message: "Event not found" });
+      }
+      
+      if (existingEvent.userId !== userId) {
+        return res.status(403).json({ message: "You don't have permission to update this event" });
+      }
+      
+      // Prepare update data
+      const updateData = { ...req.body };
+      delete updateData.id; // Prevent ID modification
+      delete updateData.userId; // Prevent user ID modification
+      
+      // Format dates
+      if (typeof updateData.startDate === 'string') {
+        updateData.startDate = new Date(updateData.startDate);
+      }
+      
+      if (typeof updateData.endDate === 'string') {
+        updateData.endDate = new Date(updateData.endDate);
+      }
+      
+      if (typeof updateData.reminderTime === 'string') {
+        updateData.reminderTime = new Date(updateData.reminderTime);
+      }
+      
+      // Update the event
+      const updatedEvent = await storage.updateUserEvent(eventId, updateData);
+      
+      if (!updatedEvent) {
+        return res.status(500).json({ message: "Failed to update event" });
+      }
+      
+      // Get course details if associated with a course
+      let courseDetails = null;
+      if (updatedEvent.relatedCourseId) {
+        courseDetails = await storage.getCourse(updatedEvent.relatedCourseId);
+      }
+      
+      res.json({
+        ...updatedEvent,
+        course: courseDetails,
+        message: "Event updated successfully"
+      });
+    } catch (error) {
+      console.error("Error updating event:", error);
+      
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ message: "Invalid event data", errors: error.errors });
+      }
+      
+      res.status(500).json({ message: "Error updating event" });
+    }
+  });
+  
+  app.delete("/api/events/:id", authenticateJWT, async (req: Request, res: Response) => {
+    try {
+      const userId = (req as any).user.id;
+      const eventId = parseInt(req.params.id);
+      
+      if (isNaN(eventId)) {
+        return res.status(400).json({ message: "Invalid event ID" });
+      }
+      
+      // Delete the event
+      const deleted = await storage.deleteUserEvent(eventId, userId);
+      
+      if (!deleted) {
+        return res.status(404).json({ message: "Event not found or you don't have permission to delete it" });
+      }
+      
+      res.json({ message: "Event deleted successfully" });
+    } catch (error) {
+      console.error("Error deleting event:", error);
+      res.status(500).json({ message: "Error deleting event" });
+    }
+  });
 
   const httpServer = createServer(app);
   return httpServer;

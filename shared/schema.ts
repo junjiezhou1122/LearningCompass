@@ -623,3 +623,67 @@ export type InsertUserBadge = typeof userBadges.$inferInsert;
 
 export type UserRecommendation = typeof userRecommendations.$inferSelect;
 export type InsertUserRecommendation = typeof userRecommendations.$inferInsert;
+
+// User Events schema
+export const userEvents = pgTable("user_events", {
+  id: serial("id").primaryKey(),
+  userId: integer("user_id")
+    .notNull()
+    .references(() => users.id),
+  title: text("title").notNull(),
+  description: text("description"),
+  startDate: timestamp("start_date").notNull(),
+  endDate: timestamp("end_date"),
+  location: text("location"),
+  isAllDay: boolean("is_all_day").default(false),
+  isCompleted: boolean("is_completed").default(false),
+  reminderSet: boolean("reminder_set").default(false),
+  reminderTime: timestamp("reminder_time"),
+  color: text("color"),
+  eventType: varchar("event_type", { length: 50 }).default("learning").notNull(), // 'learning', 'exam', 'deadline', etc.
+  relatedCourseId: integer("related_course_id").references(() => courses.id),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at"),
+});
+
+export const insertUserEventSchema = createInsertSchema(userEvents).pick({
+  userId: true,
+  title: true,
+  description: true,
+  startDate: true,
+  endDate: true,
+  location: true,
+  isAllDay: true,
+  isCompleted: true,
+  reminderSet: true,
+  reminderTime: true,
+  color: true,
+  eventType: true,
+  relatedCourseId: true,
+});
+
+// User Events Relations
+export const userEventsRelations = relations(userEvents, ({ one }) => ({
+  user: one(users, {
+    fields: [userEvents.userId],
+    references: [users.id],
+  }),
+  course: one(courses, {
+    fields: [userEvents.relatedCourseId],
+    references: [courses.id],
+  }),
+}));
+
+// Update user relations to include events
+export const usersEventsRelations = relations(users, ({ many }) => ({
+  events: many(userEvents),
+}));
+
+// Update courses relations to include events
+export const coursesEventsRelations = relations(courses, ({ many }) => ({
+  events: many(userEvents),
+}));
+
+// Type definitions for user events
+export type UserEvent = typeof userEvents.$inferSelect;
+export type InsertUserEvent = typeof userEvents.$inferInsert;

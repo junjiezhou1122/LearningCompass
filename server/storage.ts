@@ -15,7 +15,9 @@ import {
   // Gamification schemas and types
   userGamification, userBadges, userRecommendations,
   UserGamification, InsertUserGamification, UserBadge, InsertUserBadge,
-  UserRecommendation, InsertUserRecommendation
+  UserRecommendation, InsertUserRecommendation,
+  // User events schemas and types
+  userEvents, UserEvent, InsertUserEvent
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, and, like, desc, asc, sql, or, inArray, arrayContains } from "drizzle-orm";
@@ -164,6 +166,21 @@ export interface IStorage {
   createUserRecommendation(recommendation: InsertUserRecommendation): Promise<UserRecommendation>;
   updateUserRecommendation(id: number, data: Partial<InsertUserRecommendation>): Promise<UserRecommendation | undefined>;
   generateRecommendations(userId: number): Promise<(UserRecommendation & { course: Course })[]>;
+  
+  // User Events operations
+  getUserEvent(id: number): Promise<UserEvent | undefined>;
+  getUserEvents(userId: number, options?: {
+    startDate?: Date;
+    endDate?: Date;
+    limit?: number;
+    upcoming?: boolean;
+    eventType?: string;
+  }): Promise<UserEvent[]>;
+  createUserEvent(event: InsertUserEvent): Promise<UserEvent>;
+  updateUserEvent(id: number, event: Partial<InsertUserEvent>): Promise<UserEvent | undefined>;
+  deleteUserEvent(id: number, userId: number): Promise<boolean>;
+  getEventsByDateRange(userId: number, startDate: Date, endDate: Date): Promise<UserEvent[]>;
+  getUpcomingEvents(userId: number, limit?: number): Promise<UserEvent[]>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -1236,6 +1253,109 @@ export class DatabaseStorage implements IStorage {
     }
     
     return recommendations;
+  }
+
+  // User Events operations
+  async getUserEvent(id: number): Promise<UserEvent | undefined> {
+    const [event] = await db.select().from(userEvents).where(eq(userEvents.id, id));
+    return event || undefined;
+  }
+
+  async getUserEvents(userId: number, options?: {
+    startDate?: Date;
+    endDate?: Date;
+    limit?: number;
+    upcoming?: boolean;
+    eventType?: string;
+  }): Promise<UserEvent[]> {
+    let query = db.select().from(userEvents).where(eq(userEvents.userId, userId));
+    
+    // Apply filters
+    if (options?.eventType) {
+      query = query.where(eq(userEvents.eventType, options.eventType));
+    }
+    
+    if (options?.startDate) {
+      query = query.where(sql`${userEvents.startDate} >= ${options.startDate}`);
+    }
+    
+    if (options?.endDate) {
+      query = query.where(sql`${userEvents.startDate} <= ${options.endDate}`);
+    }
+    
+    if (options?.upcoming) {
+      // Get events from today onwards
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      query = query.where(sql`${userEvents.startDate} >= ${today}`);
+      
+      // Order by closest upcoming date
+      query = query.orderBy(asc(userEvents.startDate));
+    } else {
+      // Default ordering by start date (descending - most recent first)
+      query = query.orderBy(desc(userEvents.startDate));
+    }
+    
+    // Apply pagination
+    if (options?.limit) {
+      query = query.limit(options.limit);
+    }
+    
+    return await query;
+  }
+
+  async createUserEvent(event: InsertUserEvent): Promise<UserEvent> {
+    const [createdEvent] = await db.insert(userEvents).values(event).returning();
+    return createdEvent;
+  }
+
+  async updateUserEvent(id: number, event: Partial<InsertUserEvent>): Promise<UserEvent | undefined> {
+    const [updatedEvent] = await db.update(userEvents)
+      .set({
+        ...event,
+        updatedAt: new Date()
+      })
+      .where(eq(userEvents.id, id))
+      .returning();
+    return updatedEvent || undefined;
+  }
+
+  async deleteUserEvent(id: number, userId: number): Promise<boolean> {
+    // First check if event exists and belongs to the user
+    const [event] = await db.select().from(userEvents)
+      .where(and(
+        eq(userEvents.id, id),
+        eq(userEvents.userId, userId)
+      ));
+      
+    if (!event) return false;
+    
+    // Delete the event
+    await db.delete(userEvents).where(eq(userEvents.id, id));
+    return true;
+  }
+
+  async getEventsByDateRange(userId: number, startDate: Date, endDate: Date): Promise<UserEvent[]> {
+    return await db.select().from(userEvents)
+      .where(and(
+        eq(userEvents.userId, userId),
+        sql`${userEvents.startDate} >= ${startDate}`,
+        sql`${userEvents.startDate} <= ${endDate}`
+      ))
+      .orderBy(asc(userEvents.startDate));
+  }
+
+  async getUpcomingEvents(userId: number, limit: number = 5): Promise<UserEvent[]> {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    
+    return await db.select().from(userEvents)
+      .where(and(
+        eq(userEvents.userId, userId),
+        sql`${userEvents.startDate} >= ${today}`
+      ))
+      .orderBy(asc(userEvents.startDate))
+      .limit(limit);
   }
 }
 
