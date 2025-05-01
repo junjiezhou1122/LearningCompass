@@ -1,43 +1,49 @@
-import { useEffect, useState } from 'react';
-import { useParams, useLocation } from 'wouter';
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { useAuth } from '@/contexts/AuthContext';
-import { useToast } from '@/hooks/use-toast';
-import { 
-  Card, 
-  CardContent, 
-  CardFooter, 
-  CardHeader, 
+import { useEffect, useState } from "react";
+import { useParams, useLocation } from "wouter";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useAuth } from "@/contexts/AuthContext";
+import { useToast } from "@/hooks/use-toast";
+import {
+  Card,
+  CardContent,
+  CardFooter,
+  CardHeader,
   CardTitle,
-  CardDescription 
-} from '@/components/ui/card';
+  CardDescription,
+} from "@/components/ui/card";
 import {
   Dialog,
   DialogContent,
   DialogDescription,
   DialogHeader,
   DialogTitle,
-  DialogClose
-} from '@/components/ui/dialog';
-import { Avatar, AvatarFallback } from '@/components/ui/avatar';
-import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { 
-  MessageSquare, 
-  Heart, 
-  Bookmark, 
-  Calendar, 
-  UserPlus, 
-  UserMinus, 
-  User, 
-  UserCheck, 
-  Loader2, 
-  Lightbulb, 
-  BookOpen, 
+  DialogClose,
+} from "@/components/ui/dialog";
+import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Separator } from "@/components/ui/separator";
+import {
+  MessageSquare,
+  Heart,
+  Bookmark,
+  Calendar,
+  UserPlus,
+  UserMinus,
+  User,
+  UserCheck,
+  Loader2,
+  Lightbulb,
+  BookOpen,
   ArrowRight,
-  Eye
-} from 'lucide-react';
+  Eye,
+  LogOut,
+  Lock,
+  Settings,
+} from "lucide-react";
 
 // Component to show post like status and count
 function PostLikeStatus({ postId }) {
@@ -46,7 +52,7 @@ function PostLikeStatus({ postId }) {
     queryKey: [`/api/learning-posts/${postId}/like`],
     enabled: !!postId && isAuthenticated,
   });
-  
+
   // Get post likes count separately - this endpoint doesn't require authentication
   const { data: likesCountData } = useQuery({
     queryKey: [`/api/learning-posts/${postId}/like/count`],
@@ -54,14 +60,14 @@ function PostLikeStatus({ postId }) {
   });
 
   // First check for likes count from the dedicated endpoint, fallback to auth endpoint data
-  const likeCount = likesCountData?.count ?? (likeData?.count ?? 0);
+  const likeCount = likesCountData?.count ?? likeData?.count ?? 0;
 
   return (
     <div className="flex items-center gap-1 text-gray-500">
-      <Heart 
-        size={16} 
-        className={likeData?.liked ? "text-red-500" : ""} 
-        fill={likeData?.liked ? "currentColor" : "none"} 
+      <Heart
+        size={16}
+        className={likeData?.liked ? "text-red-500" : ""}
+        fill={likeData?.liked ? "currentColor" : "none"}
       />
       <span>{likeCount}</span>
     </div>
@@ -93,10 +99,10 @@ function PostBookmarkStatus({ postId }) {
 
   return (
     <div className="flex items-center gap-1 text-gray-500">
-      <Bookmark 
-        size={16} 
-        className={bookmarkData?.bookmarked ? "text-yellow-500" : ""} 
-        fill={bookmarkData?.bookmarked ? "currentColor" : "none"} 
+      <Bookmark
+        size={16}
+        className={bookmarkData?.bookmarked ? "text-yellow-500" : ""}
+        fill={bookmarkData?.bookmarked ? "currentColor" : "none"}
       />
     </div>
   );
@@ -107,57 +113,65 @@ export default function UserProfile() {
   const [, navigate] = useLocation();
   const { toast } = useToast();
   const queryClient = useQueryClient();
-  const { user: currentUser, isAuthenticated } = useAuth();
-  
+  const { user: currentUser, isAuthenticated, logout } = useAuth();
+
+  // Determine if this is a personal profile or public profile
+  const isPersonalProfile =
+    isAuthenticated && (!userId || parseInt(userId) === currentUser?.id);
+
   // State for UI
-  const [activeTab, setActiveTab] = useState('posts');
+  const [activeTab, setActiveTab] = useState("posts");
   const [showFollowModal, setShowFollowModal] = useState(false);
-  const [modalType, setModalType] = useState('followers');
+  const [modalType, setModalType] = useState("followers");
   const [modalUsers, setModalUsers] = useState([]);
   const [isModalLoading, setIsModalLoading] = useState(false);
   const [userLikes, setUserLikes] = useState([]);
   const [userComments, setUserComments] = useState([]);
   const [isLikesLoading, setIsLikesLoading] = useState(false);
   const [isCommentsLoading, setIsCommentsLoading] = useState(false);
-  
+  const [isUpdating, setIsUpdating] = useState(false);
+  const [profileForm, setProfileForm] = useState({
+    firstName: "",
+    lastName: "",
+    email: "",
+  });
+  const [passwordForm, setPasswordForm] = useState({
+    currentPassword: "",
+    newPassword: "",
+    confirmPassword: "",
+  });
+
   // Get user profile data
-  const { 
+  const {
     data: profileData,
     isLoading: isProfileLoading,
-    error: profileError
+    error: profileError,
   } = useQuery({
     queryKey: [`/api/users/${userId}`],
     enabled: !!userId,
   });
-  
+
   // Get user posts
-  const { 
-    data: userPosts = [],
-    isLoading: isPostsLoading,
-  } = useQuery({
+  const { data: userPosts = [], isLoading: isPostsLoading } = useQuery({
     queryKey: [`/api/users/${userId}/posts`],
     enabled: !!userId,
   });
-  
+
   // Get followers count
-  const { 
-    data: followersCountData,
-    isLoading: isFollowersCountLoading 
-  } = useQuery({
-    queryKey: [`/api/users/${userId}/followers/count`],
-    enabled: !!userId,
-  });
+  const { data: followersCountData, isLoading: isFollowersCountLoading } =
+    useQuery({
+      queryKey: [`/api/users/${userId}/followers/count`],
+      enabled: !!userId,
+    });
   // Extract the actual count value from the response
   const followersCount = followersCountData?.count || 0;
-  
+
   // Get following count
-  const { 
-    data: followingCountData,
-    isLoading: isFollowingCountLoading 
-  } = useQuery({
-    queryKey: [`/api/users/${userId}/following/count`],
-    enabled: !!userId,
-  });
+  const { data: followingCountData, isLoading: isFollowingCountLoading } =
+    useQuery({
+      queryKey: [`/api/users/${userId}/following/count`],
+      enabled: !!userId,
+    });
   // Extract the actual count value from the response
   const followingCount = followingCountData?.count || 0;
 
@@ -165,18 +179,19 @@ export default function UserProfile() {
   const [followStatus, setFollowStatus] = useState({
     isFollowing: false,
     isLoading: true,
-    error: null
+    error: null,
   });
-  
+
   // Get current follow status with a proper query
   // Since we updated the backend, this now works reliably even without authentication
-  const { 
+  const {
     data: followData,
     error: followError,
-    isPending: isFollowCheckPending
+    isPending: isFollowCheckPending,
   } = useQuery({
     queryKey: [`/api/users/${userId}/following/${currentUser?.id}`],
-    enabled: !!userId && !!currentUser?.id && parseInt(userId) !== currentUser?.id,
+    enabled:
+      !!userId && !!currentUser?.id && parseInt(userId) !== currentUser?.id,
     refetchInterval: false,
     refetchOnWindowFocus: true, // Re-check when window gets focus
     refetchOnMount: true, // Re-check when component mounts
@@ -188,38 +203,49 @@ export default function UserProfile() {
   useEffect(() => {
     // If we're checking, keep previous state but mark as loading
     if (isFollowCheckPending) {
-      setFollowStatus(prev => ({ 
-        ...prev, 
-        isLoading: true 
+      setFollowStatus((prev) => ({
+        ...prev,
+        isLoading: true,
       }));
       return;
     }
-    
+
     // If not authenticated or own profile, reset to not following
-    if (!isAuthenticated || !currentUser || currentUser.id === parseInt(userId)) {
+    if (
+      !isAuthenticated ||
+      !currentUser ||
+      currentUser.id === parseInt(userId)
+    ) {
       setFollowStatus({
         isFollowing: false,
         isLoading: false,
-        error: null
+        error: null,
       });
       return;
     }
-    
+
     // Update based on query results
     if (followData) {
       setFollowStatus({
         isFollowing: !!followData.following,
         isLoading: false,
-        error: null
+        error: null,
       });
     } else if (followError) {
       setFollowStatus({
         isFollowing: false,
         isLoading: false,
-        error: 'Failed to check follow status'
+        error: "Failed to check follow status",
       });
     }
-  }, [followData, followError, isFollowCheckPending, userId, currentUser, isAuthenticated]);
+  }, [
+    followData,
+    followError,
+    isFollowCheckPending,
+    userId,
+    currentUser,
+    isAuthenticated,
+  ]);
 
   // Follow user function
   const followUser = async () => {
@@ -231,71 +257,78 @@ export default function UserProfile() {
       });
       return;
     }
-    
+
     // Optimistic UI update
-    setFollowStatus(prev => ({ ...prev, isLoading: true }));
-    
+    setFollowStatus((prev) => ({ ...prev, isLoading: true }));
+
     try {
       const response = await fetch(`/api/users/${userId}/follow`, {
-        method: 'POST',
+        method: "POST",
         headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${localStorage.getItem('token')}`
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${localStorage.getItem("token")}`,
         },
       });
-      
+
       if (response.ok) {
         // Update related queries
-        queryClient.invalidateQueries({ queryKey: [`/api/users/${userId}/followers/count`] });
-        queryClient.invalidateQueries({ queryKey: [`/api/users/${userId}/following/${currentUser?.id}`] });
+        queryClient.invalidateQueries({
+          queryKey: [`/api/users/${userId}/followers/count`],
+        });
+        queryClient.invalidateQueries({
+          queryKey: [`/api/users/${userId}/following/${currentUser?.id}`],
+        });
         // Force update the cache
-        queryClient.setQueryData([`/api/users/${userId}/following/${currentUser?.id}`], { following: true });
-        
+        queryClient.setQueryData(
+          [`/api/users/${userId}/following/${currentUser?.id}`],
+          { following: true }
+        );
+
         setFollowStatus({
           isFollowing: true,
           isLoading: false,
-          error: null
+          error: null,
         });
-        
+
         toast({
           title: "Success",
           description: `You are now following ${profileData?.username}`,
         });
       } else {
         const errorData = await response.json();
-        
+
         // If already following, just update the UI state (don't show error)
-        if (errorData.message?.includes('Already following')) {
+        if (errorData.message?.includes("Already following")) {
           setFollowStatus({
             isFollowing: true,
             isLoading: false,
-            error: null
+            error: null,
           });
         } else {
-          setFollowStatus(prev => ({ 
-            ...prev, 
+          setFollowStatus((prev) => ({
+            ...prev,
             isLoading: false,
-            error: errorData.message || 'Failed to follow user'
+            error: errorData.message || "Failed to follow user",
           }));
-          
+
           toast({
             title: "Error",
-            description: errorData.message || 'Failed to follow user',
+            description: errorData.message || "Failed to follow user",
             variant: "destructive",
           });
         }
       }
     } catch (error) {
-      console.error('Error following user:', error);
-      setFollowStatus(prev => ({ 
-        ...prev, 
+      console.error("Error following user:", error);
+      setFollowStatus((prev) => ({
+        ...prev,
         isLoading: false,
-        error: error.message || 'Failed to follow user'
+        error: error.message || "Failed to follow user",
       }));
-      
+
       toast({
         title: "Error",
-        description: error.message || 'Failed to follow user',
+        description: error.message || "Failed to follow user",
         variant: "destructive",
       });
     }
@@ -306,62 +339,69 @@ export default function UserProfile() {
     if (!isAuthenticated) {
       return;
     }
-    
+
     // Optimistic UI update
-    setFollowStatus(prev => ({ ...prev, isLoading: true }));
-    
+    setFollowStatus((prev) => ({ ...prev, isLoading: true }));
+
     try {
       const response = await fetch(`/api/users/${userId}/follow`, {
-        method: 'DELETE',
+        method: "DELETE",
         headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${localStorage.getItem('token')}`
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${localStorage.getItem("token")}`,
         },
       });
-      
+
       if (response.ok) {
         // Update related queries
-        queryClient.invalidateQueries({ queryKey: [`/api/users/${userId}/followers/count`] });
-        queryClient.invalidateQueries({ queryKey: [`/api/users/${userId}/following/${currentUser?.id}`] });
+        queryClient.invalidateQueries({
+          queryKey: [`/api/users/${userId}/followers/count`],
+        });
+        queryClient.invalidateQueries({
+          queryKey: [`/api/users/${userId}/following/${currentUser?.id}`],
+        });
         // Force update the cache
-        queryClient.setQueryData([`/api/users/${userId}/following/${currentUser?.id}`], { following: false });
-        
+        queryClient.setQueryData(
+          [`/api/users/${userId}/following/${currentUser?.id}`],
+          { following: false }
+        );
+
         setFollowStatus({
           isFollowing: false,
           isLoading: false,
-          error: null
+          error: null,
         });
-        
+
         toast({
           title: "Success",
           description: `You have unfollowed ${profileData?.username}`,
         });
       } else {
         const errorData = await response.json();
-        
-        setFollowStatus(prev => ({ 
-          ...prev, 
+
+        setFollowStatus((prev) => ({
+          ...prev,
           isLoading: false,
-          error: errorData.message || 'Failed to unfollow user'
+          error: errorData.message || "Failed to unfollow user",
         }));
-        
+
         toast({
           title: "Error",
-          description: errorData.message || 'Failed to unfollow user',
+          description: errorData.message || "Failed to unfollow user",
           variant: "destructive",
         });
       }
     } catch (error) {
-      console.error('Error unfollowing user:', error);
-      setFollowStatus(prev => ({ 
-        ...prev, 
+      console.error("Error unfollowing user:", error);
+      setFollowStatus((prev) => ({
+        ...prev,
         isLoading: false,
-        error: error.message || 'Failed to unfollow user'
+        error: error.message || "Failed to unfollow user",
       }));
-      
+
       toast({
         title: "Error",
-        description: error.message || 'Failed to unfollow user',
+        description: error.message || "Failed to unfollow user",
         variant: "destructive",
       });
     }
@@ -377,11 +417,11 @@ export default function UserProfile() {
       });
       return;
     }
-    
+
     if (followStatus.isLoading) {
       return; // Prevent multiple clicks while loading
     }
-    
+
     if (followStatus.isFollowing) {
       unfollowUser();
     } else {
@@ -394,12 +434,13 @@ export default function UserProfile() {
     setModalType(type);
     setShowFollowModal(true);
     setIsModalLoading(true);
-    
+
     try {
-      const endpoint = type === 'followers' 
-        ? `/api/users/${userId}/followers` 
-        : `/api/users/${userId}/following`;
-        
+      const endpoint =
+        type === "followers"
+          ? `/api/users/${userId}/followers`
+          : `/api/users/${userId}/following`;
+
       const response = await fetch(endpoint);
       if (response.ok) {
         const data = await response.json();
@@ -417,16 +458,16 @@ export default function UserProfile() {
       setIsModalLoading(false);
     }
   };
-  
+
   // Function to close the followers/following modal
   const closeModal = () => {
     setShowFollowModal(false);
     setModalUsers([]);
   };
-  
+
   useEffect(() => {
     // Fetch user's liked posts when tab is 'likes'
-    if (activeTab === 'likes' && !userLikes.length && !isLikesLoading) {
+    if (activeTab === "likes" && !userLikes.length && !isLikesLoading) {
       const fetchLikes = async () => {
         setIsLikesLoading(true);
         try {
@@ -436,17 +477,21 @@ export default function UserProfile() {
             setUserLikes(data);
           }
         } catch (error) {
-          console.error('Error fetching liked posts:', error);
+          console.error("Error fetching liked posts:", error);
         } finally {
           setIsLikesLoading(false);
         }
       };
-      
+
       fetchLikes();
     }
-    
+
     // Fetch user's comments when tab is 'comments'
-    if (activeTab === 'comments' && !userComments.length && !isCommentsLoading) {
+    if (
+      activeTab === "comments" &&
+      !userComments.length &&
+      !isCommentsLoading
+    ) {
       const fetchComments = async () => {
         setIsCommentsLoading(true);
         try {
@@ -456,16 +501,148 @@ export default function UserProfile() {
             setUserComments(data);
           }
         } catch (error) {
-          console.error('Error fetching user comments:', error);
+          console.error("Error fetching user comments:", error);
         } finally {
           setIsCommentsLoading(false);
         }
       };
-      
+
       fetchComments();
     }
   }, [activeTab, userId, userLikes.length, userComments.length]);
-  
+
+  // Handle profile form changes
+  const handleProfileChange = (e) => {
+    const { name, value } = e.target;
+    setProfileForm((prev) => ({
+      ...prev,
+      [name]: value,
+    }));
+  };
+
+  // Handle password form changes
+  const handlePasswordChange = (e) => {
+    const { name, value } = e.target;
+    setPasswordForm((prev) => ({
+      ...prev,
+      [name]: value,
+    }));
+  };
+
+  // Handle profile update
+  const handleProfileUpdate = async (e) => {
+    e.preventDefault();
+    setIsUpdating(true);
+
+    try {
+      const response = await fetch("/api/profile", {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${localStorage.getItem("token")}`,
+        },
+        body: JSON.stringify(profileForm),
+      });
+
+      if (response.ok) {
+        toast({
+          title: "Profile updated",
+          description: "Your profile has been updated successfully",
+        });
+        queryClient.invalidateQueries(["/api/profile"]);
+      } else {
+        throw new Error("Failed to update profile");
+      }
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to update profile",
+        variant: "destructive",
+      });
+    } finally {
+      setIsUpdating(false);
+    }
+  };
+
+  // Handle password update
+  const handlePasswordUpdate = async (e) => {
+    e.preventDefault();
+
+    if (passwordForm.newPassword !== passwordForm.confirmPassword) {
+      toast({
+        title: "Error",
+        description: "New passwords do not match",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (passwordForm.newPassword.length < 8) {
+      toast({
+        title: "Error",
+        description: "Password must be at least 8 characters long",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setIsUpdating(true);
+
+    try {
+      const response = await fetch("/api/profile/password", {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${localStorage.getItem("token")}`,
+        },
+        body: JSON.stringify({
+          currentPassword: passwordForm.currentPassword,
+          newPassword: passwordForm.newPassword,
+        }),
+      });
+
+      if (response.ok) {
+        setPasswordForm({
+          currentPassword: "",
+          newPassword: "",
+          confirmPassword: "",
+        });
+
+        toast({
+          title: "Password updated",
+          description: "Your password has been updated successfully",
+        });
+      } else {
+        throw new Error("Failed to update password");
+      }
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to update password",
+        variant: "destructive",
+      });
+    } finally {
+      setIsUpdating(false);
+    }
+  };
+
+  // Handle logout
+  const handleLogout = () => {
+    logout();
+    navigate("/");
+  };
+
+  // Update profile form when profile data is loaded
+  useEffect(() => {
+    if (profileData && isPersonalProfile) {
+      setProfileForm({
+        firstName: profileData.firstName || "",
+        lastName: profileData.lastName || "",
+        email: profileData.email || "",
+      });
+    }
+  }, [profileData, isPersonalProfile]);
+
   if (isProfileLoading) {
     return (
       <div className="min-h-screen">
@@ -484,10 +661,14 @@ export default function UserProfile() {
         <div className="container max-w-5xl py-12 mx-auto px-4">
           <div className="text-center py-12">
             <User className="h-16 w-16 mx-auto text-gray-300 mb-4" />
-            <h1 className="text-2xl font-bold text-gray-800 mb-2">User Not Found</h1>
-            <p className="text-gray-500 mb-6">The user you're looking for doesn't exist or has been removed.</p>
-            <Button 
-              onClick={() => navigate('/')}
+            <h1 className="text-2xl font-bold text-gray-800 mb-2">
+              User Not Found
+            </h1>
+            <p className="text-gray-500 mb-6">
+              The user you're looking for doesn't exist or has been removed.
+            </p>
+            <Button
+              onClick={() => navigate("/")}
               className="bg-orange-500 hover:bg-orange-600"
             >
               Return Home
@@ -505,20 +686,23 @@ export default function UserProfile() {
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
-              {modalType === 'followers' ? (
-                <><UserCheck className="h-5 w-5 text-orange-500" /> Followers</>
+              {modalType === "followers" ? (
+                <>
+                  <UserCheck className="h-5 w-5 text-orange-500" /> Followers
+                </>
               ) : (
-                <><UserPlus className="h-5 w-5 text-orange-500" /> Following</>
+                <>
+                  <UserPlus className="h-5 w-5 text-orange-500" /> Following
+                </>
               )}
             </DialogTitle>
             <DialogDescription>
-              {modalType === 'followers' 
-                ? `People who follow ${profileData?.username}` 
-                : `People ${profileData?.username} follows`
-              }
+              {modalType === "followers"
+                ? `People who follow ${profileData?.username}`
+                : `People ${profileData?.username} follows`}
             </DialogDescription>
           </DialogHeader>
-          
+
           <div className="max-h-[60vh] overflow-y-auto py-4">
             {isModalLoading ? (
               <div className="flex justify-center items-center py-8">
@@ -526,27 +710,38 @@ export default function UserProfile() {
               </div>
             ) : modalUsers.length > 0 ? (
               <div className="space-y-4">
-                {modalUsers.map(user => (
-                  <div key={user.id} className="flex items-center justify-between p-2 hover:bg-orange-50 rounded-lg transition-colors">
+                {modalUsers.map((user) => (
+                  <div
+                    key={user.id}
+                    className="flex items-center justify-between p-2 hover:bg-orange-50 rounded-lg transition-colors"
+                  >
                     <div className="flex items-center gap-3">
-                      <Avatar className="h-10 w-10 cursor-pointer" onClick={() => navigate(`/users/${user.id}`)}>
+                      <Avatar
+                        className="h-10 w-10 cursor-pointer"
+                        onClick={() => navigate(`/users/${user.id}`)}
+                      >
                         <AvatarFallback className="bg-orange-100 text-orange-800">
-                          {user.username?.charAt(0).toUpperCase() || 'U'}
+                          {user.username?.charAt(0).toUpperCase() || "U"}
                         </AvatarFallback>
                       </Avatar>
                       <div>
-                        <p className="font-medium hover:text-orange-600 cursor-pointer" onClick={() => navigate(`/users/${user.id}`)}>
+                        <p
+                          className="font-medium hover:text-orange-600 cursor-pointer"
+                          onClick={() => navigate(`/users/${user.id}`)}
+                        >
                           {user.username}
                         </p>
                         {user.bio && (
-                          <p className="text-sm text-gray-500 line-clamp-1">{user.bio}</p>
+                          <p className="text-sm text-gray-500 line-clamp-1">
+                            {user.bio}
+                          </p>
                         )}
                       </div>
                     </div>
-                    
+
                     {isAuthenticated && currentUser?.id !== user.id && (
-                      <Button 
-                        variant="outline" 
+                      <Button
+                        variant="outline"
                         size="sm"
                         className="border-orange-300 hover:bg-orange-50 hover:text-orange-700"
                         onClick={() => {
@@ -563,15 +758,14 @@ export default function UserProfile() {
             ) : (
               <div className="text-center py-6">
                 <p className="text-gray-500">
-                  {modalType === 'followers' 
-                    ? `${profileData?.username} doesn't have any followers yet.` 
-                    : `${profileData?.username} isn't following anyone yet.`
-                  }
+                  {modalType === "followers"
+                    ? `${profileData?.username} doesn't have any followers yet.`
+                    : `${profileData?.username} isn't following anyone yet.`}
                 </p>
               </div>
             )}
           </div>
-          
+
           <div className="flex justify-end">
             <DialogClose asChild>
               <Button type="button" variant="secondary" onClick={closeModal}>
@@ -581,59 +775,70 @@ export default function UserProfile() {
           </div>
         </DialogContent>
       </Dialog>
-      
+
       {/* Profile Info Container */}
       <div className="container max-w-5xl py-8 mx-auto px-4">
         <div className="bg-white p-6 rounded-lg shadow-sm mb-8 border border-orange-100">
           <div className="flex flex-col sm:flex-row items-center sm:items-start gap-6">
             <Avatar className="h-24 w-24 border-4 border-white shadow-lg">
               <AvatarFallback className="bg-orange-100 text-orange-800 text-4xl font-bold">
-                {profileData.username?.charAt(0).toUpperCase() || 'U'}
+                {profileData.username?.charAt(0).toUpperCase() || "U"}
               </AvatarFallback>
             </Avatar>
-            
+
             <div className="flex-1 text-center sm:text-left">
-              <h2 className="text-2xl font-bold mb-1">{profileData.username}</h2>
+              <h2 className="text-2xl font-bold mb-1">
+                {profileData.username}
+              </h2>
               <p className="text-gray-600 mb-4">
-                {profileData.bio || 'Learning enthusiast sharing knowledge and insights'}
+                {profileData.bio ||
+                  "Learning enthusiast sharing knowledge and insights"}
               </p>
-              
+
               <div className="flex flex-wrap items-center justify-center sm:justify-start gap-4 mb-2">
                 <div className="flex items-center gap-1 text-gray-600">
                   <User className="h-4 w-4 text-gray-500" />
                   <span>{userPosts?.length || 0} posts</span>
                 </div>
-                
-                <div 
+
+                <div
                   className="flex items-center gap-1 text-gray-600 cursor-pointer hover:text-orange-600 transition-colors"
-                  onClick={() => handleViewFollows('followers')}
+                  onClick={() => handleViewFollows("followers")}
                 >
                   <UserCheck className="h-4 w-4 text-gray-500" />
-                  <span className="hover:underline">{followersCount || 0} followers</span>
+                  <span className="hover:underline">
+                    {followersCount || 0} followers
+                  </span>
                 </div>
-                
-                <div 
+
+                <div
                   className="flex items-center gap-1 text-gray-600 cursor-pointer hover:text-orange-600 transition-colors"
-                  onClick={() => handleViewFollows('following')}
+                  onClick={() => handleViewFollows("following")}
                 >
                   <UserPlus className="h-4 w-4 text-gray-500" />
-                  <span className="hover:underline">{followingCount || 0} following</span>
+                  <span className="hover:underline">
+                    {followingCount || 0} following
+                  </span>
                 </div>
-                
+
                 <div className="flex items-center gap-1 text-gray-600">
                   <Calendar className="h-4 w-4 text-gray-500" />
-                  <span>Joined {new Date(profileData.createdAt).toLocaleDateString()}</span>
+                  <span>
+                    Joined{" "}
+                    {new Date(profileData.createdAt).toLocaleDateString()}
+                  </span>
                 </div>
               </div>
             </div>
-            
+
             {isAuthenticated && currentUser?.id !== parseInt(userId) && (
               <div className="mt-4 sm:mt-0">
-                <Button 
+                <Button
                   variant={followStatus.isFollowing ? "outline" : "default"}
-                  className={followStatus.isFollowing ? 
-                    "border-red-300 text-red-700 hover:bg-red-50 hover:text-red-800" : 
-                    "bg-orange-500 hover:bg-orange-600 text-white"
+                  className={
+                    followStatus.isFollowing
+                      ? "border-red-300 text-red-700 hover:bg-red-50 hover:text-red-800"
+                      : "bg-orange-500 hover:bg-orange-600 text-white"
                   }
                   onClick={handleFollowToggle}
                   disabled={followStatus.isLoading}
@@ -645,16 +850,27 @@ export default function UserProfile() {
                   ) : (
                     <UserPlus className="h-4 w-4 mr-2" />
                   )}
-                  {followStatus.isFollowing ? 'Unfollow' : 'Follow'}
+                  {followStatus.isFollowing ? "Unfollow" : "Follow"}
                 </Button>
               </div>
             )}
           </div>
         </div>
-      
+
         {/* Profile Content */}
-        <Tabs defaultValue="posts" value={activeTab} onValueChange={setActiveTab} className="mb-6">
+        <Tabs
+          defaultValue="posts"
+          value={activeTab}
+          onValueChange={setActiveTab}
+          className="mb-6"
+        >
           <TabsList className="mb-6 bg-orange-50">
+            {isPersonalProfile && (
+              <TabsTrigger value="settings" className="flex items-center gap-2">
+                <Settings className="h-4 w-4" />
+                <span>Settings</span>
+              </TabsTrigger>
+            )}
             <TabsTrigger value="posts" className="flex items-center gap-2">
               <MessageSquare className="h-4 w-4" />
               <span>Posts</span>
@@ -668,7 +884,162 @@ export default function UserProfile() {
               <span>Comments</span>
             </TabsTrigger>
           </TabsList>
-          
+
+          {/* Settings Tab (Personal Profile Only) */}
+          {isPersonalProfile && (
+            <TabsContent value="settings">
+              <Card>
+                <CardHeader>
+                  <CardTitle>Profile Information</CardTitle>
+                  <CardDescription>
+                    Update your personal information
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <form onSubmit={handleProfileUpdate}>
+                    <div className="grid grid-cols-1 gap-6">
+                      <div className="flex flex-col md:flex-row gap-4">
+                        <div className="flex-1">
+                          <Label htmlFor="firstName">First Name</Label>
+                          <Input
+                            id="firstName"
+                            name="firstName"
+                            value={profileForm.firstName}
+                            onChange={handleProfileChange}
+                            className="mt-1"
+                          />
+                        </div>
+                        <div className="flex-1">
+                          <Label htmlFor="lastName">Last Name</Label>
+                          <Input
+                            id="lastName"
+                            name="lastName"
+                            value={profileForm.lastName}
+                            onChange={handleProfileChange}
+                            className="mt-1"
+                          />
+                        </div>
+                      </div>
+
+                      <div>
+                        <Label htmlFor="email">Email Address</Label>
+                        <Input
+                          id="email"
+                          name="email"
+                          type="email"
+                          value={profileForm.email}
+                          onChange={handleProfileChange}
+                          className="mt-1"
+                        />
+                      </div>
+
+                      <div>
+                        <Label htmlFor="username">Username</Label>
+                        <Input
+                          id="username"
+                          name="username"
+                          value={currentUser?.username || ""}
+                          disabled
+                          className="mt-1 bg-gray-50"
+                        />
+                        <p className="text-sm text-gray-500 mt-1">
+                          Username cannot be changed
+                        </p>
+                      </div>
+                    </div>
+
+                    <div className="mt-6">
+                      <Button type="submit" disabled={isUpdating}>
+                        {isUpdating ? "Updating..." : "Update Profile"}
+                      </Button>
+                    </div>
+                  </form>
+                </CardContent>
+              </Card>
+
+              <Card className="mt-6">
+                <CardHeader>
+                  <CardTitle>Password</CardTitle>
+                  <CardDescription>Update your password</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <form onSubmit={handlePasswordUpdate}>
+                    <div className="grid grid-cols-1 gap-6">
+                      <div>
+                        <Label htmlFor="currentPassword">
+                          Current Password
+                        </Label>
+                        <Input
+                          id="currentPassword"
+                          name="currentPassword"
+                          type="password"
+                          value={passwordForm.currentPassword}
+                          onChange={handlePasswordChange}
+                          className="mt-1"
+                          required
+                        />
+                      </div>
+
+                      <div>
+                        <Label htmlFor="newPassword">New Password</Label>
+                        <Input
+                          id="newPassword"
+                          name="newPassword"
+                          type="password"
+                          value={passwordForm.newPassword}
+                          onChange={handlePasswordChange}
+                          className="mt-1"
+                          required
+                        />
+                        <p className="text-sm text-gray-500 mt-1">
+                          Password must be at least 8 characters
+                        </p>
+                      </div>
+
+                      <div>
+                        <Label htmlFor="confirmPassword">
+                          Confirm New Password
+                        </Label>
+                        <Input
+                          id="confirmPassword"
+                          name="confirmPassword"
+                          type="password"
+                          value={passwordForm.confirmPassword}
+                          onChange={handlePasswordChange}
+                          className="mt-1"
+                          required
+                        />
+                      </div>
+                    </div>
+
+                    <div className="mt-6">
+                      <Button type="submit" disabled={isUpdating}>
+                        {isUpdating ? "Updating..." : "Update Password"}
+                      </Button>
+                    </div>
+                  </form>
+                </CardContent>
+
+                <Separator className="my-4" />
+
+                <CardHeader>
+                  <CardTitle>Account</CardTitle>
+                  <CardDescription>Manage your account</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <Button
+                    variant="destructive"
+                    onClick={handleLogout}
+                    className="flex items-center"
+                  >
+                    <LogOut className="h-4 w-4 mr-2" />
+                    Sign Out
+                  </Button>
+                </CardContent>
+              </Card>
+            </TabsContent>
+          )}
+
           <TabsContent value="posts" className="py-4">
             {isPostsLoading ? (
               <div className="flex justify-center items-center min-h-[200px]">
@@ -676,17 +1047,32 @@ export default function UserProfile() {
               </div>
             ) : userPosts?.length > 0 ? (
               <div className="grid grid-cols-1 gap-6">
-                {userPosts.map(post => (
-                  <Card key={post.id} className="overflow-hidden transition-all duration-300 hover:shadow-md group">
-                    <div onClick={() => navigate(`/post/${post.id}`)} className="cursor-pointer">
+                {userPosts.map((post) => (
+                  <Card
+                    key={post.id}
+                    className="overflow-hidden transition-all duration-300 hover:shadow-md group"
+                  >
+                    <div
+                      onClick={() => navigate(`/post/${post.id}`)}
+                      className="cursor-pointer"
+                    >
                       <CardHeader className="pb-3 transition-colors duration-300 group-hover:bg-orange-50/50">
                         <div className="flex justify-between items-start">
                           <div>
-                            <CardTitle className="text-lg transition-colors duration-300 group-hover:text-orange-700">{post.title}</CardTitle>
+                            <CardTitle className="text-lg transition-colors duration-300 group-hover:text-orange-700">
+                              {post.title}
+                            </CardTitle>
                             <CardDescription className="flex flex-wrap items-center mt-1 gap-x-2">
                               <div className="flex items-center">
-                                <Calendar size={14} className="mr-1 text-orange-400" />
-                                <span>{new Date(post.createdAt).toLocaleDateString()}</span>
+                                <Calendar
+                                  size={14}
+                                  className="mr-1 text-orange-400"
+                                />
+                                <span>
+                                  {new Date(
+                                    post.createdAt
+                                  ).toLocaleDateString()}
+                                </span>
                               </div>
                               <span className="inline-block mx-1">•</span>
                               <div className="flex items-center">
@@ -696,50 +1082,64 @@ export default function UserProfile() {
                             </CardDescription>
                           </div>
                           <div className="flex items-start space-x-2">
-                            <Badge 
-                              variant={post.type === 'thought' ? 'secondary' : 'outline'} 
+                            <Badge
+                              variant={
+                                post.type === "thought"
+                                  ? "secondary"
+                                  : "outline"
+                              }
                               className="transition-all duration-300 group-hover:shadow-sm"
                             >
-                              {post.type === 'thought' ? (
-                                <Lightbulb size={14} className="mr-1 text-amber-500" />
+                              {post.type === "thought" ? (
+                                <Lightbulb
+                                  size={14}
+                                  className="mr-1 text-amber-500"
+                                />
                               ) : (
-                                <BookOpen size={14} className="mr-1 text-blue-500" />
+                                <BookOpen
+                                  size={14}
+                                  className="mr-1 text-blue-500"
+                                />
                               )}
-                              {post.type === 'thought' ? 'Thought' : 'Resource'}
+                              {post.type === "thought" ? "Thought" : "Resource"}
                             </Badge>
                           </div>
                         </div>
                       </CardHeader>
-                      
+
                       <CardContent className="transition-colors duration-300 group-hover:bg-orange-50/30">
-                        <p className="text-gray-700 whitespace-pre-line line-clamp-3 transition-colors duration-300 group-hover:text-gray-900">{post.content}</p>
-                        
-                        {post.type === 'resource' && post.resourceLink && (
-                          <a 
-                            href={post.resourceLink} 
-                            target="_blank" 
+                        <p className="text-gray-700 whitespace-pre-line line-clamp-3 transition-colors duration-300 group-hover:text-gray-900">
+                          {post.content}
+                        </p>
+
+                        {post.type === "resource" && post.resourceLink && (
+                          <a
+                            href={post.resourceLink}
+                            target="_blank"
                             rel="noopener noreferrer"
                             className="inline-flex items-center mt-3 text-blue-600 hover:text-blue-800 hover:underline transform transition-all duration-300 hover:translate-x-1"
                             onClick={(e) => e.stopPropagation()} // Prevent navigating to post detail
                           >
-                            View Resource <ArrowRight size={16} className="ml-1" />
+                            View Resource{" "}
+                            <ArrowRight size={16} className="ml-1" />
                           </a>
                         )}
-                        
+
                         <div className="flex flex-wrap gap-2 mt-4">
-                          {post.tags && post.tags.map(tag => (
-                            <Badge 
-                              key={tag} 
-                              variant="outline"
-                              className="transition-all duration-300 hover:bg-orange-100 hover:text-orange-800"
-                            >
-                              {tag}
-                            </Badge>
-                          ))}
+                          {post.tags &&
+                            post.tags.map((tag) => (
+                              <Badge
+                                key={tag}
+                                variant="outline"
+                                className="transition-all duration-300 hover:bg-orange-100 hover:text-orange-800"
+                              >
+                                {tag}
+                              </Badge>
+                            ))}
                         </div>
                       </CardContent>
                     </div>
-                    
+
                     <CardFooter className="border-t pt-4 flex flex-wrap items-center justify-between gap-4 bg-gray-50 group-hover:bg-orange-50 transition-colors duration-300">
                       <div className="flex flex-wrap items-center gap-4">
                         <PostLikeStatus postId={post.id} />
@@ -756,18 +1156,23 @@ export default function UserProfile() {
               </div>
             ) : (
               <div className="text-center py-12">
-                <MessageSquare size={48} className="mx-auto text-gray-300 mb-4" />
-                <h3 className="text-lg font-medium text-gray-900 mb-1">No posts yet</h3>
+                <MessageSquare
+                  size={48}
+                  className="mx-auto text-gray-300 mb-4"
+                />
+                <h3 className="text-lg font-medium text-gray-900 mb-1">
+                  No posts yet
+                </h3>
                 <p className="text-gray-500">
-                  {parseInt(userId) === currentUser?.id ? 
-                    "You haven't shared any posts yet. Start sharing your learning journey!" : 
-                    `${profileData.username} hasn't shared any posts yet.`}
+                  {parseInt(userId) === currentUser?.id
+                    ? "You haven't shared any posts yet. Start sharing your learning journey!"
+                    : `${profileData.username} hasn't shared any posts yet.`}
                 </p>
-                
+
                 {parseInt(userId) === currentUser?.id && (
-                  <Button 
+                  <Button
                     className="mt-6 bg-orange-500 hover:bg-orange-600"
-                    onClick={() => navigate('/share')}
+                    onClick={() => navigate("/share")}
                   >
                     Create Your First Post
                   </Button>
@@ -775,7 +1180,7 @@ export default function UserProfile() {
               </div>
             )}
           </TabsContent>
-          
+
           <TabsContent value="likes" className="py-4">
             {isLikesLoading ? (
               <div className="flex justify-center items-center min-h-[200px]">
@@ -783,9 +1188,15 @@ export default function UserProfile() {
               </div>
             ) : userLikes?.length > 0 ? (
               <div className="grid grid-cols-1 gap-6">
-                {userLikes.map(post => (
-                  <Card key={post.id} className="overflow-hidden transition-all duration-300 hover:shadow-md group">
-                    <div onClick={() => navigate(`/post/${post.id}`)} className="cursor-pointer">
+                {userLikes.map((post) => (
+                  <Card
+                    key={post.id}
+                    className="overflow-hidden transition-all duration-300 hover:shadow-md group"
+                  >
+                    <div
+                      onClick={() => navigate(`/post/${post.id}`)}
+                      className="cursor-pointer"
+                    >
                       <CardHeader className="pb-3 transition-colors duration-300 group-hover:bg-orange-50/50">
                         <div className="flex justify-between items-start">
                           <div>
@@ -797,52 +1208,81 @@ export default function UserProfile() {
                             </CardTitle>
                             <CardDescription className="flex flex-wrap items-center mt-1 gap-x-2">
                               <div className="flex items-center">
-                                <Calendar size={14} className="mr-1 text-orange-400" />
-                                <span>{new Date(post.createdAt).toLocaleDateString()}</span>
+                                <Calendar
+                                  size={14}
+                                  className="mr-1 text-orange-400"
+                                />
+                                <span>
+                                  {new Date(
+                                    post.createdAt
+                                  ).toLocaleDateString()}
+                                </span>
                               </div>
                               <span className="inline-block mx-1">•</span>
-                              <div 
-                                className="flex items-center cursor-pointer hover:text-orange-600" 
-                                onClick={(e) => { 
-                                  e.stopPropagation(); 
-                                  navigate(`/users/${post.userId}`); 
+                              <div
+                                className="flex items-center cursor-pointer hover:text-orange-600"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  navigate(`/users/${post.userId}`);
                                 }}
                               >
-                                <User size={14} className="mr-1 text-green-500" />
-                                <span className="hover:underline">By {post.username || 'Unknown'}</span>
+                                <User
+                                  size={14}
+                                  className="mr-1 text-green-500"
+                                />
+                                <span className="hover:underline">
+                                  By {post.username || "Unknown"}
+                                </span>
                               </div>
                               {post.views !== undefined && (
                                 <>
                                   <span className="inline-block mx-1">•</span>
                                   <div className="flex items-center">
-                                    <Eye size={14} className="mr-1 text-blue-400" />
+                                    <Eye
+                                      size={14}
+                                      className="mr-1 text-blue-400"
+                                    />
                                     <span>{post.views || 0} views</span>
                                   </div>
                                 </>
                               )}
                             </CardDescription>
                           </div>
-                          
+
                           {post.type && (
                             <div className="flex items-start space-x-2">
-                              <Badge 
-                                variant={post.type === 'thought' ? 'secondary' : 'outline'} 
+                              <Badge
+                                variant={
+                                  post.type === "thought"
+                                    ? "secondary"
+                                    : "outline"
+                                }
                                 className="transition-all duration-300 group-hover:shadow-sm"
                               >
-                                {post.type === 'thought' ? (
-                                  <Lightbulb size={14} className="mr-1 text-amber-500" />
+                                {post.type === "thought" ? (
+                                  <Lightbulb
+                                    size={14}
+                                    className="mr-1 text-amber-500"
+                                  />
                                 ) : (
-                                  <BookOpen size={14} className="mr-1 text-blue-500" />
+                                  <BookOpen
+                                    size={14}
+                                    className="mr-1 text-blue-500"
+                                  />
                                 )}
-                                {post.type === 'thought' ? 'Thought' : 'Resource'}
+                                {post.type === "thought"
+                                  ? "Thought"
+                                  : "Resource"}
                               </Badge>
                             </div>
                           )}
                         </div>
                       </CardHeader>
-                      
+
                       <CardContent className="transition-colors duration-300 group-hover:bg-orange-50/30">
-                        <p className="text-gray-700 whitespace-pre-line line-clamp-3 transition-colors duration-300 group-hover:text-gray-900">{post.content}</p>
+                        <p className="text-gray-700 whitespace-pre-line line-clamp-3 transition-colors duration-300 group-hover:text-gray-900">
+                          {post.content}
+                        </p>
                       </CardContent>
                     </div>
                   </Card>
@@ -851,16 +1291,18 @@ export default function UserProfile() {
             ) : (
               <div className="text-center py-12">
                 <Heart size={48} className="mx-auto text-gray-300 mb-4" />
-                <h3 className="text-lg font-medium text-gray-900 mb-1">No liked posts yet</h3>
+                <h3 className="text-lg font-medium text-gray-900 mb-1">
+                  No liked posts yet
+                </h3>
                 <p className="text-gray-500">
-                  {parseInt(userId) === currentUser?.id ? 
-                    "You haven't liked any posts yet. Explore content and show your appreciation!" : 
-                    `${profileData.username} hasn't liked any posts yet.`}
+                  {parseInt(userId) === currentUser?.id
+                    ? "You haven't liked any posts yet. Explore content and show your appreciation!"
+                    : `${profileData.username} hasn't liked any posts yet.`}
                 </p>
               </div>
             )}
           </TabsContent>
-          
+
           <TabsContent value="comments" className="py-4">
             {isCommentsLoading ? (
               <div className="flex justify-center items-center min-h-[200px]">
@@ -869,13 +1311,15 @@ export default function UserProfile() {
             ) : userComments?.length > 0 ? (
               <div className="grid grid-cols-1 gap-6">
                 {userComments.map((post, index) => (
-                  <Card 
-                    key={post.id} 
+                  <Card
+                    key={post.id}
                     className="overflow-hidden hover:shadow-md group border-l-4 border-l-orange-200 hover:border-l-orange-500 transition-all duration-300"
                     style={{
                       transform: "translateY(20px)",
                       opacity: 0,
-                      animation: `fadeInUp 0.5s ease-out ${index * 0.1}s forwards`
+                      animation: `fadeInUp 0.5s ease-out ${
+                        index * 0.1
+                      }s forwards`,
                     }}
                   >
                     <style jsx="true">{`
@@ -890,12 +1334,18 @@ export default function UserProfile() {
                         }
                       }
                       @keyframes pulse {
-                        0% { transform: scale(1); }
-                        50% { transform: scale(1.05); }
-                        100% { transform: scale(1); }
+                        0% {
+                          transform: scale(1);
+                        }
+                        50% {
+                          transform: scale(1.05);
+                        }
+                        100% {
+                          transform: scale(1);
+                        }
                       }
                     `}</style>
-                    
+
                     <CardHeader className="pb-3 transition-colors duration-300 group-hover:bg-orange-50/70">
                       <div className="flex justify-between items-start">
                         <div>
@@ -905,56 +1355,73 @@ export default function UserProfile() {
                           </CardTitle>
                           <CardDescription className="flex flex-wrap items-center mt-1 gap-x-2">
                             <div className="flex items-center">
-                              <Calendar size={14} className="mr-1 text-orange-400" />
-                              <span>{new Date(post.createdAt).toLocaleDateString()}</span>
+                              <Calendar
+                                size={14}
+                                className="mr-1 text-orange-400"
+                              />
+                              <span>
+                                {new Date(post.createdAt).toLocaleDateString()}
+                              </span>
                             </div>
                             <span className="inline-block mx-1">•</span>
-                            <div 
-                              className="flex items-center cursor-pointer hover:text-orange-600 transition-colors" 
-                              onClick={(e) => { 
-                                e.stopPropagation(); 
-                                navigate(`/users/${post.userId}`); 
+                            <div
+                              className="flex items-center cursor-pointer hover:text-orange-600 transition-colors"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                navigate(`/users/${post.userId}`);
                               }}
                             >
                               <User size={14} className="mr-1 text-green-500" />
-                              <span className="hover:underline">By {post.username || 'Unknown'}</span>
+                              <span className="hover:underline">
+                                By {post.username || "Unknown"}
+                              </span>
                             </div>
                           </CardDescription>
                         </div>
                       </div>
                     </CardHeader>
-                    
+
                     <CardContent className="pt-2 pb-4">
                       <div className="bg-orange-50 p-4 rounded-lg border-l-4 border-orange-300 mb-4 relative">
                         <div className="absolute -top-2 -left-2 bg-orange-100 rounded-full p-1 shadow-sm">
-                          <MessageSquare size={16} className="text-orange-600" />
+                          <MessageSquare
+                            size={16}
+                            className="text-orange-600"
+                          />
                         </div>
                         <p className="text-gray-700 whitespace-pre-line text-sm pl-4 italic">
-                          "{post.userComments && post.userComments.length > 0 
-                            ? post.userComments[0].content 
-                            : 'Commented on this post'}"
+                          "
+                          {post.userComments && post.userComments.length > 0
+                            ? post.userComments[0].content
+                            : "Commented on this post"}
+                          "
                         </p>
                         <div className="text-xs text-gray-500 mt-2 text-right">
                           {post.userComments && post.userComments.length > 0
-                            ? new Date(post.userComments[0].createdAt).toLocaleDateString()
-                            : 'Recently'}
+                            ? new Date(
+                                post.userComments[0].createdAt
+                              ).toLocaleDateString()
+                            : "Recently"}
                         </div>
                       </div>
-                      
+
                       <div className="flex justify-between items-center">
                         <div className="text-sm text-gray-500">
                           <span className="inline-flex items-center">
-                            <MessageSquare size={14} className="mr-1 text-gray-400" /> 
-                            {post.commentsCount || 'Multiple'} comments
+                            <MessageSquare
+                              size={14}
+                              className="mr-1 text-gray-400"
+                            />
+                            {post.commentsCount || "Multiple"} comments
                           </span>
                         </div>
-                        <Button 
-                          size="sm" 
+                        <Button
+                          size="sm"
                           variant="outline"
                           className="text-sm border-orange-200 text-orange-700 hover:bg-orange-100 hover:text-orange-800 transition-all duration-300 hover:scale-105"
                           onClick={() => navigate(`/post/${post.id}`)}
                         >
-                          <Eye size={14} className="mr-1" /> 
+                          <Eye size={14} className="mr-1" />
                           View Post
                         </Button>
                       </div>
@@ -963,30 +1430,39 @@ export default function UserProfile() {
                 ))}
               </div>
             ) : (
-              <div 
+              <div
                 className="text-center py-12 bg-orange-50/50 rounded-lg border border-orange-100 shadow-sm"
                 style={{
-                  animation: "fadeIn 0.5s ease-out forwards"
+                  animation: "fadeIn 0.5s ease-out forwards",
                 }}
               >
                 <style jsx="true">{`
                   @keyframes fadeIn {
-                    from { opacity: 0; }
-                    to { opacity: 1; }
+                    from {
+                      opacity: 0;
+                    }
+                    to {
+                      opacity: 1;
+                    }
                   }
                 `}</style>
-                <MessageSquare size={48} className="mx-auto text-orange-200 mb-4" />
-                <h3 className="text-xl font-medium text-gray-900 mb-1">No comments yet</h3>
+                <MessageSquare
+                  size={48}
+                  className="mx-auto text-orange-200 mb-4"
+                />
+                <h3 className="text-xl font-medium text-gray-900 mb-1">
+                  No comments yet
+                </h3>
                 <p className="text-gray-500 max-w-md mx-auto">
-                  {parseInt(userId) === currentUser?.id ? 
-                    "You haven't commented on any posts yet. Join the conversation to share your thoughts!" : 
-                    `${profileData.username} hasn't commented on any posts yet.`}
+                  {parseInt(userId) === currentUser?.id
+                    ? "You haven't commented on any posts yet. Join the conversation to share your thoughts!"
+                    : `${profileData.username} hasn't commented on any posts yet.`}
                 </p>
-                
+
                 {parseInt(userId) === currentUser?.id && (
-                  <Button 
+                  <Button
                     className="mt-6 bg-orange-500 hover:bg-orange-600 transition-all duration-300 hover:shadow-md"
-                    onClick={() => navigate('/')}
+                    onClick={() => navigate("/")}
                   >
                     <MessageSquare size={16} className="mr-2" />
                     Explore Learning Posts

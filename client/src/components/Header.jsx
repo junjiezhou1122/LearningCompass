@@ -1,187 +1,24 @@
-import { useState, useEffect, useRef } from "react";
-import { Link, useLocation } from "wouter";
+import { useState, useEffect } from "react";
+import { useLocation } from "wouter";
 import { useAuth } from "../contexts/AuthContext";
 import { useLanguage } from "../contexts/LanguageContext";
-import AuthModals from "./AuthModals";
-import LanguageSwitcher from "./LanguageSwitcher";
+import { Brain } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
-import {
-  School,
-  Search,
-  Bell,
-  Bookmark,
-  User,
-  ChevronDown,
-  LogOut,
-  Menu,
-  History,
-  Clock,
-  Brain,
-  X,
-  BookOpen,
-  UserCircle,
-  MessageSquare,
-} from "lucide-react";
-import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
-import { 
-  Popover, 
-  PopoverContent, 
-  PopoverTrigger 
-} from "@/components/ui/popover";
+import HeaderSearch from "./header/HeaderSearch";
+import HeaderNav from "./header/HeaderNav";
+import HeaderUserMenu from "./header/HeaderUserMenu";
+import HeaderMobileMenu from "./header/HeaderMobileMenu";
 
 export default function Header() {
-  const [searchQuery, setSearchQuery] = useState("");
   const [location, navigate] = useLocation();
   const { isAuthenticated, user, logout } = useAuth();
-  const { t } = useLanguage(); // Add the translation function
+  const { t } = useLanguage();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
-  const [recentSearches, setRecentSearches] = useState([]);
-  const [isSearchPopoverOpen, setIsSearchPopoverOpen] = useState(false);
-  const searchInputRef = useRef(null);
 
   // Check if current page is ResourcesHub (home page or courses page)
-  const isResourcesHub = location === '/' || location.startsWith('/?') || location === '/courses' || location.startsWith('/courses?');
+  const isResourcesHub =
+    location === "/courses" || location.startsWith("/course/");
 
-  // Handle search input change
-  const handleSearchChange = (e) => {
-    setSearchQuery(e.target.value);
-  };
-
-  // Handle search form submission
-  const handleSearchSubmit = (e) => {
-    e.preventDefault();
-    if (searchQuery.trim()) {
-      // Use wouter's navigate for SPA navigation (no page reload)
-      // Use current path to determine where to navigate
-      const targetPath = location.startsWith('/courses') ? '/courses' : '/';
-      navigate(`${targetPath}?search=${encodeURIComponent(searchQuery.trim())}`);
-      
-      // Need to also update the window URL using history API
-      // to ensure the URL changes properly for the whole application
-      window.history.pushState(
-        {}, 
-        '', 
-        `${targetPath}?search=${encodeURIComponent(searchQuery.trim())}`
-      );
-      
-      // Force update of search params in Home component using a custom event
-      window.dispatchEvent(new CustomEvent('updateSearchParams', {
-        detail: { search: searchQuery.trim() }
-      }));
-      
-      // Add to search history if user is authenticated
-      if (isAuthenticated) {
-        fetch('/api/search-history', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${localStorage.getItem('token')}`
-          },
-          body: JSON.stringify({ searchQuery: searchQuery.trim() }),
-        })
-        .then(response => {
-          if (!response.ok) {
-            console.error('Failed to save search history:', response.status);
-          } else {
-            // Dispatch a custom event to notify components to refresh search history data
-            window.dispatchEvent(new CustomEvent('searchHistoryUpdated'));
-          }
-        })
-        .catch(error => console.error('Error saving search history:', error));
-      }
-    }
-  };
-  
-  // Handle key press for search input
-  const handleSearchKeyPress = (e) => {
-    if (e.key === 'Enter') {
-      handleSearchSubmit(e);
-    }
-  };
-
-  // Handle logout
-  const handleLogout = () => {
-    logout();
-    navigate("/");
-  };
-
-  // Format date string
-  const formatDate = (dateString) => {
-    if (!dateString) return "";
-    
-    const date = new Date(dateString);
-    return new Intl.DateTimeFormat("en-US", {
-      year: "numeric",
-      month: "short",
-      day: "numeric",
-      hour: "2-digit",
-      minute: "2-digit",
-    }).format(date);
-  };
-  
-  // Fetch recent searches
-  const fetchRecentSearches = () => {
-    if (isAuthenticated) {
-      fetch('/api/search-history', {
-        headers: {
-          'Authorization': `Bearer ${localStorage.getItem('token')}`
-        }
-      })
-      .then(response => {
-        if (response.ok) {
-          return response.json();
-        }
-        return [];
-      })
-      .then(data => {
-        setRecentSearches(data.slice(0, 5)); // Show only 5 most recent searches
-      })
-      .catch(error => {
-        console.error('Error fetching recent searches:', error);
-      });
-    }
-  };
-  
-  // Handle click on a recent search
-  const handleRecentSearchClick = (query) => {
-    setSearchQuery(query);
-    setIsSearchPopoverOpen(false);
-    
-    // Trigger search with the selected query
-    // Use current path to determine where to navigate
-    const targetPath = location.startsWith('/courses') ? '/courses' : '/';
-    navigate(`${targetPath}?search=${encodeURIComponent(query)}`);
-    window.history.pushState({}, '', `${targetPath}?search=${encodeURIComponent(query)}`);
-    window.dispatchEvent(new CustomEvent('updateSearchParams', {
-      detail: { search: query }
-    }));
-  };
-  
-  // Fetch recent searches on component mount and when search history is updated
-  useEffect(() => {
-    fetchRecentSearches();
-    
-    // Listen for search history updates
-    const handleSearchHistoryUpdated = () => {
-      fetchRecentSearches();
-    };
-    
-    window.addEventListener('searchHistoryUpdated', handleSearchHistoryUpdated);
-    
-    return () => {
-      window.removeEventListener('searchHistoryUpdated', handleSearchHistoryUpdated);
-    };
-  }, [isAuthenticated]);
-  
   // Close mobile menu when location changes
   useEffect(() => {
     setMobileMenuOpen(false);
@@ -192,99 +29,25 @@ export default function Header() {
       <div className="container mx-auto px-4 py-3">
         <div className="flex items-center justify-between">
           {/* Logo */}
-          <Button 
-            variant="ghost" 
-            className="p-0 h-auto hover:bg-transparent hover:text-white text-white" 
+          <Button
+            variant="ghost"
+            className="p-0 h-auto hover:bg-transparent hover:text-white text-white"
             onClick={() => navigate("/")}
           >
             <div className="flex items-center">
               <div className="bg-white rounded-full p-1 mr-2">
                 <Brain className="text-orange-600 h-5 w-5" />
               </div>
-              <span className="text-xl font-bold">{t('learningHowToLearn')}</span>
+              <span className="text-xl font-bold">
+                {t("learningHowToLearn")}
+              </span>
             </div>
           </Button>
 
           {/* Desktop Search - only shown on ResourcesHub */}
           {isResourcesHub && (
-            <div className="hidden md:block relative w-1/3">
-              <form onSubmit={handleSearchSubmit}>
-                <div className="relative flex">
-                  <div className="relative flex-grow">
-                    <Search className="absolute left-3 top-2.5 h-4 w-4 text-gray-500" />
-                    <Input
-                      ref={searchInputRef}
-                      type="text"
-                      placeholder={t('searchPlaceholder')}
-                      className="w-full pl-10 pr-4 py-2 rounded-r-none border-0 focus-visible:ring-amber-400 text-gray-800"
-                      value={searchQuery}
-                      onChange={handleSearchChange}
-                      onKeyDown={handleSearchKeyPress}
-                    />
-                    {/* History button that appears only when user is logged in and has search history */}
-                    {isAuthenticated && recentSearches.length > 0 && (
-                      <div 
-                        className="absolute right-2 top-1/2 transform -translate-y-1/2 cursor-pointer"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          setIsSearchPopoverOpen(!isSearchPopoverOpen);
-                        }}
-                      >
-                        <History 
-                          className={`h-4 w-4 ${isSearchPopoverOpen ? 'text-amber-700' : 'text-gray-400'} hover:text-amber-700 transition-colors`} 
-                        />
-                      </div>
-                    )}
-                  </div>
-                  <Button 
-                    type="submit" 
-                    className="rounded-l-none bg-amber-700 hover:bg-amber-800 border-0"
-                  >
-                    <Search className="h-4 w-4 text-white" />
-                  </Button>
-                </div>
-              </form>
-              
-              {/* Separate popover that's controlled by the history button */}
-              {isAuthenticated && recentSearches.length > 0 && (
-                <div 
-                  className={`absolute top-full left-0 mt-1 w-full bg-white rounded-md shadow-md border z-50 ${isSearchPopoverOpen ? 'block' : 'hidden'}`}
-                >
-                  <div className="py-2">
-                    <div className="flex items-center justify-between px-3 py-2 text-sm font-medium text-gray-600 bg-gray-50">
-                      <div className="flex items-center">
-                        <History className="h-4 w-4 mr-2" />
-                        <span>{t('recentSearches')}</span>
-                      </div>
-                      <button 
-                        className="text-gray-400 hover:text-gray-600"
-                        onClick={() => setIsSearchPopoverOpen(false)}
-                      >
-                        ✕
-                      </button>
-                    </div>
-                    <div className="max-h-[300px] overflow-y-auto">
-                      <div className="py-1">
-                        {recentSearches.map((item) => (
-                          <button
-                            key={item.id}
-                            className="flex items-center justify-between w-full px-3 py-2 text-sm text-gray-700 hover:bg-gray-100"
-                            onClick={() => handleRecentSearchClick(item.searchQuery)}
-                          >
-                            <div className="flex items-center">
-                              <Clock className="h-3.5 w-3.5 mr-2 text-gray-400" />
-                              <span>{item.searchQuery}</span>
-                            </div>
-                            <span className="text-xs text-gray-400">
-                              {formatDate(item.createdAt)}
-                            </span>
-                          </button>
-                        ))}
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              )}
+            <div className="hidden md:block w-1/3">
+              <HeaderSearch />
             </div>
           )}
 
@@ -292,303 +55,23 @@ export default function Header() {
           <div className="flex items-center">
             {/* Desktop Navigation */}
             <div className="hidden md:flex items-center space-x-6">
-              {/* Learning How to Learn Link (always visible) */}
-              <Button 
-                variant="ghost" 
-                className="text-white hover:text-white hover:bg-amber-600 font-medium"
-                onClick={() => navigate('/')}
-              >
-                <BookOpen className="h-4 w-4 mr-2" />
-                {t('resourcesHub')}
-              </Button>
-              
-              <Button 
-                variant="ghost" 
-                className="text-white hover:text-white hover:bg-amber-600 font-medium"
-                onClick={() => navigate('/share')}
-              >
-                <MessageSquare className="h-4 w-4 mr-2" />
-                {t('shareConnect')}
-              </Button>
-              
-              {/* Language Switcher */}
-              <LanguageSwitcher />
-              
-              {isAuthenticated ? (
-                <>
-                  <Button variant="ghost" size="icon" className="relative text-white hover:text-white hover:bg-amber-600">
-                    <Bell className="h-5 w-5" />
-                    <span className="absolute -top-1 -right-1 bg-white text-orange-600 text-xs rounded-full h-4 w-4 flex items-center justify-center font-bold">
-                      3
-                    </span>
-                  </Button>
-                  <Button 
-                    variant="ghost" 
-                    size="icon" 
-                    className="relative text-white hover:text-white hover:bg-amber-600"
-                    onClick={() => navigate("/bookmarks")}
-                  >
-                    <Bookmark className="h-5 w-5" />
-                    <span className="absolute -top-1 -right-1 bg-white text-orange-600 text-xs rounded-full h-4 w-4 flex items-center justify-center font-bold">
-                      5
-                    </span>
-                  </Button>
-                  <DropdownMenu>
-                    <DropdownMenuTrigger asChild>
-                      <Button variant="ghost" className="flex items-center space-x-1 text-white hover:text-white hover:bg-amber-600">
-                        <div className="w-8 h-8 rounded-full bg-white flex items-center justify-center text-orange-600 font-medium">
-                          {user?.firstName?.[0] || user?.username?.[0] || "U"}
-                        </div>
-                        <span className="text-sm font-medium ml-2 hidden md:inline-block">
-                          {user?.firstName || user?.username || "User"}
-                        </span>
-                      </Button>
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent align="end">
-                      <DropdownMenuLabel>{t('myAccount')}</DropdownMenuLabel>
-                      <DropdownMenuSeparator />
-                      <DropdownMenuItem className="cursor-pointer" onClick={() => navigate("/profile")}>
-                        <UserCircle className="mr-2 h-4 w-4" />
-                        <span>{t('profile')}</span>
-                      </DropdownMenuItem>
-                      <DropdownMenuItem className="cursor-pointer" onClick={() => navigate("/bookmarks")}>
-                        <Bookmark className="mr-2 h-4 w-4" />
-                        <span>{t('bookmarks')}</span>
-                      </DropdownMenuItem>
-                      <DropdownMenuSeparator />
-                      <DropdownMenuItem onClick={handleLogout} className="cursor-pointer">
-                        <LogOut className="mr-2 h-4 w-4" />
-                        <span>{t('signOut')}</span>
-                      </DropdownMenuItem>
-                    </DropdownMenuContent>
-                  </DropdownMenu>
-                </>
-              ) : (
-                <AuthModals />
-              )}
+              <HeaderNav isResourcesHub={isResourcesHub} />
+              <HeaderUserMenu />
             </div>
 
             {/* Mobile Menu Button */}
-            <div className="md:hidden">
-              <Sheet open={mobileMenuOpen} onOpenChange={setMobileMenuOpen}>
-                <SheetTrigger asChild>
-                  <Button variant="ghost" size="icon" className="text-white hover:bg-amber-600">
-                    <Menu className="h-6 w-6" />
-                  </Button>
-                </SheetTrigger>
-                <SheetContent side="right" className="bg-orange-600 text-white border-amber-500">
-                  <div className="flex flex-col h-full py-6">
-                    <div className="flex justify-between items-center mb-6">
-                      <div className="flex items-center">
-                        <div className="bg-white rounded-full p-1 mr-2">
-                          <Brain className="text-orange-600 h-5 w-5" />
-                        </div>
-                        <span className="text-xl font-bold">{t('learning')}</span>
-                      </div>
-                      <Button variant="ghost" size="icon" className="text-white hover:bg-amber-700" onClick={() => setMobileMenuOpen(false)}>
-                        <X className="h-6 w-6" />
-                      </Button>
-                    </div>
-
-                    {/* Mobile search - only shown on ResourcesHub */}
-                    {isResourcesHub && (
-                      <div className="mb-6">
-                        <form onSubmit={handleSearchSubmit}>
-                          <div className="relative flex">
-                            <div className="relative flex-grow">
-                              <Search className="absolute left-3 top-2.5 h-4 w-4 text-gray-500" />
-                              <Input
-                                type="text"
-                                placeholder={t('searchPlaceholder')}
-                                className="w-full pl-10 pr-4 py-2 rounded-r-none border-0 focus-visible:ring-amber-400 bg-white text-gray-800"
-                                value={searchQuery}
-                                onChange={handleSearchChange}
-                                onKeyDown={handleSearchKeyPress}
-                              />
-                              {/* History icon for the mobile menu */}
-                              {isAuthenticated && recentSearches.length > 0 && (
-                                <div 
-                                  className="absolute right-2 top-1/2 transform -translate-y-1/2 cursor-pointer"
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    setIsSearchPopoverOpen(!isSearchPopoverOpen);
-                                  }}
-                                >
-                                  <History 
-                                    className={`h-4 w-4 ${isSearchPopoverOpen ? 'text-amber-700' : 'text-gray-400'} hover:text-amber-700 transition-colors`} 
-                                  />
-                                </div>
-                              )}
-                            </div>
-                            <Button 
-                              type="submit" 
-                              className="rounded-l-none bg-amber-700 hover:bg-amber-800 border-0"
-                            >
-                              <Search className="h-4 w-4 text-white" />
-                            </Button>
-                          </div>
-                        </form>
-                      </div>
-                    )}
-
-                    <div className="space-y-4 flex-grow">
-                      <Button
-                        variant="ghost"
-                        className="w-full justify-start text-white hover:bg-amber-700 py-2 h-auto font-normal"
-                        onClick={() => {
-                          navigate("/");
-                          setMobileMenuOpen(false);
-                        }}
-                      >
-                        <Brain className="h-5 w-5 mr-2" />
-                        {t('learningHowToLearn')}
-                      </Button>
-                      <Button
-                        variant="ghost"
-                        className="w-full justify-start text-white hover:bg-amber-700 py-2 h-auto font-normal"
-                        onClick={() => {
-                          navigate("/courses");
-                          setMobileMenuOpen(false);
-                        }}
-                      >
-                        <BookOpen className="h-5 w-5 mr-2" />
-                        {t('resourcesHub')}
-                      </Button>
-                      <Button
-                        variant="ghost"
-                        className="w-full justify-start text-white hover:bg-amber-700 py-2 h-auto font-normal"
-                        onClick={() => {
-                          navigate("/share");
-                          setMobileMenuOpen(false);
-                        }}
-                      >
-                        <MessageSquare className="h-5 w-5 mr-2" />
-                        {t('shareConnect')}
-                      </Button>
-                      {isAuthenticated && (
-                        <Button
-                          variant="ghost"
-                          className="w-full justify-start text-white hover:bg-amber-700 py-2 h-auto font-normal"
-                          onClick={() => {
-                            navigate("/profile");
-                            setMobileMenuOpen(false);
-                          }}
-                        >
-                          <UserCircle className="h-5 w-5 mr-2" />
-                          {t('profile')}
-                        </Button>
-                      )}
-                    </div>
-
-                    <div className="mt-auto">
-                      {isAuthenticated ? (
-                        <Button onClick={handleLogout} variant="outline" className="w-full justify-start text-white border-white hover:bg-amber-700">
-                          <LogOut className="mr-2 h-4 w-4" />
-                          {t('signOut')}
-                        </Button>
-                      ) : (
-                        <div className="space-y-2">
-                          <AuthModals />
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                </SheetContent>
-              </Sheet>
-            </div>
+            <HeaderMobileMenu
+              isOpen={mobileMenuOpen}
+              onOpenChange={setMobileMenuOpen}
+              isResourcesHub={isResourcesHub}
+            />
           </div>
         </div>
 
         {/* Mobile Search - only shown on ResourcesHub */}
         {isResourcesHub && (
           <div className="md:hidden mt-3">
-            <form onSubmit={handleSearchSubmit}>
-              <div className="relative flex">
-                <div className="relative flex-grow">
-                  <Search className="absolute left-3 top-2.5 h-4 w-4 text-gray-500" />
-                  <Input
-                    type="text"
-                    placeholder={t('searchPlaceholder')}
-                    className="w-full pl-10 pr-4 py-2 rounded-r-none border-0 focus-visible:ring-amber-400 text-gray-800"
-                    value={searchQuery}
-                    onChange={handleSearchChange}
-                    onKeyDown={handleSearchKeyPress}
-                  />
-                  {/* History icon for main mobile search box */}
-                  {isAuthenticated && recentSearches.length > 0 && (
-                    <div 
-                      className="absolute right-2 top-1/2 transform -translate-y-1/2 cursor-pointer"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        setIsSearchPopoverOpen(!isSearchPopoverOpen);
-                      }}
-                    >
-                      <History 
-                        className={`h-4 w-4 ${isSearchPopoverOpen ? 'text-amber-700' : 'text-gray-400'} hover:text-amber-700 transition-colors`} 
-                      />
-                    </div>
-                  )}
-                </div>
-                <Button 
-                  type="submit" 
-                  className="rounded-l-none bg-amber-700 hover:bg-amber-800 border-0"
-                >
-                  <Search className="h-4 w-4 text-white" />
-                </Button>
-              </div>
-            </form>
-            
-            {/* Mobile search history button */}
-            {isAuthenticated && recentSearches.length > 0 && (
-              <div className="mt-2">
-                <Button 
-                  variant="outline" 
-                  size="sm" 
-                  className="w-full flex justify-center items-center text-white border-white hover:bg-amber-700"
-                  onClick={() => setIsSearchPopoverOpen(!isSearchPopoverOpen)}
-                >
-                  <History className="h-4 w-4 mr-2" />
-                  <span>{isSearchPopoverOpen ? t('hide') : t('show')} {t('recentSearches')}</span>
-                </Button>
-                
-                {/* Mobile Recent Searches dropdown */}
-                {isSearchPopoverOpen && (
-                  <div className="mt-2 bg-white rounded-md shadow-sm border">
-                    <div className="flex items-center justify-between px-3 py-2 text-sm font-medium text-gray-600 bg-gray-50 rounded-t-md">
-                      <div className="flex items-center">
-                        <History className="h-4 w-4 mr-2" />
-                        <span>{t('recentSearches')}</span>
-                      </div>
-                      <button 
-                        className="text-gray-400 hover:text-gray-600"
-                        onClick={() => setIsSearchPopoverOpen(false)}
-                      >
-                        ✕
-                      </button>
-                    </div>
-                    <div className="max-h-[200px] overflow-y-auto">
-                      <div className="py-1">
-                        {recentSearches.slice(0, 5).map((item) => (
-                          <button
-                            key={item.id}
-                            className="flex items-center justify-between w-full px-3 py-2 text-sm text-gray-700 hover:bg-gray-100"
-                            onClick={() => handleRecentSearchClick(item.searchQuery)}
-                          >
-                            <div className="flex items-center">
-                              <Clock className="h-3.5 w-3.5 mr-2 text-gray-400" />
-                              <span>{item.searchQuery}</span>
-                            </div>
-                            <span className="text-xs text-gray-400">
-                              {formatDate(item.createdAt)}
-                            </span>
-                          </button>
-                        ))}
-                      </div>
-                    </div>
-                  </div>
-                )}
-              </div>
-            )}
+            <HeaderSearch isMobile />
           </div>
         )}
       </div>
