@@ -128,10 +128,16 @@ async function handleCustomAPIChat(body: AIRequestBody): Promise<string> {
   // Handle API key for authorization
   let apiKey = body.apiKey;
   
-  // For OpenRouter, use environment variable if available
-  if (isOpenRouter && process.env.OPENROUTER_API_KEY) {
-    console.log('Using OpenRouter API key from environment variable');
-    apiKey = process.env.OPENROUTER_API_KEY;
+  // For OpenRouter, use user's API key if provided, otherwise fallback to environment variable
+  if (isOpenRouter) {
+    if (apiKey) {
+      console.log('Using user-provided OpenRouter API key');
+    } else if (process.env.OPENROUTER_API_KEY) {
+      console.log('Using OpenRouter API key from environment variable');
+      apiKey = process.env.OPENROUTER_API_KEY;
+    } else {
+      throw new Error('API key is required for OpenRouter');
+    }
   } else if (!apiKey) {
     throw new Error('API key is required');
   }
@@ -236,9 +242,9 @@ export async function handleChatRequest(req: Request, res: Response) {
         if (!body.baseUrl || !body.baseUrl.includes('openrouter.ai')) {
           body.baseUrl = 'https://openrouter.ai/api/v1';
         }
-        // Use environment API key if available (overrides user-provided key)
-        if (process.env.OPENROUTER_API_KEY) {
-          console.log('Using OpenRouter API key from environment');
+        // Use environment API key only if user didn't provide one
+        if (!body.apiKey && process.env.OPENROUTER_API_KEY) {
+          console.log('Using OpenRouter API key from environment (user did not provide one)');
           body.apiKey = process.env.OPENROUTER_API_KEY;
         }
         responseMessage = await handleCustomAPIChat(body);

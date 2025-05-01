@@ -15,6 +15,7 @@ import PostDetail from "@/pages/PostDetail";
 import UserProfile from "./pages/UserProfile";
 import Header from "@/components/Header";
 import Footer from "@/components/Footer";
+import FloatingAIButton from "@/components/FloatingAIButton";
 
 function Router() {
   const [location] = useLocation();

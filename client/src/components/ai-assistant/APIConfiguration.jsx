@@ -133,7 +133,7 @@ const APIConfiguration = ({ initialSettings, onSave }) => {
                     <span className="ml-1 text-orange-600 text-xs bg-orange-50 px-1.5 py-0.5 rounded-full">Required</span>
                   )}
                   {settings.provider === 'openrouter' && (
-                    <span className="ml-1 text-green-600 text-xs bg-green-50 px-1.5 py-0.5 rounded-full">Pre-configured</span>
+                    <span className="ml-1 text-blue-600 text-xs bg-blue-50 px-1.5 py-0.5 rounded-full">Optional</span>
                   )}
                 </Label>
                 <Input
@@ -141,14 +141,13 @@ const APIConfiguration = ({ initialSettings, onSave }) => {
                   type="password"
                   value={settings.apiKey}
                   onChange={(e) => handleChange('apiKey', e.target.value)}
-                  placeholder={settings.provider === 'openrouter' ? 'Using pre-configured API key (optional)' : `Your ${settings.provider} API key`}
+                  placeholder={settings.provider === 'openrouter' ? 'Use your own OpenRouter API key (optional)' : `Your ${settings.provider} API key`}
                   className="font-mono"
-                  disabled={settings.provider === 'openrouter'}
                 />
                 <p className="text-xs text-gray-500 mt-1">
                   {settings.provider === 'openai' ? 'Get your API key from OpenAI dashboard' : 
                    settings.provider === 'anthropic' ? 'Get your API key from Anthropic console' :
-                   settings.provider === 'openrouter' ? 'OpenRouter is pre-configured with an API key. Just select your model below.' :
+                   settings.provider === 'openrouter' ? 'You can use our pre-configured API key or enter your own OpenRouter API key for better rate limits.' :
                    'Enter the API key for your custom service'}
                 </p>
               </div>
