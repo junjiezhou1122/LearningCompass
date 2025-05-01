@@ -1733,10 +1733,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const userId = (req as any).user.id;
       
+      // Handle optional contextData, pageUrl and pageTitle
       const conversationData = insertAiConversationSchema.parse({
         ...req.body,
         userId,
-        messages: JSON.stringify(req.body.messages || [])
+        messages: JSON.stringify(req.body.messages || []),
+        contextData: req.body.contextData || null,
+        pageUrl: req.body.pageUrl || null,
+        pageTitle: req.body.pageTitle || null
+      });
+      
+      console.log("Creating AI conversation with context:", {
+        hasContextData: !!conversationData.contextData,
+        pageUrl: conversationData.pageUrl,
+        pageTitle: conversationData.pageTitle
       });
       
       const conversation = await storage.createAiConversation(conversationData);

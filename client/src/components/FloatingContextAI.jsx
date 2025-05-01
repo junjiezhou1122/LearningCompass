@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import { 
   Bot, ArrowRight, X, MessagesSquare, Sparkles, Brain, 
   MoveUp, Copy, ArrowDownWideNarrow, Mic, Volume2,
-  Volume, VolumeX, Expand, Minimize, RefreshCw 
+  Volume, VolumeX, Expand, Minimize, RefreshCw, Save
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import ReactMarkdown from 'react-markdown';
@@ -10,6 +10,7 @@ import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
+import { useAuth } from '../contexts/AuthContext';
 
 // Animated chat bubbles component
 const ChatMessage = ({ message, isLast }) => {
@@ -56,8 +57,62 @@ const ChatMessage = ({ message, isLast }) => {
           {isUser ? (
             <p>{message.content}</p>
           ) : (
-            <div className="prose prose-sm max-w-none prose-p:my-1 prose-pre:my-1 prose-headings:text-blue-700">
-              <ReactMarkdown>{message.content}</ReactMarkdown>
+            <div className="prose prose-sm max-w-none prose-p:my-1 prose-pre:my-1 prose-headings:text-blue-700 prose-a:text-blue-600 prose-a:underline prose-a:font-medium prose-code:text-pink-600 prose-code:bg-gray-100 prose-code:px-1 prose-code:py-0.5 prose-code:rounded-sm">
+              <ReactMarkdown
+                components={{
+                  // Enhance code blocks with syntax highlighting
+                  code({ node, inline, className, children, ...props }) {
+                    return (
+                      <code
+                        className={`${className || ''} ${inline ? 'inline-code' : 'block-code'}`}
+                        {...props}
+                      >
+                        {children}
+                      </code>
+                    );
+                  },
+                  // Enhance links with proper styling
+                  a: ({ node, children, ...props }) => (
+                    <a 
+                      {...props} 
+                      target="_blank" 
+                      rel="noopener noreferrer"
+                      className="text-blue-600 hover:text-blue-800 transition-colors"
+                    >
+                      {children}
+                    </a>
+                  ),
+                  // Enhance lists
+                  ul: ({ node, children, ...props }) => (
+                    <ul className="list-disc pl-5 space-y-1" {...props}>
+                      {children}
+                    </ul>
+                  ),
+                  ol: ({ node, children, ...props }) => (
+                    <ol className="list-decimal pl-5 space-y-1" {...props}>
+                      {children}
+                    </ol>
+                  ),
+                  // Enhance headings
+                  h1: ({ node, children, ...props }) => (
+                    <h1 className="text-xl font-bold text-indigo-800 my-3" {...props}>
+                      {children}
+                    </h1>
+                  ),
+                  h2: ({ node, children, ...props }) => (
+                    <h2 className="text-lg font-bold text-indigo-700 my-2" {...props}>
+                      {children}
+                    </h2>
+                  ),
+                  h3: ({ node, children, ...props }) => (
+                    <h3 className="text-base font-bold text-indigo-600 my-1.5" {...props}>
+                      {children}
+                    </h3>
+                  ),
+                }}
+              >
+                {message.content}
+              </ReactMarkdown>
             </div>
           )}
         </div>
@@ -92,7 +147,7 @@ const ChatMessage = ({ message, isLast }) => {
 };
 
 // Context AI component
-const FloatingContextAI = ({ pageContext, onClose }) => {
+const FloatingContextAI = ({ pageContext, onClose, onApiStatusChange }) => {
   const [input, setInput] = useState('');
   const [messages, setMessages] = useState([]);
   const [isTyping, setIsTyping] = useState(false);
@@ -101,10 +156,64 @@ const FloatingContextAI = ({ pageContext, onClose }) => {
   const [isListening, setIsListening] = useState(false);
   const [isSpeaking, setIsSpeaking] = useState(false);
   const [voice, setVoice] = useState(null);
+  const [apiSettings, setApiSettings] = useState(null);
+  const [conversationId, setConversationId] = useState(null);
   const inputRef = useRef(null);
   const messagesEndRef = useRef(null);
   const { toast } = useToast();
+  const { user, isAuthenticated, token } = useAuth();
   
+  // Load API settings from localStorage - sharing settings with main AI assistant
+  useEffect(() => {
+    try {
+      const storedSettings = localStorage.getItem('aiAssistantSettings');
+      if (storedSettings) {
+        const parsedSettings = JSON.parse(storedSettings);
+        // Make sure we have valid settings with all required fields
+        if (parsedSettings && parsedSettings.provider) {
+          setApiSettings(parsedSettings);
+          console.log('FloatingContextAI loaded API settings from localStorage:', parsedSettings.provider);
+          
+          // Notify parent component that API is configured
+          if (onApiStatusChange) {
+            onApiStatusChange(true);
+          }
+        } else {
+          console.warn('FloatingContextAI found invalid API settings in localStorage');
+          toast({
+            title: "AI service not configured",
+            description: "Please configure your AI settings in the main assistant.",
+            variant: "destructive",
+          });
+          
+          // Notify parent component that API is not configured
+          if (onApiStatusChange) {
+            onApiStatusChange(false);
+          }
+        }
+      } else {
+        console.warn('FloatingContextAI found no API settings in localStorage');
+        toast({
+          title: "AI service not configured",
+          description: "Please configure your AI settings in the main assistant.",
+          variant: "destructive",
+        });
+        
+        // Notify parent component that API is not configured
+        if (onApiStatusChange) {
+          onApiStatusChange(false);
+        }
+      }
+    } catch (error) {
+      console.error('FloatingContextAI error loading API settings from localStorage:', error);
+      
+      // Notify parent component that API is not configured due to error
+      if (onApiStatusChange) {
+        onApiStatusChange(false);
+      }
+    }
+  }, [toast, onApiStatusChange]);
+
   // Focus input on open and initialize speech synthesis
   useEffect(() => {
     if (inputRef.current) {
@@ -241,16 +350,53 @@ const FloatingContextAI = ({ pageContext, onClose }) => {
     }
   };
 
-  // Prepare context summary
+  // Prepare context summary with enhanced page information
   useEffect(() => {
+    // Get current URL and page title for additional context
+    const currentUrl = window.location.href;
+    const pageTitle = document.title;
+    const pageMetaTags = Array.from(document.querySelectorAll('meta')).map(meta => ({
+      name: meta.getAttribute('name') || meta.getAttribute('property') || '',
+      content: meta.getAttribute('content') || ''
+    })).filter(meta => meta.name && meta.content);
+    
+    // Get main content text from the page (simplified version)
+    const getPageContent = () => {
+      try {
+        // Try to get main content by common selectors
+        const mainContent = document.querySelector('main') || 
+                           document.querySelector('article') ||
+                           document.querySelector('#content') ||
+                           document.querySelector('.content');
+        
+        if (mainContent) {
+          // Get text and trim to a reasonable length
+          return mainContent.textContent.trim().substring(0, 1500) + '...';
+        }
+        
+        // Fallback: Get the most content-rich element
+        const bodyText = document.body.textContent.trim();
+        return bodyText.substring(0, 1000) + '...';
+      } catch (error) {
+        console.error("Error extracting page content:", error);
+        return "";
+      }
+    };
+    
+    // Extract page content
+    const extractedContent = getPageContent();
+    
     if (!pageContext) {
       console.log("No page context provided to FloatingContextAI");
-      // Set a default message for when no context is available
-      setContextSummary("browsing this page");
+      // Even without pageContext, we still have URL and title
+      const defaultSummary = `browsing ${pageTitle || 'this page'} at ${currentUrl.split('?')[0]}`;
+      setContextSummary(defaultSummary);
+      
+      // Initial message with basic page info
       setMessages([
         {
           role: 'assistant',
-          content: "I'm your AI learning assistant. How can I help you with your learning journey today?"
+          content: `I'm your AI learning assistant. I can see you're viewing ${pageTitle || 'a page'} right now. How can I help you with your learning journey today?`
         }
       ]);
       return;
@@ -259,6 +405,7 @@ const FloatingContextAI = ({ pageContext, onClose }) => {
     console.log("Preparing context summary from:", pageContext);
     let summary = "";
     
+    // Build detailed context based on page type
     switch (pageContext.pageType) {
       case 'share':
         if (pageContext.data?.specificPost) {
@@ -285,28 +432,37 @@ const FloatingContextAI = ({ pageContext, onClose }) => {
         console.log("Home page recommendations count:", pageContext.data?.recommendations?.length);
         break;
       default:
-        summary = "Browsing the platform";
-        console.log("Unknown page type:", pageContext.pageType);
+        summary = `Browsing ${pageTitle || 'the platform'} at ${currentUrl.split('?')[0]}`;
+        console.log("Using page title and URL for context:", { pageTitle, currentUrl });
     }
     
     // Add user context
     if (pageContext.userContext) {
       const bookmarks = pageContext.userContext.bookmarks?.length || 0;
+      const searchHistory = pageContext.userContext.searchHistory?.length || 0;
       summary += `\nYou have ${bookmarks} bookmarked items`;
+      if (searchHistory > 0) {
+        summary += ` and ${searchHistory} recent searches`;
+      }
       console.log("User context available:", {
         bookmarks: bookmarks,
-        searchHistory: pageContext.userContext.searchHistory?.length || 0,
+        searchHistory: searchHistory,
         profile: pageContext.userContext.profile ? "available" : "not available"
       });
     } else {
       console.log("No user context available - user may not be logged in");
     }
     
+    // Add page content summary if available
+    if (extractedContent) {
+      console.log("Extracted page content (sample):", extractedContent.substring(0, 100) + "...");
+    }
+    
     console.log("Final context summary:", summary);
     setContextSummary(summary);
     
-    // Add initial message
-    const initialMessage = `I'm your AI learning assistant. I can see you're ${summary.toLowerCase()}. How can I help you?`;
+    // Add initial message with rich context
+    const initialMessage = `I'm your AI learning assistant. I can see you're ${summary.toLowerCase()}. How can I help you with your learning journey today?`;
     console.log("Setting initial assistant message:", initialMessage);
     
     setMessages([
@@ -322,58 +478,214 @@ const FloatingContextAI = ({ pageContext, onClose }) => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
 
-  // Handle send message
+  // Handle send message - using the same API settings as the main AI assistant
   const handleSendMessage = async (e) => {
     e.preventDefault();
     if (!input.trim()) return;
     
+    // Check if API settings are configured
+    if (!apiSettings) {
+      toast({
+        title: 'API not configured',
+        description: 'Please configure your AI provider settings in the main assistant first.',
+        variant: 'destructive',
+      });
+      setIsTyping(false);
+      return;
+    }
+    
+    // For non-OpenRouter providers, require an API key
+    if (apiSettings.provider !== 'openrouter' && !apiSettings.apiKey) {
+      toast({
+        title: 'API key missing',
+        description: 'Please provide an API key for ' + apiSettings.provider + ' in the main assistant settings.',
+        variant: 'destructive',
+      });
+      setIsTyping(false);
+      return;
+    }
+    
     // Add user message
     const userMessage = { role: 'user', content: input };
-    setMessages(prev => [...prev, userMessage]);
+    const updatedMessages = [...messages, userMessage];
+    setMessages(updatedMessages);
     setInput('');
     setIsTyping(true);
     
     try {
-      // In a real implementation, we would send the message to the backend
-      // along with the context data and get a response
+      // Get current page content for enhanced context
+      const currentUrl = window.location.href;
+      const pageTitle = document.title;
       
-      // Simulate AI response for now
-      setTimeout(() => {
-        // Get contextual response based on the page type
-        let response;
-        
-        if (input.toLowerCase().includes('recommendation') || input.toLowerCase().includes('suggest')) {
-          response = {
-            role: 'assistant',
-            content: `Based on the content you're currently viewing${
-              pageContext?.userContext 
-                ? ' and your previous activity' 
-                : ''
-            }, here are some personalized recommendations:\n\n* Explore courses on similar topics\n* Check related discussions in the community\n* Consider saving this content for later reference`
-          };
-        } else if (input.toLowerCase().includes('explain') || input.toLowerCase().includes('how')) {
-          response = {
-            role: 'assistant',
-            content: `I'd be happy to explain more about this content. What specific aspect would you like me to elaborate on?\n\nSome common questions include:\n* How to apply this knowledge\n* How this connects to other topics\n* The foundational concepts behind this`
-          };
-        } else {
-          response = {
-            role: 'assistant',
-            content: `I can help you with information about what you're currently viewing. Feel free to ask about:\n\n* More details about this content\n* How to apply this information\n* Related resources\n* How to save or share this content`
-          };
+      // Extract page content
+      const getPageContent = () => {
+        try {
+          // Try to get main content by common selectors
+          const mainContent = document.querySelector('main') || 
+                             document.querySelector('article') ||
+                             document.querySelector('#content') ||
+                             document.querySelector('.content');
+          
+          if (mainContent) {
+            return mainContent.textContent.trim().substring(0, 1500);
+          }
+          
+          // Fallback: Get the most content-rich element
+          const bodyText = document.body.textContent.trim();
+          return bodyText.substring(0, 1000);
+        } catch (error) {
+          console.error("Error extracting page content for API:", error);
+          return "";
         }
-        
-        setMessages(prev => [...prev, response]);
-        setIsTyping(false);
-      }, 1500);
+      };
       
+      const extractedContent = getPageContent();
+      
+      // Create system message with enhanced context information
+      const contextMessage = {
+        role: 'system',
+        content: `You are an AI learning assistant that has access to contextual information about what the user is currently viewing. 
+        The user is currently ${contextSummary.toLowerCase()}. 
+        
+        Current page: "${pageTitle}" at URL: ${currentUrl}
+        
+        ${extractedContent ? `Page content summary: 
+        ${extractedContent}
+        ` : ''}
+        
+        Base your responses on this context to provide more relevant and helpful information.
+        Keep your responses focused, clear, and helpful.
+        
+        Use markdown formatting to make your responses more readable:
+        - Use headings (## and ###) for section titles
+        - Use bullet points for lists
+        - Use **bold** and *italic* for emphasis
+        - Use \`code\` for code snippets or technical terms
+        - Use [text](URL) for links
+        `
+      };
+      
+      // Prepare messages for API request
+      const messagesToSend = [
+        contextMessage,
+        ...updatedMessages.filter(m => m.role === 'user' || m.role === 'assistant')
+      ];
+      
+      // Send message to AI API using the same endpoint and settings as main assistant
+      const response = await fetch('/api/ai/chat', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token ? { 'Authorization': `Bearer ${token}` } : {})
+        },
+        body: JSON.stringify({
+          provider: apiSettings.provider,
+          apiKey: apiSettings.apiKey,
+          baseUrl: apiSettings.baseUrl,
+          model: apiSettings.model,
+          temperature: apiSettings.temperature,
+          maxTokens: apiSettings.maxTokens,
+          messages: messagesToSend
+        })
+      });
+      
+      if (!response.ok) {
+        throw new Error(`API error: ${response.status}`);
+      }
+      
+      const data = await response.text();
+      
+      const aiResponse = {
+        role: 'assistant',
+        content: data
+      };
+      
+      setMessages(prev => [...prev, aiResponse]);
+      
+      // Save conversation if user is authenticated
+      if (isAuthenticated && token) {
+        try {
+          // Check if this is a new conversation or continuation
+          if (!conversationId) {
+            // Create a new conversation with context data
+            const title = userMessage.content.substring(0, 50) + (userMessage.content.length > 50 ? '...' : '');
+            
+            // Extract context information for storage
+            const currentUrl = window.location.href;
+            const pageTitle = document.title;
+            
+            // Create context data object
+            const contextData = {
+              summary: contextSummary,
+              userQuery: userMessage.content,
+              timestamp: new Date().toISOString(),
+              location: {
+                url: currentUrl,
+                title: pageTitle
+              },
+              pageStructure: {
+                headings: Array.from(document.querySelectorAll('h1, h2, h3')).map(h => ({
+                  level: parseInt(h.tagName.substring(1)),
+                  text: h.textContent.trim()
+                })).slice(0, 10)
+              },
+              extractedContent: getPageContent().substring(0, 500) // Limiting to 500 chars for storage
+            };
+            
+            const createResponse = await fetch('/api/ai/conversations', {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${token}`
+              },
+              body: JSON.stringify({
+                title,
+                messages: JSON.stringify([...updatedMessages, aiResponse]),
+                model: apiSettings.model,
+                provider: apiSettings.provider,
+                contextData: JSON.stringify(contextData),
+                pageUrl: currentUrl,
+                pageTitle: pageTitle
+              })
+            });
+            
+            if (createResponse.ok) {
+              const createData = await createResponse.json();
+              setConversationId(createData.id);
+            }
+          } else {
+            // Update existing conversation
+            await fetch(`/api/ai/conversations/${conversationId}`, {
+              method: 'PUT',
+              headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${token}`
+              },
+              body: JSON.stringify({
+                messages: JSON.stringify([...updatedMessages, aiResponse])
+              })
+            });
+          }
+        } catch (saveError) {
+          console.error('Error saving conversation:', saveError);
+        }
+      }
     } catch (error) {
       console.error('Error sending message:', error);
       toast({
         title: "Failed to send message",
-        description: "There was an error communicating with the AI service.",
+        description: "There was an error communicating with the AI service: " + error.message,
         variant: "destructive",
       });
+      
+      // Add fallback response in case of error
+      const fallbackResponse = {
+        role: 'assistant',
+        content: "I'm sorry, I encountered an error while processing your request. Please check your AI service configuration or try again later."
+      };
+      
+      setMessages(prev => [...prev, fallbackResponse]);
+    } finally {
       setIsTyping(false);
     }
   };
@@ -468,8 +780,44 @@ const FloatingContextAI = ({ pageContext, onClose }) => {
             className="bg-gradient-to-r from-blue-50 to-indigo-50 px-4 py-2 text-xs text-indigo-700 border-b border-indigo-100 overflow-hidden"
           >
             <div className="flex items-start space-x-2">
-              <ArrowDownWideNarrow className="h-3.5 w-3.5 mt-0.5 flex-shrink-0" />
-              <p>{contextSummary}</p>
+              <div className="flex-shrink-0 mt-0.5 relative">
+                <ArrowDownWideNarrow className="h-3.5 w-3.5" />
+                <motion.div 
+                  className="absolute -top-1 -right-1 w-2 h-2 rounded-full bg-green-400" 
+                  initial={{ scale: 0.8 }}
+                  animate={{ scale: [0.8, 1.2, 0.8] }}
+                  transition={{ duration: 1.5, repeat: Infinity }}
+                />
+              </div>
+              <div>
+                <span className="font-semibold text-indigo-800">Using page context: </span>
+                <p>{contextSummary}</p>
+                <motion.p 
+                  className="mt-1 text-indigo-500 text-2xs"
+                  initial={{ opacity: 0.7 }}
+                  animate={{ opacity: [0.7, 1, 0.7] }}
+                  transition={{ duration: 4, repeat: Infinity }}
+                >
+                  Context-aware mode enabled
+                </motion.p>
+              </div>
+            </div>
+          </motion.div>
+        )}
+        
+        {/* API Status Indicator */}
+        {!apiSettings && (
+          <motion.div
+            initial={{ height: 0, opacity: 0 }}
+            animate={{ height: 'auto', opacity: 1 }}
+            exit={{ height: 0, opacity: 0 }}
+            className="bg-amber-50 px-4 py-2 text-xs text-amber-700 border-b border-amber-100 overflow-hidden"
+          >
+            <div className="flex items-start space-x-2">
+              <svg xmlns="http://www.w3.org/2000/svg" className="h-3.5 w-3.5 mt-0.5 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+              </svg>
+              <p>AI service not configured. Please set up your AI provider in the main assistant first.</p>
             </div>
           </motion.div>
         )}
@@ -552,6 +900,72 @@ const FloatingContextAI = ({ pageContext, onClose }) => {
             </Tooltip>
           </TooltipProvider>
           
+          {/* Save conversation button - only show if user is authenticated */}
+          {isAuthenticated && messages.length > 1 && (
+            <TooltipProvider>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <motion.button
+                    whileHover={{ scale: 1.1 }}
+                    whileTap={{ scale: 0.9 }}
+                    onClick={async () => {
+                      if (!apiSettings) {
+                        toast({
+                          title: 'API not configured',
+                          description: 'Please configure your AI provider settings first.',
+                          variant: 'destructive',
+                        });
+                        return;
+                      }
+                      
+                      try {
+                        const title = messages.find(m => m.role === 'user')?.content.substring(0, 50) || 'Context AI Conversation';
+                        const createResponse = await fetch('/api/ai/conversations', {
+                          method: 'POST',
+                          headers: {
+                            'Content-Type': 'application/json',
+                            'Authorization': `Bearer ${token}`
+                          },
+                          body: JSON.stringify({
+                            title: title + (title.length >= 50 ? '...' : ''),
+                            messages: JSON.stringify(messages),
+                            model: apiSettings.model,
+                            provider: apiSettings.provider
+                          })
+                        });
+                        
+                        if (createResponse.ok) {
+                          const createData = await createResponse.json();
+                          setConversationId(createData.id);
+                          toast({
+                            title: 'Conversation saved',
+                            description: 'This conversation has been saved to your history.',
+                            variant: 'default',
+                          });
+                        } else {
+                          throw new Error('Failed to save conversation');
+                        }
+                      } catch (error) {
+                        console.error('Error saving conversation:', error);
+                        toast({
+                          title: 'Save failed',
+                          description: 'There was an error saving this conversation.',
+                          variant: 'destructive',
+                        });
+                      }
+                    }}
+                    className="p-1.5 rounded-full bg-indigo-100 text-indigo-600 hover:bg-indigo-200 transition-colors"
+                  >
+                    <Save className="h-3.5 w-3.5" />
+                  </motion.button>
+                </TooltipTrigger>
+                <TooltipContent side="top" className="bg-indigo-800 border-indigo-700 text-white text-xs">
+                  <p>Save conversation</p>
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
+          )}
+          
           <TooltipProvider>
             <Tooltip>
               <TooltipTrigger asChild>
@@ -565,6 +979,8 @@ const FloatingContextAI = ({ pageContext, onClose }) => {
                         content: `I'm your AI learning assistant. I can see you're ${contextSummary.toLowerCase()}. How can I help you?`
                       }
                     ]);
+                    // Reset conversation ID when resetting conversation
+                    setConversationId(null);
                   }}
                   className="p-1.5 rounded-full bg-indigo-100 text-indigo-600 hover:bg-indigo-200 transition-colors"
                 >
@@ -632,13 +1048,22 @@ const FloatingContextAI = ({ pageContext, onClose }) => {
             <Mic className="h-4 w-4" />
           </motion.button>
           
-          <Button 
-            type="submit"
-            disabled={!input.trim() || isTyping}
-            className="rounded-l-none rounded-r-lg px-3 py-2 h-auto bg-gradient-to-r from-indigo-600 to-blue-500 hover:from-indigo-700 hover:to-blue-600 text-white border border-l-0 border-indigo-200"
-          >
-            <ArrowRight className="h-4 w-4" />
-          </Button>
+          <TooltipProvider>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button 
+                  type="submit"
+                  disabled={!input.trim() || isTyping || !apiSettings}
+                  className="rounded-l-none rounded-r-lg px-3 py-2 h-auto bg-gradient-to-r from-indigo-600 to-blue-500 hover:from-indigo-700 hover:to-blue-600 text-white border border-l-0 border-indigo-200"
+                >
+                  <ArrowRight className="h-4 w-4" />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent side="top" className={`${!apiSettings ? 'bg-amber-800' : 'bg-indigo-800'} border-indigo-700 text-white text-xs`}>
+                <p>{!apiSettings ? 'AI service not configured' : 'Send message'}</p>
+              </TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
         </div>
       </form>
     </motion.div>

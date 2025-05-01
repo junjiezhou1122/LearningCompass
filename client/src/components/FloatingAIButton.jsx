@@ -312,7 +312,7 @@ const FloatingAIButton = () => {
             }}
           />
           
-          {/* Icon */}
+          {/* Icon with context indicator */}
           <motion.span
             className="relative"
             animate={{ 
@@ -326,6 +326,31 @@ const FloatingAIButton = () => {
             }}
           >
             <Sparkles className="h-6 w-6" />
+            
+            {/* Context-aware indicator with tooltip */}
+            <TooltipProvider>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <motion.div 
+                    className="absolute -top-1 -right-1 w-3 h-3 rounded-full bg-green-400 border border-white cursor-pointer"
+                    initial={{ scale: 0.8 }}
+                    animate={{ 
+                      scale: [0.8, 1.2, 0.8],
+                      boxShadow: ['0 0 0 0 rgba(74, 222, 128, 0.7)', '0 0 0 4px rgba(74, 222, 128, 0)', '0 0 0 0 rgba(74, 222, 128, 0.7)']
+                    }}
+                    transition={{ 
+                      duration: 2, 
+                      repeat: Infinity, 
+                      ease: "easeInOut" 
+                    }}
+                  />
+                </TooltipTrigger>
+                <TooltipContent side="top" className="bg-indigo-800 border-indigo-700 text-white text-xs">
+                  <p>Context-aware assistant</p>
+                  <p className="text-2xs text-indigo-200">Understands page content</p>
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
           </motion.span>
         </motion.button>
         

@@ -400,6 +400,9 @@ export const aiConversations = pgTable("ai_conversations", {
   provider: text("provider").notNull(), // openai, anthropic, openrouter, custom
   model: text("model").notNull(), // Model identifier
   messages: text("messages").notNull(), // JSON string of messages
+  contextData: text("context_data"), // Extracted context from page as JSON
+  pageUrl: text("page_url"), // URL of the page where conversation started
+  pageTitle: text("page_title"), // Title of the page where conversation started
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at"),
 });
@@ -412,6 +415,9 @@ export const insertAiConversationSchema = createInsertSchema(
   provider: true,
   model: true,
   messages: true,
+  contextData: true,
+  pageUrl: true,
+  pageTitle: true,
   updatedAt: true,
 });
 
