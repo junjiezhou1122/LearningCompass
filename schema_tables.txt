@@ -1,0 +1,17 @@
+ai_conversations
+bookmarks
+comments
+courses
+learning_post_bookmarks
+learning_post_comments
+learning_post_likes
+learning_posts
+method_applications
+search_history
+subscribers
+user_badges
+user_events
+user_follows
+user_gamification
+user_recommendations
+users
