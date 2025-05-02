@@ -9,5 +9,7 @@ Version 2.2 (mutiLanguage[not all translate])
 Version 2.2.1(Context AI no history bug)
 Version 2.3 (Improve the UI design)
 Version 2.4 (Note Taking functionailty)
+
+
 Things need to do:
 make application faster
