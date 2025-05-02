@@ -139,6 +139,18 @@
   }
 }
 
+@keyframes gradient {
+  0% {
+    background-position: 0% 50%;
+  }
+  50% {
+    background-position: 100% 50%;
+  }
+  100% {
+    background-position: 0% 50%;
+  }
+}
+
 @layer utilities {
   .animation-delay-150 {
     animation-delay: 150ms;
@@ -167,6 +179,21 @@
   .animation-delay-5000 {
     animation-delay: 5000ms;
   }
+  .animation-delay-500 {
+    animation-delay: 500ms;
+  }
+  .animation-delay-700 {
+    animation-delay: 700ms;
+  }
+  .animation-delay-1500 {
+    animation-delay: 1500ms;
+  }
+  .animation-delay-2500 {
+    animation-delay: 2500ms;
+  }
+  .animation-delay-3500 {
+    animation-delay: 3500ms;
+  }
   
   .animate-blob {
     animation: blob 7s infinite;
@@ -182,6 +209,11 @@
   
   .animate-float {
     animation: float 4s ease-in-out infinite;
+  }
+  
+  .animate-gradient {
+    animation: gradient 8s ease infinite;
+    background-size: 200% 200%;
   }
   
   .animate-stagger > * {

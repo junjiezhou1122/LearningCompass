@@ -7,7 +7,7 @@ Version 2.0 (beta version for Recommendation sidebar and fix the bugs in ai assi
 Version 2.1 (Context AI version)
 Version 2.2 (mutiLanguage[not all translate])
 Version 2.2.1(Context AI no history bug)
-
+Version 2.3 (Improve the UI design)
 
 Things need to do:
 make application faster

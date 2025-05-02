@@ -145,7 +145,11 @@ const AIAssistant = ({ onApiConfigured }) => {
   
   // Function to fetch user's conversations from database
   const fetchUserConversations = async () => {
-    if (!isAuthenticated || !token) return;
+    if (!isAuthenticated || !token) {
+      console.log('Not authenticated or no token available, skipping conversation fetch');
+      setIsLoadingConversations(false);
+      return;
+    }
     
     setIsLoadingConversations(true);
     try {
@@ -158,7 +162,14 @@ const AIAssistant = ({ onApiConfigured }) => {
       });
       
       if (!response.ok) {
-        throw new Error(`Error: ${response.status}`);
+        // Handle 401 errors gracefully - likely just means no active session
+        if (response.status === 401) {
+          console.log('Auth token expired or invalid, using local conversations only');
+          setIsLoadingConversations(false);
+          return;
+        } else {
+          throw new Error(`Error: ${response.status}`);
+        }
       }
       
       const data = await response.json();
