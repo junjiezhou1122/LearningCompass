@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { motion, useDragControls, useMotionValue, AnimatePresence } from 'framer-motion';
-import { X, Save, Tag, Hash, Pin, Trash, Maximize2, Minimize2, Copy, Share2, Image, Bold, Italic, Underline, List, AlignLeft, AlignCenter, AlignRight, PenTool, FileImage, Calendar, Clock } from 'lucide-react';
+import { X, Save, Tag, Hash, Pin, Trash, Maximize2, Minimize2, Copy, Share2, Image, Bold, Italic, Underline, List, AlignLeft, AlignCenter, AlignRight, PenTool, FileImage, Calendar, Clock, Link } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
@@ -82,18 +82,50 @@ const NoteEditor = ({ note = null, onClose, pageInfo = {} }) => {
   // Setup bounds for dragging to ensure note stays within viewport
   useEffect(() => {
     const handleResize = () => {
-      // Reset position when window is resized
-      x.set(0);
-      y.set(0);
+      // Reset position when window is resized to make sure it's visible
+      x.set(Math.min(x.get(), window.innerWidth / 4));
+      y.set(Math.min(y.get(), window.innerHeight / 4));
     };
 
     window.addEventListener('resize', handleResize);
     return () => window.removeEventListener('resize', handleResize);
   }, [x, y]);
 
-  // Handle dragging start
+  // Enhanced drag handling with improved feedback
   const startDrag = (event) => {
+    // Stop propagation to prevent other elements from capturing the event
+    event.stopPropagation();
+    
+    // Start drag using drag controls
     dragControls.start(event);
+    
+    // Set cursor to grabbing during drag with visual feedback
+    if (noteRef.current) {
+      noteRef.current.style.cursor = 'grabbing';
+      noteRef.current.style.boxShadow = '0 10px 25px -5px rgba(0, 0, 0, 0.1)';
+      noteRef.current.style.transform = 'scale(1.01)';
+    }
+    
+    // Add a global mouse up event handler to reset cursor and styles
+    const handleMouseUp = () => {
+      if (noteRef.current) {
+        noteRef.current.style.cursor = '';
+        noteRef.current.style.boxShadow = '';
+        noteRef.current.style.transform = '';
+      }
+      window.removeEventListener('mouseup', handleMouseUp);
+      window.removeEventListener('touchend', handleMouseUp);
+      
+      // Save the new position
+      const currentPosition = {
+        x: x.get(),
+        y: y.get()
+      };
+      console.log('New note position:', currentPosition);
+    };
+    
+    window.addEventListener('mouseup', handleMouseUp);
+    window.addEventListener('touchend', handleMouseUp);
   };
 
   // Add tag handler
@@ -179,12 +211,27 @@ const NoteEditor = ({ note = null, onClose, pageInfo = {} }) => {
     }
   };
 
-  // Toggle font size
+  // Toggle font size with better zoom controls
   const handleToggleFontSize = () => {
-    const sizes = ['small', 'normal', 'large'];
-    const currentIndex = sizes.indexOf(fontSize);
-    const nextIndex = (currentIndex + 1) % sizes.length;
-    setFontSize(sizes[nextIndex]);
+    if (fontSize === 'small') {
+      setFontSize('normal');
+      toast({
+        title: "Font Size: Normal",
+        description: "Font size set to normal"
+      });
+    } else if (fontSize === 'normal') {
+      setFontSize('large');
+      toast({
+        title: "Font Size: Large",
+        description: "Font size set to large"
+      });
+    } else {
+      setFontSize('small');
+      toast({
+        title: "Font Size: Small",
+        description: "Font size set to small"
+      });
+    }
   };
 
   // Share note (placeholder)
@@ -239,16 +286,20 @@ const NoteEditor = ({ note = null, onClose, pageInfo = {} }) => {
         textAlignment,
         timestamp,
         reminderDate,
-        pageUrl: pageInfo.pageUrl || note?.pageUrl,
-        pageTitle: pageInfo.pageTitle || note?.pageTitle,
-        courseId: pageInfo.courseId || note?.courseId
+        pageUrl: pageInfo.pageUrl || note?.pageUrl || window.location.href,
+        pageTitle: pageInfo.pageTitle || note?.pageTitle || document.title,
+        courseId: pageInfo.courseId || note?.courseId || null
       };
       
-      let response;
+      console.log('Saving note data:', noteData);
+      
+      // Get query client for cache invalidation
+      const queryClient = window.queryClient || null;
       
       if (note) {
         // Update existing note
-        response = await apiRequest(`/api/notes/${note.id}`, {
+        console.log(`Updating note with ID: ${note.id}`);
+        const response = await fetch(`/api/notes/${note.id}`, {
           method: 'PUT',
           headers: {
             'Content-Type': 'application/json',
@@ -257,13 +308,31 @@ const NoteEditor = ({ note = null, onClose, pageInfo = {} }) => {
           body: JSON.stringify(noteData)
         });
         
+        if (!response.ok) {
+          const errorText = await response.text();
+          console.error('Error response:', errorText);
+          throw new Error('Failed to update note: ' + errorText);
+        }
+        
+        const data = await response.json();
+        console.log('Note updated successfully:', data);
+        
         toast({
           title: "Note Updated",
           description: "Your note has been updated successfully."
         });
+        
+        // Force refresh the notes list
+        if (queryClient) {
+          queryClient.invalidateQueries({ queryKey: ['/api/notes'] });
+          queryClient.refetchQueries({ queryKey: ['/api/notes'] });
+        }
+        
+        onClose();
       } else {
         // Create new note
-        response = await apiRequest('/api/notes', {
+        console.log('Creating new note');
+        const response = await fetch('/api/notes', {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
@@ -272,18 +341,33 @@ const NoteEditor = ({ note = null, onClose, pageInfo = {} }) => {
           body: JSON.stringify(noteData)
         });
         
+        if (!response.ok) {
+          const errorText = await response.text();
+          console.error('Error response:', errorText);
+          throw new Error('Failed to create note: ' + errorText);
+        }
+        
+        const data = await response.json();
+        console.log('Note created successfully:', data);
+        
         toast({
           title: "Note Created",
           description: "Your note has been saved successfully."
         });
+        
+        // Force refresh the notes list
+        if (queryClient) {
+          queryClient.invalidateQueries({ queryKey: ['/api/notes'] });
+          queryClient.refetchQueries({ queryKey: ['/api/notes'] });
+        }
+        
+        onClose();
       }
-      
-      onClose();
     } catch (error) {
       console.error('Error saving note:', error);
       toast({
         title: "Error",
-        description: "Failed to save your note. Please try again.",
+        description: error.message || "Failed to save your note. Please try again.",
         variant: "destructive"
       });
     } finally {
@@ -344,6 +428,8 @@ const NoteEditor = ({ note = null, onClose, pageInfo = {} }) => {
             <div 
               className="h-8 w-full bg-black/5 flex items-center justify-between px-2 cursor-move"
               onPointerDown={startDrag}
+              onMouseDown={startDrag}
+              onTouchStart={startDrag}
             >
               <div className="flex items-center space-x-1">
                 <div className="h-2 w-2 rounded-full bg-red-400" />
@@ -406,128 +492,13 @@ const NoteEditor = ({ note = null, onClose, pageInfo = {} }) => {
                 </div>
           )}
           
-          {/* Markdown toolbar */}
-          <div className="flex items-center flex-wrap gap-1 mb-2 py-1 px-2 rounded bg-black/5">
-            <button
-              title="Heading 1"
-              className="p-1 rounded hover:bg-black/10"
-              onClick={() => setContent(content + '\n# ')}
-            >
-              <span className="font-bold text-xs">H1</span>
-            </button>
-            
-            <button
-              title="Heading 2"
-              className="p-1 rounded hover:bg-black/10"
-              onClick={() => setContent(content + '\n## ')}
-            >
-              <span className="font-bold text-xs">H2</span>
-            </button>
-            
-            <button
-              title="Heading 3"
-              className="p-1 rounded hover:bg-black/10"
-              onClick={() => setContent(content + '\n### ')}
-            >
-              <span className="font-bold text-xs">H3</span>
-            </button>
-            
-            <div className="h-4 w-px bg-gray-300 mx-1"></div>
-            
-            <button
-              title="Bold"
-              className="p-1 rounded hover:bg-black/10"
-              onClick={() => {
-                const selection = window.getSelection();
-                const selectedText = selection?.toString() || '';
-                if (selectedText) {
-                  const start = contentRef.current.selectionStart;
-                  const end = contentRef.current.selectionEnd;
-                  const newContent = content.substring(0, start) + `**${selectedText}**` + content.substring(end);
-                  setContent(newContent);
-                } else {
-                  setContent(content + '**bold text**');
-                }
-              }}
-            >
-              <Bold className="h-4 w-4" />
-            </button>
-            
-            <button
-              title="Italic"
-              className="p-1 rounded hover:bg-black/10"
-              onClick={() => {
-                const selection = window.getSelection();
-                const selectedText = selection?.toString() || '';
-                if (selectedText) {
-                  const start = contentRef.current.selectionStart;
-                  const end = contentRef.current.selectionEnd;
-                  const newContent = content.substring(0, start) + `*${selectedText}*` + content.substring(end);
-                  setContent(newContent);
-                } else {
-                  setContent(content + '*italic text*');
-                }
-              }}
-            >
-              <Italic className="h-4 w-4" />
-            </button>
-            
-            <button
-              title="Link"
-              className="p-1 rounded hover:bg-black/10"
-              onClick={() => setContent(content + '[link text](https://example.com)')}
-            >
-              <Link className="h-4 w-4" />
-            </button>
-            
-            <button
-              title="List"
-              className="p-1 rounded hover:bg-black/10"
-              onClick={() => setContent(content + '\n- List item\n- Another item')}
-            >
-              <List className="h-4 w-4" />
-            </button>
-            
-            <div className="h-4 w-px bg-gray-300 mx-1"></div>
-            
-            <button
-              title="Add current time"
-              className="p-1 rounded hover:bg-black/10"
-              onClick={() => {
-                const now = new Date();
-                const timeStr = now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-                setTimestamp(timeStr);
-                setContent(content + '\n' + timeStr + ': ');
-              }}
-            >
-              <Clock className="h-4 w-4" />
-            </button>
-            
-            <button
-              title="Add current date"
-              className="p-1 rounded hover:bg-black/10"
-              onClick={() => {
-                const now = new Date();
-                const dateStr = now.toLocaleDateString();
-                setContent(content + '\n' + dateStr + '\n');
-              }}
-            >
-              <Calendar className="h-4 w-4" />
-            </button>
-          </div>
+          {/* No toolbar - removed date/time buttons as requested */}
           
           <Textarea
             ref={contentRef}
             value={content}
             onChange={(e) => setContent(e.target.value)}
-            placeholder="Take a note using Markdown...
-# Heading 1
-## Heading 2
-**bold text** *italic text*
-- List item
-- Another item
-
-[link text](url)"
+            placeholder="Take a note..."
             className={`min-h-[150px] w-full border-none focus:ring-0 resize-none bg-transparent placeholder:text-gray-400 ${
               fontSize === 'small' ? 'text-sm' : fontSize === 'large' ? 'text-lg' : 'text-base'
             } ${

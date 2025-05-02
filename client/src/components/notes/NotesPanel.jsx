@@ -34,6 +34,17 @@ const NoteCard = ({ note, onEdit, onDelete }) => {
   const truncatedContent = note.content.length > 150
     ? `${note.content.substring(0, 150)}...`
     : note.content;
+    
+  // Handle delete with confirmation
+  const handleDelete = () => {
+    console.log('Delete button clicked for note:', note.id);
+    if (note && note.id) {
+      // Make sure we have a valid ID before calling delete
+      onDelete(note.id);
+    } else {
+      console.error('Cannot delete note: Invalid note ID');
+    }
+  };
 
   return (
     <div
@@ -79,10 +90,11 @@ const NoteCard = ({ note, onEdit, onDelete }) => {
           <Button
             variant="ghost"
             size="icon"
-            className="h-7 w-7 rounded-full hover:bg-black/10"
-            onClick={() => onDelete(note.id)}
+            className="h-7 w-7 rounded-full hover:bg-red-100 bg-red-50"
+            onClick={handleDelete}
+            aria-label="Delete note"
           >
-            <Trash className="h-3.5 w-3.5 text-gray-500" />
+            <Trash className="h-3.5 w-3.5 text-red-500" />
           </Button>
         </div>
       </div>
@@ -100,10 +112,18 @@ const NotesPanel = () => {
   const { token } = useAuth();
   const queryClient = useQueryClient();
 
-  // Fetch all user notes
+  // Fetch all user notes with more debugging and forced refresh
   const { data: notes, isLoading, isError, refetch } = useQuery({
     queryKey: ['/api/notes'],
     enabled: !!token,
+    onSuccess: (data) => {
+      console.log('Successfully fetched notes:', data);
+    },
+    onError: (error) => {
+      console.error('Error fetching notes:', error);
+    },
+    // Refresh every 3 seconds to make sure we're getting the latest notes
+    refetchInterval: 3000
   });
 
   // Fetch user tags
@@ -160,25 +180,36 @@ const NotesPanel = () => {
     if (!window.confirm('Are you sure you want to delete this note?')) return;
     
     try {
-      await apiRequest(`/api/notes/${noteId}`, {
+      console.log('Deleting note with ID:', noteId);
+      
+      const response = await fetch(`/api/notes/${noteId}`, {
         method: 'DELETE',
         headers: {
           'Authorization': `Bearer ${token}`
         }
       });
       
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error('Delete response not OK:', response.status, errorText);
+        throw new Error(`Delete failed: ${response.status} ${errorText}`);
+      }
+      
+      console.log('Note successfully deleted');
+      
       toast({
         title: "Note Deleted",
         description: "Your note has been deleted successfully."
       });
       
-      // Invalidate notes query to refresh the list
+      // Invalidate and force refresh notes query
       queryClient.invalidateQueries({ queryKey: ['/api/notes'] });
+      queryClient.refetchQueries({ queryKey: ['/api/notes'] });
     } catch (error) {
       console.error('Error deleting note:', error);
       toast({
         title: "Error",
-        description: "Failed to delete the note. Please try again.",
+        description: error.message || "Failed to delete the note. Please try again.",
         variant: "destructive"
       });
     }

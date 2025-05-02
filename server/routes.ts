@@ -2541,21 +2541,40 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const userId = (req as any).user.id;
       const noteId = parseInt(req.params.id);
       
+      console.log(`Received delete request for note ID: ${noteId} from user ID: ${userId}`);
+      
       if (isNaN(noteId)) {
+        console.log(`Invalid note ID: ${req.params.id}`);
         return res.status(400).json({ message: "Invalid note ID" });
       }
       
+      // First check if the note exists and belongs to this user
+      const note = await storage.getUserNote(noteId);
+      
+      if (!note) {
+        console.log(`Note ID ${noteId} not found`);
+        return res.status(404).json({ message: "Note not found" });
+      }
+      
+      if (note.userId !== userId) {
+        console.log(`User ${userId} attempted to delete note ${noteId} owned by user ${note.userId}`);
+        return res.status(403).json({ message: "You don't have permission to delete this note" });
+      }
+      
       // Delete the note
+      console.log(`Deleting note ID: ${noteId}`);
       const deleted = await storage.deleteUserNote(noteId, userId);
       
       if (!deleted) {
-        return res.status(404).json({ message: "Note not found or you don't have permission to delete it" });
+        console.log(`Failed to delete note ID: ${noteId}`);
+        return res.status(500).json({ message: "Failed to delete the note" });
       }
       
-      res.json({ message: "Note deleted successfully" });
+      console.log(`Successfully deleted note ID: ${noteId}`);
+      res.json({ success: true, message: "Note successfully deleted" });
     } catch (error) {
       console.error("Error deleting note:", error);
-      res.status(500).json({ message: "Error deleting note" });
+      res.status(500).json({ message: "Error deleting note", error: String(error) });
     }
   });
 
