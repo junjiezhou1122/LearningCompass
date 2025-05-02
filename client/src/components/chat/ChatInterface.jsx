@@ -17,32 +17,22 @@ const ChatMessage = ({ message, isCurrentUser }) => {
   const formattedTime = format(new Date(message.createdAt), 'h:mm a');
   
   return (
-    <motion.div 
-      initial={{ opacity: 0, y: 20, scale: 0.9 }}
-      animate={{ opacity: 1, y: 0, scale: 1 }}
-      transition={{ duration: 0.3, type: "spring", stiffness: 120 }}
-      className={`flex items-end mb-4 ${isCurrentUser ? 'justify-end' : 'justify-start'}`}
-    >
+    <div className={`flex items-end mb-4 ${isCurrentUser ? 'justify-end' : 'justify-start'}`}>
       {!isCurrentUser && (
         <div className="flex-shrink-0 mr-2 mb-1">
-          <motion.div 
-            whileHover={{ scale: 1.1, rotate: 5 }}
-            className="h-9 w-9 rounded-full bg-gradient-to-br from-purple-200 to-pink-100 flex items-center justify-center shadow-md border-2 border-white"
-          >
-            <User className="h-5 w-5 text-purple-600" />
-          </motion.div>
+          <div className="h-8 w-8 rounded-full bg-gray-200 flex items-center justify-center">
+            <User className="h-4 w-4 text-gray-600" />
+          </div>
         </div>
       )}
       
-      <div className={`max-w-[70%] ${isCurrentUser ? 'order-1' : 'order-2'}`}>
-        <motion.div 
-          whileHover={{ scale: 1.02, y: -2 }}
-          className={`px-4 py-3 rounded-2xl ${isCurrentUser 
-            ? 'bg-gradient-to-br from-purple-600 via-purple-500 to-pink-500 text-white rounded-br-none shadow-lg shadow-pink-200/40 border border-pink-400/50' 
-            : 'bg-gradient-to-br from-white via-purple-50 to-pink-50 text-gray-800 rounded-bl-none shadow-md shadow-purple-100/30 border border-purple-100'}`}
+      <div className={`max-w-[70%]`}>
+        <div className={`px-4 py-2 rounded-lg ${isCurrentUser 
+          ? 'bg-blue-500 text-white rounded-br-none' 
+          : 'bg-gray-100 text-gray-800 rounded-bl-none'}`}
         >
-          <p className="text-sm font-medium">{message.content}</p>
-        </motion.div>
+          <p className="text-sm">{message.content}</p>
+        </div>
         <div className={`text-xs text-gray-500 mt-1 ${isCurrentUser ? 'text-right mr-2' : 'ml-2'}`}>
           {formattedTime}
         </div>
@@ -50,15 +40,12 @@ const ChatMessage = ({ message, isCurrentUser }) => {
       
       {isCurrentUser && (
         <div className="flex-shrink-0 ml-2 mb-1">
-          <motion.div 
-            whileHover={{ scale: 1.1, rotate: -5 }}
-            className="h-9 w-9 rounded-full bg-gradient-to-br from-purple-600 to-pink-500 flex items-center justify-center shadow-lg shadow-pink-200/30 border-2 border-white"
-          >
-            <User className="h-5 w-5 text-white" />
-          </motion.div>
+          <div className="h-8 w-8 rounded-full bg-blue-500 flex items-center justify-center">
+            <User className="h-4 w-4 text-white" />
+          </div>
         </div>
       )}
-    </motion.div>
+    </div>
   );
 };
 
@@ -281,39 +268,31 @@ const ChatInterface = ({ otherUser, onClose }) => {
       {/* Main chat content */}
       <div className="flex flex-col flex-grow">
         {/* Chat header */}
-        <motion.div 
-          initial={{ opacity: 0, y: -20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.3, type: "spring" }}
-          className="px-4 py-3 border-b flex items-center justify-between bg-gradient-to-r from-purple-600 to-pink-500 text-white shadow-lg"
+        <div 
+          className="px-4 py-3 border-b flex items-center justify-between bg-blue-500 text-white shadow-sm"
         >
           <div className="flex items-center">
-            <motion.div whileHover={{ scale: 1.1 }} whileTap={{ scale: 0.95 }}>
-              <Button 
-                variant="ghost" 
-                size="icon" 
-                onClick={onClose}
-                className="mr-2 text-white hover:bg-purple-700 rounded-full"
-              >
-                <ArrowLeft className="h-5 w-5" />
-              </Button>
-            </motion.div>
+            <Button 
+              variant="ghost" 
+              size="icon" 
+              onClick={onClose}
+              className="mr-2 text-white hover:bg-blue-600"
+            >
+              <ArrowLeft className="h-5 w-5" />
+            </Button>
             
             <div className="flex items-center">
-              <motion.div 
-                whileHover={{ scale: 1.05, rotate: 5 }}
-                className="h-10 w-10 rounded-full bg-pink-100 flex items-center justify-center mr-3 border-2 border-white"
+              <div 
+                className="h-9 w-9 rounded-full bg-blue-100 flex items-center justify-center mr-3 border border-white"
               >
-                <User className="h-6 w-6 text-purple-500" />
-              </motion.div>
+                <User className="h-5 w-5 text-blue-600" />
+              </div>
               <div>
                 <h3 className="font-semibold">{otherUser?.username || 'User'}</h3>
                 <div className="flex items-center">
-                  <motion.span 
-                    animate={{ scale: [1, 1.2, 1] }}
-                    transition={{ duration: 2, repeat: Infinity }}
+                  <span 
                     className="h-2 w-2 rounded-full bg-green-400 mr-2"
-                  ></motion.span>
+                  ></span>
                   <span className="text-xs">Online</span>
                 </div>
               </div>
@@ -324,35 +303,24 @@ const ChatInterface = ({ otherUser, onClose }) => {
           <div className="flex items-center">
             {/* Additional chat actions can be added here if needed */}
           </div>
-        </motion.div>
+        </div>
         
         {/* Chat messages */}
         <div className="flex-1 p-4 overflow-y-auto bg-gray-50">
           {loading ? (
             <div className="flex items-center justify-center h-full">
-              <motion.div 
-                animate={{ rotate: 360 }}
-                transition={{ duration: 2, repeat: Infinity, ease: "linear" }}
-                className="rounded-full h-12 w-12 border-4 border-purple-200 border-t-purple-500"
-              ></motion.div>
+              <div 
+                className="rounded-full h-8 w-8 border-2 border-gray-200 border-t-blue-500 animate-spin"
+              ></div>
             </div>
           ) : messages.length === 0 ? (
-            <motion.div 
-              initial={{ opacity: 0, scale: 0.8 }}
-              animate={{ opacity: 1, scale: 1 }}
-              transition={{ duration: 0.5, type: "spring" }}
-              className="flex flex-col items-center justify-center h-full text-gray-500"
-            >
-              <motion.div
-                initial={{ y: 0 }}
-                animate={{ y: [0, -10, 0] }}
-                transition={{ duration: 2, repeat: Infinity, repeatType: "reverse" }}
-              >
-                <MessageSquare className="h-16 w-16 mb-4 text-purple-300" />
-              </motion.div>
-              <p className="font-medium text-lg text-purple-700 mb-2">No messages yet</p>
+            <div className="flex flex-col items-center justify-center h-full text-gray-500">
+              <div>
+                <MessageSquare className="h-12 w-12 mb-3 text-blue-300" />
+              </div>
+              <p className="font-medium text-lg text-blue-600 mb-2">No messages yet</p>
               <p className="text-sm text-gray-600">Send a message to start the conversation</p>
-            </motion.div>
+            </div>
           ) : (
             <AnimatePresence>
               {messages.map((message, index) => (
@@ -375,33 +343,26 @@ const ChatInterface = ({ otherUser, onClose }) => {
         </div>
         
         {/* Chat input */}
-        <motion.div 
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.2, duration: 0.3 }}
-          className="p-4 border-t flex items-center bg-gradient-to-r from-purple-50 to-pink-50 shadow-inner"
+        <div 
+          className="p-3 border-t flex items-center bg-gray-50"
         >
           <div className="flex items-center space-x-2 mr-2">
-            <motion.div whileHover={{ scale: 1.1, rotate: 15 }} whileTap={{ scale: 0.9 }}>
-              <Button 
-                variant="ghost" 
-                size="icon" 
-                className="text-purple-400 hover:text-purple-700 hover:bg-purple-100 rounded-full shadow-sm"
-                disabled={!connected}
-              >
-                <Paperclip className="h-5 w-5" />
-              </Button>
-            </motion.div>
-            <motion.div whileHover={{ scale: 1.1, rotate: -15 }} whileTap={{ scale: 0.9 }}>
-              <Button 
-                variant="ghost" 
-                size="icon" 
-                className="text-pink-400 hover:text-pink-600 hover:bg-pink-100 rounded-full shadow-sm"
-                disabled={!connected}
-              >
-                <Image className="h-5 w-5" />
-              </Button>
-            </motion.div>
+            <Button 
+              variant="ghost" 
+              size="icon" 
+              className="text-gray-400 hover:text-blue-500 hover:bg-gray-100"
+              disabled={!connected}
+            >
+              <Paperclip className="h-5 w-5" />
+            </Button>
+            <Button 
+              variant="ghost" 
+              size="icon" 
+              className="text-gray-400 hover:text-blue-500 hover:bg-gray-100"
+              disabled={!connected}
+            >
+              <Image className="h-5 w-5" />
+            </Button>
           </div>
           
           <Input
@@ -409,57 +370,40 @@ const ChatInterface = ({ otherUser, onClose }) => {
             onChange={(e) => setInput(e.target.value)}
             onKeyDown={handleKeyDown}
             placeholder="Type a message..."
-            className="flex-grow rounded-full border-purple-200 focus:border-purple-500 focus:ring-pink-200 shadow-md bg-white/90 py-5"
+            className="flex-grow rounded-md border-gray-200 focus:border-blue-500 focus:ring-blue-200 mx-2"
             disabled={!connected}
           />
-          <motion.div 
-            whileHover={{ scale: 1.05, rotate: 5 }} 
-            whileTap={{ scale: 0.95, rotate: -5 }}
-            className="ml-3"
+          <Button 
+            onClick={sendMessage} 
+            className="bg-blue-500 hover:bg-blue-600 text-white rounded-md px-4 ml-3"
+            disabled={!connected || !input.trim()}
           >
-            <Button 
-              onClick={sendMessage} 
-              className="rounded-full bg-gradient-to-br from-purple-600 via-purple-500 to-pink-500 hover:from-purple-700 hover:to-pink-600 shadow-lg px-5 py-6 transition-all duration-300 hover:shadow-pink-300/50 hover:shadow-xl"
-              disabled={!connected || !input.trim()}
-            >
-              <Send className="h-5 w-5" />
-            </Button>
-          </motion.div>
-        </motion.div>
+            <Send className="h-4 w-4" />
+          </Button>
+        </div>
       </div>
       
       {/* Removed learning resources sidebar */}
       
       {!connected && (
-        <motion.div 
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          className="absolute inset-0 bg-white bg-opacity-80 backdrop-blur-sm flex items-center justify-center rounded-lg z-50"
+        <div 
+          className="absolute inset-0 bg-white bg-opacity-80 flex items-center justify-center rounded-lg z-50"
         >
-          <motion.div 
-            initial={{ scale: 0.8 }}
-            animate={{ scale: 1 }}
-            transition={{ type: "spring", stiffness: 500, damping: 30 }}
-            className="text-center p-6 bg-white shadow-xl rounded-xl border border-pink-100"
+          <div 
+            className="text-center p-6 bg-white shadow-md rounded-md border border-gray-200"
           >
-            <motion.div
-              animate={{ scale: [1, 1.1, 1] }}
-              transition={{ duration: 2, repeat: Infinity }}
-              className="mb-4 inline-block"
-            >
-              <Badge variant="outline" className="mb-2 text-lg bg-pink-50 text-purple-800 border-purple-300 px-4 py-1">
+            <div className="mb-4 inline-block">
+              <Badge variant="outline" className="mb-2 text-lg bg-gray-50 text-blue-700 border-blue-200 px-4 py-1">
                 <WifiOff className="mr-2 h-4 w-4" />
                 Disconnected
               </Badge>
-            </motion.div>
+            </div>
             <p className="text-gray-600 mb-2">Trying to reconnect to chat service...</p>
-            <motion.div 
-              animate={{ rotate: 360 }}
-              transition={{ duration: 2, repeat: Infinity, ease: "linear" }}
-              className="mx-auto h-6 w-6 rounded-full border-2 border-purple-200 border-t-purple-500 mt-4"
-            ></motion.div>
-          </motion.div>
-        </motion.div>
+            <div 
+              className="mx-auto h-6 w-6 rounded-full border-2 border-gray-200 border-t-blue-500 animate-spin mt-4"
+            ></div>
+          </div>
+        </div>
       )}
     </div>
   );
