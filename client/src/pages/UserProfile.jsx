@@ -3,6 +3,7 @@ import { useParams, useLocation } from "wouter";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
+import ChatButton from "../components/chat/ChatButton";
 import {
   Card,
   CardContent,
@@ -932,7 +933,7 @@ export default function UserProfile() {
             </div>
 
             {isAuthenticated && String(currentUser?.id) !== String(userId) && (
-              <div className="mt-4 sm:mt-0">
+              <div className="mt-4 sm:mt-0 flex items-center space-x-2">
                 <Button
                   variant={followStatus.isFollowing ? "outline" : "default"}
                   className={
@@ -952,6 +953,9 @@ export default function UserProfile() {
                   )}
                   {followStatus.isFollowing ? "Unfollow" : "Follow"}
                 </Button>
+                
+                {/* Add chat button if both users follow each other */}
+                {profileData && (<ChatButton otherUser={profileData} />)}
               </div>
             )}
           </div>

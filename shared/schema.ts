@@ -764,3 +764,48 @@ export const coursesNotesRelations = relations(courses, ({ many }) => ({
 // Type definitions for user notes
 export type UserNote = typeof userNotes.$inferSelect;
 export type InsertUserNote = typeof userNotes.$inferInsert;
+
+// Chat Messages schema
+export const chatMessages = pgTable("chat_messages", {
+  id: serial("id").primaryKey(),
+  senderId: integer("sender_id")
+    .notNull()
+    .references(() => users.id),
+  receiverId: integer("receiver_id")
+    .notNull()
+    .references(() => users.id),
+  content: text("content").notNull(),
+  isRead: boolean("is_read").default(false),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+export const insertChatMessageSchema = createInsertSchema(chatMessages).pick({
+  senderId: true,
+  receiverId: true,
+  content: true,
+  isRead: true,
+});
+
+// Chat Messages Relations
+export const chatMessagesRelations = relations(chatMessages, ({ one }) => ({
+  sender: one(users, {
+    fields: [chatMessages.senderId],
+    references: [users.id],
+    relationName: "sentMessages",
+  }),
+  receiver: one(users, {
+    fields: [chatMessages.receiverId],
+    references: [users.id],
+    relationName: "receivedMessages",
+  }),
+}));
+
+// Update user relations to include chat messages
+export const usersChatRelations = relations(users, ({ many }) => ({
+  sentMessages: many(chatMessages, { relationName: "sentMessages" }),
+  receivedMessages: many(chatMessages, { relationName: "receivedMessages" }),
+}));
+
+// Type definitions for chat messages
+export type ChatMessage = typeof chatMessages.$inferSelect;
+export type InsertChatMessage = typeof chatMessages.$inferInsert;

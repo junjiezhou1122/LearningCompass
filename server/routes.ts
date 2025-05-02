@@ -1,5 +1,6 @@
 import type { Express, Request, Response, NextFunction } from "express";
 import { createServer, type Server } from "http";
+import { WebSocketServer, WebSocket } from "ws";
 import { storage } from "./storage";
 import jwt from "jsonwebtoken";
 import bcrypt from "bcrypt";
@@ -2590,6 +2591,202 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Chat API routes
+  app.get("/api/chat/messages/:receiverId", authenticateJWT, async (req: Request, res: Response) => {
+    try {
+      const senderId = (req as any).user.id;
+      const receiverId = parseInt(req.params.receiverId);
+      
+      // Check if these users can chat (both following each other)
+      const canChat = await storage.canUsersChat(senderId, receiverId);
+      if (!canChat) {
+        return res.status(403).json({ message: "You can only chat with users who you follow and who follow you back" });
+      }
+      
+      // Get recent messages between the users
+      const options = {
+        limit: req.query.limit ? parseInt(req.query.limit as string) : 50,
+        offset: req.query.offset ? parseInt(req.query.offset as string) : 0,
+      };
+      
+      const messages = await storage.getChatMessagesBetweenUsers(senderId, receiverId, options);
+      
+      // Mark messages from the receiver as read
+      await storage.markChatMessagesAsRead(receiverId, senderId);
+      
+      res.json(messages);
+    } catch (error) {
+      console.error("Error fetching chat messages:", error);
+      res.status(500).json({ message: "Error fetching chat messages" });
+    }
+  });
+  
+  app.get("/api/chat/partners", authenticateJWT, async (req: Request, res: Response) => {
+    try {
+      const userId = (req as any).user.id;
+      const partners = await storage.getChatPartners(userId);
+      res.json(partners);
+    } catch (error) {
+      console.error("Error fetching chat partners:", error);
+      res.status(500).json({ message: "Error fetching chat partners" });
+    }
+  });
+  
+  app.get("/api/chat/unread-count", authenticateJWT, async (req: Request, res: Response) => {
+    try {
+      const userId = (req as any).user.id;
+      const count = await storage.getUnreadMessageCount(userId);
+      res.json({ count });
+    } catch (error) {
+      console.error("Error fetching unread message count:", error);
+      res.status(500).json({ message: "Error fetching unread message count" });
+    }
+  });
+  
+  app.get("/api/chat/can-chat/:userId", authenticateJWT, async (req: Request, res: Response) => {
+    try {
+      const currentUserId = (req as any).user.id;
+      const otherUserId = parseInt(req.params.userId);
+      
+      const canChat = await storage.canUsersChat(currentUserId, otherUserId);
+      res.json({ canChat });
+    } catch (error) {
+      console.error("Error checking if users can chat:", error);
+      res.status(500).json({ message: "Error checking if users can chat" });
+    }
+  });
+
   const httpServer = createServer(app);
+  
+  // Set up WebSocket server for real-time chat
+  const wss = new WebSocketServer({ server: httpServer, path: '/ws' });
+  
+  // Store client connections by user ID
+  const clients = new Map<number, WebSocket>();
+  
+  wss.on('connection', (ws: WebSocket) => {
+    console.log('WebSocket client connected');
+    let userId: number | null = null;
+    
+    ws.on('message', async (message: string) => {
+      try {
+        const data = JSON.parse(message);
+        
+        // Handle authentication
+        if (data.type === 'auth') {
+          try {
+            const token = data.token;
+            if (!token) {
+              ws.send(JSON.stringify({ type: 'error', message: 'Authentication required' }));
+              return;
+            }
+            
+            // Verify JWT token
+            const decoded = jwt.verify(token, JWT_SECRET) as any;
+            userId = decoded.id;
+            
+            // Store this connection
+            clients.set(userId, ws);
+            
+            // Send acknowledgment
+            ws.send(JSON.stringify({ type: 'auth_success', userId }));
+            console.log(`User ${userId} authenticated via WebSocket`);
+          } catch (error) {
+            ws.send(JSON.stringify({ type: 'error', message: 'Invalid authentication' }));
+          }
+        }
+        // Handle chat messages
+        else if (data.type === 'chat_message') {
+          if (!userId) {
+            ws.send(JSON.stringify({ type: 'error', message: 'Authentication required' }));
+            return;
+          }
+          
+          const { receiverId, content } = data;
+          
+          // Validate message
+          if (!receiverId || !content) {
+            ws.send(JSON.stringify({ type: 'error', message: 'Receiver ID and content are required' }));
+            return;
+          }
+          
+          // Check if users can chat
+          const canChat = await storage.canUsersChat(userId, receiverId);
+          if (!canChat) {
+            ws.send(JSON.stringify({ 
+              type: 'error', 
+              message: 'You can only chat with users who you follow and who follow you back' 
+            }));
+            return;
+          }
+          
+          // Store message in database
+          const message = await storage.createChatMessage({
+            senderId: userId,
+            receiverId,
+            content,
+            isRead: false,
+          });
+          
+          // Send message to receiver if online
+          const receiverWs = clients.get(receiverId);
+          if (receiverWs && receiverWs.readyState === WebSocket.OPEN) {
+            receiverWs.send(JSON.stringify({
+              type: 'new_message',
+              message
+            }));
+          }
+          
+          // Send confirmation to sender
+          ws.send(JSON.stringify({
+            type: 'message_sent',
+            message
+          }));
+        } 
+        // Handle read receipts
+        else if (data.type === 'mark_read') {
+          if (!userId) {
+            ws.send(JSON.stringify({ type: 'error', message: 'Authentication required' }));
+            return;
+          }
+          
+          const { senderId } = data;
+          if (!senderId) {
+            ws.send(JSON.stringify({ type: 'error', message: 'Sender ID is required' }));
+            return;
+          }
+          
+          // Mark messages as read
+          await storage.markChatMessagesAsRead(senderId, userId);
+          
+          // Notify sender if online
+          const senderWs = clients.get(senderId);
+          if (senderWs && senderWs.readyState === WebSocket.OPEN) {
+            senderWs.send(JSON.stringify({
+              type: 'messages_read',
+              readBy: userId
+            }));
+          }
+          
+          // Send confirmation to client
+          ws.send(JSON.stringify({
+            type: 'marked_read_success',
+            senderId
+          }));
+        }
+      } catch (error) {
+        console.error('Error handling WebSocket message:', error);
+        ws.send(JSON.stringify({ type: 'error', message: 'Internal server error' }));
+      }
+    });
+    
+    ws.on('close', () => {
+      if (userId) {
+        clients.delete(userId);
+        console.log(`User ${userId} disconnected from WebSocket`);
+      }
+    });
+  });
+  
   return httpServer;
 }

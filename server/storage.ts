@@ -19,7 +19,9 @@ import {
   // User events schemas and types
   userEvents, UserEvent, InsertUserEvent,
   // User notes schemas and types
-  userNotes, UserNote, InsertUserNote
+  userNotes, UserNote, InsertUserNote,
+  // Chat messages schemas and types
+  chatMessages, ChatMessage, InsertChatMessage
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, and, like, desc, asc, sql, or, inArray, arrayContains } from "drizzle-orm";
@@ -197,6 +199,18 @@ export interface IStorage {
   updateUserNote(id: number, note: Partial<InsertUserNote>): Promise<UserNote | undefined>;
   deleteUserNote(id: number, userId: number): Promise<boolean>;
   getUserNoteTags(userId: number): Promise<string[]>;
+  
+  // Chat Messages operations
+  getChatMessage(id: number): Promise<ChatMessage | undefined>;
+  getChatMessagesBetweenUsers(userId1: number, userId2: number, options?: {
+    limit?: number;
+    offset?: number;
+  }): Promise<ChatMessage[]>;
+  createChatMessage(message: InsertChatMessage): Promise<ChatMessage>;
+  markChatMessagesAsRead(senderId: number, receiverId: number): Promise<boolean>;
+  getUnreadMessageCount(userId: number): Promise<number>;
+  getChatPartners(userId: number): Promise<User[]>;
+  canUsersChat(userId1: number, userId2: number): Promise<boolean>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -1579,6 +1593,109 @@ export class DatabaseStorage implements IStorage {
     });
     
     return Array.from(tagSet);
+  }
+  
+  // Chat Messages operations
+  async getChatMessage(id: number): Promise<ChatMessage | undefined> {
+    const [message] = await db.select().from(chatMessages).where(eq(chatMessages.id, id));
+    return message || undefined;
+  }
+  
+  async getChatMessagesBetweenUsers(userId1: number, userId2: number, options?: {
+    limit?: number;
+    offset?: number;
+  }): Promise<ChatMessage[]> {
+    let query = db.select().from(chatMessages)
+      .where(
+        or(
+          and(
+            eq(chatMessages.senderId, userId1),
+            eq(chatMessages.receiverId, userId2)
+          ),
+          and(
+            eq(chatMessages.senderId, userId2),
+            eq(chatMessages.receiverId, userId1)
+          )
+        )
+      )
+      .orderBy(asc(chatMessages.createdAt));
+    
+    if (options?.limit) {
+      query = query.limit(options.limit);
+    }
+    
+    if (options?.offset) {
+      query = query.offset(options.offset);
+    }
+    
+    return await query;
+  }
+  
+  async createChatMessage(message: InsertChatMessage): Promise<ChatMessage> {
+    const [result] = await db.insert(chatMessages).values(message).returning();
+    return result;
+  }
+  
+  async markChatMessagesAsRead(senderId: number, receiverId: number): Promise<boolean> {
+    // Mark all messages from sender to receiver as read
+    const result = await db.update(chatMessages)
+      .set({ isRead: true })
+      .where(
+        and(
+          eq(chatMessages.senderId, senderId),
+          eq(chatMessages.receiverId, receiverId),
+          eq(chatMessages.isRead, false)
+        )
+      );
+    
+    return result.rowCount ? result.rowCount > 0 : false;
+  }
+  
+  async getUnreadMessageCount(userId: number): Promise<number> {
+    const result = await db.select({ count: sql`count(*)` })
+      .from(chatMessages)
+      .where(
+        and(
+          eq(chatMessages.receiverId, userId),
+          eq(chatMessages.isRead, false)
+        )
+      );
+    
+    return Number(result[0]?.count || 0);
+  }
+  
+  async getChatPartners(userId: number): Promise<User[]> {
+    // Get all unique users that the current user has chatted with
+    const sentToUsers = await db.select({
+      user: users
+    })
+    .from(chatMessages)
+    .innerJoin(users, eq(chatMessages.receiverId, users.id))
+    .where(eq(chatMessages.senderId, userId))
+    .groupBy(users.id);
+    
+    const receivedFromUsers = await db.select({
+      user: users
+    })
+    .from(chatMessages)
+    .innerJoin(users, eq(chatMessages.senderId, users.id))
+    .where(eq(chatMessages.receiverId, userId))
+    .groupBy(users.id);
+    
+    // Combine and deduplicate users
+    const uniqueUsers = new Map<number, User>();
+    sentToUsers.forEach(u => uniqueUsers.set(u.user.id, u.user));
+    receivedFromUsers.forEach(u => uniqueUsers.set(u.user.id, u.user));
+    
+    return Array.from(uniqueUsers.values());
+  }
+  
+  async canUsersChat(userId1: number, userId2: number): Promise<boolean> {
+    // Users can chat if they follow each other
+    const user1FollowsUser2 = await this.isFollowing(userId1, userId2);
+    const user2FollowsUser1 = await this.isFollowing(userId2, userId1);
+    
+    return user1FollowsUser2 && user2FollowsUser1;
   }
 }
 
