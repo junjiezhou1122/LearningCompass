@@ -12,7 +12,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { UserCircle, LogOut, Bookmark } from "lucide-react";
-import AuthModals from "@/features/auth/components/AuthModals";
+import AuthModals from "../AuthModals";
 
 export default function HeaderUserMenu() {
   const [, navigate] = useLocation();
