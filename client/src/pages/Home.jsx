@@ -2,11 +2,11 @@ import { useState, useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useToast } from "@/hooks/use-toast";
 import { useLanguage } from "@/contexts/LanguageContext";
-import Hero from "@/components/Hero";
-import FilterSidebar from "@/components/FilterSidebar";
-import CourseList from "@/components/CourseList";
-import CourseListHeader from "@/components/CourseListHeader";
-import Pagination from "@/components/Pagination";
+import Hero from "@/features/home/components/hero/Hero";
+import FilterSidebar from "@/features/courses/components/filters/FilterSidebar";
+import CourseList from "@/features/courses/components/course-list/CourseList";
+import CourseListHeader from "@/features/courses/components/course-list/CourseListHeader";
+import Pagination from "@/features/common/components/pagination/Pagination";
 
 export default function Home() {
   const [searchParams, setSearchParams] = useState(new URLSearchParams(window.location.search));

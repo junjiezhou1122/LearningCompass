@@ -6,13 +6,15 @@ import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
   DropdownMenuContent,
-  DropdownMenuItem,
   DropdownMenuLabel,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { UserCircle, LogOut, Bookmark } from "lucide-react";
-import AuthModals from "@/features/auth/components/AuthModals";
+import AuthModals from "@/components/AuthModals";
+import UserAvatar from "./UserAvatar";
+import UserMenuItem from "./UserMenuItem";
+import UserMenuAnimations from "./UserMenuAnimations";
 
 export default function HeaderUserMenu() {
   const [, navigate] = useLocation();
@@ -48,15 +50,7 @@ export default function HeaderUserMenu() {
             isOpen ? "bg-amber-600/90" : "hover:bg-amber-600/80"
           }`}
         >
-          <div
-            className={`w-8 h-8 rounded-full flex items-center justify-center text-orange-600 font-medium transition-all duration-500 ${
-              isOpen
-                ? "bg-orange-50 scale-110 shadow-lg"
-                : "bg-white/95 group-hover:bg-orange-50 group-hover:scale-105 group-hover:shadow-md"
-            }`}
-          >
-            {user?.firstName?.[0] || user?.username?.[0] || "U"}
-          </div>
+          <UserAvatar user={user} isOpen={isOpen} />
           <span
             className={`text-sm font-medium ml-2 hidden md:inline-block transition-all duration-500 ${
               isOpen ? "scale-110" : "group-hover:scale-105"
@@ -77,59 +71,33 @@ export default function HeaderUserMenu() {
           {t("myAccount")}
         </DropdownMenuLabel>
         <DropdownMenuSeparator className="bg-orange-100" />
-        <DropdownMenuItem
-          className="px-2 py-2 cursor-pointer transition-all duration-500 hover:bg-orange-50 hover:text-orange-700 focus:bg-orange-50 focus:text-orange-700 rounded-md focus:ring-1 focus:ring-orange-200 focus:ring-offset-1 animate-slideIn"
+        
+        <UserMenuItem
+          icon={<UserCircle />}
           onClick={navigateToProfile}
         >
-          <UserCircle className="mr-2 h-4 w-4" />
-          <span>{t("profile")}</span>
-        </DropdownMenuItem>
-        <DropdownMenuItem
-          className="px-2 py-2 cursor-pointer transition-all duration-500 hover:bg-orange-50 hover:text-orange-700 focus:bg-orange-50 focus:text-orange-700 rounded-md focus:ring-1 focus:ring-orange-200 focus:ring-offset-1 animate-slideIn"
+          {t("profile")}
+        </UserMenuItem>
+        
+        <UserMenuItem
+          icon={<Bookmark />}
           onClick={() => navigate("/bookmarks")}
         >
-          <Bookmark className="mr-2 h-4 w-4" />
-          <span>{t("bookmarks")}</span>
-        </DropdownMenuItem>
+          {t("bookmarks")}
+        </UserMenuItem>
+        
         <DropdownMenuSeparator className="bg-orange-100" />
-        <DropdownMenuItem
+        
+        <UserMenuItem
+          icon={<LogOut />}
           onClick={handleLogout}
-          className="px-2 py-2 cursor-pointer text-red-600 transition-all duration-500 hover:bg-red-50 hover:text-red-700 focus:bg-red-50 focus:text-red-700 rounded-md focus:ring-1 focus:ring-red-200 focus:ring-offset-1 animate-slideIn"
+          danger
         >
-          <LogOut className="mr-2 h-4 w-4" />
-          <span>{t("signOut")}</span>
-        </DropdownMenuItem>
+          {t("signOut")}
+        </UserMenuItem>
       </DropdownMenuContent>
 
-      <style dangerouslySetInnerHTML={{
-        __html: `
-        @keyframes slideIn {
-          from {
-            opacity: 0;
-            transform: translateX(-10px);
-          }
-          to {
-            opacity: 1;
-            transform: translateX(0);
-          }
-        }
-        @keyframes fadeIn {
-          from {
-            opacity: 0;
-            transform: translateY(-10px);
-          }
-          to {
-            opacity: 1;
-            transform: translateY(0);
-          }
-        }
-        .animate-slideIn {
-          animation: slideIn 0.3s ease-out forwards;
-        }
-        .animate-fadeIn {
-          animation: fadeIn 0.3s ease-out forwards;
-        }
-        `}} />
+      <UserMenuAnimations />
     </DropdownMenu>
   );
 }
