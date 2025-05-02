@@ -1,12 +1,14 @@
 import { useLocation } from "wouter";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { Button } from "@/components/ui/button";
-import { BookOpen, MessageSquare } from "lucide-react";
+import { BookOpen, MessageSquare, StickyNote } from "lucide-react";
 import LanguageSwitcher from "../LanguageSwitcher";
+import { useAuth } from "@/contexts/AuthContext";
 
 export default function HeaderNav() {
   const [location, navigate] = useLocation();
   const { t } = useLanguage();
+  const { isAuthenticated } = useAuth();
 
   return (
     <div className="hidden md:flex items-center space-x-2">
@@ -26,6 +28,16 @@ export default function HeaderNav() {
         <MessageSquare className="h-5 w-5 mr-2" />
         {t("shareConnect")}
       </Button>
+      {isAuthenticated && (
+        <Button
+          variant="ghost"
+          className="text-white hover:text-white hover:bg-amber-600/80 transition-all duration-500"
+          onClick={() => navigate("/notes")}
+        >
+          <StickyNote className="h-5 w-5 mr-2" />
+          Notes
+        </Button>
+      )}
       <LanguageSwitcher />
     </div>
   );

@@ -13,9 +13,11 @@ import LearningHowToLearn from "@/pages/LearningHowToLearn";
 import Share from "@/pages/Share";
 import PostDetail from "@/pages/PostDetail";
 import UserProfile from "./pages/UserProfile";
+import NotesPage from "./pages/NotesPage";
 import Header from "@/components/Header";
 import Footer from "@/components/Footer";
 import FloatingAIButton from "@/components/FloatingAIButton";
+import FloatingNoteButton from "@/components/notes/FloatingNoteButton";
 import RecommendationSidebar from "@/components/RecommendationSidebar";
 
 function Router() {
@@ -47,6 +49,7 @@ function Router() {
               <Route path="/share" component={Share} />
               <Route path="/post/:id" component={PostDetail} />
               <Route path="/users/:userId" component={UserProfile} />
+              <Route path="/notes" component={NotesPage} />
               <Route component={NotFound} />
             </Switch>
           </div>
@@ -72,6 +75,7 @@ function App() {
           <TooltipProvider>
             <Router />
             <FloatingAIButton />
+            <FloatingNoteButton />
             <Toaster />
           </TooltipProvider>
         </AuthProvider>

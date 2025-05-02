@@ -13,7 +13,9 @@ import {
   // AI conversation schema
   insertAiConversationSchema,
   // Method application schema
-  insertMethodApplicationSchema
+  insertMethodApplicationSchema,
+  // User notes schema
+  insertUserNoteSchema
 } from "@shared/schema";
 import { z, ZodError } from "zod";
 import { fromZodError } from "zod-validation-error";
@@ -2426,6 +2428,146 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Error deleting event:", error);
       res.status(500).json({ message: "Error deleting event" });
+    }
+  });
+
+  // User Notes API Routes
+  app.get("/api/notes", authenticateJWT, async (req: Request, res: Response) => {
+    try {
+      const userId = (req as any).user.id;
+      const options = {
+        limit: req.query.limit ? parseInt(req.query.limit as string) : undefined,
+        offset: req.query.offset ? parseInt(req.query.offset as string) : undefined,
+        tag: req.query.tag as string | undefined,
+        courseId: req.query.courseId ? parseInt(req.query.courseId as string) : undefined,
+        isPinned: req.query.isPinned === 'true' ? true : 
+                 req.query.isPinned === 'false' ? false : undefined,
+      };
+
+      const notes = await storage.getUserNotes(userId, options);
+      res.json(notes);
+    } catch (error) {
+      console.error("Error fetching notes:", error);
+      res.status(500).json({ message: "Error fetching notes" });
+    }
+  });
+
+  app.get("/api/notes/:id", authenticateJWT, async (req: Request, res: Response) => {
+    try {
+      const noteId = parseInt(req.params.id);
+      
+      if (isNaN(noteId)) {
+        return res.status(400).json({ message: "Invalid note ID" });
+      }
+      
+      const note = await storage.getUserNote(noteId);
+      
+      if (!note) {
+        return res.status(404).json({ message: "Note not found" });
+      }
+      
+      // Verify user owns this note
+      const userId = (req as any).user.id;
+      if (note.userId !== userId) {
+        return res.status(403).json({ message: "You don't have permission to access this note" });
+      }
+      
+      res.json(note);
+    } catch (error) {
+      console.error("Error fetching note:", error);
+      res.status(500).json({ message: "Error fetching note" });
+    }
+  });
+
+  app.post("/api/notes", authenticateJWT, async (req: Request, res: Response) => {
+    try {
+      const userId = (req as any).user.id;
+      
+      // Prepare note data
+      const noteData = insertUserNoteSchema.parse({
+        ...req.body,
+        userId,
+        createdAt: new Date(), // Will use defaultNow() from schema
+      });
+      
+      const note = await storage.createUserNote(noteData);
+      res.status(201).json(note);
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ message: fromZodError(error).message });
+      }
+      console.error("Error creating note:", error);
+      res.status(500).json({ message: "Error creating note" });
+    }
+  });
+
+  app.put("/api/notes/:id", authenticateJWT, async (req: Request, res: Response) => {
+    try {
+      const userId = (req as any).user.id;
+      const noteId = parseInt(req.params.id);
+      
+      if (isNaN(noteId)) {
+        return res.status(400).json({ message: "Invalid note ID" });
+      }
+      
+      // Verify user owns this note
+      const existingNote = await storage.getUserNote(noteId);
+      if (!existingNote) {
+        return res.status(404).json({ message: "Note not found" });
+      }
+      
+      if (existingNote.userId !== userId) {
+        return res.status(403).json({ message: "You don't have permission to update this note" });
+      }
+      
+      // Update note
+      const updatedNote = await storage.updateUserNote(noteId, req.body);
+      if (!updatedNote) {
+        return res.status(500).json({ message: "Failed to update note" });
+      }
+      
+      res.json(updatedNote);
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ message: fromZodError(error).message });
+      }
+      console.error("Error updating note:", error);
+      res.status(500).json({ message: "Error updating note" });
+    }
+  });
+
+  app.delete("/api/notes/:id", authenticateJWT, async (req: Request, res: Response) => {
+    try {
+      const userId = (req as any).user.id;
+      const noteId = parseInt(req.params.id);
+      
+      if (isNaN(noteId)) {
+        return res.status(400).json({ message: "Invalid note ID" });
+      }
+      
+      // Delete the note
+      const deleted = await storage.deleteUserNote(noteId, userId);
+      
+      if (!deleted) {
+        return res.status(404).json({ message: "Note not found or you don't have permission to delete it" });
+      }
+      
+      res.json({ message: "Note deleted successfully" });
+    } catch (error) {
+      console.error("Error deleting note:", error);
+      res.status(500).json({ message: "Error deleting note" });
+    }
+  });
+
+  // Tags endpoint - Note: must be placed before the parameterized route
+  app.get("/api/notes-tags", authenticateJWT, async (req: Request, res: Response) => {
+    try {
+      const userId = (req as any).user.id;
+      const tags = await storage.getUserNoteTags(userId);
+      res.json(tags);
+    } catch (error) {
+      console.error("Error fetching note tags:", error);
+      res.status(500).json({ message: "Error fetching note tags" });
     }
   });
 

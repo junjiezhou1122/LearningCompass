@@ -17,7 +17,9 @@ import {
   UserGamification, InsertUserGamification, UserBadge, InsertUserBadge,
   UserRecommendation, InsertUserRecommendation,
   // User events schemas and types
-  userEvents, UserEvent, InsertUserEvent
+  userEvents, UserEvent, InsertUserEvent,
+  // User notes schemas and types
+  userNotes, UserNote, InsertUserNote
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, and, like, desc, asc, sql, or, inArray, arrayContains } from "drizzle-orm";
@@ -181,6 +183,20 @@ export interface IStorage {
   deleteUserEvent(id: number, userId: number): Promise<boolean>;
   getEventsByDateRange(userId: number, startDate: Date, endDate: Date): Promise<UserEvent[]>;
   getUpcomingEvents(userId: number, limit?: number): Promise<UserEvent[]>;
+  
+  // User Notes operations
+  getUserNote(id: number): Promise<UserNote | undefined>;
+  getUserNotes(userId: number, options?: {
+    limit?: number;
+    offset?: number;
+    tag?: string;
+    courseId?: number;
+    isPinned?: boolean;
+  }): Promise<UserNote[]>;
+  createUserNote(note: InsertUserNote): Promise<UserNote>;
+  updateUserNote(id: number, note: Partial<InsertUserNote>): Promise<UserNote | undefined>;
+  deleteUserNote(id: number, userId: number): Promise<boolean>;
+  getUserNoteTags(userId: number): Promise<string[]>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -1356,6 +1372,213 @@ export class DatabaseStorage implements IStorage {
       ))
       .orderBy(asc(userEvents.startDate))
       .limit(limit);
+  }
+  
+  // User Notes Operations
+  async getUserNote(id: number): Promise<UserNote | undefined> {
+    try {
+      // Select only the fields that definitely exist in the database
+      const [note] = await db.select({
+        id: userNotes.id,
+        userId: userNotes.userId,
+        content: userNotes.content,
+        pageUrl: userNotes.pageUrl,
+        pageTitle: userNotes.pageTitle,
+        courseId: userNotes.courseId,
+        tags: userNotes.tags,
+        color: userNotes.color,
+        isPinned: userNotes.isPinned,
+        createdAt: userNotes.createdAt,
+        updatedAt: userNotes.updatedAt
+      }).from(userNotes).where(eq(userNotes.id, id));
+      
+      if (!note) return undefined;
+      
+      // Add default values for new fields that might not be in the database yet
+      return {
+        ...note,
+        imageUrl: '',
+        fontSize: 'normal',
+        position: '',
+        isExpanded: false
+      };
+    } catch (error) {
+      console.error('Error in getUserNote:', error);
+      throw error;
+    }
+  }
+  
+  async getUserNotes(userId: number, options?: {
+    limit?: number;
+    offset?: number;
+    tag?: string;
+    courseId?: number;
+    isPinned?: boolean;
+  }): Promise<UserNote[]> {
+    try {
+      // Select only the fields that definitely exist in the database
+      // This avoids errors if the schema hasn't been fully updated
+      let query = db.select({
+        id: userNotes.id,
+        userId: userNotes.userId,
+        content: userNotes.content,
+        pageUrl: userNotes.pageUrl,
+        pageTitle: userNotes.pageTitle,
+        courseId: userNotes.courseId,
+        tags: userNotes.tags,
+        color: userNotes.color,
+        isPinned: userNotes.isPinned,
+        createdAt: userNotes.createdAt,
+        updatedAt: userNotes.updatedAt
+      }).from(userNotes).where(eq(userNotes.userId, userId));
+      
+      // Apply filters
+      if (options?.tag) {
+        query = query.where(arrayContains(userNotes.tags, [options.tag]));
+      }
+      
+      if (options?.courseId) {
+        query = query.where(eq(userNotes.courseId, options.courseId));
+      }
+      
+      if (options?.isPinned !== undefined) {
+        query = query.where(eq(userNotes.isPinned, options.isPinned));
+      }
+      
+      // Order by pinned notes first, then by creation date
+      query = query.orderBy(desc(userNotes.isPinned), desc(userNotes.createdAt));
+      
+      // Apply pagination
+      if (options?.limit) {
+        query = query.limit(options.limit);
+      }
+      
+      if (options?.offset) {
+        query = query.offset(options.offset);
+      }
+      
+      const notes = await query;
+      
+      // Add default values for new fields that might not be in the database yet
+      return notes.map(note => ({
+        ...note,
+        imageUrl: '',
+        fontSize: 'normal',
+        position: '',
+        isExpanded: false
+      }));
+    } catch (error) {
+      console.error('Error in getUserNotes:', error);
+      throw error;
+    }
+  }
+  
+  async createUserNote(note: InsertUserNote): Promise<UserNote> {
+    try {
+      // Extract the fields that we know exist in the database
+      const safeNote = {
+        userId: note.userId,
+        content: note.content,
+        pageUrl: note.pageUrl,
+        pageTitle: note.pageTitle,
+        courseId: note.courseId,
+        tags: note.tags,
+        color: note.color,
+        isPinned: note.isPinned
+      };
+      
+      const [result] = await db.insert(userNotes).values(safeNote).returning();
+      
+      // Add the new fields as defaults to the response
+      return {
+        ...result,
+        imageUrl: note.imageUrl || '',
+        fontSize: note.fontSize || 'normal',
+        position: note.position || '',
+        isExpanded: note.isExpanded || false
+      };
+    } catch (error) {
+      console.error('Error in createUserNote:', error);
+      throw error;
+    }
+  }
+  
+  async updateUserNote(id: number, note: Partial<InsertUserNote>): Promise<UserNote | undefined> {
+    try {
+      // First ensure the note exists
+      const existingNote = await this.getUserNote(id);
+      if (!existingNote) {
+        return undefined;
+      }
+      
+      // Extract only the fields that exist in the database
+      const safeNote: any = {};
+      
+      // Extract safe fields
+      if (note.content !== undefined) safeNote.content = note.content;
+      if (note.pageUrl !== undefined) safeNote.pageUrl = note.pageUrl;
+      if (note.pageTitle !== undefined) safeNote.pageTitle = note.pageTitle;
+      if (note.courseId !== undefined) safeNote.courseId = note.courseId;
+      if (note.tags !== undefined) safeNote.tags = note.tags;
+      if (note.color !== undefined) safeNote.color = note.color;
+      if (note.isPinned !== undefined) safeNote.isPinned = note.isPinned;
+      
+      // Always update the updatedAt field
+      safeNote.updatedAt = new Date();
+      
+      // Update the note with only the fields that exist in the database
+      const [dbUpdatedNote] = await db.update(userNotes)
+        .set(safeNote)
+        .where(eq(userNotes.id, id))
+        .returning();
+      
+      // Start with the base note from the database
+      const updatedNote = { ...dbUpdatedNote };
+      
+      // Add the new fields, preserving any that were sent in the update
+      updatedNote.imageUrl = note.imageUrl !== undefined ? note.imageUrl : existingNote.imageUrl;
+      updatedNote.fontSize = note.fontSize !== undefined ? note.fontSize : existingNote.fontSize;
+      updatedNote.position = note.position !== undefined ? note.position : existingNote.position;
+      updatedNote.isExpanded = note.isExpanded !== undefined ? note.isExpanded : existingNote.isExpanded;
+      
+      return updatedNote;
+    } catch (error) {
+      console.error('Error updating note:', error);
+      return undefined;
+    }
+  }
+  
+  async deleteUserNote(id: number, userId: number): Promise<boolean> {
+    try {
+      const result = await db.delete(userNotes)
+        .where(and(
+          eq(userNotes.id, id),
+          eq(userNotes.userId, userId)
+        ));
+      
+      return result.rowCount > 0;
+    } catch (error) {
+      console.error('Error deleting note:', error);
+      return false;
+    }
+  }
+  
+  async getUserNoteTags(userId: number): Promise<string[]> {
+    const notes = await db.select({ tags: userNotes.tags })
+      .from(userNotes)
+      .where(eq(userNotes.userId, userId));
+    
+    // Extract and deduplicate tags
+    const tagSet = new Set<string>();
+    notes.forEach(note => {
+      if (note.tags && Array.isArray(note.tags)) {
+        note.tags.forEach(tag => {
+          if (tag) tagSet.add(tag);
+        });
+      }
+    });
+    
+    return Array.from(tagSet);
   }
 }
 

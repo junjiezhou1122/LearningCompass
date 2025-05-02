@@ -5,6 +5,8 @@ import { storage } from "./storage";
 import { db } from "./db";
 import { courses } from "@shared/schema";
 import { sql } from "drizzle-orm";
+import { addNotesFeatures } from "./migrations/add_notes_features";
+import { addAdvancedNotesFeatures } from "./migrations/add_advanced_notes_features";
 import cors from "cors";
 import { createRequire } from "module";
 
@@ -115,6 +117,15 @@ app.use((req, res, next) => {
 (async () => {
   // We'll skip importing courses for now since you already have many courses in the database
   console.log("Starting server without course import");
+  
+  // Run database migrations
+  try {
+    await addNotesFeatures();
+    await addAdvancedNotesFeatures();
+    console.log("Database migrations completed successfully.");
+  } catch (error) {
+    console.error("Error running database migrations:", error);
+  }
 
   // Register API routes
   const server = await registerRoutes(app);

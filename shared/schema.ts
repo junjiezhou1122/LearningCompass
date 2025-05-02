@@ -693,3 +693,74 @@ export const coursesEventsRelations = relations(courses, ({ many }) => ({
 // Type definitions for user events
 export type UserEvent = typeof userEvents.$inferSelect;
 export type InsertUserEvent = typeof userEvents.$inferInsert;
+
+// User Notes schema
+export const userNotes = pgTable("user_notes", {
+  id: serial("id").primaryKey(),
+  userId: integer("user_id")
+    .notNull()
+    .references(() => users.id),
+  content: text("content").notNull(),
+  pageUrl: text("page_url"), // URL of the page where note was taken
+  pageTitle: text("page_title"), // Title of the page where note was taken
+  courseId: integer("course_id").references(() => courses.id),
+  tags: text("tags").array(), // Store tags as array
+  color: text("color").default("#FFFFFF"), // For note organization/categorization
+  isPinned: boolean("is_pinned").default(false),
+  imageUrl: text("image_url"), // Optional image attachment URL
+  fontSize: text("font_size").default("normal"), // Font size preference: small, normal, large
+  position: text("position"), // Store position as JSON {x, y} for drag-and-drop positioning
+  isExpanded: boolean("is_expanded").default(false), // Whether note is in expanded view
+  textAlignment: text("text_alignment").default("left"), // Text alignment: left, center, right
+  isRichText: boolean("is_rich_text").default(false), // Whether to use rich text formatting
+  timestamp: text("timestamp"), // Timestamp inserted by user
+  reminderDate: text("reminder_date"), // Reminder date for the note
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at"),
+});
+
+export const insertUserNoteSchema = createInsertSchema(userNotes).pick({
+  userId: true,
+  content: true,
+  pageUrl: true,
+  pageTitle: true,
+  courseId: true,
+  tags: true,
+  color: true,
+  isPinned: true,
+  imageUrl: true,
+  fontSize: true,
+  position: true,
+  isExpanded: true,
+  textAlignment: true,
+  isRichText: true,
+  timestamp: true,
+  reminderDate: true,
+  updatedAt: true,
+});
+
+// User Notes Relations
+export const userNotesRelations = relations(userNotes, ({ one }) => ({
+  user: one(users, {
+    fields: [userNotes.userId],
+    references: [users.id],
+  }),
+  course: one(courses, {
+    fields: [userNotes.courseId],
+    references: [courses.id],
+  }),
+}));
+
+// Update user relations to include notes
+export const usersNotesRelations = relations(users, ({ many }) => ({
+  notes: many(userNotes),
+}));
+
+// Update courses relations to include notes
+export const coursesNotesRelations = relations(courses, ({ many }) => ({
+  notes: many(userNotes),
+}));
+
+// Type definitions for user notes
+export type UserNote = typeof userNotes.$inferSelect;
+export type InsertUserNote = typeof userNotes.$inferInsert;
