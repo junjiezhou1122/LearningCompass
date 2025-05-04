@@ -1097,6 +1097,7 @@ export const universityCourseResources = pgTable("university_course_resources", 
   url: text("url").notNull(),
   description: text("description"),
   resourceType: text("resource_type").notNull(), // github, documentation, video, article, certificate, other
+  tags: text("tags").array(), // Store tags as an array of strings
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at"),
 });
@@ -1108,6 +1109,7 @@ export const insertUniversityCourseResourceSchema = createInsertSchema(universit
   url: true,
   description: true,
   resourceType: true,
+  tags: true,
   updatedAt: true,
 });
 

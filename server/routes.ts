@@ -2935,7 +2935,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const userId = (req as any).user.id;
       const courseId = parseInt(req.params.courseId);
-      const { title, url, description, resourceType } = req.body;
+      const { title, url, description, resourceType, tags } = req.body;
       
       if (!title || !url) {
         return res.status(400).json({ message: "Title and URL are required" });
@@ -2954,6 +2954,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         url,
         description: description || null,
         resourceType: resourceType || 'link',
+        tags: tags || [], // Include tags or empty array if not provided
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString()
       });
@@ -2973,9 +2974,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const userId = (req as any).user.id;
       const resourceId = parseInt(req.params.id);
-      const { title, url, description, resourceType } = req.body;
+      const { title, url, description, resourceType, tags } = req.body;
       
-      if (!title && !url && !description && !resourceType) {
+      if (!title && !url && !description && !resourceType && !tags) {
         return res.status(400).json({ message: "At least one field must be provided" });
       }
       
@@ -2994,6 +2995,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (url) updateData.url = url;
       if (description !== undefined) updateData.description = description || null;
       if (resourceType) updateData.resourceType = resourceType;
+      if (tags !== undefined) updateData.tags = tags;
       
       const updatedResource = await storage.updateUniversityCourseResource(resourceId, updateData);
       res.json(updatedResource);

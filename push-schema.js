@@ -1,10 +1,10 @@
-import { db } from './server/db.js';
+import { db } from './server/db.ts';
 import { migrate } from 'drizzle-orm/postgres-js/migrator';
 
 async function pushSchema() {
   try {
     console.log('Pushing schema changes to database...');
-    // Create tables for university course comments, resources and collaborations
+    // Create tables for university course comments, resources, links, and collaborations
     await db.execute(`
       CREATE TABLE IF NOT EXISTS university_course_comments (
         id SERIAL PRIMARY KEY,
@@ -23,6 +23,16 @@ async function pushSchema() {
         url TEXT NOT NULL,
         description TEXT,
         resource_type TEXT NOT NULL,
+        created_at TIMESTAMP DEFAULT NOW() NOT NULL,
+        updated_at TIMESTAMP
+      );
+
+      CREATE TABLE IF NOT EXISTS university_course_links (
+        id SERIAL PRIMARY KEY,
+        course_id INTEGER NOT NULL REFERENCES university_courses(id),
+        url TEXT NOT NULL,
+        title TEXT,
+        description TEXT,
         created_at TIMESTAMP DEFAULT NOW() NOT NULL,
         updated_at TIMESTAMP
       );

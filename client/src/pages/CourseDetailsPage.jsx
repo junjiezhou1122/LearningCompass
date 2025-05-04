@@ -22,6 +22,8 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Separator } from '@/components/ui/separator';
 import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import ResourcePreview from '@/components/learning-center/ResourcePreview';
+import ResourceTags from '@/components/learning-center/ResourceTags';
 
 // Icons
 import { 
@@ -47,6 +49,7 @@ import {
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useForm } from 'react-hook-form';
 import * as z from 'zod';
+import { resourceFormSchema } from '@/components/learning-center/ResourceFormSchema';
 
 const CourseDetailsPage = () => {
   const [, setLocation] = useLocation();
@@ -58,6 +61,7 @@ const CourseDetailsPage = () => {
   const [showResourceDialog, setShowResourceDialog] = useState(false);
   const [showEditCourseDialog, setShowEditCourseDialog] = useState(false);
   const [showAddLinkDialog, setShowAddLinkDialog] = useState(false);
+  const [resourceFilter, setResourceFilter] = useState('all');
 
   // Fetch course details
   const { data: course, isLoading: isLoadingCourse } = useQuery({
@@ -124,13 +128,8 @@ const CourseDetailsPage = () => {
     content: z.string().min(1, 'Comment cannot be empty').max(500, 'Comment is too long'),
   });
 
-  // Resource form validation schema
-  const resourceFormSchema = z.object({
-    title: z.string().min(1, 'Title is required'),
-    url: z.string().url('Please enter a valid URL'),
-    description: z.string().optional(),
-    resourceType: z.enum(['github', 'documentation', 'video', 'article', 'certificate', 'other']),
-  });
+  // Import the resource form schema from the shared component
+  // Using resourceFormSchema from '@/components/learning-center/ResourceFormSchema'
 
   // Collaboration form validation schema
   const collaborationFormSchema = z.object({
@@ -174,8 +173,12 @@ const CourseDetailsPage = () => {
       url: '',
       description: '',
       resourceType: 'other',
+      tags: [],
     },
   });
+  
+  // State for managing resource tags
+  const [resourceTags, setResourceTags] = useState([]);
 
   // Collaboration form
   const collaborationForm = useForm({
@@ -217,6 +220,13 @@ const CourseDetailsPage = () => {
       });
     }
   }, [course, courseEditForm]);
+  
+  // Reset resource tags when resource dialog closes
+  useEffect(() => {
+    if (!showResourceDialog) {
+      setResourceTags([]);
+    }
+  }, [showResourceDialog]);
 
   // Course link form
   const courseLinkForm = useForm({
@@ -285,6 +295,7 @@ const CourseDetailsPage = () => {
     },
     onSuccess: () => {
       resourceForm.reset();
+      setResourceTags([]);
       setShowResourceDialog(false);
       queryClient.invalidateQueries({ queryKey: ['course-resources', id] });
       toast({
@@ -464,8 +475,14 @@ const CourseDetailsPage = () => {
       });
       return;
     }
+    
+    // Include the current tags in the form data
+    const resourceData = {
+      ...data,
+      tags: resourceTags
+    };
 
-    addResourceMutation.mutate(data);
+    addResourceMutation.mutate(resourceData);
   };
 
   // Handle collaboration submission
@@ -905,8 +922,11 @@ const CourseDetailsPage = () => {
         </TabsContent>
 
         <TabsContent value="resources" className="mt-6">
-          <div className="flex justify-between items-center mb-6">
-            <h2 className="text-xl font-bold text-orange-800">Course Resources</h2>
+          <div className="flex justify-between items-center mb-4">
+            <div>
+              <h2 className="text-xl font-bold text-orange-800">Course Resources</h2>
+              <p className="text-sm text-gray-500">Share and discover helpful learning materials</p>
+            </div>
             {isAuthenticated && (
               <Button 
                 onClick={() => setShowResourceDialog(true)}
@@ -917,6 +937,63 @@ const CourseDetailsPage = () => {
               </Button>
             )}
           </div>
+          
+          {/* Filter buttons - only show when we have resources */}
+          {resources.length > 0 && (
+            <div className="flex flex-wrap gap-2 mb-6 bg-orange-50/50 p-3 rounded-lg border border-orange-100">
+              <p className="text-sm text-gray-500 mr-2 flex items-center">Filter by:</p>
+              <Badge 
+                variant={resourceFilter === 'all' ? 'default' : 'outline'}
+                className="cursor-pointer"
+                onClick={() => setResourceFilter('all')}
+              >
+                All Resources
+              </Badge>
+              <Badge 
+                variant={resourceFilter === 'github' ? 'default' : 'outline'}
+                className="cursor-pointer bg-black/5 text-gray-800 hover:bg-black/10 border-gray-300"
+                onClick={() => setResourceFilter('github')}
+              >
+                <Github className="mr-1 h-3 w-3" />
+                GitHub
+              </Badge>
+              <Badge 
+                variant={resourceFilter === 'documentation' ? 'default' : 'outline'}
+                className="cursor-pointer bg-blue-50 text-blue-800 hover:bg-blue-100 border-blue-200"
+                onClick={() => setResourceFilter('documentation')}
+              >
+                Documentation
+              </Badge>
+              <Badge 
+                variant={resourceFilter === 'video' ? 'default' : 'outline'}
+                className="cursor-pointer bg-red-50 text-red-800 hover:bg-red-100 border-red-200"
+                onClick={() => setResourceFilter('video')}
+              >
+                Videos
+              </Badge>
+              <Badge 
+                variant={resourceFilter === 'article' ? 'default' : 'outline'}
+                className="cursor-pointer bg-green-50 text-green-800 hover:bg-green-100 border-green-200"
+                onClick={() => setResourceFilter('article')}
+              >
+                Articles
+              </Badge>
+              <Badge 
+                variant={resourceFilter === 'certificate' ? 'default' : 'outline'}
+                className="cursor-pointer bg-purple-50 text-purple-800 hover:bg-purple-100 border-purple-200"
+                onClick={() => setResourceFilter('certificate')}
+              >
+                Certificates
+              </Badge>
+              <Badge 
+                variant={resourceFilter === 'other' ? 'default' : 'outline'}
+                className="cursor-pointer"
+                onClick={() => setResourceFilter('other')}
+              >
+                Other
+              </Badge>
+            </div>
+          )}
 
           {isLoadingResources ? (
             <div className="flex justify-center items-center h-60 text-orange-500">
@@ -944,8 +1021,10 @@ const CourseDetailsPage = () => {
             </div>
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              {resources.map((resource) => (
-                <Card key={resource.id} className="border-orange-100 hover:border-orange-300 transition-all duration-300 hover:shadow-md">
+              {resources
+                .filter(resource => resourceFilter === 'all' || resource.resourceType === resourceFilter)
+                .map((resource) => (
+                <Card key={resource.id} className="border-orange-100 hover:border-orange-300 transition-all duration-300 hover:shadow-md overflow-hidden">
                   <CardHeader className="pb-3">
                     <div className="flex justify-between items-start">
                       <div>
@@ -1001,19 +1080,31 @@ const CourseDetailsPage = () => {
                         })}
                       </span>
                     </div>
+                    
+                    {/* Resource tags would go here */}
+                    {resource.tags && resource.tags.length > 0 && (
+                      <div className="mt-2">
+                        <ResourceTags tags={resource.tags} readOnly={true} />
+                      </div>
+                    )}
                   </CardHeader>
                   
+                  {/* Rich resource preview */}
+                  <CardContent className="pb-0 pt-2">
+                    <ResourcePreview resource={resource} />
+                  </CardContent>
+                  
                   {resource.description && (
-                    <CardContent className="pt-0">
+                    <CardContent className="pt-3">
                       <p className="text-gray-600 text-sm">{resource.description}</p>
                     </CardContent>
                   )}
                   
-                  <CardFooter className="pt-0">
+                  <CardFooter className="pt-0 pb-4">
                     <Button 
-                      variant="ghost" 
+                      variant="outline" 
                       size="sm" 
-                      className="hover:bg-orange-50 text-orange-600 gap-1 ml-auto"
+                      className="hover:bg-orange-50 text-orange-600 gap-1 ml-auto border-orange-200"
                       onClick={() => window.open(resource.url, '_blank', 'noopener,noreferrer')}
                     >
                       Visit Resource
@@ -1110,6 +1201,22 @@ const CourseDetailsPage = () => {
                       </FormItem>
                     )}
                   />
+                  
+                  <div className="space-y-2">
+                    <FormLabel>Tags (Optional)</FormLabel>
+                    <ResourceTags 
+                      tags={resourceTags} 
+                      onAddTag={(tag) => setResourceTags([...resourceTags, tag])} 
+                      onRemoveTag={(index) => {
+                        const newTags = [...resourceTags];
+                        newTags.splice(index, 1);
+                        setResourceTags(newTags);
+                      }}
+                    />
+                    <p className="text-sm text-muted-foreground">
+                      Add relevant tags to help others find this resource
+                    </p>
+                  </div>
                   
                   <DialogFooter className="pt-4">
                     <Button 
