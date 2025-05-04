@@ -281,7 +281,7 @@ const CourseDetailsPage = () => {
   const addResourceMutation = useMutation({
     mutationFn: async (data) => {
       // Check if we're uploading a file or just a URL
-      const isFileUpload = data.file && data.file instanceof File;
+      const isFileUpload = data.file && data.file !== null && typeof data.file === 'object' && typeof data.file.name === 'string';
       
       let response;
       
