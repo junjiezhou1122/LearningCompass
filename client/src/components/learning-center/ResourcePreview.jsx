@@ -1,5 +1,5 @@
 import React from 'react';
-import { Github, Video, FileText, Book, Award, ExternalLink, File } from 'lucide-react';
+import { Github, Video, FileText, Book, Award, ExternalLink, File, Download, FileImage, FileText as FileTextIcon } from 'lucide-react';
 
 /**
  * ResourcePreview component renders a preview of a resource based on its type
@@ -155,6 +155,69 @@ const ResourcePreview = ({ resource }) => {
     );
   };
 
+  const renderFilePreview = () => {
+    // Check if URL is a downloadable file
+    const isPdf = resource.url.toLowerCase().endsWith('.pdf');
+    const isImage = /\.(jpe?g|png|gif|bmp|webp|svg)$/i.test(resource.url);
+    const isDocument = /\.(docx?|xlsx?|pptx?|txt|rtf|csv)$/i.test(resource.url);
+    
+    // Choose the appropriate icon based on file type
+    let FileIcon = File;
+    let iconColor = 'text-gray-500';
+    let bgColor = 'bg-gray-50/50';
+    let borderColor = 'border-gray-200';
+    let fileType = 'File';
+    
+    if (isPdf) {
+      FileIcon = FileTextIcon;
+      iconColor = 'text-red-500';
+      bgColor = 'bg-red-50/50';
+      borderColor = 'border-red-100';
+      fileType = 'PDF';
+    } else if (isImage) {
+      FileIcon = FileImage;
+      iconColor = 'text-blue-500';
+      bgColor = 'bg-blue-50/50';
+      borderColor = 'border-blue-100';
+      fileType = 'Image';
+    } else if (isDocument) {
+      FileIcon = FileText;
+      iconColor = 'text-orange-500';
+      bgColor = 'bg-orange-50/50';
+      borderColor = 'border-orange-100';
+      fileType = 'Document';
+    }
+    
+    return (
+      <div className={`${bgColor} p-4 rounded-md border ${borderColor} flex items-center gap-3`}>
+        <FileIcon className={`h-8 w-8 ${iconColor}`} />
+        <div className="flex-1">
+          <h4 className="font-medium">{resource.title}</h4>
+          <p className="text-sm text-gray-600">
+            {resource.description || `${fileType} resource`}
+          </p>
+          <div className="flex items-center gap-3 mt-2">
+            <a 
+              href={resource.url} 
+              target="_blank" 
+              rel="noopener noreferrer"
+              className="text-xs text-blue-600 hover:underline flex items-center gap-1"
+            >
+              View file <ExternalLink className="h-3 w-3" />
+            </a>
+            <a 
+              href={resource.url} 
+              download
+              className="text-xs text-green-600 hover:underline flex items-center gap-1"
+            >
+              Download <Download className="h-3 w-3" />
+            </a>
+          </div>
+        </div>
+      </div>
+    );
+  };
+
   const renderDefaultPreview = () => {
     return (
       <div className="bg-gray-50 p-4 rounded-md border border-gray-200 flex items-center gap-3">
@@ -189,7 +252,13 @@ const ResourcePreview = ({ resource }) => {
       return renderArticlePreview();
     case 'certificate':
       return renderCertificatePreview();
+    case 'file':
+      return renderFilePreview();
     default:
+      // Check if it looks like a file resource by examining the URL
+      if (/\.(pdf|jpe?g|png|gif|bmp|webp|svg|docx?|xlsx?|pptx?|txt|rtf|csv)$/i.test(resource.url)) {
+        return renderFilePreview();
+      }
       return renderDefaultPreview();
   }
 };

@@ -30,7 +30,9 @@ import {
   BookOpen, 
   Calendar, 
   ChevronLeft, 
+  Download,
   ExternalLink, 
+  File,
   Github, 
   Globe, 
   Link as LinkIcon,
@@ -1022,6 +1024,14 @@ const CourseDetailsPage = () => {
                 Certificates
               </Badge>
               <Badge 
+                variant={resourceFilter === 'file' ? 'default' : 'outline'}
+                className="cursor-pointer bg-orange-50 text-orange-800 hover:bg-orange-100 border-orange-200"
+                onClick={() => setResourceFilter('file')}
+              >
+                <File className="mr-1 h-3 w-3" />
+                Files
+              </Badge>
+              <Badge 
                 variant={resourceFilter === 'other' ? 'default' : 'outline'}
                 className="cursor-pointer"
                 onClick={() => setResourceFilter('other')}
@@ -1070,6 +1080,7 @@ const CourseDetailsPage = () => {
                                          resource.resourceType === 'video' ? 'bg-red-600 text-white' : 
                                          resource.resourceType === 'article' ? 'bg-green-600 text-white' : 
                                          resource.resourceType === 'certificate' ? 'bg-purple-600 text-white' : 
+                                         resource.resourceType === 'file' ? 'bg-orange-600 text-white' : 
                                          'bg-gray-600 text-white'}`}
                         >
                           {resource.resourceType === 'github' ? (
@@ -1085,6 +1096,11 @@ const CourseDetailsPage = () => {
                             <>Article</>
                           ) : resource.resourceType === 'certificate' ? (
                             <>Certificate</>
+                          ) : resource.resourceType === 'file' ? (
+                            <>
+                              <File className="mr-1 h-3 w-3" />
+                              File
+                            </>
                           ) : (
                             <>Resource</>
                           )}
@@ -1143,8 +1159,17 @@ const CourseDetailsPage = () => {
                       className="hover:bg-orange-50 text-orange-600 gap-1 ml-auto border-orange-200"
                       onClick={() => window.open(resource.url, '_blank', 'noopener,noreferrer')}
                     >
-                      Visit Resource
-                      <ExternalLink className="h-3 w-3" />
+                      {resource.resourceType === 'file' ? (
+                        <>
+                          Download File
+                          <Download className="h-3 w-3" />
+                        </>
+                      ) : (
+                        <>
+                          Visit Resource
+                          <ExternalLink className="h-3 w-3" />
+                        </>
+                      )}
                     </Button>
                   </CardFooter>
                 </Card>
