@@ -7,8 +7,12 @@ import { courses } from "@shared/schema";
 import { sql } from "drizzle-orm";
 import { addNotesFeatures } from "./migrations/add_notes_features";
 import { addAdvancedNotesFeatures } from "./migrations/add_advanced_notes_features";
+import { addChatMessagesFeature } from "./migrations/add_chat_messages_feature";
+import { addGroupChatFeature } from "./migrations/add_group_chat_feature";
+import { setupWebSocketServer } from "./websocket";
 import cors from "cors";
 import { createRequire } from "module";
+import { createServer } from "http";
 
 // Create a require function to import CommonJS modules in ES Module environment
 const require = createRequire(import.meta.url);
@@ -122,13 +126,21 @@ app.use((req, res, next) => {
   try {
     await addNotesFeatures();
     await addAdvancedNotesFeatures();
+    await addChatMessagesFeature();
+    await addGroupChatFeature();
     console.log("Database migrations completed successfully.");
   } catch (error) {
     console.error("Error running database migrations:", error);
   }
 
+  // Create HTTP server
+  const httpServer = createServer(app);
+  
   // Register API routes
-  const server = await registerRoutes(app);
+  await registerRoutes(app);
+  
+  // Initialize WebSocket server
+  const wsServer = setupWebSocketServer(httpServer);
 
   app.use((err: any, _req: Request, res: Response, _next: NextFunction) => {
     const status = err.status || err.statusCode || 500;
@@ -142,7 +154,7 @@ app.use((req, res, next) => {
   // setting up all the other routes so the catch-all route
   // doesn't interfere with the other routes
   if (app.get("env") === "development") {
-    await setupVite(app, server);
+    await setupVite(app, httpServer);
   } else {
     serveStatic(app);
   }
@@ -153,11 +165,11 @@ app.use((req, res, next) => {
 
   function tryListen() {
     const port = process.env.PORT || tryPorts[currentPortIndex];
-    server.listen(port, '0.0.0.0')
+    httpServer.listen(port, '0.0.0.0')
       .on('error', (err: any) => {
         if (err.code === 'EADDRINUSE' && currentPortIndex < tryPorts.length - 1) {
           currentPortIndex++;
-          server.close();
+          httpServer.close();
           tryListen();
         } else {
           console.error('Port error:', err);
@@ -169,6 +181,7 @@ app.use((req, res, next) => {
         log(`You can access the application at: http://0.0.0.0:${port}`);
         log(`API endpoints are available at: http://0.0.0.0:${port}/api/*`);
         log(`Auth endpoints are available at: http://0.0.0.0:${port}/api/auth/*`);
+        log(`WebSocket server is available at ws://0.0.0.0:${port}/ws`);
       });
   }
 

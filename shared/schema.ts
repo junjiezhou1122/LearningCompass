@@ -1025,15 +1025,211 @@ export const usersLearningCenterRelations = relations(users, ({ many }) => ({
   learningToolReviews: many(learningToolReviews),
 }));
 
-// Update user relations to include chat messages
+// Group Chat schema
+export const chatGroups = pgTable("chat_groups", {
+  id: serial("id").primaryKey(),
+  name: text("name").notNull(),
+  description: text("description"),
+  creatorId: integer("creator_id")
+    .notNull()
+    .references(() => users.id),
+  isPrivate: boolean("is_private").default(true),
+  avatar: text("avatar"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at"),
+});
+
+export const insertChatGroupSchema = createInsertSchema(chatGroups).pick({
+  name: true,
+  description: true,
+  creatorId: true,
+  isPrivate: true,
+  avatar: true,
+  updatedAt: true,
+});
+
+// Group Chat Relations
+export const chatGroupsRelations = relations(chatGroups, ({ one, many }) => ({
+  creator: one(users, {
+    fields: [chatGroups.creatorId],
+    references: [users.id],
+  }),
+  members: many(chatGroupMembers),
+  messages: many(chatGroupMessages),
+  invitations: many(chatGroupInvitations),
+  applications: many(chatGroupApplications),
+}));
+
+// Group Chat Members schema
+export const chatGroupMembers = pgTable("chat_group_members", {
+  id: serial("id").primaryKey(),
+  groupId: integer("group_id")
+    .notNull()
+    .references(() => chatGroups.id),
+  userId: integer("user_id")
+    .notNull()
+    .references(() => users.id),
+  role: text("role").default("member"),  // member, admin
+  joinedAt: timestamp("joined_at").defaultNow().notNull(),
+  lastReadTimestamp: timestamp("last_read_timestamp"),
+});
+
+export const insertChatGroupMemberSchema = createInsertSchema(chatGroupMembers).pick({
+  groupId: true,
+  userId: true,
+  role: true,
+  lastReadTimestamp: true,
+});
+
+// Group Chat Members Relations
+export const chatGroupMembersRelations = relations(chatGroupMembers, ({ one }) => ({
+  group: one(chatGroups, {
+    fields: [chatGroupMembers.groupId],
+    references: [chatGroups.id],
+  }),
+  user: one(users, {
+    fields: [chatGroupMembers.userId],
+    references: [users.id],
+  }),
+}));
+
+// Group Chat Messages schema
+export const chatGroupMessages = pgTable("chat_group_messages", {
+  id: serial("id").primaryKey(),
+  groupId: integer("group_id")
+    .notNull()
+    .references(() => chatGroups.id),
+  senderId: integer("sender_id")
+    .notNull()
+    .references(() => users.id),
+  content: text("content").notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+export const insertChatGroupMessageSchema = createInsertSchema(chatGroupMessages).pick({
+  groupId: true,
+  senderId: true,
+  content: true,
+});
+
+// Group Chat Messages Relations
+export const chatGroupMessagesRelations = relations(chatGroupMessages, ({ one }) => ({
+  group: one(chatGroups, {
+    fields: [chatGroupMessages.groupId],
+    references: [chatGroups.id],
+  }),
+  sender: one(users, {
+    fields: [chatGroupMessages.senderId],
+    references: [users.id],
+  }),
+}));
+
+// Group Chat Invitations schema
+export const chatGroupInvitations = pgTable("chat_group_invitations", {
+  id: serial("id").primaryKey(),
+  groupId: integer("group_id")
+    .notNull()
+    .references(() => chatGroups.id),
+  inviterId: integer("inviter_id")
+    .notNull()
+    .references(() => users.id),
+  inviteeId: integer("invitee_id")
+    .notNull()
+    .references(() => users.id),
+  status: text("status").default("pending"),  // pending, accepted, rejected
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  respondedAt: timestamp("responded_at"),
+});
+
+export const insertChatGroupInvitationSchema = createInsertSchema(chatGroupInvitations).pick({
+  groupId: true,
+  inviterId: true,
+  inviteeId: true,
+  status: true,
+  respondedAt: true,
+});
+
+// Group Chat Invitations Relations
+export const chatGroupInvitationsRelations = relations(chatGroupInvitations, ({ one }) => ({
+  group: one(chatGroups, {
+    fields: [chatGroupInvitations.groupId],
+    references: [chatGroups.id],
+  }),
+  inviter: one(users, {
+    fields: [chatGroupInvitations.inviterId],
+    references: [users.id],
+  }),
+  invitee: one(users, {
+    fields: [chatGroupInvitations.inviteeId],
+    references: [users.id],
+  }),
+}));
+
+// Group Chat Applications schema
+export const chatGroupApplications = pgTable("chat_group_applications", {
+  id: serial("id").primaryKey(),
+  groupId: integer("group_id")
+    .notNull()
+    .references(() => chatGroups.id),
+  applicantId: integer("applicant_id")
+    .notNull()
+    .references(() => users.id),
+  message: text("message"),
+  status: text("status").default("pending"),  // pending, approved, rejected
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  respondedAt: timestamp("responded_at"),
+  responderId: integer("responder_id")
+    .references(() => users.id),
+});
+
+export const insertChatGroupApplicationSchema = createInsertSchema(chatGroupApplications).pick({
+  groupId: true,
+  applicantId: true,
+  message: true,
+  status: true,
+  respondedAt: true,
+  responderId: true,
+});
+
+// Group Chat Applications Relations
+export const chatGroupApplicationsRelations = relations(chatGroupApplications, ({ one }) => ({
+  group: one(chatGroups, {
+    fields: [chatGroupApplications.groupId],
+    references: [chatGroups.id],
+  }),
+  applicant: one(users, {
+    fields: [chatGroupApplications.applicantId],
+    references: [users.id],
+  }),
+  responder: one(users, {
+    fields: [chatGroupApplications.responderId],
+    references: [users.id],
+  }),
+}));
+
+// Update user relations to include chat messages and group chat relations
 export const usersChatRelations = relations(users, ({ many }) => ({
   sentMessages: many(chatMessages, { relationName: "sentMessages" }),
   receivedMessages: many(chatMessages, { relationName: "receivedMessages" }),
+  chatGroups: many(chatGroupMembers),
+  groupChatInvitations: many(chatGroupInvitations, { relationName: "receivedInvitations" }),
+  sentGroupChatInvitations: many(chatGroupInvitations, { relationName: "sentInvitations" }),
+  groupChatApplications: many(chatGroupApplications, { relationName: "submittedApplications" }),
 }));
 
 // Type definitions for chat messages
 export type ChatMessage = typeof chatMessages.$inferSelect;
 export type InsertChatMessage = typeof chatMessages.$inferInsert;
+export type ChatGroup = typeof chatGroups.$inferSelect;
+export type InsertChatGroup = typeof chatGroups.$inferInsert;
+export type ChatGroupMember = typeof chatGroupMembers.$inferSelect;
+export type InsertChatGroupMember = typeof chatGroupMembers.$inferInsert;
+export type ChatGroupMessage = typeof chatGroupMessages.$inferSelect;
+export type InsertChatGroupMessage = typeof chatGroupMessages.$inferInsert;
+export type ChatGroupInvitation = typeof chatGroupInvitations.$inferSelect;
+export type InsertChatGroupInvitation = typeof chatGroupInvitations.$inferInsert;
+export type ChatGroupApplication = typeof chatGroupApplications.$inferSelect;
+export type InsertChatGroupApplication = typeof chatGroupApplications.$inferInsert;
 
 // University Course Comments schema
 export const universityCourseComments = pgTable("university_course_comments", {
