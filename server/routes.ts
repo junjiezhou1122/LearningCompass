@@ -6,6 +6,7 @@ import jwt from "jsonwebtoken";
 import bcrypt from "bcrypt";
 import { handleChatRequest } from "./ai-service";
 import { upload, getRelativePath, getAbsolutePath } from './utils/multer';
+import fs from 'fs';
 import { 
   insertUserSchema, insertBookmarkSchema, insertSubscriberSchema, 
   insertCommentSchema, insertSearchHistorySchema,
@@ -3194,7 +3195,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const absolutePath = getAbsolutePath(resource.filePath);
       
       // Check if file exists
-      const fs = require('fs');
       if (!fs.existsSync(absolutePath)) {
         return res.status(404).json({ message: "File not found" });
       }

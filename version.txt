@@ -10,6 +10,6 @@ Version 2.2.1(Context AI no history bug)
 Version 2.3 (Improve the UI design)
 Version 2.4 (Note Taking functionailty)
 Version 2.5 (Add chat functionailty)
-
+Version 3.0(learning Center)
 Things need to do:
 make application faster
