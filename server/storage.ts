@@ -65,6 +65,15 @@ export interface IStorage {
   createFollow(follow: InsertUserFollow): Promise<UserFollow>;
   deleteFollow(followerId: number, followingId: number): Promise<boolean>;
   
+  // Chat operations
+  createChatMessage(message: InsertChatMessage): Promise<ChatMessage>;
+  getChatMessagesBetweenUsers(senderId: number, receiverId: number, options?: { limit?: number, offset?: number }): Promise<ChatMessage[]>;
+  getChatHistory(userId1: number, userId2: number): Promise<ChatMessage[]>;
+  markChatMessagesAsRead(senderId: number, receiverId: number): Promise<void>;
+  getUnreadMessageCount(userId: number): Promise<number>;
+  canUsersChat(userId1: number, userId2: number): Promise<boolean>;
+  getChatPartners(userId: number): Promise<User[]>;
+  
   // Course operations
   getCourse(id: number): Promise<Course | undefined>;
   getCourses(options?: { 
@@ -382,6 +391,125 @@ export class DatabaseStorage implements IStorage {
   async getUser(id: number): Promise<User | undefined> {
     const [user] = await db.select().from(users).where(eq(users.id, id));
     return user || undefined;
+  }
+  
+  // Chat operations
+  async createChatMessage(message: InsertChatMessage): Promise<ChatMessage> {
+    const [result] = await db.insert(chatMessages).values({
+      senderId: message.senderId,
+      receiverId: message.receiverId,
+      content: message.content,
+      isRead: message.isRead ?? false,
+      // Don't use toISOString() here as the column is already timestamp type
+      // and Drizzle expects a Date object, not a string
+      createdAt: new Date()
+    }).returning();
+    return result;
+  }
+  
+  async getChatMessagesBetweenUsers(senderId: number, receiverId: number, options?: { limit?: number, offset?: number }): Promise<ChatMessage[]> {
+    let query = db.select().from(chatMessages)
+      .where(
+        or(
+          and(
+            eq(chatMessages.senderId, senderId),
+            eq(chatMessages.receiverId, receiverId)
+          ),
+          and(
+            eq(chatMessages.senderId, receiverId),
+            eq(chatMessages.receiverId, senderId)
+          )
+        )
+      )
+      .orderBy(asc(chatMessages.createdAt));
+      
+    if (options?.limit) {
+      query = query.limit(options.limit);
+    }
+    
+    if (options?.offset) {
+      query = query.offset(options.offset);
+    }
+    
+    return await query;
+  }
+  
+  async getChatHistory(userId1: number, userId2: number, options?: { limit?: number, offset?: number }): Promise<ChatMessage[]> {
+    // This is a wrapper around getChatMessagesBetweenUsers that adds additional processing if needed
+    console.log(`Getting chat history between users ${userId1} and ${userId2}`);
+    try {
+      // Use default limit of 50 if not specified
+      const actualOptions = options || { limit: 50 };
+      const messages = await this.getChatMessagesBetweenUsers(userId1, userId2, actualOptions);
+      console.log(`Retrieved ${messages.length} messages between users ${userId1} and ${userId2}`);
+      return messages;
+    } catch (error) {
+      console.error('Error retrieving chat history:', error);
+      return [];
+    }
+  }
+  
+  async markChatMessagesAsRead(senderId: number, receiverId: number): Promise<void> {
+    await db.update(chatMessages)
+      .set({ isRead: true })
+      .where(
+        and(
+          eq(chatMessages.senderId, senderId),
+          eq(chatMessages.receiverId, receiverId),
+          eq(chatMessages.isRead, false)
+        )
+      );
+  }
+  
+  async getUnreadMessageCount(userId: number): Promise<number> {
+    const result = await db.select({ count: sql`count(*)` })
+      .from(chatMessages)
+      .where(
+        and(
+          eq(chatMessages.receiverId, userId),
+          eq(chatMessages.isRead, false)
+        )
+      );
+    
+    return parseInt(result[0]?.count?.toString() || '0');
+  }
+  
+  async canUsersChat(userId1: number, userId2: number): Promise<boolean> {
+    // Check if both users follow each other
+    const follow1 = await this.isFollowing(userId1, userId2);
+    const follow2 = await this.isFollowing(userId2, userId1);
+    
+    return follow1 && follow2;
+  }
+  
+  async getChatPartners(userId: number): Promise<User[]> {
+    // Get unique users that have exchanged messages with this user
+    const sentMessages = await db.select({ partnerId: chatMessages.receiverId })
+      .from(chatMessages)
+      .where(eq(chatMessages.senderId, userId))
+      .groupBy(chatMessages.receiverId);
+      
+    const receivedMessages = await db.select({ partnerId: chatMessages.senderId })
+      .from(chatMessages)
+      .where(eq(chatMessages.receiverId, userId))
+      .groupBy(chatMessages.senderId);
+    
+    // Combine the two sets of IDs
+    const partnerIds = [...new Set([
+      ...sentMessages.map(m => m.partnerId),
+      ...receivedMessages.map(m => m.partnerId)
+    ])];
+    
+    if (partnerIds.length === 0) {
+      return [];
+    }
+    
+    // Get the user objects for all partner IDs
+    const partners = await db.select()
+      .from(users)
+      .where(inArray(users.id, partnerIds));
+    
+    return partners;
   }
 
   async getUserByUsername(username: string): Promise<User | undefined> {

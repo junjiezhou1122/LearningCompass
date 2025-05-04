@@ -225,8 +225,10 @@ const ChatInterface = ({ otherUser, onClose }) => {
     const message = `Check out this resource: ${resource.title} - ${resource.description || 'A great learning resource'}`;
     ws.send(JSON.stringify({
       type: 'chat_message',
-      receiverId: otherUser.id,
-      content: message
+      data: {
+        recipientId: otherUser.id,
+        content: message
+      }
     }));
     
     toast({
@@ -247,10 +249,25 @@ const ChatInterface = ({ otherUser, onClose }) => {
   const sendMessage = () => {
     if (!input.trim() || !connected || !ws) return;
     
+    // Make sure we have otherUser and otherUser.id
+    if (!otherUser || !otherUser.id) {
+      console.error('Missing recipient ID:', otherUser);
+      toast({
+        title: "Error",
+        description: "Unable to identify recipient",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    console.log('Sending message to user:', otherUser.id, 'with content:', input.trim());
+    
     ws.send(JSON.stringify({
       type: 'chat_message',
-      receiverId: otherUser.id,
-      content: input.trim()
+      data: {
+        recipientId: otherUser.id,
+        content: input.trim()
+      }
     }));
     
     setInput('');

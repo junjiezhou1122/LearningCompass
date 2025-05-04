@@ -65,10 +65,14 @@ export default function ChatPage() {
         setIsConnectionOpen(true);
         
         // Authenticate with the server
+        // Use actual auth token for authentication, or user ID as fallback
+        console.log('Auth token available:', !!token);
         socket.send(JSON.stringify({
           type: 'auth',
-          data: { token: user.id.toString() }
+          data: { token: token }
         }));
+        
+        console.log('Sending authentication to WebSocket server');
 
         // Setup ping interval to keep connection alive
         const pingInterval = setInterval(() => {
@@ -137,7 +141,7 @@ export default function ChatPage() {
         socketRef.current.close();
       }
     };
-  }, [isAuthenticated, user?.id, toast]);
+  }, [isAuthenticated, user?.id, token, toast]);
 
   // Fetch chat partners when authenticated
   useEffect(() => {
@@ -163,18 +167,66 @@ export default function ChatPage() {
 
   // Handle new incoming message
   const handleNewMessage = (messageData) => {
-    setMessages(prevMessages => [...prevMessages, messageData]);
+    console.log('Received message:', messageData);
+    // Log the sender ID and user ID to debug message alignment issue
+    const senderIdNum = parseInt(messageData.senderId);
+    const userIdNum = parseInt(user?.id);
+    const isFromMe = !isNaN(senderIdNum) && !isNaN(userIdNum) && senderIdNum === userIdNum;
+    console.log('Message sender ID:', messageData.senderId, '(', senderIdNum, ')');
+    console.log('Current user ID:', user?.id, '(', userIdNum, ')');
+    console.log('Is from me?', isFromMe);
     
-    // If this is a message from a new contact, update the contacts list
-    if (messageData.sender && !contacts.find(contact => contact.id === messageData.sender.id)) {
+    // Ensure senderId is present as a number for proper display logic and timestamp is normalized
+    const processedMessage = {
+      ...messageData,
+      senderId: messageData.senderId || (messageData.sender && messageData.sender.id) || null,
+      createdAt: messageData.createdAt ? new Date(messageData.createdAt) : new Date()
+    };
+    
+    // Add message to state and ensure proper sorting
+    setMessages(prevMessages => {
+      const newMessages = [...prevMessages, processedMessage];
+      // Sort by timestamp to ensure consistent ordering
+      return newMessages.sort((a, b) => new Date(a.createdAt) - new Date(b.createdAt));
+    });
+    
+    // Auto-scroll to bottom when new message arrives
+    setTimeout(() => {
+      messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+    }, 100);
+    
+    // Only add to contacts list if this is a message from someone else (not self-messages)
+    // and only if the contact doesn't already exist in the list
+    if (messageData.sender && !isFromMe && 
+        !contacts.some(contact => contact.id === messageData.sender.id)) {
+      console.log('Adding new contact from message:', messageData.sender);
       setContacts(prevContacts => [...prevContacts, messageData.sender]);
     }
   };
 
   // Handle received chat history
   const handleChatHistory = (data) => {
+    console.log('Received chat history:', data);
     if (data.messages) {
-      setMessages(data.messages);
+      // Log each message to check sender and receiver IDs
+      data.messages.forEach((msg, index) => {
+        console.log(`Message ${index} - sender: ${msg.senderId}, receiver: ${msg.recipientId}, content: ${msg.content}`);
+      });
+      
+      // Process messages to ensure all have senderId property
+      const processedMessages = data.messages.map(msg => ({
+        ...msg,
+        senderId: msg.senderId || (msg.sender && msg.sender.id) || null,
+        // 确保消息时间有正确格式，便于排序
+        createdAt: msg.createdAt ? new Date(msg.createdAt) : new Date()
+      }));
+      
+      // 按时间排序消息
+      const sortedMessages = processedMessages.sort(
+        (a, b) => new Date(a.createdAt) - new Date(b.createdAt)
+      );
+      
+      setMessages(sortedMessages);
     }
   };
 
@@ -221,12 +273,14 @@ export default function ChatPage() {
     setMessages([]);
   };
 
-  // Filter contacts based on search query
-  const filteredContacts = contacts.filter(contact => 
-    contact.username?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    (contact.firstName && contact.firstName.toLowerCase().includes(searchQuery.toLowerCase())) ||
-    (contact.lastName && contact.lastName.toLowerCase().includes(searchQuery.toLowerCase()))
-  );
+  // Filter contacts based on search query and exclude current user
+  const filteredContacts = contacts
+    .filter(contact => contact.id !== user?.id) // 排除自己
+    .filter(contact => 
+      contact.username?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      (contact.firstName && contact.firstName.toLowerCase().includes(searchQuery.toLowerCase())) ||
+      (contact.lastName && contact.lastName.toLowerCase().includes(searchQuery.toLowerCase()))
+    );
 
   if (!isAuthenticated) {
     return (
@@ -283,11 +337,17 @@ export default function ChatPage() {
                   filteredContacts.map(contact => (
                     <div 
                       key={contact.id}
-                      className={`p-3 cursor-pointer hover:bg-slate-50 flex items-center ${activeChat?.id === contact.id ? 'bg-slate-100' : ''}`}
+                      className={`p-3 cursor-pointer hover:bg-slate-50 flex items-center ${activeChat?.id === contact.id ? 'bg-slate-100' : ''} ${contact.id === user?.id ? 'bg-blue-50 hover:bg-blue-100 border-l-4 border-blue-400' : ''}`}
                       onClick={() => selectChat(contact)}
                     >
                       <div className="relative">
-                        <Avatar>
+                        <Avatar 
+                          className="cursor-pointer"
+                          onClick={(e) => {
+                            e.stopPropagation(); // 阻止冒泡到通话选择
+                            window.location.href = `/profile/${contact.id}`;
+                          }}
+                        >
                           <AvatarFallback>{contact.username?.[0] || contact.firstName?.[0] || '?'}</AvatarFallback>
                           {contact.avatar && <AvatarImage src={contact.avatar} />}
                         </Avatar>
@@ -327,7 +387,10 @@ export default function ChatPage() {
             <>
               <div className="bg-slate-50 p-4 border-b flex items-center justify-between">
                 <div className="flex items-center">
-                  <Avatar>
+                  <Avatar 
+                    className="cursor-pointer"
+                    onClick={() => window.location.href = `/profile/${activeChat.id}`}
+                  >
                     <AvatarFallback>{activeChat.username?.[0] || activeChat.firstName?.[0] || '?'}</AvatarFallback>
                     {activeChat.avatar && <AvatarImage src={activeChat.avatar} />}
                   </Avatar>
@@ -348,23 +411,69 @@ export default function ChatPage() {
                 <div className="space-y-4">
                   {messages.length > 0 ? (
                     messages.map((msg, index) => {
-                      const isFromMe = msg.senderId === user.id || !msg.sender;
+                      // 强制显示所有接收到的消息都在左侧，自己发送的都在右侧
+                      // 使用 parseInt 确保 ID 类型一致进行比较
+                      const senderIdNum = parseInt(msg.senderId);
+                      const userIdNum = parseInt(user?.id);
+                      const isFromMe = !isNaN(senderIdNum) && !isNaN(userIdNum) && senderIdNum === userIdNum;
+                      console.log(`Message ${index} - from me? ${isFromMe}, senderId: ${msg.senderId}(${senderIdNum}), myId: ${user?.id}(${userIdNum})`);
+                      
+                      // 使用发送者ID对应的用户或当前选中的用户
+                      const sender = isFromMe ? user : activeChat;
+                      const prevMsg = index > 0 ? messages[index - 1] : null;
+                      const showAvatar = !prevMsg || prevMsg.senderId !== msg.senderId; // 只在消息组的第一条消息显示头像
                       
                       return (
                         <div 
                           key={index} 
-                          className={`flex ${isFromMe ? 'justify-end' : 'justify-start'}`}
+                          className={`flex items-end space-x-2 ${isFromMe ? 'justify-end' : 'justify-start'} mb-2`}
                         >
+                          {/* Avatar for other user's messages */}
+                          {!isFromMe && showAvatar && (
+                            <Avatar 
+                              className="h-8 w-8 flex-shrink-0 cursor-pointer"
+                              onClick={() => window.location.href = `/profile/${sender.id}`}
+                            >
+                              <AvatarFallback>{sender?.username?.[0] || sender?.firstName?.[0] || '?'}</AvatarFallback>
+                              {sender?.avatar && <AvatarImage src={sender.avatar} />}
+                            </Avatar>
+                          )}
+                          
+                          {/* Spacer div when we don't show the avatar but need to maintain alignment */}
+                          {!isFromMe && !showAvatar && <div className="w-8 flex-shrink-0"></div>}
+                          
+                          {/* Message content */}
                           <div 
-                            className={`max-w-[70%] px-4 py-2 rounded-lg ${isFromMe 
-                              ? 'bg-primary text-primary-foreground' 
-                              : 'bg-muted'}`}
+                            className={`relative max-w-[70%] px-4 py-2 rounded-lg ${isFromMe 
+                              ? 'bg-primary text-primary-foreground rounded-tr-none' 
+                              : 'bg-muted rounded-tl-none'}`}
                           >
+                            {/* Sender name (only for other user's messages) */}
+                            {!isFromMe && showAvatar && (
+                              <div className="text-xs font-semibold mb-1 text-slate-600">
+                                {sender?.firstName || sender?.username}
+                              </div>
+                            )}
+                            
                             <div className="break-words">{msg.content}</div>
                             <div className="text-xs mt-1 opacity-70 text-right">
                               {new Date(msg.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                             </div>
                           </div>
+                          
+                          {/* Avatar for my messages */}
+                          {isFromMe && showAvatar && (
+                            <Avatar 
+                              className="h-8 w-8 flex-shrink-0 cursor-pointer"
+                              onClick={() => window.location.href = `/profile/${user.id}`}
+                            >
+                              <AvatarFallback>{user?.username?.[0] || user?.firstName?.[0] || '?'}</AvatarFallback>
+                              {user?.avatar && <AvatarImage src={user.avatar} />}
+                            </Avatar>
+                          )}
+                          
+                          {/* Spacer div when we don't show the avatar but need to maintain alignment */}
+                          {isFromMe && !showAvatar && <div className="w-8 flex-shrink-0"></div>}
                         </div>
                       );
                     })
