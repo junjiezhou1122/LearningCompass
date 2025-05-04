@@ -16,7 +16,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Pagination, PaginationContent, PaginationEllipsis, PaginationItem, PaginationLink, PaginationNext, PaginationPrevious } from '@/components/ui/pagination';
 import { BookOpen, School, ChevronRight, Search, BookmarkPlus, BookmarkCheck, Filter, Plus, ExternalLink } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
-import { queryClient } from '@/lib/queryClient';
+import { queryClient, apiRequest } from '@/lib/queryClient';
 
 const UniversityCoursesTab = () => {
   const { isAuthenticated } = useAuth();
@@ -88,16 +88,13 @@ const UniversityCoursesTab = () => {
     queryFn: async () => {
       if (!isAuthenticated) return [];
       
-      const response = await fetch('/api/university-course-bookmarks', {
-        headers: {
-          'Authorization': `Bearer ${localStorage.getItem('authToken')}`,
-        },
-      });
-      if (!response.ok) {
-        if (response.status === 401) return []; // Not authenticated
-        throw new Error('Failed to fetch bookmarks');
+      try {
+        const response = await apiRequest('GET', '/api/university-course-bookmarks');
+        return response.json();
+      } catch (error) {
+        if (error.message.includes('401')) return []; // Not authenticated
+        throw error;
       }
-      return response.json();
     },
     enabled: isAuthenticated, // Only fetch if authenticated
   });
@@ -138,20 +135,7 @@ const UniversityCoursesTab = () => {
   // Mutation for adding a new university course
   const addCourseMutation = useMutation({
     mutationFn: async (data) => {
-      const response = await fetch('/api/university-courses', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${localStorage.getItem('token')}`,
-        },
-        body: JSON.stringify(data),
-      });
-      
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.message || 'Failed to add university course');
-      }
-      
+      const response = await apiRequest('POST', '/api/university-courses', data);
       return response.json();
     },
     onSuccess: () => {
@@ -196,7 +180,11 @@ const UniversityCoursesTab = () => {
   const toggleBookmark = async (courseId) => {
     if (!isAuthenticated) {
       // Could redirect to login or show a toast
-      alert('Please login to bookmark courses');
+      toast({
+        title: "Authentication Required",
+        description: "Please log in to bookmark courses.",
+        variant: "destructive",
+      });
       return;
     }
     
@@ -205,28 +193,21 @@ const UniversityCoursesTab = () => {
     try {
       if (isBookmarked) {
         // Remove bookmark
-        await fetch(`/api/university-course-bookmarks/${courseId}`, {
-          method: 'DELETE',
-          headers: {
-            'Authorization': `Bearer ${localStorage.getItem('token')}`,
-          },
-        });
+        await apiRequest('DELETE', `/api/university-course-bookmarks/${courseId}`);
       } else {
         // Add bookmark
-        await fetch('/api/university-course-bookmarks', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${localStorage.getItem('token')}`,
-          },
-          body: JSON.stringify({ universityCourseId: courseId }),
-        });
+        await apiRequest('POST', '/api/university-course-bookmarks', { universityCourseId: courseId });
       }
       
       // Invalidate bookmarks query to refetch
       queryClient.invalidateQueries({ queryKey: ['university-course-bookmarks'] });
     } catch (error) {
       console.error('Error toggling bookmark:', error);
+      toast({
+        title: "Error",
+        description: "Failed to update bookmark. Please try again.",
+        variant: "destructive",
+      });
     }
   };
   
