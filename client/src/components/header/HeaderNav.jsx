@@ -1,7 +1,7 @@
 import { useLocation } from "wouter";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { Button } from "@/components/ui/button";
-import { BookOpen, MessageSquare, StickyNote } from "lucide-react";
+import { BookOpen, MessageSquare, StickyNote, GraduationCap } from "lucide-react";
 import LanguageSwitcher from "../LanguageSwitcher";
 import { useAuth } from "@/contexts/AuthContext";
 
@@ -19,6 +19,14 @@ export default function HeaderNav() {
       >
         <BookOpen className="h-5 w-5 mr-2" />
         {t("resourcesHub")}
+      </Button>
+      <Button
+        variant="ghost"
+        className="text-white hover:text-white hover:bg-amber-600/80 transition-all duration-500"
+        onClick={() => navigate("/learning-center")}
+      >
+        <GraduationCap className="h-5 w-5 mr-2" />
+        Learning Center
       </Button>
       <Button
         variant="ghost"

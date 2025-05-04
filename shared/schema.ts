@@ -765,6 +765,166 @@ export const coursesNotesRelations = relations(courses, ({ many }) => ({
 export type UserNote = typeof userNotes.$inferSelect;
 export type InsertUserNote = typeof userNotes.$inferInsert;
 
+// University Courses schema
+export const universityCourses = pgTable("university_courses", {
+  id: serial("id").primaryKey(),
+  university: text("university").notNull(),
+  courseDept: text("course_dept").notNull(),
+  courseNumber: text("course_number").notNull(),
+  courseTitle: text("course_title").notNull(),
+  description: text("description"),
+  professors: text("professors"),
+  recentSemesters: text("recent_semesters"),
+  credits: text("credits"),
+  url: text("url"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at"),
+});
+
+export const insertUniversityCourseSchema = createInsertSchema(universityCourses).pick({
+  university: true,
+  courseDept: true,
+  courseNumber: true,
+  courseTitle: true,
+  description: true,
+  professors: true,
+  recentSemesters: true,
+  credits: true,
+  url: true,
+  updatedAt: true,
+});
+
+// Learning Methods schema
+export const learningMethods = pgTable("learning_methods", {
+  id: serial("id").primaryKey(),
+  userId: integer("user_id")
+    .notNull()
+    .references(() => users.id),
+  title: text("title").notNull(),
+  description: text("description").notNull(),
+  steps: text("steps").array(), // Array of steps to follow for this method
+  tags: text("tags").array(), // Categories or tags for this method
+  difficulty: varchar("difficulty", { length: 20 }), // e.g., 'beginner', 'intermediate', 'advanced'
+  timeRequired: text("time_required"), // Estimated time to apply this method
+  benefits: text("benefits").array(), // Array of benefits
+  resources: text("resources").array(), // Supporting resources
+  upvotes: integer("upvotes").default(0),
+  views: integer("views").default(0),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at"),
+});
+
+export const insertLearningMethodSchema = createInsertSchema(learningMethods).pick({
+  userId: true,
+  title: true,
+  description: true,
+  steps: true,
+  tags: true,
+  difficulty: true,
+  timeRequired: true,
+  benefits: true,
+  resources: true,
+  updatedAt: true,
+});
+
+// Learning Tools schema
+export const learningTools = pgTable("learning_tools", {
+  id: serial("id").primaryKey(),
+  userId: integer("user_id")
+    .notNull()
+    .references(() => users.id),
+  name: text("name").notNull(),
+  description: text("description").notNull(),
+  url: text("url"),
+  category: text("category"), // e.g., 'note-taking', 'flashcards', 'time-management'
+  pricing: text("pricing"), // e.g., 'free', 'freemium', 'paid'
+  platforms: text("platforms").array(), // e.g., ['web', 'ios', 'android']
+  pros: text("pros").array(),
+  cons: text("cons").array(),
+  alternatives: text("alternatives").array(),
+  upvotes: integer("upvotes").default(0),
+  views: integer("views").default(0),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at"),
+});
+
+export const insertLearningToolSchema = createInsertSchema(learningTools).pick({
+  userId: true,
+  name: true,
+  description: true,
+  url: true,
+  category: true,
+  pricing: true,
+  platforms: true,
+  pros: true,
+  cons: true,
+  alternatives: true,
+  updatedAt: true,
+});
+
+// University Course Bookmarks schema
+export const universityCourseBookmarks = pgTable("university_course_bookmarks", {
+  id: serial("id").primaryKey(),
+  userId: integer("user_id")
+    .notNull()
+    .references(() => users.id),
+  universityCourseId: integer("university_course_id")
+    .notNull()
+    .references(() => universityCourses.id),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+export const insertUniversityCourseBookmarkSchema = createInsertSchema(universityCourseBookmarks).pick({
+  userId: true,
+  universityCourseId: true,
+});
+
+// Learning Method Reviews schema
+export const learningMethodReviews = pgTable("learning_method_reviews", {
+  id: serial("id").primaryKey(),
+  methodId: integer("method_id")
+    .notNull()
+    .references(() => learningMethods.id),
+  userId: integer("user_id")
+    .notNull()
+    .references(() => users.id),
+  content: text("content").notNull(),
+  rating: integer("rating").notNull(), // 1-5 rating
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at"),
+});
+
+export const insertLearningMethodReviewSchema = createInsertSchema(learningMethodReviews).pick({
+  methodId: true,
+  userId: true,
+  content: true,
+  rating: true,
+  updatedAt: true,
+});
+
+// Learning Tool Reviews schema
+export const learningToolReviews = pgTable("learning_tool_reviews", {
+  id: serial("id").primaryKey(),
+  toolId: integer("tool_id")
+    .notNull()
+    .references(() => learningTools.id),
+  userId: integer("user_id")
+    .notNull()
+    .references(() => users.id),
+  content: text("content").notNull(),
+  rating: integer("rating").notNull(), // 1-5 rating
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at"),
+});
+
+export const insertLearningToolReviewSchema = createInsertSchema(learningToolReviews).pick({
+  toolId: true,
+  userId: true,
+  content: true,
+  rating: true,
+  updatedAt: true,
+});
+
 // Chat Messages schema
 export const chatMessages = pgTable("chat_messages", {
   id: serial("id").primaryKey(),
@@ -800,6 +960,71 @@ export const chatMessagesRelations = relations(chatMessages, ({ one }) => ({
   }),
 }));
 
+// University Courses Relations
+export const universityCoursesRelations = relations(universityCourses, ({ many }) => ({
+  bookmarks: many(universityCourseBookmarks),
+}));
+
+export const universityCourseBookmarksRelations = relations(universityCourseBookmarks, ({ one }) => ({
+  user: one(users, {
+    fields: [universityCourseBookmarks.userId],
+    references: [users.id],
+  }),
+  course: one(universityCourses, {
+    fields: [universityCourseBookmarks.universityCourseId],
+    references: [universityCourses.id],
+  }),
+}));
+
+// Learning Methods Relations
+export const learningMethodsRelations = relations(learningMethods, ({ many, one }) => ({
+  user: one(users, {
+    fields: [learningMethods.userId],
+    references: [users.id],
+  }),
+  reviews: many(learningMethodReviews),
+}));
+
+export const learningMethodReviewsRelations = relations(learningMethodReviews, ({ one }) => ({
+  method: one(learningMethods, {
+    fields: [learningMethodReviews.methodId],
+    references: [learningMethods.id],
+  }),
+  user: one(users, {
+    fields: [learningMethodReviews.userId],
+    references: [users.id],
+  }),
+}));
+
+// Learning Tools Relations
+export const learningToolsRelations = relations(learningTools, ({ many, one }) => ({
+  user: one(users, {
+    fields: [learningTools.userId],
+    references: [users.id],
+  }),
+  reviews: many(learningToolReviews),
+}));
+
+export const learningToolReviewsRelations = relations(learningToolReviews, ({ one }) => ({
+  tool: one(learningTools, {
+    fields: [learningToolReviews.toolId],
+    references: [learningTools.id],
+  }),
+  user: one(users, {
+    fields: [learningToolReviews.userId],
+    references: [users.id],
+  }),
+}));
+
+// Update user relations to include learning center entities
+export const usersLearningCenterRelations = relations(users, ({ many }) => ({
+  universityCourseBookmarks: many(universityCourseBookmarks),
+  learningMethods: many(learningMethods),
+  learningMethodReviews: many(learningMethodReviews),
+  learningTools: many(learningTools),
+  learningToolReviews: many(learningToolReviews),
+}));
+
 // Update user relations to include chat messages
 export const usersChatRelations = relations(users, ({ many }) => ({
   sentMessages: many(chatMessages, { relationName: "sentMessages" }),
@@ -809,3 +1034,22 @@ export const usersChatRelations = relations(users, ({ many }) => ({
 // Type definitions for chat messages
 export type ChatMessage = typeof chatMessages.$inferSelect;
 export type InsertChatMessage = typeof chatMessages.$inferInsert;
+
+// Type definitions for university courses and learning center
+export type UniversityCourse = typeof universityCourses.$inferSelect;
+export type InsertUniversityCourse = typeof universityCourses.$inferInsert;
+
+export type UniversityCourseBookmark = typeof universityCourseBookmarks.$inferSelect;
+export type InsertUniversityCourseBookmark = typeof universityCourseBookmarks.$inferInsert;
+
+export type LearningMethod = typeof learningMethods.$inferSelect;
+export type InsertLearningMethod = typeof learningMethods.$inferInsert;
+
+export type LearningMethodReview = typeof learningMethodReviews.$inferSelect;
+export type InsertLearningMethodReview = typeof learningMethodReviews.$inferInsert;
+
+export type LearningTool = typeof learningTools.$inferSelect;
+export type InsertLearningTool = typeof learningTools.$inferInsert;
+
+export type LearningToolReview = typeof learningToolReviews.$inferSelect;
+export type InsertLearningToolReview = typeof learningToolReviews.$inferInsert;

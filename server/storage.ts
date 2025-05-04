@@ -21,7 +21,18 @@ import {
   // User notes schemas and types
   userNotes, UserNote, InsertUserNote,
   // Chat messages schemas and types
-  chatMessages, ChatMessage, InsertChatMessage
+  chatMessages, ChatMessage, InsertChatMessage,
+  // Learning Center - University Courses
+  universityCourses, universityCourseBookmarks,
+  UniversityCourse, InsertUniversityCourse,
+  UniversityCourseBookmark, InsertUniversityCourseBookmark,
+  // Learning Center - Learning Methods and Tools
+  learningMethods, learningMethodReviews,
+  LearningMethod, InsertLearningMethod,
+  LearningMethodReview, InsertLearningMethodReview,
+  learningTools, learningToolReviews,
+  LearningTool, InsertLearningTool,
+  LearningToolReview, InsertLearningToolReview
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, and, like, desc, asc, sql, or, inArray, arrayContains } from "drizzle-orm";
@@ -199,6 +210,75 @@ export interface IStorage {
   updateUserNote(id: number, note: Partial<InsertUserNote>): Promise<UserNote | undefined>;
   deleteUserNote(id: number, userId: number): Promise<boolean>;
   getUserNoteTags(userId: number): Promise<string[]>;
+  
+  // University Courses operations
+  getUniversityCourse(id: number): Promise<UniversityCourse | undefined>;
+  getUniversityCourses(options?: {
+    limit?: number;
+    offset?: number;
+    university?: string;
+    courseDept?: string;
+    search?: string;
+  }): Promise<UniversityCourse[]>;
+  getUniversityCourseByDeptAndNumber(university: string, courseDept: string, courseNumber: string): Promise<UniversityCourse | undefined>;
+  createUniversityCourse(course: InsertUniversityCourse): Promise<UniversityCourse>;
+  updateUniversityCourse(id: number, course: Partial<InsertUniversityCourse>): Promise<UniversityCourse | undefined>;
+  getUniversities(): Promise<string[]>;
+  getCourseDepartments(university?: string): Promise<string[]>;
+
+  // University Course Bookmark operations
+  getUniversityCourseBookmark(userId: number, courseId: number): Promise<UniversityCourseBookmark | undefined>;
+  getUniversityCourseBookmarksByUserId(userId: number): Promise<UniversityCourseBookmark[]>;
+  createUniversityCourseBookmark(bookmark: InsertUniversityCourseBookmark): Promise<UniversityCourseBookmark>;
+  deleteUniversityCourseBookmark(userId: number, courseId: number): Promise<boolean>;
+
+  // Learning Methods operations
+  getLearningMethod(id: number): Promise<LearningMethod | undefined>;
+  getLearningMethods(options?: {
+    limit?: number;
+    offset?: number;
+    userId?: number;
+    difficulty?: string;
+    tag?: string;
+    search?: string;
+  }): Promise<LearningMethod[]>;
+  createLearningMethod(method: InsertLearningMethod): Promise<LearningMethod>;
+  updateLearningMethod(id: number, method: Partial<InsertLearningMethod>): Promise<LearningMethod | undefined>;
+  deleteLearningMethod(id: number, userId: number): Promise<boolean>;
+  incrementLearningMethodViews(id: number): Promise<void>;
+  incrementLearningMethodUpvotes(id: number): Promise<void>;
+  getLearningMethodTags(): Promise<string[]>;
+
+  // Learning Method Reviews operations
+  getLearningMethodReview(id: number): Promise<LearningMethodReview | undefined>;
+  getLearningMethodReviewsByMethodId(methodId: number): Promise<LearningMethodReview[]>;
+  createLearningMethodReview(review: InsertLearningMethodReview): Promise<LearningMethodReview>;
+  updateLearningMethodReview(id: number, review: Partial<InsertLearningMethodReview>): Promise<LearningMethodReview | undefined>;
+  deleteLearningMethodReview(id: number, userId: number): Promise<boolean>;
+
+  // Learning Tools operations
+  getLearningTool(id: number): Promise<LearningTool | undefined>;
+  getLearningTools(options?: {
+    limit?: number;
+    offset?: number;
+    userId?: number;
+    category?: string;
+    pricing?: string;
+    search?: string;
+  }): Promise<LearningTool[]>;
+  createLearningTool(tool: InsertLearningTool): Promise<LearningTool>;
+  updateLearningTool(id: number, tool: Partial<InsertLearningTool>): Promise<LearningTool | undefined>;
+  deleteLearningTool(id: number, userId: number): Promise<boolean>;
+  incrementLearningToolViews(id: number): Promise<void>;
+  incrementLearningToolUpvotes(id: number): Promise<void>;
+  getLearningToolCategories(): Promise<string[]>;
+
+  // Learning Tool Reviews operations
+  getLearningToolReview(id: number): Promise<LearningToolReview | undefined>;
+  getLearningToolReviewsByToolId(toolId: number): Promise<LearningToolReview[]>;
+  createLearningToolReview(review: InsertLearningToolReview): Promise<LearningToolReview>;
+  updateLearningToolReview(id: number, review: Partial<InsertLearningToolReview>): Promise<LearningToolReview | undefined>;
+  deleteLearningToolReview(id: number, userId: number): Promise<boolean>;
   
   // Chat Messages operations
   getChatMessage(id: number): Promise<ChatMessage | undefined>;
@@ -1696,6 +1776,428 @@ export class DatabaseStorage implements IStorage {
     const user2FollowsUser1 = await this.isFollowing(userId2, userId1);
     
     return user1FollowsUser2 && user2FollowsUser1;
+  }
+
+  // University Courses operations
+  async getUniversityCourse(id: number): Promise<UniversityCourse | undefined> {
+    const [course] = await db.select().from(universityCourses).where(eq(universityCourses.id, id));
+    return course || undefined;
+  }
+
+  async getUniversityCourses(options?: {
+    limit?: number;
+    offset?: number;
+    university?: string;
+    courseDept?: string;
+    search?: string;
+  }): Promise<UniversityCourse[]> {
+    let query = db.select().from(universityCourses);
+    
+    // Apply filters
+    const whereConditions = [];
+    
+    if (options?.university) {
+      whereConditions.push(eq(universityCourses.university, options.university));
+    }
+    
+    if (options?.courseDept) {
+      whereConditions.push(eq(universityCourses.courseDept, options.courseDept));
+    }
+    
+    if (options?.search) {
+      whereConditions.push(
+        or(
+          like(universityCourses.courseTitle, `%${options.search}%`),
+          like(universityCourses.description || '', `%${options.search}%`),
+          like(universityCourses.courseDept, `%${options.search}%`),
+          like(universityCourses.courseNumber, `%${options.search}%`)
+        )
+      );
+    }
+    
+    if (whereConditions.length > 0) {
+      query = query.where(and(...whereConditions));
+    }
+    
+    // Apply default sorting - sort by university, then department, then course number
+    query = query.orderBy(
+      asc(universityCourses.university),
+      asc(universityCourses.courseDept),
+      asc(universityCourses.courseNumber)
+    );
+    
+    // Apply pagination
+    if (options?.limit) {
+      query = query.limit(options.limit);
+    }
+    
+    if (options?.offset) {
+      query = query.offset(options.offset);
+    }
+    
+    return await query;
+  }
+
+  async getUniversityCourseByDeptAndNumber(university: string, courseDept: string, courseNumber: string): Promise<UniversityCourse | undefined> {
+    const [course] = await db.select().from(universityCourses).where(
+      and(
+        eq(universityCourses.university, university),
+        eq(universityCourses.courseDept, courseDept),
+        eq(universityCourses.courseNumber, courseNumber)
+      )
+    );
+    return course || undefined;
+  }
+
+  async createUniversityCourse(course: InsertUniversityCourse): Promise<UniversityCourse> {
+    const [result] = await db.insert(universityCourses).values(course).returning();
+    return result;
+  }
+
+  async updateUniversityCourse(id: number, course: Partial<InsertUniversityCourse>): Promise<UniversityCourse | undefined> {
+    const [result] = await db.update(universityCourses)
+      .set(course)
+      .where(eq(universityCourses.id, id))
+      .returning();
+    return result || undefined;
+  }
+
+  async getUniversities(): Promise<string[]> {
+    const result = await db.selectDistinct({ university: universityCourses.university }).from(universityCourses);
+    return result.map(row => row.university).filter(Boolean);
+  }
+
+  async getCourseDepartments(university?: string): Promise<string[]> {
+    let query = db.selectDistinct({ dept: universityCourses.courseDept }).from(universityCourses);
+    
+    if (university) {
+      query = query.where(eq(universityCourses.university, university));
+    }
+    
+    const result = await query;
+    return result.map(row => row.dept).filter(Boolean);
+  }
+
+  // University Course Bookmark operations
+  async getUniversityCourseBookmark(userId: number, courseId: number): Promise<UniversityCourseBookmark | undefined> {
+    const [bookmark] = await db.select().from(universityCourseBookmarks).where(
+      and(
+        eq(universityCourseBookmarks.userId, userId),
+        eq(universityCourseBookmarks.universityCourseId, courseId)
+      )
+    );
+    return bookmark || undefined;
+  }
+
+  async getUniversityCourseBookmarksByUserId(userId: number): Promise<UniversityCourseBookmark[]> {
+    return await db.select().from(universityCourseBookmarks)
+      .where(eq(universityCourseBookmarks.userId, userId))
+      .orderBy(desc(universityCourseBookmarks.createdAt));
+  }
+
+  async createUniversityCourseBookmark(bookmark: InsertUniversityCourseBookmark): Promise<UniversityCourseBookmark> {
+    const [result] = await db.insert(universityCourseBookmarks).values(bookmark).returning();
+    return result;
+  }
+
+  async deleteUniversityCourseBookmark(userId: number, courseId: number): Promise<boolean> {
+    const result = await db.delete(universityCourseBookmarks).where(
+      and(
+        eq(universityCourseBookmarks.userId, userId),
+        eq(universityCourseBookmarks.universityCourseId, courseId)
+      )
+    );
+    return result.rowCount > 0;
+  }
+
+  // Learning Methods operations
+  async getLearningMethod(id: number): Promise<LearningMethod | undefined> {
+    const [method] = await db.select().from(learningMethods).where(eq(learningMethods.id, id));
+    return method || undefined;
+  }
+
+  async getLearningMethods(options?: {
+    limit?: number;
+    offset?: number;
+    userId?: number;
+    difficulty?: string;
+    tag?: string;
+    search?: string;
+  }): Promise<LearningMethod[]> {
+    let query = db.select().from(learningMethods);
+    
+    // Apply filters
+    const whereConditions = [];
+    
+    if (options?.userId) {
+      whereConditions.push(eq(learningMethods.userId, options.userId));
+    }
+    
+    if (options?.difficulty) {
+      whereConditions.push(eq(learningMethods.difficulty, options.difficulty));
+    }
+    
+    if (options?.tag && learningMethods.tags) {
+      whereConditions.push(arrayContains(learningMethods.tags, [options.tag]));
+    }
+    
+    if (options?.search) {
+      whereConditions.push(
+        or(
+          like(learningMethods.title, `%${options.search}%`),
+          like(learningMethods.description, `%${options.search}%`)
+        )
+      );
+    }
+    
+    if (whereConditions.length > 0) {
+      query = query.where(and(...whereConditions));
+    }
+    
+    // Apply default sorting - newest first, then by upvotes
+    query = query.orderBy(
+      desc(learningMethods.upvotes),
+      desc(learningMethods.createdAt)
+    );
+    
+    // Apply pagination
+    if (options?.limit) {
+      query = query.limit(options.limit);
+    }
+    
+    if (options?.offset) {
+      query = query.offset(options.offset);
+    }
+    
+    return await query;
+  }
+
+  async createLearningMethod(method: InsertLearningMethod): Promise<LearningMethod> {
+    const [result] = await db.insert(learningMethods).values(method).returning();
+    return result;
+  }
+
+  async updateLearningMethod(id: number, method: Partial<InsertLearningMethod>): Promise<LearningMethod | undefined> {
+    const [result] = await db.update(learningMethods)
+      .set(method)
+      .where(eq(learningMethods.id, id))
+      .returning();
+    return result || undefined;
+  }
+
+  async deleteLearningMethod(id: number, userId: number): Promise<boolean> {
+    const result = await db.delete(learningMethods).where(
+      and(
+        eq(learningMethods.id, id),
+        eq(learningMethods.userId, userId)
+      )
+    );
+    return result.rowCount > 0;
+  }
+
+  async incrementLearningMethodViews(id: number): Promise<void> {
+    await db.update(learningMethods)
+      .set({
+        views: sql`${learningMethods.views} + 1`
+      })
+      .where(eq(learningMethods.id, id));
+  }
+
+  async incrementLearningMethodUpvotes(id: number): Promise<void> {
+    await db.update(learningMethods)
+      .set({
+        upvotes: sql`${learningMethods.upvotes} + 1`
+      })
+      .where(eq(learningMethods.id, id));
+  }
+
+  async getLearningMethodTags(): Promise<string[]> {
+    const methods = await db.select({ tags: learningMethods.tags }).from(learningMethods);
+    const allTags = new Set<string>();
+    
+    methods.forEach(method => {
+      if (method.tags && Array.isArray(method.tags)) {
+        method.tags.forEach(tag => allTags.add(tag));
+      }
+    });
+    
+    return Array.from(allTags).sort();
+  }
+
+  // Learning Method Reviews operations
+  async getLearningMethodReview(id: number): Promise<LearningMethodReview | undefined> {
+    const [review] = await db.select().from(learningMethodReviews).where(eq(learningMethodReviews.id, id));
+    return review || undefined;
+  }
+
+  async getLearningMethodReviewsByMethodId(methodId: number): Promise<LearningMethodReview[]> {
+    return await db.select().from(learningMethodReviews)
+      .where(eq(learningMethodReviews.methodId, methodId))
+      .orderBy(desc(learningMethodReviews.createdAt));
+  }
+
+  async createLearningMethodReview(review: InsertLearningMethodReview): Promise<LearningMethodReview> {
+    const [result] = await db.insert(learningMethodReviews).values(review).returning();
+    return result;
+  }
+
+  async updateLearningMethodReview(id: number, review: Partial<InsertLearningMethodReview>): Promise<LearningMethodReview | undefined> {
+    const [result] = await db.update(learningMethodReviews)
+      .set(review)
+      .where(eq(learningMethodReviews.id, id))
+      .returning();
+    return result || undefined;
+  }
+
+  async deleteLearningMethodReview(id: number, userId: number): Promise<boolean> {
+    const result = await db.delete(learningMethodReviews).where(
+      and(
+        eq(learningMethodReviews.id, id),
+        eq(learningMethodReviews.userId, userId)
+      )
+    );
+    return result.rowCount > 0;
+  }
+
+  // Learning Tools operations
+  async getLearningTool(id: number): Promise<LearningTool | undefined> {
+    const [tool] = await db.select().from(learningTools).where(eq(learningTools.id, id));
+    return tool || undefined;
+  }
+
+  async getLearningTools(options?: {
+    limit?: number;
+    offset?: number;
+    userId?: number;
+    category?: string;
+    pricing?: string;
+    search?: string;
+  }): Promise<LearningTool[]> {
+    let query = db.select().from(learningTools);
+    
+    // Apply filters
+    const whereConditions = [];
+    
+    if (options?.userId) {
+      whereConditions.push(eq(learningTools.userId, options.userId));
+    }
+    
+    if (options?.category) {
+      whereConditions.push(eq(learningTools.category, options.category));
+    }
+    
+    if (options?.pricing) {
+      whereConditions.push(eq(learningTools.pricing, options.pricing));
+    }
+    
+    if (options?.search) {
+      whereConditions.push(
+        or(
+          like(learningTools.name, `%${options.search}%`),
+          like(learningTools.description, `%${options.search}%`)
+        )
+      );
+    }
+    
+    if (whereConditions.length > 0) {
+      query = query.where(and(...whereConditions));
+    }
+    
+    // Apply default sorting - most upvotes, then newest
+    query = query.orderBy(
+      desc(learningTools.upvotes),
+      desc(learningTools.createdAt)
+    );
+    
+    // Apply pagination
+    if (options?.limit) {
+      query = query.limit(options.limit);
+    }
+    
+    if (options?.offset) {
+      query = query.offset(options.offset);
+    }
+    
+    return await query;
+  }
+
+  async createLearningTool(tool: InsertLearningTool): Promise<LearningTool> {
+    const [result] = await db.insert(learningTools).values(tool).returning();
+    return result;
+  }
+
+  async updateLearningTool(id: number, tool: Partial<InsertLearningTool>): Promise<LearningTool | undefined> {
+    const [result] = await db.update(learningTools)
+      .set(tool)
+      .where(eq(learningTools.id, id))
+      .returning();
+    return result || undefined;
+  }
+
+  async deleteLearningTool(id: number, userId: number): Promise<boolean> {
+    const result = await db.delete(learningTools).where(
+      and(
+        eq(learningTools.id, id),
+        eq(learningTools.userId, userId)
+      )
+    );
+    return result.rowCount > 0;
+  }
+
+  async incrementLearningToolViews(id: number): Promise<void> {
+    await db.update(learningTools)
+      .set({
+        views: sql`${learningTools.views} + 1`
+      })
+      .where(eq(learningTools.id, id));
+  }
+
+  async incrementLearningToolUpvotes(id: number): Promise<void> {
+    await db.update(learningTools)
+      .set({
+        upvotes: sql`${learningTools.upvotes} + 1`
+      })
+      .where(eq(learningTools.id, id));
+  }
+
+  async getLearningToolCategories(): Promise<string[]> {
+    const result = await db.selectDistinct({ category: learningTools.category }).from(learningTools);
+    return result.map(row => row.category).filter(Boolean);
+  }
+
+  // Learning Tool Reviews operations
+  async getLearningToolReview(id: number): Promise<LearningToolReview | undefined> {
+    const [review] = await db.select().from(learningToolReviews).where(eq(learningToolReviews.id, id));
+    return review || undefined;
+  }
+
+  async getLearningToolReviewsByToolId(toolId: number): Promise<LearningToolReview[]> {
+    return await db.select().from(learningToolReviews)
+      .where(eq(learningToolReviews.toolId, toolId))
+      .orderBy(desc(learningToolReviews.createdAt));
+  }
+
+  async createLearningToolReview(review: InsertLearningToolReview): Promise<LearningToolReview> {
+    const [result] = await db.insert(learningToolReviews).values(review).returning();
+    return result;
+  }
+
+  async updateLearningToolReview(id: number, review: Partial<InsertLearningToolReview>): Promise<LearningToolReview | undefined> {
+    const [result] = await db.update(learningToolReviews)
+      .set(review)
+      .where(eq(learningToolReviews.id, id))
+      .returning();
+    return result || undefined;
+  }
+
+  async deleteLearningToolReview(id: number, userId: number): Promise<boolean> {
+    const result = await db.delete(learningToolReviews).where(
+      and(
+        eq(learningToolReviews.id, id),
+        eq(learningToolReviews.userId, userId)
+      )
+    );
+    return result.rowCount > 0;
   }
 }
 

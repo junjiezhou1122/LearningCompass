@@ -10,6 +10,7 @@ import Home from "@/pages/Home";
 import CourseDetail from "@/pages/CourseDetail";
 import Bookmarks from "@/pages/Bookmarks";
 import LearningHowToLearn from "@/pages/LearningHowToLearn";
+import LearningCenter from "@/pages/LearningCenter";
 import Share from "@/pages/Share";
 import PostDetail from "@/pages/PostDetail";
 import UserProfile from "./pages/UserProfile";
@@ -45,6 +46,7 @@ function Router() {
               <Route path="/" component={LearningHowToLearn} />
               <Route path="/courses" component={Home} />
               <Route path="/course/:id" component={CourseDetail} />
+              <Route path="/learning-center" component={LearningCenter} />
               <Route path="/bookmarks" component={Bookmarks} />
               <Route path="/share" component={Share} />
               <Route path="/post/:id" component={PostDetail} />

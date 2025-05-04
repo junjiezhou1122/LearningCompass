@@ -14,6 +14,7 @@ import {
   Bookmark,
   Globe,
   StickyNote,
+  GraduationCap,
 } from "lucide-react";
 import HeaderSearch from "./HeaderSearch";
 import AuthModals from "../AuthModals";
@@ -122,6 +123,14 @@ export default function HeaderMobileMenu({
               >
                 <BookOpen className="h-5 w-5 mr-2" />
                 {t("resourcesHub")}
+              </Button>
+              <Button
+                variant="ghost"
+                className="w-full justify-start text-white hover:bg-amber-700 py-2 h-auto font-normal transition-all duration-300"
+                onClick={() => handleNavigation("/learning-center")}
+              >
+                <GraduationCap className="h-5 w-5 mr-2" />
+                Learning Center
               </Button>
               <Button
                 variant="ghost"

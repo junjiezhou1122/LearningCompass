@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Brain, Bot, BookOpen, School, Lightbulb, Compass, Users, BookMarked } from 'lucide-react';
+import { Brain, Bot, BookOpen, School, Lightbulb, Compass, Users, BookMarked, GraduationCap } from 'lucide-react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Separator } from '@/components/ui/separator';
 import AIAssistant from '@/components/ai-assistant/AIAssistant';
@@ -10,6 +10,7 @@ import ResourcesHubTab from '@/components/learning-components/ResourcesHubTab';
 import TechniquesTab from '@/components/learning-components/TechniquesTab';
 import ToolsTab from '@/components/learning-components/ToolsTab';
 import ScientificResearchTab from '@/components/learning-components/ScientificResearchTab';
+import LearningCenterTab from '@/components/learning-components/LearningCenterTab';
 
 // Learning How To Learn Page Component
 const LearningHowToLearn = () => {
@@ -143,6 +144,18 @@ const LearningHowToLearn = () => {
                       </div>
                       <span className="font-medium">Scientific Research</span>
                     </button>
+                    
+                    <button
+                      onClick={() => setActiveTab("learning-center")}
+                      className={`flex items-center w-full p-3 rounded-xl transition-all duration-300 ${activeTab === "learning-center"
+                        ? "bg-gradient-to-r from-orange-500 to-amber-500 text-white shadow-md scale-105 transform"
+                        : "text-gray-700 hover:bg-gradient-to-r hover:from-orange-100 hover:to-amber-100 hover:scale-102"}`}
+                    >
+                      <div className={`rounded-full p-2 mr-3 transition-colors duration-300 ${activeTab === "learning-center" ? "bg-white/30" : "bg-orange-100"}`}>
+                        <GraduationCap className={`h-5 w-5 ${activeTab === "learning-center" ? "text-white" : "text-orange-500"}`} />
+                      </div>
+                      <span className="font-medium">Learning Center</span>
+                    </button>
                   </div>
                   
                   <Separator className="bg-gradient-to-r from-orange-200 to-amber-200" />
@@ -199,6 +212,7 @@ const LearningHowToLearn = () => {
                   {activeTab === "techniques" && <TechniquesTab />}
                   {activeTab === "tools" && <ToolsTab />}
                   {activeTab === "research" && <ScientificResearchTab />}
+                  {activeTab === "learning-center" && <LearningCenterTab />}
                 </div>
               </div>
             </div>

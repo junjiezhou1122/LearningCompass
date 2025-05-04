@@ -16,7 +16,13 @@ import {
   // Method application schema
   insertMethodApplicationSchema,
   // User notes schema
-  insertUserNoteSchema
+  insertUserNoteSchema,
+  // Learning Center schemas
+  insertUniversityCourseSchema, insertUniversityCourseBookmarkSchema,
+  insertLearningMethodSchema, insertLearningMethodReviewSchema,
+  insertLearningToolSchema, insertLearningToolReviewSchema,
+  // Chat message schema
+  insertChatMessageSchema
 } from "@shared/schema";
 import { z, ZodError } from "zod";
 import { fromZodError } from "zod-validation-error";
@@ -2588,6 +2594,569 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Error fetching note tags:", error);
       res.status(500).json({ message: "Error fetching note tags" });
+    }
+  });
+
+  // Learning Center - University Courses API Routes
+  app.get("/api/university-courses", async (req: Request, res: Response) => {
+    try {
+      const options = {
+        limit: req.query.limit ? parseInt(req.query.limit as string) : 20,
+        offset: req.query.offset ? parseInt(req.query.offset as string) : 0,
+        university: req.query.university as string | undefined,
+        courseDept: req.query.courseDept as string | undefined,
+        search: req.query.search as string | undefined,
+      };
+
+      const courses = await storage.getUniversityCourses(options);
+      res.json(courses);
+    } catch (error) {
+      console.error("Error fetching university courses:", error);
+      res.status(500).json({ message: "Error fetching university courses" });
+    }
+  });
+
+  app.get("/api/university-courses/:id([0-9]+)", async (req: Request, res: Response) => {
+    try {
+      const id = parseInt(req.params.id);
+      const course = await storage.getUniversityCourse(id);
+      
+      if (!course) {
+        return res.status(404).json({ message: "University course not found" });
+      }
+      
+      res.json(course);
+    } catch (error) {
+      console.error("Error fetching university course:", error);
+      res.status(500).json({ message: "Error fetching university course" });
+    }
+  });
+
+  app.post("/api/university-courses", authenticateJWT, async (req: Request, res: Response) => {
+    try {
+      // Only admins can create university courses
+      const user = (req as any).user;
+      if (!user.isAdmin) {
+        return res.status(403).json({ message: "Only admins can create university courses" });
+      }
+
+      const courseData = insertUniversityCourseSchema.parse({
+        ...req.body,
+        createdAt: new Date().toISOString(),
+      });
+
+      // Check if course already exists
+      const existingCourse = await storage.getUniversityCourseByDeptAndNumber(
+        courseData.university,
+        courseData.courseDept,
+        courseData.courseNumber
+      );
+      
+      if (existingCourse) {
+        return res.status(409).json({ message: "University course already exists" });
+      }
+
+      const newCourse = await storage.createUniversityCourse(courseData);
+      res.status(201).json(newCourse);
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ message: fromZodError(error).message });
+      }
+      console.error("Error creating university course:", error);
+      res.status(500).json({ message: "Error creating university course" });
+    }
+  });
+
+  app.get("/api/universities", async (req: Request, res: Response) => {
+    try {
+      const universities = await storage.getUniversities();
+      res.json(universities);
+    } catch (error) {
+      console.error("Error fetching universities:", error);
+      res.status(500).json({ message: "Error fetching universities" });
+    }
+  });
+
+  app.get("/api/course-departments", async (req: Request, res: Response) => {
+    try {
+      const university = req.query.university as string | undefined;
+      const departments = await storage.getCourseDepartments(university);
+      res.json(departments);
+    } catch (error) {
+      console.error("Error fetching course departments:", error);
+      res.status(500).json({ message: "Error fetching course departments" });
+    }
+  });
+
+  // University Courses API - List all courses with filtering
+  app.get("/api/university-courses", async (req: Request, res: Response) => {
+    try {
+      const options = {
+        limit: req.query.limit ? parseInt(req.query.limit as string) : 20,
+        offset: req.query.offset ? parseInt(req.query.offset as string) : 0,
+        university: req.query.university as string | undefined,
+        courseDept: req.query.courseDept as string | undefined,
+        search: req.query.search as string | undefined,
+      };
+
+      const courses = await storage.getUniversityCourses(options);
+      res.json(courses);
+    } catch (error) {
+      console.error("Error fetching university courses:", error);
+      res.status(500).json({ message: "Error fetching university courses" });
+    }
+  });
+
+  // University Course Bookmarks API Routes
+  app.get("/api/university-course-bookmarks", authenticateJWT, async (req: Request, res: Response) => {
+    try {
+      const userId = (req as any).user.id;
+      const bookmarks = await storage.getUniversityCourseBookmarksByUserId(userId);
+      
+      if (bookmarks.length === 0) {
+        return res.json([]);
+      }
+      
+      // Get the complete course data for each bookmark
+      const courseIds = bookmarks.map(bookmark => bookmark.universityCourseId);
+      const courses = await Promise.all(
+        courseIds.map(id => storage.getUniversityCourse(id))
+      );
+      
+      // Filter out any undefined courses (in case a bookmark references a deleted course)
+      res.json(courses.filter(Boolean));
+    } catch (error) {
+      console.error("Error fetching university course bookmarks:", error);
+      res.status(500).json({ message: "Error fetching university course bookmarks" });
+    }
+  });
+
+  app.post("/api/university-course-bookmarks", authenticateJWT, async (req: Request, res: Response) => {
+    try {
+      const userId = (req as any).user.id;
+      const { universityCourseId } = req.body;
+      
+      if (!universityCourseId) {
+        return res.status(400).json({ message: "University course ID is required" });
+      }
+      
+      // Check if course exists
+      const course = await storage.getUniversityCourse(universityCourseId);
+      if (!course) {
+        return res.status(404).json({ message: "University course not found" });
+      }
+      
+      // Check if bookmark already exists
+      const existingBookmark = await storage.getUniversityCourseBookmark(userId, universityCourseId);
+      if (existingBookmark) {
+        return res.status(409).json({ message: "Bookmark already exists" });
+      }
+      
+      const bookmarkData = insertUniversityCourseBookmarkSchema.parse({
+        userId,
+        universityCourseId,
+        createdAt: new Date().toISOString(),
+      });
+      
+      const bookmark = await storage.createUniversityCourseBookmark(bookmarkData);
+      res.status(201).json(bookmark);
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ message: fromZodError(error).message });
+      }
+      console.error("Error creating university course bookmark:", error);
+      res.status(500).json({ message: "Error creating university course bookmark" });
+    }
+  });
+
+  app.delete("/api/university-course-bookmarks/:courseId", authenticateJWT, async (req: Request, res: Response) => {
+    try {
+      const userId = (req as any).user.id;
+      const courseId = parseInt(req.params.courseId);
+      
+      const success = await storage.deleteUniversityCourseBookmark(userId, courseId);
+      if (!success) {
+        return res.status(404).json({ message: "Bookmark not found" });
+      }
+      
+      res.status(204).end();
+    } catch (error) {
+      console.error("Error deleting university course bookmark:", error);
+      res.status(500).json({ message: "Error deleting university course bookmark" });
+    }
+  });
+
+  // Learning Methods API Routes
+  app.get("/api/learning-methods", async (req: Request, res: Response) => {
+    try {
+      const options = {
+        limit: req.query.limit ? parseInt(req.query.limit as string) : 20,
+        offset: req.query.offset ? parseInt(req.query.offset as string) : 0,
+        userId: req.query.userId ? parseInt(req.query.userId as string) : undefined,
+        difficulty: req.query.difficulty as string | undefined,
+        tag: req.query.tag as string | undefined,
+        search: req.query.search as string | undefined,
+      };
+
+      const methods = await storage.getLearningMethods(options);
+      res.json(methods);
+    } catch (error) {
+      console.error("Error fetching learning methods:", error);
+      res.status(500).json({ message: "Error fetching learning methods" });
+    }
+  });
+
+  app.get("/api/learning-methods/:id([0-9]+)", async (req: Request, res: Response) => {
+    try {
+      const id = parseInt(req.params.id);
+      const method = await storage.getLearningMethod(id);
+      
+      if (!method) {
+        return res.status(404).json({ message: "Learning method not found" });
+      }
+      
+      // Increment view count
+      await storage.incrementLearningMethodViews(id);
+      
+      res.json(method);
+    } catch (error) {
+      console.error("Error fetching learning method:", error);
+      res.status(500).json({ message: "Error fetching learning method" });
+    }
+  });
+
+  app.post("/api/learning-methods", authenticateJWT, async (req: Request, res: Response) => {
+    try {
+      const userId = (req as any).user.id;
+      
+      const methodData = insertLearningMethodSchema.parse({
+        ...req.body,
+        userId,
+        createdAt: new Date().toISOString(),
+        views: 0,
+        upvotes: 0,
+      });
+
+      const newMethod = await storage.createLearningMethod(methodData);
+      res.status(201).json(newMethod);
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ message: fromZodError(error).message });
+      }
+      console.error("Error creating learning method:", error);
+      res.status(500).json({ message: "Error creating learning method" });
+    }
+  });
+
+  app.put("/api/learning-methods/:id([0-9]+)", authenticateJWT, async (req: Request, res: Response) => {
+    try {
+      const userId = (req as any).user.id;
+      const id = parseInt(req.params.id);
+      
+      // Check if method exists and belongs to user
+      const method = await storage.getLearningMethod(id);
+      if (!method) {
+        return res.status(404).json({ message: "Learning method not found" });
+      }
+      
+      if (method.userId !== userId) {
+        return res.status(403).json({ message: "You can only update your own learning methods" });
+      }
+      
+      const methodData = insertLearningMethodSchema.partial().parse({
+        ...req.body,
+        updatedAt: new Date().toISOString(),
+      });
+
+      const updatedMethod = await storage.updateLearningMethod(id, methodData);
+      res.json(updatedMethod);
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ message: fromZodError(error).message });
+      }
+      console.error("Error updating learning method:", error);
+      res.status(500).json({ message: "Error updating learning method" });
+    }
+  });
+
+  app.delete("/api/learning-methods/:id([0-9]+)", authenticateJWT, async (req: Request, res: Response) => {
+    try {
+      const userId = (req as any).user.id;
+      const id = parseInt(req.params.id);
+      
+      const success = await storage.deleteLearningMethod(id, userId);
+      if (!success) {
+        return res.status(404).json({ message: "Learning method not found or not authorized to delete" });
+      }
+      
+      res.status(204).end();
+    } catch (error) {
+      console.error("Error deleting learning method:", error);
+      res.status(500).json({ message: "Error deleting learning method" });
+    }
+  });
+
+  app.post("/api/learning-methods/:id([0-9]+)/upvote", authenticateJWT, async (req: Request, res: Response) => {
+    try {
+      const id = parseInt(req.params.id);
+      
+      // Check if method exists
+      const method = await storage.getLearningMethod(id);
+      if (!method) {
+        return res.status(404).json({ message: "Learning method not found" });
+      }
+      
+      await storage.incrementLearningMethodUpvotes(id);
+      
+      res.status(200).json({ message: "Learning method upvoted successfully" });
+    } catch (error) {
+      console.error("Error upvoting learning method:", error);
+      res.status(500).json({ message: "Error upvoting learning method" });
+    }
+  });
+
+  app.get("/api/learning-method-tags", async (req: Request, res: Response) => {
+    try {
+      const tags = await storage.getLearningMethodTags();
+      res.json(tags);
+    } catch (error) {
+      console.error("Error fetching learning method tags:", error);
+      res.status(500).json({ message: "Error fetching learning method tags" });
+    }
+  });
+
+  // Learning Method Reviews API Routes
+  app.get("/api/learning-methods/:methodId([0-9]+)/reviews", async (req: Request, res: Response) => {
+    try {
+      const methodId = parseInt(req.params.methodId);
+      
+      // Check if method exists
+      const method = await storage.getLearningMethod(methodId);
+      if (!method) {
+        return res.status(404).json({ message: "Learning method not found" });
+      }
+      
+      const reviews = await storage.getLearningMethodReviewsByMethodId(methodId);
+      res.json(reviews);
+    } catch (error) {
+      console.error("Error fetching learning method reviews:", error);
+      res.status(500).json({ message: "Error fetching learning method reviews" });
+    }
+  });
+
+  app.post("/api/learning-methods/:methodId([0-9]+)/reviews", authenticateJWT, async (req: Request, res: Response) => {
+    try {
+      const userId = (req as any).user.id;
+      const methodId = parseInt(req.params.methodId);
+      
+      // Check if method exists
+      const method = await storage.getLearningMethod(methodId);
+      if (!method) {
+        return res.status(404).json({ message: "Learning method not found" });
+      }
+      
+      const reviewData = insertLearningMethodReviewSchema.parse({
+        ...req.body,
+        userId,
+        methodId,
+        createdAt: new Date().toISOString(),
+      });
+
+      const newReview = await storage.createLearningMethodReview(reviewData);
+      res.status(201).json(newReview);
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ message: fromZodError(error).message });
+      }
+      console.error("Error creating learning method review:", error);
+      res.status(500).json({ message: "Error creating learning method review" });
+    }
+  });
+
+  // Learning Tools API Routes
+  app.get("/api/learning-tools", async (req: Request, res: Response) => {
+    try {
+      const options = {
+        limit: req.query.limit ? parseInt(req.query.limit as string) : 20,
+        offset: req.query.offset ? parseInt(req.query.offset as string) : 0,
+        userId: req.query.userId ? parseInt(req.query.userId as string) : undefined,
+        category: req.query.category as string | undefined,
+        pricing: req.query.pricing as string | undefined,
+        search: req.query.search as string | undefined,
+      };
+
+      const tools = await storage.getLearningTools(options);
+      res.json(tools);
+    } catch (error) {
+      console.error("Error fetching learning tools:", error);
+      res.status(500).json({ message: "Error fetching learning tools" });
+    }
+  });
+
+  app.get("/api/learning-tools/:id([0-9]+)", async (req: Request, res: Response) => {
+    try {
+      const id = parseInt(req.params.id);
+      const tool = await storage.getLearningTool(id);
+      
+      if (!tool) {
+        return res.status(404).json({ message: "Learning tool not found" });
+      }
+      
+      // Increment view count
+      await storage.incrementLearningToolViews(id);
+      
+      res.json(tool);
+    } catch (error) {
+      console.error("Error fetching learning tool:", error);
+      res.status(500).json({ message: "Error fetching learning tool" });
+    }
+  });
+
+  app.post("/api/learning-tools", authenticateJWT, async (req: Request, res: Response) => {
+    try {
+      const userId = (req as any).user.id;
+      
+      const toolData = insertLearningToolSchema.parse({
+        ...req.body,
+        userId,
+        createdAt: new Date().toISOString(),
+        views: 0,
+        upvotes: 0,
+      });
+
+      const newTool = await storage.createLearningTool(toolData);
+      res.status(201).json(newTool);
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ message: fromZodError(error).message });
+      }
+      console.error("Error creating learning tool:", error);
+      res.status(500).json({ message: "Error creating learning tool" });
+    }
+  });
+
+  app.put("/api/learning-tools/:id([0-9]+)", authenticateJWT, async (req: Request, res: Response) => {
+    try {
+      const userId = (req as any).user.id;
+      const id = parseInt(req.params.id);
+      
+      // Check if tool exists and belongs to user
+      const tool = await storage.getLearningTool(id);
+      if (!tool) {
+        return res.status(404).json({ message: "Learning tool not found" });
+      }
+      
+      if (tool.userId !== userId) {
+        return res.status(403).json({ message: "You can only update your own learning tools" });
+      }
+      
+      const toolData = insertLearningToolSchema.partial().parse({
+        ...req.body,
+        updatedAt: new Date().toISOString(),
+      });
+
+      const updatedTool = await storage.updateLearningTool(id, toolData);
+      res.json(updatedTool);
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ message: fromZodError(error).message });
+      }
+      console.error("Error updating learning tool:", error);
+      res.status(500).json({ message: "Error updating learning tool" });
+    }
+  });
+
+  app.delete("/api/learning-tools/:id([0-9]+)", authenticateJWT, async (req: Request, res: Response) => {
+    try {
+      const userId = (req as any).user.id;
+      const id = parseInt(req.params.id);
+      
+      const success = await storage.deleteLearningTool(id, userId);
+      if (!success) {
+        return res.status(404).json({ message: "Learning tool not found or not authorized to delete" });
+      }
+      
+      res.status(204).end();
+    } catch (error) {
+      console.error("Error deleting learning tool:", error);
+      res.status(500).json({ message: "Error deleting learning tool" });
+    }
+  });
+
+  app.post("/api/learning-tools/:id([0-9]+)/upvote", authenticateJWT, async (req: Request, res: Response) => {
+    try {
+      const id = parseInt(req.params.id);
+      
+      // Check if tool exists
+      const tool = await storage.getLearningTool(id);
+      if (!tool) {
+        return res.status(404).json({ message: "Learning tool not found" });
+      }
+      
+      await storage.incrementLearningToolUpvotes(id);
+      
+      res.status(200).json({ message: "Learning tool upvoted successfully" });
+    } catch (error) {
+      console.error("Error upvoting learning tool:", error);
+      res.status(500).json({ message: "Error upvoting learning tool" });
+    }
+  });
+
+  app.get("/api/learning-tool-categories", async (req: Request, res: Response) => {
+    try {
+      const categories = await storage.getLearningToolCategories();
+      res.json(categories);
+    } catch (error) {
+      console.error("Error fetching learning tool categories:", error);
+      res.status(500).json({ message: "Error fetching learning tool categories" });
+    }
+  });
+
+  // Learning Tool Reviews API Routes
+  app.get("/api/learning-tools/:toolId([0-9]+)/reviews", async (req: Request, res: Response) => {
+    try {
+      const toolId = parseInt(req.params.toolId);
+      
+      // Check if tool exists
+      const tool = await storage.getLearningTool(toolId);
+      if (!tool) {
+        return res.status(404).json({ message: "Learning tool not found" });
+      }
+      
+      const reviews = await storage.getLearningToolReviewsByToolId(toolId);
+      res.json(reviews);
+    } catch (error) {
+      console.error("Error fetching learning tool reviews:", error);
+      res.status(500).json({ message: "Error fetching learning tool reviews" });
+    }
+  });
+
+  app.post("/api/learning-tools/:toolId([0-9]+)/reviews", authenticateJWT, async (req: Request, res: Response) => {
+    try {
+      const userId = (req as any).user.id;
+      const toolId = parseInt(req.params.toolId);
+      
+      // Check if tool exists
+      const tool = await storage.getLearningTool(toolId);
+      if (!tool) {
+        return res.status(404).json({ message: "Learning tool not found" });
+      }
+      
+      const reviewData = insertLearningToolReviewSchema.parse({
+        ...req.body,
+        userId,
+        toolId,
+        createdAt: new Date().toISOString(),
+      });
+
+      const newReview = await storage.createLearningToolReview(reviewData);
+      res.status(201).json(newReview);
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ message: fromZodError(error).message });
+      }
+      console.error("Error creating learning tool review:", error);
+      res.status(500).json({ message: "Error creating learning tool review" });
     }
   });
 
