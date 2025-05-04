@@ -21,6 +21,7 @@ import Footer from "@/components/Footer";
 import FloatingAIButton from "@/components/FloatingAIButton";
 import FloatingNoteButton from "@/components/notes/FloatingNoteButton";
 import RecommendationSidebar from "@/components/RecommendationSidebar";
+import TokenDebugger from "@/components/TokenDebugger";
 
 function Router() {
   const [location] = useLocation();
@@ -80,6 +81,7 @@ function App() {
             <Router />
             <FloatingAIButton />
             <FloatingNoteButton />
+            <TokenDebugger />
             <Toaster />
           </TooltipProvider>
         </AuthProvider>

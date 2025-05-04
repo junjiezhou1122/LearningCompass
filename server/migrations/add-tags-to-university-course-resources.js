@@ -1,5 +1,5 @@
 // Migration script to add tags array column to university_course_resources table
-import { db } from '../db.js';
+import { db } from '../db.ts';
 import { sql } from 'drizzle-orm';
 
 async function migrateTags() {

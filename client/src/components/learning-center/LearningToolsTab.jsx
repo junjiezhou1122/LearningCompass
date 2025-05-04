@@ -108,7 +108,7 @@ const LearningToolsTab = () => {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${localStorage.getItem('authToken')}`,
+          'Authorization': `Bearer ${localStorage.getItem('token')}`,
         },
         body: JSON.stringify(data),
       });
@@ -150,7 +150,7 @@ const LearningToolsTab = () => {
       const response = await fetch(`/api/learning-tools/${toolId}/upvote`, {
         method: 'POST',
         headers: {
-          'Authorization': `Bearer ${localStorage.getItem('authToken')}`,
+          'Authorization': `Bearer ${localStorage.getItem('token')}`,
         },
       });
       

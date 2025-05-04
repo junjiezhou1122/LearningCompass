@@ -179,7 +179,7 @@ const UniversityCoursesSection = ({ universityFilter, setUniversityFilter, deptF
     queryFn: async () => {
       const response = await fetch('/api/university-course-bookmarks', {
         headers: {
-          'Authorization': `Bearer ${localStorage.getItem('authToken')}`,
+          'Authorization': `Bearer ${localStorage.getItem('token')}`,
         },
       });
       if (!response.ok) {
@@ -212,7 +212,7 @@ const UniversityCoursesSection = ({ universityFilter, setUniversityFilter, deptF
         await fetch(`/api/university-course-bookmarks/${courseId}`, {
           method: 'DELETE',
           headers: {
-            'Authorization': `Bearer ${localStorage.getItem('authToken')}`,
+            'Authorization': `Bearer ${localStorage.getItem('token')}`,
           },
         });
       } else {
@@ -221,7 +221,7 @@ const UniversityCoursesSection = ({ universityFilter, setUniversityFilter, deptF
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
-            'Authorization': `Bearer ${localStorage.getItem('authToken')}`,
+            'Authorization': `Bearer ${localStorage.getItem('token')}`,
           },
           body: JSON.stringify({ universityCourseId: courseId }),
         });

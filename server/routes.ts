@@ -2955,8 +2955,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         description: description || null,
         resourceType: resourceType || 'link',
         tags: tags || [], // Include tags or empty array if not provided
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString()
+        updatedAt: new Date()
       });
       
       const resource = await storage.createUniversityCourseResource(resourceData);
