@@ -2635,11 +2635,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.post("/api/university-courses", authenticateJWT, async (req: Request, res: Response) => {
     try {
-      // Only admins can create university courses
+      // Any authenticated user can create university courses
       const user = (req as any).user;
-      if (!user.isAdmin) {
-        return res.status(403).json({ message: "Only admins can create university courses" });
-      }
 
       const courseData = insertUniversityCourseSchema.parse({
         ...req.body,
