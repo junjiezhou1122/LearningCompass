@@ -16,7 +16,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Pagination, PaginationContent, PaginationEllipsis, PaginationItem, PaginationLink, PaginationNext, PaginationPrevious } from '@/components/ui/pagination';
 import { BookOpen, School, ChevronRight, Search, BookmarkPlus, BookmarkCheck, Filter, Plus, ExternalLink } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
-import { queryClient, apiRequest } from '@/lib/queryClient';
+import { queryClient, apiRequest, throwIfResNotOk } from '@/lib/queryClient';
 
 const UniversityCoursesTab = () => {
   const { isAuthenticated } = useAuth();
@@ -33,9 +33,14 @@ const UniversityCoursesTab = () => {
   const { data: universities = [] } = useQuery({
     queryKey: ['universities'],
     queryFn: async () => {
-      const response = await fetch('/api/universities');
-      if (!response.ok) throw new Error('Failed to fetch universities');
-      return response.json();
+      try {
+        const response = await apiRequest('GET', '/api/universities');
+        await throwIfResNotOk(response);
+        return await response.json();
+      } catch (error) {
+        console.error('Error fetching universities:', error);
+        throw error;
+      }
     },
   });
   
@@ -43,14 +48,55 @@ const UniversityCoursesTab = () => {
   const { data: departments = [] } = useQuery({
     queryKey: ['course-departments', universityFilter],
     queryFn: async () => {
-      const url = universityFilter 
-        ? `/api/course-departments?university=${encodeURIComponent(universityFilter)}` 
-        : '/api/course-departments';
-      const response = await fetch(url);
-      if (!response.ok) throw new Error('Failed to fetch departments');
-      return response.json();
+      try {
+        const url = universityFilter 
+          ? `/api/course-departments?university=${encodeURIComponent(universityFilter)}` 
+          : '/api/course-departments';
+        const response = await apiRequest('GET', url);
+        await throwIfResNotOk(response);
+        return await response.json();
+      } catch (error) {
+        console.error('Error fetching departments:', error);
+        throw error;
+      }
     },
     enabled: true, // Always fetch departments
+  });
+  
+  // Fetch total count of university courses with the same filters for pagination
+  const { data: countData, isLoading: isLoadingCount } = useQuery({
+    queryKey: ['university-courses-count', universityFilter, deptFilter, searchQuery],
+    queryFn: async () => {
+      let url = `/api/university-courses/count`;
+      
+      const params = new URLSearchParams();
+      
+      if (universityFilter && universityFilter !== 'all') {
+        params.append('university', universityFilter);
+      }
+      
+      if (deptFilter && deptFilter !== 'all') {
+        params.append('courseDept', deptFilter);
+      }
+      
+      if (searchQuery) {
+        params.append('search', searchQuery);
+      }
+      
+      if (params.toString()) {
+        url += `?${params.toString()}`;
+      }
+      
+      try {
+        const response = await apiRequest('GET', url);
+        await throwIfResNotOk(response);
+        const data = await response.json();
+        return data.count;
+      } catch (error) {
+        console.error('Error fetching course count:', error);
+        throw error;
+      }
+    },
   });
   
   // Fetch university courses with filters and pagination
@@ -71,14 +117,16 @@ const UniversityCoursesTab = () => {
         url += `&search=${encodeURIComponent(searchQuery)}`;
       }
       
-      const response = await fetch(url);
-      if (!response.ok) throw new Error('Failed to fetch courses');
-      
-      const courses = await response.json();
-      return {
-        courses,
-        totalCount: courses.length >= limit ? -1 : courses.length // If we got exactly the limit, there might be more
-      };
+      try {
+        // Use the apiRequest which properly handles errors and response parsing
+        const response = await apiRequest('GET', url);
+        await throwIfResNotOk(response);
+        const courses = await response.json();
+        return courses;
+      } catch (error) {
+        console.error('Error fetching courses:', error);
+        throw error;
+      }
     },
   });
   
@@ -90,7 +138,8 @@ const UniversityCoursesTab = () => {
       
       try {
         const response = await apiRequest('GET', '/api/university-course-bookmarks');
-        return response.json();
+        await throwIfResNotOk(response);
+        return await response.json();
       } catch (error) {
         if (error.message.includes('401')) return []; // Not authenticated
         throw error;
@@ -102,8 +151,9 @@ const UniversityCoursesTab = () => {
   // Create a set of bookmarked course IDs for quick lookup
   const bookmarkedCourseIds = new Set(bookmarks.map(course => course.id));
   
-  const courses = coursesData?.courses || [];
-  const totalPages = Math.ceil((coursesData?.totalCount || 0) / limit);
+  const courses = coursesData || [];
+  const totalCount = countData || 0;
+  const totalPages = Math.ceil(totalCount / limit);
   
   // Form schema for adding a new university course
   const formSchema = z.object({
@@ -136,7 +186,9 @@ const UniversityCoursesTab = () => {
   const addCourseMutation = useMutation({
     mutationFn: async (data) => {
       const response = await apiRequest('POST', '/api/university-courses', data);
-      return response.json();
+      await throwIfResNotOk(response);
+      const responseData = await response.json();
+      return responseData;
     },
     onSuccess: () => {
       // Reset form and close dialog
@@ -150,8 +202,9 @@ const UniversityCoursesTab = () => {
         variant: "default",
       });
       
-      // Invalidate query to refresh the list
+      // Invalidate queries to refresh the list and count
       queryClient.invalidateQueries({ queryKey: ['university-courses'] });
+      queryClient.invalidateQueries({ queryKey: ['university-courses-count'] });
     },
     onError: (error) => {
       toast({
@@ -193,10 +246,12 @@ const UniversityCoursesTab = () => {
     try {
       if (isBookmarked) {
         // Remove bookmark
-        await apiRequest('DELETE', `/api/university-course-bookmarks/${courseId}`);
+        const response = await apiRequest('DELETE', `/api/university-course-bookmarks/${courseId}`);
+        await throwIfResNotOk(response);
       } else {
         // Add bookmark
-        await apiRequest('POST', '/api/university-course-bookmarks', { universityCourseId: courseId });
+        const response = await apiRequest('POST', '/api/university-course-bookmarks', { universityCourseId: courseId });
+        await throwIfResNotOk(response);
       }
       
       // Invalidate bookmarks query to refetch
@@ -391,7 +446,11 @@ const UniversityCoursesTab = () => {
           </div>
           
           {/* Pagination */}
-          {totalPages > 1 && (
+          {(isLoadingCount && courses.length > 0) ? (
+            <div className="flex justify-center mt-8">
+              <div className="animate-spin h-6 w-6 border-4 border-orange-500 border-t-transparent rounded-full"></div>
+            </div>
+          ) : totalPages > 1 && (
             <Pagination className="mt-8">
               <PaginationContent>
                 <PaginationItem>

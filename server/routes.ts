@@ -20,6 +20,7 @@ import {
   // Learning Center schemas
   insertUniversityCourseSchema, insertUniversityCourseBookmarkSchema,
   insertUniversityCourseCommentSchema, insertUniversityCourseResourceSchema, insertUniversityCourseCollaborationSchema,
+  insertUniversityCourseLinkSchema,
   insertLearningMethodSchema, insertLearningMethodReviewSchema,
   insertLearningToolSchema, insertLearningToolReviewSchema,
   // Chat message schema
@@ -2704,6 +2705,23 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.status(500).json({ message: "Error fetching university courses" });
     }
   });
+  
+  // Get count of university courses with the same filters
+  app.get("/api/university-courses/count", async (req: Request, res: Response) => {
+    try {
+      const options = {
+        university: req.query.university as string | undefined,
+        courseDept: req.query.courseDept as string | undefined,
+        search: req.query.search as string | undefined,
+      };
+
+      const count = await storage.getUniversityCoursesCount(options);
+      res.json({ count });
+    } catch (error) {
+      console.error("Error fetching university courses count:", error);
+      res.status(500).json({ message: "Error fetching university courses count" });
+    }
+  });
 
   // University Course Bookmarks API Routes
   app.get("/api/university-course-bookmarks", authenticateJWT, async (req: Request, res: Response) => {
@@ -3010,6 +3028,111 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Error deleting university course resource:", error);
       res.status(500).json({ message: "Error deleting university course resource" });
+    }
+  });
+  
+  // University Course Links API Routes
+  app.get("/api/university-courses/:courseId/links", async (req: Request, res: Response) => {
+    try {
+      const courseId = parseInt(req.params.courseId);
+      
+      // Check if the course exists
+      const course = await storage.getUniversityCourse(courseId);
+      if (!course) {
+        return res.status(404).json({ message: "University course not found" });
+      }
+      
+      const links = await storage.getUniversityCourseLinksByCourseId(courseId);
+      res.json(links);
+    } catch (error) {
+      console.error("Error fetching university course links:", error);
+      res.status(500).json({ message: "Error fetching university course links" });
+    }
+  });
+  
+  app.post("/api/university-courses/:courseId/links", authenticateJWT, async (req: Request, res: Response) => {
+    try {
+      const userId = (req as any).user.id;
+      const courseId = parseInt(req.params.courseId);
+      const { title, url, description, provider } = req.body;
+      
+      if (!title || !url) {
+        return res.status(400).json({ message: "Title and URL are required" });
+      }
+      
+      // Check if the course exists
+      const course = await storage.getUniversityCourse(courseId);
+      if (!course) {
+        return res.status(404).json({ message: "University course not found" });
+      }
+      
+      const linkData = insertUniversityCourseLinkSchema.parse({
+        courseId,
+        title,
+        url,
+        description: description || null,
+        provider: provider || null,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString()
+      });
+      
+      const link = await storage.createUniversityCourseLink(linkData);
+      res.status(201).json(link);
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ message: fromZodError(error).message });
+      }
+      console.error("Error creating university course link:", error);
+      res.status(500).json({ message: "Error creating university course link" });
+    }
+  });
+  
+  app.put("/api/university-course-links/:id", authenticateJWT, async (req: Request, res: Response) => {
+    try {
+      const linkId = parseInt(req.params.id);
+      const { title, url, description, provider } = req.body;
+      
+      // Check if the link exists
+      const link = await storage.getUniversityCourseLink(linkId);
+      if (!link) {
+        return res.status(404).json({ message: "Link not found" });
+      }
+      
+      // Create update data
+      const updateData: Partial<InsertUniversityCourseLink> = {};
+      if (title !== undefined) updateData.title = title;
+      if (url !== undefined) updateData.url = url;
+      if (description !== undefined) updateData.description = description;
+      if (provider !== undefined) updateData.provider = provider;
+      
+      // Update the link
+      const updatedLink = await storage.updateUniversityCourseLink(linkId, updateData);
+      res.json(updatedLink);
+    } catch (error) {
+      console.error("Error updating university course link:", error);
+      res.status(500).json({ message: "Error updating university course link" });
+    }
+  });
+  
+  app.delete("/api/university-course-links/:id", authenticateJWT, async (req: Request, res: Response) => {
+    try {
+      const linkId = parseInt(req.params.id);
+      
+      // Check if the link exists
+      const link = await storage.getUniversityCourseLink(linkId);
+      if (!link) {
+        return res.status(404).json({ message: "Link not found" });
+      }
+      
+      const success = await storage.deleteUniversityCourseLink(linkId);
+      if (!success) {
+        return res.status(500).json({ message: "Failed to delete link" });
+      }
+      
+      res.status(204).end();
+    } catch (error) {
+      console.error("Error deleting university course link:", error);
+      res.status(500).json({ message: "Error deleting university course link" });
     }
   });
   

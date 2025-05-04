@@ -776,7 +776,19 @@ export const universityCourses = pgTable("university_courses", {
   professors: text("professors"),
   recentSemesters: text("recent_semesters"),
   credits: text("credits"),
-  url: text("url"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at"),
+});
+
+// University Course Links schema - Multiple links per course
+export const universityCourseLinks = pgTable("university_course_links", {
+  id: serial("id").primaryKey(),
+  courseId: integer("course_id")
+    .notNull()
+    .references(() => universityCourses.id),
+  url: text("url").notNull(),
+  title: text("title"), // Optional title for the link
+  description: text("description"), // Optional description for the link
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at"),
 });
@@ -790,7 +802,14 @@ export const insertUniversityCourseSchema = createInsertSchema(universityCourses
   professors: true,
   recentSemesters: true,
   credits: true,
+  updatedAt: true,
+});
+
+export const insertUniversityCourseLinkSchema = createInsertSchema(universityCourseLinks).pick({
+  courseId: true,
   url: true,
+  title: true,
+  description: true,
   updatedAt: true,
 });
 
@@ -963,6 +982,15 @@ export const chatMessagesRelations = relations(chatMessages, ({ one }) => ({
 // University Courses Relations
 export const universityCoursesRelations = relations(universityCourses, ({ many }) => ({
   bookmarks: many(universityCourseBookmarks),
+  links: many(universityCourseLinks),
+}));
+
+// University Course Links Relations
+export const universityCourseLinksRelations = relations(universityCourseLinks, ({ one }) => ({
+  course: one(universityCourses, {
+    fields: [universityCourseLinks.courseId],
+    references: [universityCourses.id],
+  }),
 }));
 
 export const universityCourseBookmarksRelations = relations(universityCourseBookmarks, ({ one }) => ({
@@ -1144,12 +1172,13 @@ export const universityCourseCollaborationsRelations = relations(universityCours
   }),
 }));
 
-// Update university courses relations to include comments, resources, and collaborations
+// Update university courses relations to include comments, resources, collaborations, and links
 export const universityCoursesRelationsExtended = relations(universityCourses, ({ many }) => ({
   bookmarks: many(universityCourseBookmarks),
   comments: many(universityCourseComments),
   resources: many(universityCourseResources),
   collaborations: many(universityCourseCollaborations),
+  links: many(universityCourseLinks),
 }));
 
 // Type definitions for university courses and learning center
@@ -1179,3 +1208,6 @@ export type InsertLearningTool = typeof learningTools.$inferInsert;
 
 export type LearningToolReview = typeof learningToolReviews.$inferSelect;
 export type InsertLearningToolReview = typeof learningToolReviews.$inferInsert;
+
+export type UniversityCourseLink = typeof universityCourseLinks.$inferSelect;
+export type InsertUniversityCourseLink = typeof universityCourseLinks.$inferInsert;

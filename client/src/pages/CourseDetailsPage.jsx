@@ -31,11 +31,14 @@ import {
   ExternalLink, 
   Github, 
   Globe, 
+  Link as LinkIcon,
   MessageSquare, 
   Plus, 
   School, 
   Share, 
   ThumbsUp, 
+  Trash,
+  Edit,
   User, 
   Users 
 } from 'lucide-react';
@@ -53,6 +56,8 @@ const CourseDetailsPage = () => {
   const queryClient = useQueryClient();
   const [activeTab, setActiveTab] = useState('details');
   const [showResourceDialog, setShowResourceDialog] = useState(false);
+  const [showEditCourseDialog, setShowEditCourseDialog] = useState(false);
+  const [showAddLinkDialog, setShowAddLinkDialog] = useState(false);
 
   // Fetch course details
   const { data: course, isLoading: isLoadingCourse } = useQuery({
@@ -102,6 +107,18 @@ const CourseDetailsPage = () => {
     },
   });
 
+  // Fetch course links
+  const { data: courseLinks = [], isLoading: isLoadingLinks } = useQuery({
+    queryKey: ['course-links', id],
+    queryFn: async () => {
+      const response = await fetch(`/api/university-courses/${id}/links`);
+      if (!response.ok) {
+        return [];
+      }
+      return response.json();
+    },
+  });
+
   // Comment form validation schema
   const commentFormSchema = z.object({
     content: z.string().min(1, 'Comment cannot be empty').max(500, 'Comment is too long'),
@@ -120,6 +137,25 @@ const CourseDetailsPage = () => {
     message: z.string().min(1, 'Message is required').max(500, 'Message is too long'),
     contactMethod: z.string().min(1, 'Contact method is required'),
     contactDetails: z.string().min(1, 'Contact details are required'),
+  });
+
+  // Course edit form validation schema
+  const courseEditFormSchema = z.object({
+    university: z.string().min(1, 'University is required'),
+    courseDept: z.string().min(1, 'Department is required'),
+    courseNumber: z.string().min(1, 'Course number is required'),
+    courseTitle: z.string().min(1, 'Course title is required'),
+    description: z.string().min(1, 'Description is required'),
+    professors: z.string().optional(),
+    recentSemesters: z.string().optional(),
+    url: z.string().url('Please enter a valid URL').optional().or(z.literal('')),
+  });
+
+  // Course link form validation schema
+  const courseLinkFormSchema = z.object({
+    title: z.string().min(1, 'Title is required'),
+    url: z.string().url('Please enter a valid URL'),
+    description: z.string().optional(),
   });
 
   // Comment form
@@ -148,6 +184,47 @@ const CourseDetailsPage = () => {
       message: '',
       contactMethod: '',
       contactDetails: '',
+    },
+  });
+
+  // Course edit form
+  const courseEditForm = useForm({
+    resolver: zodResolver(courseEditFormSchema),
+    defaultValues: {
+      university: '',
+      courseDept: '',
+      courseNumber: '',
+      courseTitle: '',
+      description: '',
+      professors: '',
+      recentSemesters: '',
+      url: '',
+    },
+  });
+  
+  // Reset form values when course data changes
+  useEffect(() => {
+    if (course) {
+      courseEditForm.reset({
+        university: course.university || '',
+        courseDept: course.courseDept || '',
+        courseNumber: course.courseNumber || '',
+        courseTitle: course.courseTitle || '',
+        description: course.description || '',
+        professors: course.professors || '',
+        recentSemesters: course.recentSemesters || '',
+        url: course.url || '',
+      });
+    }
+  }, [course, courseEditForm]);
+
+  // Course link form
+  const courseLinkForm = useForm({
+    resolver: zodResolver(courseLinkFormSchema),
+    defaultValues: {
+      title: '',
+      url: '',
+      description: '',
     },
   });
 
@@ -219,6 +296,109 @@ const CourseDetailsPage = () => {
       toast({
         title: 'Error',
         description: error.message || 'Failed to add resource',
+        variant: 'destructive',
+      });
+    },
+  });
+
+  // Update course mutation
+  const updateCourseMutation = useMutation({
+    mutationFn: async (data) => {
+      const response = await fetch(`/api/university-courses/${id}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${localStorage.getItem('authToken')}`,
+        },
+        body: JSON.stringify(data),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || 'Failed to update course');
+      }
+
+      return response.json();
+    },
+    onSuccess: () => {
+      setShowEditCourseDialog(false);
+      queryClient.invalidateQueries({ queryKey: ['university-course', id] });
+      toast({
+        title: 'Course Updated',
+        description: 'Course information has been updated successfully.',
+      });
+    },
+    onError: (error) => {
+      toast({
+        title: 'Error',
+        description: error.message || 'Failed to update course',
+        variant: 'destructive',
+      });
+    },
+  });
+
+  // Add course link mutation
+  const addCourseLinkMutation = useMutation({
+    mutationFn: async (data) => {
+      const response = await fetch(`/api/university-courses/${id}/links`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${localStorage.getItem('authToken')}`,
+        },
+        body: JSON.stringify(data),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || 'Failed to add link');
+      }
+
+      return response.json();
+    },
+    onSuccess: () => {
+      courseLinkForm.reset();
+      setShowAddLinkDialog(false);
+      queryClient.invalidateQueries({ queryKey: ['course-links', id] });
+      toast({
+        title: 'Link Added',
+        description: 'Course link has been added successfully.',
+      });
+    },
+    onError: (error) => {
+      toast({
+        title: 'Error',
+        description: error.message || 'Failed to add link',
+        variant: 'destructive',
+      });
+    },
+  });
+
+  // Delete course link mutation
+  const deleteCourseLinkMutation = useMutation({
+    mutationFn: async (linkId) => {
+      const response = await fetch(`/api/university-course-links/${linkId}`, {
+        method: 'DELETE',
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('authToken')}`,
+        },
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to delete link');
+      }
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['course-links', id] });
+      toast({
+        title: 'Link Deleted',
+        description: 'Course link has been deleted successfully.',
+      });
+    },
+    onError: (error) => {
+      toast({
+        title: 'Error',
+        description: error.message || 'Failed to delete link',
         variant: 'destructive',
       });
     },
@@ -302,6 +482,50 @@ const CourseDetailsPage = () => {
     addCollaborationMutation.mutate(data);
   };
 
+  // Handle course edit submission
+  const onCourseEditSubmit = (data) => {
+    if (!isAuthenticated) {
+      toast({
+        title: 'Authentication Required',
+        description: 'Please log in to edit course information',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    updateCourseMutation.mutate(data);
+  };
+
+  // Handle link submission
+  const onLinkSubmit = (data) => {
+    if (!isAuthenticated) {
+      toast({
+        title: 'Authentication Required',
+        description: 'Please log in to add a link',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    addCourseLinkMutation.mutate(data);
+  };
+  
+  // Handle link deletion
+  const onLinkDelete = (linkId) => {
+    if (!isAuthenticated) {
+      toast({
+        title: 'Authentication Required',
+        description: 'Please log in to delete links',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    if (window.confirm('Are you sure you want to delete this link?')) {
+      deleteCourseLinkMutation.mutate(linkId);
+    }
+  };
+
   if (isLoadingCourse) {
     return (
       <div className="container max-w-5xl py-12">
@@ -362,8 +586,18 @@ const CourseDetailsPage = () => {
             <p className="text-gray-600 max-w-3xl">{course.description}</p>
           </div>
 
-          {course.url && (
-            <div className="flex-shrink-0">
+          <div className="flex-shrink-0 flex flex-col sm:flex-row gap-2">
+            {isAuthenticated && (
+              <Button
+                variant="outline"
+                className="border-orange-300 text-orange-600 hover:bg-orange-50 flex items-center gap-2"
+                onClick={() => setShowEditCourseDialog(true)}
+              >
+                <Edit className="h-4 w-4" />
+                Edit Course
+              </Button>
+            )}
+            {course.url && (
               <Button 
                 className="bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 flex items-center gap-2"
                 onClick={() => window.open(course.url, '_blank', 'noopener,noreferrer')}
@@ -371,8 +605,8 @@ const CourseDetailsPage = () => {
                 <ExternalLink className="h-4 w-4" />
                 Visit Official Page
               </Button>
-            </div>
-          )}
+            )}
+          </div>
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-6">
@@ -524,7 +758,7 @@ const CourseDetailsPage = () => {
             </div>
 
             <div className="md:col-span-1">
-              <Card className="border-orange-100">
+              <Card className="border-orange-100 mb-6">
                 <CardHeader className="pb-3">
                   <CardTitle className="text-lg text-orange-700">About This Course</CardTitle>
                 </CardHeader>
@@ -565,17 +799,105 @@ const CourseDetailsPage = () => {
                       </div>
                     )}
 
-                    <div className="pt-2">
-                      <Button 
-                        variant="outline" 
-                        className="w-full border-orange-200 text-orange-700 hover:bg-orange-50 hover:text-orange-800"
-                        onClick={() => window.open(course.url, '_blank', 'noopener,noreferrer')}
-                      >
-                        <ExternalLink className="mr-2 h-4 w-4" />
-                        Visit Official Page
-                      </Button>
-                    </div>
+                    {course.url && (
+                      <div className="pt-2">
+                        <Button 
+                          variant="outline" 
+                          className="w-full border-orange-200 text-orange-700 hover:bg-orange-50 hover:text-orange-800"
+                          onClick={() => window.open(course.url, '_blank', 'noopener,noreferrer')}
+                        >
+                          <ExternalLink className="mr-2 h-4 w-4" />
+                          Visit Official Page
+                        </Button>
+                      </div>
+                    )}
                   </div>
+                </CardContent>
+              </Card>
+
+              {/* Course Links Section */}
+              <Card className="border-orange-100">
+                <CardHeader className="pb-3">
+                  <div className="flex justify-between items-center">
+                    <CardTitle className="text-lg text-orange-700">Course Links</CardTitle>
+                    {isAuthenticated && (
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="h-8 px-2 text-orange-600 hover:bg-orange-50"
+                        onClick={() => setShowAddLinkDialog(true)}
+                      >
+                        <Plus className="h-4 w-4 mr-1" />
+                        Add Link
+                      </Button>
+                    )}
+                  </div>
+                  <CardDescription>
+                    Useful links related to this course
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  {isLoadingLinks ? (
+                    <div className="flex justify-center items-center h-20 text-orange-500">
+                      <div className="animate-spin h-5 w-5 border-3 border-current border-t-transparent rounded-full"></div>
+                    </div>
+                  ) : courseLinks.length === 0 ? (
+                    <div className="text-center py-6 text-gray-500">
+                      <LinkIcon className="mx-auto h-8 w-8 text-orange-200 mb-2" />
+                      <p className="text-sm">No links added yet</p>
+                      {isAuthenticated && (
+                        <Button
+                          variant="link"
+                          className="text-orange-600 mt-1 text-sm p-0 h-auto"
+                          onClick={() => setShowAddLinkDialog(true)}
+                        >
+                          Add the first link
+                        </Button>
+                      )}
+                    </div>
+                  ) : (
+                    <div className="space-y-3">
+                      {courseLinks.map((link) => (
+                        <div key={link.id} className="group p-3 rounded-md hover:bg-orange-50 transition-colors relative border border-orange-100">
+                          <div className="flex justify-between items-start">
+                            <div>
+                              <a 
+                                href={link.url} 
+                                target="_blank" 
+                                rel="noopener noreferrer"
+                                className="text-orange-700 hover:text-orange-900 font-medium text-sm flex items-center gap-1"
+                              >
+                                <LinkIcon className="h-3.5 w-3.5" />
+                                {link.title}
+                              </a>
+                              {link.description && (
+                                <p className="text-gray-600 text-xs mt-1">{link.description}</p>
+                              )}
+                            </div>
+                            {isAuthenticated && (
+                              <Button
+                                variant="ghost" 
+                                size="icon"
+                                className="h-7 w-7 rounded-full opacity-0 group-hover:opacity-100 transition-opacity text-gray-500 hover:text-red-500 hover:bg-red-50 absolute top-2 right-2"
+                                onClick={() => onLinkDelete(link.id)}
+                              >
+                                <Trash className="h-3.5 w-3.5" />
+                              </Button>
+                            )}
+                          </div>
+                          <div className="text-xs text-gray-400 mt-2 flex items-center gap-2">
+                            <span>Added {new Date(link.createdAt).toLocaleDateString()}</span>
+                            {link.userId && link.username && (
+                              <>
+                                <span>•</span>
+                                <span>by {link.username}</span>
+                              </>
+                            )}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
                 </CardContent>
               </Card>
             </div>
@@ -1006,6 +1328,251 @@ const CourseDetailsPage = () => {
           </div>
         </TabsContent>
       </Tabs>
+
+      {/* Edit Course Dialog */}
+      <Dialog open={showEditCourseDialog} onOpenChange={setShowEditCourseDialog}>
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle className="text-xl text-orange-700">Edit Course Information</DialogTitle>
+            <DialogDescription>
+              Update details about this university course
+            </DialogDescription>
+          </DialogHeader>
+
+          <Form {...courseEditForm}>
+            <form onSubmit={courseEditForm.handleSubmit(onCourseEditSubmit)} className="space-y-6">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <FormField
+                  control={courseEditForm.control}
+                  name="university"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>University</FormLabel>
+                      <FormControl>
+                        <Input placeholder="e.g., Stanford University" {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                <FormField
+                  control={courseEditForm.control}
+                  name="courseDept"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Department</FormLabel>
+                      <FormControl>
+                        <Input placeholder="e.g., Computer Science" {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <FormField
+                  control={courseEditForm.control}
+                  name="courseNumber"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Course Number</FormLabel>
+                      <FormControl>
+                        <Input placeholder="e.g., CS101" {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                <FormField
+                  control={courseEditForm.control}
+                  name="courseTitle"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Course Title</FormLabel>
+                      <FormControl>
+                        <Input placeholder="e.g., Introduction to Computer Science" {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              </div>
+
+              <FormField
+                control={courseEditForm.control}
+                name="description"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Description</FormLabel>
+                    <FormControl>
+                      <Textarea 
+                        placeholder="Course description..."
+                        className="resize-none min-h-[100px]"
+                        {...field} 
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={courseEditForm.control}
+                name="professors"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Professors (Optional)</FormLabel>
+                    <FormControl>
+                      <Input placeholder="e.g., John Doe, Jane Smith" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={courseEditForm.control}
+                name="recentSemesters"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Recent Semesters (Optional)</FormLabel>
+                    <FormControl>
+                      <Input placeholder="e.g., Fall 2023, Spring 2024" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={courseEditForm.control}
+                name="url"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Official Course URL (Optional)</FormLabel>
+                    <FormControl>
+                      <Input placeholder="https://" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <DialogFooter>
+                <Button 
+                  type="button" 
+                  variant="outline" 
+                  onClick={() => setShowEditCourseDialog(false)}
+                >
+                  Cancel
+                </Button>
+                <Button 
+                  type="submit" 
+                  className="bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600"
+                  disabled={updateCourseMutation.isPending}
+                >
+                  {updateCourseMutation.isPending ? (
+                    <>
+                      <span className="animate-spin mr-2">⟳</span> Saving...
+                    </>
+                  ) : (
+                    <>Save Changes</>
+                  )}
+                </Button>
+              </DialogFooter>
+            </form>
+          </Form>
+        </DialogContent>
+      </Dialog>
+
+      {/* Add Link Dialog */}
+      <Dialog open={showAddLinkDialog} onOpenChange={setShowAddLinkDialog}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="text-xl text-orange-700">Add Course Link</DialogTitle>
+            <DialogDescription>
+              Share a useful link related to this course
+            </DialogDescription>
+          </DialogHeader>
+
+          <Form {...courseLinkForm}>
+            <form onSubmit={courseLinkForm.handleSubmit(onLinkSubmit)} className="space-y-4">
+              <FormField
+                control={courseLinkForm.control}
+                name="title"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Link Title</FormLabel>
+                    <FormControl>
+                      <Input placeholder="e.g., Course Website, Lecture Notes" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={courseLinkForm.control}
+                name="url"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>URL</FormLabel>
+                    <FormControl>
+                      <Input placeholder="https://" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={courseLinkForm.control}
+                name="description"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Description (Optional)</FormLabel>
+                    <FormControl>
+                      <Textarea 
+                        placeholder="Brief description of this link..."
+                        className="resize-none min-h-[80px]"
+                        {...field} 
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <DialogFooter>
+                <Button 
+                  type="button" 
+                  variant="outline" 
+                  onClick={() => setShowAddLinkDialog(false)}
+                >
+                  Cancel
+                </Button>
+                <Button 
+                  type="submit" 
+                  className="bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600"
+                  disabled={addCourseLinkMutation.isPending}
+                >
+                  {addCourseLinkMutation.isPending ? (
+                    <>
+                      <span className="animate-spin mr-2">⟳</span> Adding...
+                    </>
+                  ) : (
+                    <>Add Link</>
+                  )}
+                </Button>
+              </DialogFooter>
+            </form>
+          </Form>
+        </DialogContent>
+      </Dialog>
+      
     </div>
   );
 };

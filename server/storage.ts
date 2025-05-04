@@ -23,13 +23,14 @@ import {
   // Chat messages schemas and types
   chatMessages, ChatMessage, InsertChatMessage,
   // Learning Center - University Courses
-  universityCourses, universityCourseBookmarks,
+  universityCourses, universityCourseBookmarks, universityCourseLinks,
   universityCourseComments, universityCourseResources, universityCourseCollaborations,
   UniversityCourse, InsertUniversityCourse,
   UniversityCourseBookmark, InsertUniversityCourseBookmark,
   UniversityCourseComment, InsertUniversityCourseComment,
   UniversityCourseResource, InsertUniversityCourseResource,
   UniversityCourseCollaboration, InsertUniversityCourseCollaboration,
+  UniversityCourseLink, InsertUniversityCourseLink,
   // Learning Center - Learning Methods and Tools
   learningMethods, learningMethodReviews,
   LearningMethod, InsertLearningMethod,
@@ -235,6 +236,13 @@ export interface IStorage {
   getUniversityCourseBookmarksByUserId(userId: number): Promise<UniversityCourseBookmark[]>;
   createUniversityCourseBookmark(bookmark: InsertUniversityCourseBookmark): Promise<UniversityCourseBookmark>;
   deleteUniversityCourseBookmark(userId: number, courseId: number): Promise<boolean>;
+
+  // University Course Links operations
+  getUniversityCourseLink(id: number): Promise<UniversityCourseLink | undefined>;
+  getUniversityCourseLinksByCourseId(courseId: number): Promise<UniversityCourseLink[]>;
+  createUniversityCourseLink(link: InsertUniversityCourseLink): Promise<UniversityCourseLink>;
+  updateUniversityCourseLink(id: number, link: Partial<InsertUniversityCourseLink>): Promise<UniversityCourseLink | undefined>;
+  deleteUniversityCourseLink(id: number): Promise<boolean>;
 
   // University Course Comments operations
   getUniversityCourseComment(id: number): Promise<UniversityCourseComment | undefined>;
@@ -1862,6 +1870,44 @@ export class DatabaseStorage implements IStorage {
     
     return await query;
   }
+  
+  async getUniversityCoursesCount(options?: {
+    university?: string;
+    courseDept?: string;
+    search?: string;
+  }): Promise<number> {
+    let query = db.select({ count: sql`count(*)` }).from(universityCourses);
+    
+    // Apply the same filters as getUniversityCourses
+    const whereConditions = [];
+    
+    if (options?.university) {
+      whereConditions.push(eq(universityCourses.university, options.university));
+    }
+    
+    if (options?.courseDept) {
+      whereConditions.push(eq(universityCourses.courseDept, options.courseDept));
+    }
+    
+    if (options?.search) {
+      whereConditions.push(
+        or(
+          like(universityCourses.courseTitle, `%${options.search}%`),
+          like(universityCourses.description || '', `%${options.search}%`),
+          like(universityCourses.courseDept, `%${options.search}%`),
+          like(universityCourses.courseNumber, `%${options.search}%`)
+        )
+      );
+    }
+    
+    if (whereConditions.length > 0) {
+      query = query.where(and(...whereConditions));
+    }
+    
+    const result = await query;
+    
+    return result[0].count as number;
+  }
 
   async getUniversityCourseByDeptAndNumber(university: string, courseDept: string, courseNumber: string): Promise<UniversityCourse | undefined> {
     const [course] = await db.select().from(universityCourses).where(
@@ -1932,6 +1978,41 @@ export class DatabaseStorage implements IStorage {
         eq(universityCourseBookmarks.universityCourseId, courseId)
       )
     );
+    return result.rowCount > 0;
+  }
+
+  // University Course Links Implementation
+  async getUniversityCourseLink(id: number): Promise<UniversityCourseLink | undefined> {
+    const [link] = await db.select().from(universityCourseLinks).where(eq(universityCourseLinks.id, id));
+    return link || undefined;
+  }
+
+  async getUniversityCourseLinksByCourseId(courseId: number): Promise<UniversityCourseLink[]> {
+    return await db.select()
+      .from(universityCourseLinks)
+      .where(eq(universityCourseLinks.courseId, courseId))
+      .orderBy(asc(universityCourseLinks.title));
+  }
+
+  async createUniversityCourseLink(link: InsertUniversityCourseLink): Promise<UniversityCourseLink> {
+    const [result] = await db.insert(universityCourseLinks).values(link).returning();
+    return result;
+  }
+
+  async updateUniversityCourseLink(id: number, link: Partial<InsertUniversityCourseLink>): Promise<UniversityCourseLink | undefined> {
+    const updatedFields = {
+      ...link,
+      updatedAt: new Date()
+    };
+    const [result] = await db.update(universityCourseLinks)
+      .set(updatedFields)
+      .where(eq(universityCourseLinks.id, id))
+      .returning();
+    return result || undefined;
+  }
+
+  async deleteUniversityCourseLink(id: number): Promise<boolean> {
+    const result = await db.delete(universityCourseLinks).where(eq(universityCourseLinks.id, id));
     return result.rowCount > 0;
   }
 
