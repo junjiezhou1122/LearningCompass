@@ -42,6 +42,20 @@ export default function ChatPage() {
   const scrollAreaRef = useRef(null);
   const previousMessagesLength = useRef(0); // Track previous message count to control auto-scrolling
 
+  // Handle user online status update
+  const handleUserOnline = (userId) => {
+    setOnlineUsers(prev => new Set(prev).add(parseInt(userId)));
+  };
+
+  // Handle user offline status update
+  const handleUserOffline = (userId) => {
+    setOnlineUsers(prev => {
+      const newSet = new Set(prev);
+      newSet.delete(parseInt(userId));
+      return newSet;
+    });
+  };
+
   // Query to fetch user's chat partners
   const { data: chatPartners, isLoading: isLoadingPartners } = useQuery({
     queryKey: ['chat-partners'],
@@ -58,7 +72,7 @@ export default function ChatPage() {
     enabled: isAuthenticated,
   });
 
-  // Use our new robust WebSocket connection with better stability
+  // Use our robust WebSocket connection with better stability
   const { sendMessage } = RobustChatConnection({
     isAuthenticated,
     user,
@@ -83,6 +97,17 @@ export default function ChatPage() {
       setContacts(chatPartners);
     }
   }, [chatPartners]);
+
+  // Add diagnostic logging for debugging
+  useEffect(() => {
+    console.log('ChatPage mounted');
+    console.log('Authentication status:', isAuthenticated);
+    console.log('User token available:', !!token);
+    console.log('WebSocket connection status:', isConnectionOpen);
+    return () => {
+      console.log('ChatPage unmounted');
+    };
+  }, [isAuthenticated, token, isConnectionOpen]);
 
   // Auto-scroll to bottom only when necessary, not on every message or history load
   useEffect(() => {
@@ -313,153 +338,114 @@ export default function ChatPage() {
         } else {
           console.log('Initial message load, setting messages directly');
           // For initial load, just set the messages
-          // When we get chat history, we want to prevent auto-scrolling that happens in the useEffect
-          // Setting previousMessagesLength to a non-zero value prevents unwanted auto-scrolling
-          previousMessagesLength.current = sortedMessages.length;
-          
-          // We're seeing only the most recent messages (up to MESSAGES_PER_PAGE)
           setMessages(sortedMessages);
+          setIsLoadingOlderMessages(false);
           
-          // Only scroll to bottom automatically if this is the first load of history
+          // Auto-scroll to bottom on initial load after a short delay
+          // to allow the DOM to update
           setTimeout(() => {
             messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
           }, 100);
         }
       }
+    } else {
+      // Ensure loading state is cleared if there's an error
+      setIsLoadingOlderMessages(false);
+      console.error('Invalid chat history format:', data);
     }
   };
   
-  // Handle scroll events to detect scrolling near the top
-  const handleScroll = useCallback((e) => {
-    if (!scrollAreaRef.current) return;
-    
-    // Show scroll to bottom button when not at the bottom
-    const scrollContainer = scrollAreaRef.current.querySelector('[data-radix-scroll-area-viewport]');
-    if (scrollContainer) {
-      const { scrollTop, scrollHeight, clientHeight } = scrollContainer;
-      const distanceFromBottom = scrollHeight - scrollTop - clientHeight;
-      
-      // If we're more than 200px from the bottom, show the scroll-to-bottom button
-      setShowScrollToBottom(distanceFromBottom > 200);
-      
-      // If we're near the top (first 50px) and have more messages, load them
-      if (scrollTop < 50 && hasMoreMessages && !isLoadingOlderMessages) {
-        loadOlderMessages();
-      }
-    }
-  }, [hasMoreMessages, isLoadingOlderMessages]);
-  
-  // Function to scroll to the bottom of the messages
-  const scrollToBottom = useCallback(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, []);
-  
-  // Load older messages when scrolling to the top
-  const loadOlderMessages = useCallback(() => {
+  // Handle loading older messages
+  const handleLoadOlderMessages = useCallback(() => {
     if (isLoadingOlderMessages || !hasMoreMessages || !activeChat) return;
     
+    // Set loading state
     setIsLoadingOlderMessages(true);
-    console.log('Loading older messages for chat with', activeChat.id);
     
-    // Use our robust connection to request older messages
-    const wasQueued = sendMessage({
-      type: 'get_chat_history',
-      data: {
-        userId: activeChat.id,
-        offset: messages.length,
-        limit: MESSAGES_PER_PAGE
-      }
-    });
-    
-    // If the message was queued (connection is down), let the user know
-    if (wasQueued === false) {
-      // We don't reset loading state here because the message will be sent
-      // when connection is restored
+    // Request older messages using the current first message's ID as a reference
+    if (messages.length > 0 && sendMessage) {
+      const oldestMessage = messages[0];
+      const offset = messages.length;
+      
+      sendMessage({
+        type: 'get_older_messages',
+        data: {
+          userId: activeChat.id,
+          beforeId: oldestMessage.id,
+          offset,
+          limit: MESSAGES_PER_PAGE
+        }
+      });
+    } else {
+      setIsLoadingOlderMessages(false);
       toast({
-        title: 'Connection Issues',
+        title: 'Error',
         description: 'Will load messages when connection is restored.',
         duration: 3000,
       });
     }
   }, [activeChat, hasMoreMessages, isLoadingOlderMessages, messages.length, toast]);
-  
-
-
-  // Handle user online status update
-  const handleUserOnline = (userId) => {
-    setOnlineUsers(prev => new Set(prev).add(parseInt(userId)));
-  };
-
-  // Handle user offline status update
-  const handleUserOffline = (userId) => {
-    setOnlineUsers(prev => {
-      const newSet = new Set(prev);
-      newSet.delete(parseInt(userId));
-      return newSet;
-    });
-  };
 
   // Send a new message
   const handleSendMessage = () => {
     if (!message.trim() || !activeChat) return;
     
     // Use our robust connection to send the message
-    const wasQueued = sendMessage({
-      type: 'chat_message',
-      data: {
-        recipientId: activeChat.id,
-        content: message.trim()
-      }
-    });
+    const messageId = `temp-${Date.now()}-${Math.random().toString(36).substring(2, 15)}`;
     
-    // Always clear the input field
+    // Add to local messages immediately for instant feedback
+    const newMessage = {
+      id: messageId,
+      content: message,
+      senderId: user.id,
+      recipientId: activeChat.id,
+      createdAt: new Date(),
+      status: 'sending'
+    };
+    
+    // Add to UI
+    setMessages(prev => [...prev, newMessage]);
+    
+    // Clear input
     setMessage('');
     
-    // If the message was queued (connection is down), notify the user
-    if (wasQueued === false) {
-      toast({
-        title: 'Message Queued',
-        description: 'Message will be delivered when connection is restored.',
-        duration: 3000,
+    // Scroll to bottom 
+    setTimeout(() => {
+      messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+    }, 100);
+    
+    // Actually send the message
+    if (sendMessage) {
+      sendMessage({
+        type: 'direct_message',
+        data: {
+          recipientId: activeChat.id,
+          content: message,
+          messageId,
+          senderId: user?.id // Include sender ID explicitly
+        }
       });
     }
   };
-
-  // Select a chat with cache support
-  const selectChat = (contact) => {
-    // We're about to change chats, so set previousMessagesLength to non-zero
-    // This prevents auto-scrolling when chat history loads for the new chat
-    previousMessagesLength.current = 1;
-    
-    // Reset state for the new chat
+  
+  // Switch to a different chat
+  const switchChat = (contact) => {
     setActiveChat(contact);
-    setHasMoreMessages(true);
-    setIsLoadingOlderMessages(false);
     
-    // Check if we have cached messages for this contact
+    // Load cached messages if available
     if (messageCache.has(contact.id)) {
-      console.log(`Loading ${messageCache.get(contact.id).size} cached messages for chat with ${contact.id}`);
-      // Convert Map values to array and sort by timestamp
-      const cachedMessages = Array.from(messageCache.get(contact.id).values())
-        .sort((a, b) => new Date(a.createdAt) - new Date(b.createdAt));
-      
-      setMessages(cachedMessages);
-      
-      // Still request latest messages from server to make sure cache is up-to-date
-      // But we don't need to clear the messages display while loading
-      setTimeout(() => {
-        // Use our robust connection to request chat history
-        sendMessage({
-          type: 'get_chat_history',
-          data: { userId: contact.id }
-        });
-      }, 100);
-    } else {
-      // No cached messages, clear and wait for server response
-      setMessages([]);
+      const cachedMessages = Array.from(messageCache.get(contact.id).values());
+      if (cachedMessages.length > 0) {
+        console.log(`Using ${cachedMessages.length} cached messages for ${contact.username || contact.id}`);
+        // Sort by creation time
+        setMessages(cachedMessages.sort((a, b) => new Date(a.createdAt) - new Date(b.createdAt)));
+      } else {
+        // No cached messages, clear and wait for server response
+        setMessages([]);
+      }
     }
   };
-
+  
   // Filter contacts based on search query and exclude current user
   const filteredContacts = contacts
     .filter(contact => contact.id !== user?.id) // 排除自己
@@ -490,282 +476,216 @@ export default function ChatPage() {
           <div className="bg-slate-50 p-4 border-b">
             <Tabs defaultValue="direct" onValueChange={setActiveTab}>
               <TabsList className="grid w-full grid-cols-2">
-                <TabsTrigger value="direct">Direct</TabsTrigger>
-                <TabsTrigger value="groups">Groups</TabsTrigger>
+                <TabsTrigger value="direct">
+                  <User className="h-4 w-4 mr-2" />
+                  Direct
+                </TabsTrigger>
+                <TabsTrigger value="groups">
+                  <Users className="h-4 w-4 mr-2" />
+                  Groups
+                </TabsTrigger>
               </TabsList>
+              
+              {/* Search input */}
+              <div className="relative mt-3">
+                <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
+                <Input 
+                  placeholder="Search contacts..."
+                  className="pl-8"
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                />
+              </div>
             </Tabs>
-            <div className="mt-3 relative">
-              <Input
-                placeholder="Search..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="pl-8 pr-4"
-              />
-              <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
-            </div>
           </div>
           
-          <ScrollArea className="h-[calc(75vh-9rem)]">
-            {isLoadingPartners ? (
-              <div className="p-4 space-y-4">
-                {[...Array(5)].map((_, i) => (
-                  <div key={i} className="flex items-center space-x-4">
-                    <Skeleton className="h-10 w-10 rounded-full" />
-                    <div className="space-y-2">
-                      <Skeleton className="h-4 w-[150px]" />
-                      <Skeleton className="h-3 w-[100px]" />
-                    </div>
-                  </div>
-                ))}
-              </div>
-            ) : activeTab === 'direct' ? (
+          <ScrollArea className="h-[calc(75vh-120px)]">
+            <TabsContent value="direct" className="pt-0 m-0">
               <div className="divide-y">
-                {filteredContacts.length > 0 ? (
-                  filteredContacts.map(contact => (
-                    <div 
-                      key={contact.id}
-                      className={`p-3 cursor-pointer hover:bg-slate-50 flex items-center ${activeChat?.id === contact.id ? 'bg-slate-100' : ''} ${contact.id === user?.id ? 'bg-blue-50 hover:bg-blue-100 border-l-4 border-blue-400' : ''}`}
-                      onClick={() => selectChat(contact)}
-                    >
-                      <div className="relative">
-                        <Avatar 
-                          className="cursor-pointer"
-                          onClick={(e) => {
-                            e.stopPropagation(); // Prevent propagation to chat selection
-                            // Use router navigation instead of direct window.location to avoid page refresh
-                            const profileUrl = `/users/${contact.id}`;
-                            // Open in new tab if modifier key is pressed
-                            if (e.ctrlKey || e.metaKey) {
-                              window.open(profileUrl, '_blank');
-                            } else {
-                              window.location.href = profileUrl;
-                            }
-                          }}
-                        >
-                          <AvatarFallback>{contact.username?.[0] || contact.firstName?.[0] || '?'}</AvatarFallback>
-                          {contact.avatar && <AvatarImage src={contact.avatar} />}
-                        </Avatar>
-                        {onlineUsers.has(contact.id) && (
-                          <div className="absolute bottom-0 right-0 h-3 w-3 rounded-full bg-green-500 border-2 border-white" />
-                        )}
-                      </div>
-                      <div className="ml-3 flex-1 overflow-hidden">
-                        <div className="font-medium truncate">
-                          {contact.firstName && contact.lastName 
-                            ? `${contact.firstName} ${contact.lastName}` 
-                            : contact.username}
-                        </div>
-                        <p className="text-sm text-muted-foreground truncate">
-                          {/* Last message preview (if available) */}
-                        </p>
+                {isLoadingPartners ? (
+                  // Loading skeleton for contacts
+                  Array.from({ length: 5 }).map((_, index) => (
+                    <div key={`skeleton-${index}`} className="flex items-center p-3 gap-3">
+                      <Skeleton className="h-10 w-10 rounded-full" />
+                      <div className="space-y-2">
+                        <Skeleton className="h-4 w-28" />
+                        <Skeleton className="h-3 w-20" />
                       </div>
                     </div>
                   ))
                 ) : (
-                  <div className="p-4 text-center text-muted-foreground">
-                    No contacts found.
-                  </div>
+                  filteredContacts.length === 0 ? (
+                    <div className="p-5 text-center text-muted-foreground">
+                      {searchQuery ? 'No contacts found' : 'No contacts yet'}
+                    </div>
+                  ) : (
+                    filteredContacts.map(contact => (
+                      <div 
+                        key={contact.id}
+                        className={`flex items-center p-3 cursor-pointer hover:bg-accent transition-colors gap-3 ${activeChat?.id === contact.id ? 'bg-accent' : ''}`}
+                        onClick={() => switchChat(contact)}
+                      >
+                        <div className="relative">
+                          <Avatar>
+                            <AvatarFallback>{contact.username?.charAt(0) || 'U'}</AvatarFallback>
+                            {contact.avatar && <AvatarImage src={contact.avatar} />}
+                          </Avatar>
+                          {onlineUsers.has(parseInt(contact.id)) && (
+                            <span className="absolute bottom-0 right-0 w-3 h-3 bg-green-500 rounded-full border-2 border-white" />
+                          )}
+                        </div>
+                        <div className="flex-1 min-w-0"> {/* This ensures proper text overflow handling */}
+                          <div className="font-medium truncate">
+                            {contact.firstName && contact.lastName ? 
+                              `${contact.firstName} ${contact.lastName}` : 
+                              contact.username}
+                          </div>
+                          <div className="text-sm text-muted-foreground truncate">
+                            {onlineUsers.has(parseInt(contact.id)) ? 'Online now' : 'Offline'}
+                          </div>
+                        </div>
+                      </div>
+                    ))
+                  )
                 )}
               </div>
-            ) : (
-              <div className="p-4 text-center text-muted-foreground">
-                Group chat feature coming soon...
+            </TabsContent>
+            
+            <TabsContent value="groups" className="pt-0 m-0">
+              <div className="p-5 text-center text-muted-foreground">
+                Group chats coming soon...
               </div>
-            )}
+            </TabsContent>
           </ScrollArea>
         </div>
         
         {/* Chat area */}
-        <div className="md:col-span-3 border rounded-lg flex flex-col overflow-hidden">
+        <div className="md:col-span-3 border rounded-lg overflow-hidden flex flex-col h-full">
           {activeChat ? (
             <>
-              <div className="bg-slate-50 p-4 border-b flex items-center justify-between">
-                <div className="flex items-center">
-                  <Avatar 
-                    className="cursor-pointer"
-                    onClick={(e) => {
-                      // Use router navigation instead of direct window.location to avoid page refresh
-                      const profileUrl = `/users/${activeChat.id}`;
-                      // Open in new tab if modifier key is pressed
-                      if (e.ctrlKey || e.metaKey) {
-                        window.open(profileUrl, '_blank');
-                      } else {
-                        window.location.href = profileUrl;
-                      }
-                    }}
-                  >
-                    <AvatarFallback>{activeChat.username?.[0] || activeChat.firstName?.[0] || '?'}</AvatarFallback>
-                    {activeChat.avatar && <AvatarImage src={activeChat.avatar} />}
-                  </Avatar>
-                  <div className="ml-3">
-                    <div className="font-medium">
-                      {activeChat.firstName && activeChat.lastName 
-                        ? `${activeChat.firstName} ${activeChat.lastName}` 
-                        : activeChat.username}
-                    </div>
-                    <div className="text-xs text-muted-foreground">
-                      {onlineUsers.has(activeChat.id) ? 'Online' : 'Offline'}
-                    </div>
+              {/* Chat header */}
+              <div className="bg-slate-50 p-4 border-b flex items-center">
+                <Avatar className="h-9 w-9 mr-3">
+                  <AvatarFallback>{activeChat.username?.charAt(0) || 'U'}</AvatarFallback>
+                  {activeChat.avatar && <AvatarImage src={activeChat.avatar} />}
+                </Avatar>
+                <div className="flex-1">
+                  <div className="font-medium">
+                    {activeChat.firstName && activeChat.lastName ? 
+                      `${activeChat.firstName} ${activeChat.lastName}` : 
+                      activeChat.username}
+                  </div>
+                  <div className="text-sm text-muted-foreground">
+                    {onlineUsers.has(parseInt(activeChat.id)) ? (
+                      <span className="text-green-600 flex items-center">
+                        <span className="h-2 w-2 bg-green-600 rounded-full mr-1"></span>
+                        Online
+                      </span>
+                    ) : 'Offline'}
                   </div>
                 </div>
-                <Button 
-                  variant="ghost" 
-                  size="sm" 
-                  onClick={() => messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })}
-                  title="Scroll to bottom"
-                  className="flex items-center gap-1 text-xs"
-                >
-                  <MessageCircle className="h-3.5 w-3.5" />
-                  Latest
-                </Button>
               </div>
               
-              <ScrollArea 
-                className="flex-1 p-4" 
-                ref={scrollAreaRef}
-                onScroll={handleScroll}
-              >
-                {/* Loading indicator at the top for older messages */}
-                <div ref={messagesStartRef} className="py-2 text-center">
-                  {isLoadingOlderMessages && (
-                    <div className="flex items-center justify-center gap-2 text-sm text-muted-foreground">
-                      <div className="h-3 w-3 animate-spin rounded-full border-2 border-slate-300 border-t-slate-600"></div>
-                      Loading older messages...
+              {/* Messages area */}
+              <div className="flex-1 flex flex-col overflow-hidden relative">
+                <div ref={scrollAreaRef} className="flex-1 overflow-y-auto p-4">
+                  {/* Load older messages button */}
+                  {hasMoreMessages && (
+                    <div className="flex justify-center mb-4">
+                      <Button 
+                        variant="outline" 
+                        size="sm" 
+                        onClick={handleLoadOlderMessages}
+                        disabled={isLoadingOlderMessages}
+                      >
+                        {isLoadingOlderMessages ? 'Loading...' : 'Load older messages'}
+                      </Button>
                     </div>
                   )}
-                  {!isLoadingOlderMessages && hasMoreMessages && (
-                    <Button 
-                      variant="ghost" 
-                      size="sm" 
-                      onClick={loadOlderMessages}
-                      className="text-xs text-muted-foreground hover:text-foreground"
-                    >
-                      Load more messages
-                    </Button>
+                  
+                  {/* Reference to the top for scrolling to when loading older messages */}
+                  <div ref={messagesStartRef} />
+                  
+                  {/* Loading skeleton */}
+                  {isLoadingOlderMessages && (
+                    <div className="space-y-3 mb-4">
+                      {Array.from({ length: 3 }).map((_, i) => (
+                        <div key={`skeleton-${i}`} className="flex items-start">
+                          <Skeleton className="h-8 w-8 rounded-full mr-3" />
+                          <div className="space-y-2">
+                            <Skeleton className="h-4 w-28" />
+                            <Skeleton className="h-14 w-60" />
+                          </div>
+                        </div>
+                      ))}
+                    </div>
                   )}
-                </div>
-                
-                <div className="space-y-4">
-                  {messages.length > 0 ? (
-                    messages.map((msg, index) => {
-                      // BUGFIX: Add error handling for missing/invalid message data
-                      if (!msg || !msg.senderId) {
-                        console.error(`Invalid message at index ${index}:`, msg);
-                        return null; // Skip rendering this message
-                      }
-                      
-                      // Force all received messages to display on the left, sent messages on the right
-                      // Use parseInt to ensure ID types match for comparison
-                      const senderIdNum = parseInt(msg.senderId);
-                      const userIdNum = parseInt(user?.id);
-                      const isFromMe = !isNaN(senderIdNum) && !isNaN(userIdNum) && senderIdNum === userIdNum;
-                      console.log(`Message ${index} - from me? ${isFromMe}, senderId: ${msg.senderId}(${senderIdNum}), myId: ${user?.id}(${userIdNum})`);
-                      
-                      // Use sender ID's corresponding user or currently selected user
-                      const sender = isFromMe ? user : activeChat;
-                      const prevMsg = index > 0 ? messages[index - 1] : null;
-                      const showAvatar = !prevMsg || prevMsg.senderId !== msg.senderId; // Only show avatar on first message in a group
+                  
+                  {/* Actual message list */}
+                  {messages.length === 0 ? (
+                    <div className="flex items-center justify-center h-full text-muted-foreground">
+                      <div className="text-center">
+                        <MessageCircle className="h-12 w-12 mx-auto mb-3 opacity-20" />
+                        <p>No messages yet. Start the conversation!</p>
+                      </div>
+                    </div>
+                  ) : (
+                    messages.map((msg) => {
+                      // Ensure message has senderId
+                      const senderId = msg.senderId || (msg.sender && msg.sender.id);
+                      const isFromMe = senderId === user?.id;
                       
                       return (
-                        <div 
-                          key={index} 
-                          className={`flex items-end space-x-2 ${isFromMe ? 'justify-end' : 'justify-start'} mb-2`}
-                        >
-                          {/* Avatar for other user's messages */}
-                          {!isFromMe && showAvatar && (
-                            <Avatar 
-                              className="h-8 w-8 flex-shrink-0 cursor-pointer"
-                              onClick={(e) => {
-                                const profileUrl = `/users/${sender.id}`;
-                                if (e.ctrlKey || e.metaKey) {
-                                  window.open(profileUrl, '_blank');
-                                } else {
-                                  window.location.href = profileUrl;
-                                }
-                              }}
-                            >
-                              <AvatarFallback>{sender?.username?.[0] || sender?.firstName?.[0] || '?'}</AvatarFallback>
-                              {sender?.avatar && <AvatarImage src={sender.avatar} />}
+                        <div key={msg.id} className={`flex mb-3 ${isFromMe ? 'justify-end' : 'justify-start'}`}>
+                          {!isFromMe && (
+                            <Avatar className="h-8 w-8 mr-2 mt-1">
+                              <AvatarFallback>{activeChat.username?.charAt(0) || 'U'}</AvatarFallback>
+                              {activeChat.avatar && <AvatarImage src={activeChat.avatar} />}
                             </Avatar>
                           )}
                           
-                          {/* Spacer div when we don't show the avatar but need to maintain alignment */}
-                          {!isFromMe && !showAvatar && <div className="w-8 flex-shrink-0"></div>}
-                          
-                          {/* Message content */}
-                          <div 
-                            className={`relative max-w-[70%] px-4 py-2 rounded-lg ${isFromMe 
-                              ? 'bg-primary text-primary-foreground rounded-tr-none' 
-                              : 'bg-muted rounded-tl-none'}`}
-                          >
-                            {/* Sender name (only for other user's messages) */}
-                            {!isFromMe && showAvatar && (
-                              <div className="text-xs font-semibold mb-1 text-slate-600">
-                                {sender?.firstName || sender?.username}
-                              </div>
-                            )}
-                            
-                            <div className="break-words">{msg.content}</div>
-                            <div className="text-xs mt-1 opacity-70 text-right">
+                          <div className={`max-w-[70%] ${isFromMe ? 'bg-primary text-primary-foreground' : 'bg-accent'} rounded-lg p-3 break-words`}>
+                            <div>{msg.content}</div>
+                            <div className="text-xs mt-1 opacity-70">
                               {new Date(msg.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                              {msg.status === 'sending' && ' · Sending...'}
                             </div>
                           </div>
-                          
-                          {/* Avatar for my messages */}
-                          {isFromMe && showAvatar && (
-                            <Avatar 
-                              className="h-8 w-8 flex-shrink-0 cursor-pointer"
-                              onClick={(e) => {
-                                const profileUrl = `/users/${user.id}`;
-                                if (e.ctrlKey || e.metaKey) {
-                                  window.open(profileUrl, '_blank');
-                                } else {
-                                  window.location.href = profileUrl;
-                                }
-                              }}
-                            >
-                              <AvatarFallback>{user?.username?.[0] || user?.firstName?.[0] || '?'}</AvatarFallback>
-                              {user?.avatar && <AvatarImage src={user.avatar} />}
-                            </Avatar>
-                          )}
-                          
-                          {/* Spacer div when we don't show the avatar but need to maintain alignment */}
-                          {isFromMe && !showAvatar && <div className="w-8 flex-shrink-0"></div>}
                         </div>
                       );
                     })
-                  ) : (
-                    <div className="h-full flex items-center justify-center text-muted-foreground">
-                      <div className="text-center">
-                        <MessageCircle className="h-12 w-12 mx-auto mb-2 opacity-20" />
-                        <p>No messages yet.</p>
-                        <p className="text-sm">Start the conversation!</p>
-                      </div>
-                    </div>
                   )}
+                  
+                  {/* Reference to the bottom for auto-scrolling */}
                   <div ref={messagesEndRef} />
                 </div>
                 
                 {/* Scroll to bottom button */}
                 {showScrollToBottom && (
-                  <Button
-                    className="fixed bottom-20 right-12 z-10 rounded-full bg-primary p-2 text-primary-foreground shadow-lg hover:bg-primary/90"
-                    size="icon"
-                    onClick={scrollToBottom}
-                    aria-label="Scroll to bottom"
+                  <Button 
+                    variant="outline" 
+                    size="icon" 
+                    className="absolute bottom-20 right-4 rounded-full shadow-md" 
+                    onClick={() => messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })}
                   >
-                    <ArrowDown className="h-5 w-5" />
+                    <ArrowDown className="h-4 w-4" />
                   </Button>
                 )}
-              </ScrollArea>
+              </div>
               
-              <div className="p-4 border-t bg-white">
+              {/* Message input */}
+              <div className="p-4 border-t">
                 <div className="flex space-x-2">
                   <Input
                     placeholder="Type a message..."
                     value={message}
                     onChange={(e) => setMessage(e.target.value)}
-                    onKeyDown={(e) => e.key === 'Enter' && handleSendMessage()}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter' && !e.shiftKey) {
+                        e.preventDefault();
+                        handleSendMessage();
+                      }
+                    }}
                     disabled={!isConnectionOpen}
                   />
                   <Button 

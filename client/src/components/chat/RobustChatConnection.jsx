@@ -91,12 +91,35 @@ const RobustChatConnection = ({
         MAX_RECONNECT_DELAY
       );
       
+      // Get the protocol (wss for HTTPS, ws for HTTP)
       const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+      
+      // Use location.host which includes both hostname and port
+      console.log('Protocol:', protocol, 'Host:', window.location.host);
+      
+      // Construct the WebSocket URL with /ws path
+      // Use host which already includes port if present
       const wsUrl = `${protocol}//${window.location.host}/ws`;
+      console.log('Connecting to WebSocket URL:', wsUrl);
+      // Simple URL log without referencing removed variables
       
       try {
-        // Create new WebSocket
-        const socket = new WebSocket(wsUrl);
+        console.log('About to create WebSocket instance');
+        // Create new WebSocket with error handling
+        let socket;
+        try {
+          socket = new WebSocket(wsUrl);
+          console.log('WebSocket instance created successfully');
+        } catch (initError) {
+          console.error('Error creating WebSocket instance:', initError.message);
+          toast({
+            title: 'Connection Error',
+            description: `Failed to initialize chat: ${initError.message}`,
+            variant: 'destructive'
+          });
+          throw initError; // Re-throw to be caught by outer catch block
+        }
+        
         socketRef.current = socket;
         
         // Connection established handler
@@ -105,10 +128,25 @@ const RobustChatConnection = ({
           onConnectionChange(true);
           reconnectAttemptsRef.current = 0; // Reset counter on success
           
-          // Send authentication
+          // Validate token before sending authentication
+          if (!token) {
+            console.error('No authentication token available');
+            toast({
+              title: 'Authentication Error',
+              description: 'No valid authentication token available for chat connection',
+              variant: 'destructive'
+            });
+            return;
+          }
+          
+          // Send authentication with validated token
+          console.log('Sending auth with token:', token ? `${token.substring(0, 10)}...` : 'missing');
+          
+          // Support both socket.ts formats with token in data.token and direct token
           socket.send(JSON.stringify({
             type: 'auth',
-            data: { token }
+            data: { token }, // Main expected format
+            token // Fallback format
           }));
           
           // Process any pending messages
@@ -137,15 +175,26 @@ const RobustChatConnection = ({
           }, PING_INTERVAL);
           
           // Request chat history for active chat
-          if (activeChat) {
+          if (activeChat && activeChat.id) {
+            console.log('Requesting chat history for user ID:', activeChat.id);
             setTimeout(() => {
               if (socket.readyState === WebSocket.OPEN) {
                 socket.send(JSON.stringify({
                   type: 'get_chat_history',
-                  data: { userId: activeChat.id }
+                  data: { 
+                    userId: activeChat.id,
+                    // Add additional parameters for pagination
+                    limit: 20,
+                    offset: 0 
+                  }
                 }));
+                console.log('Chat history request sent for user ID:', activeChat.id);
+              } else {
+                console.error('Socket not open when trying to request chat history');
               }
             }, 1000); // Delay to ensure auth is processed
+          } else {
+            console.log('No active chat selected, skipping history request');
           }
         };
         
@@ -156,14 +205,37 @@ const RobustChatConnection = ({
             
             switch (data.type) {
               case 'direct_message':
-                onNewMessage(data.data);
+                if (data?.data) {
+                  console.log('Received direct message:', data.data);
+                  // Make sure essential fields are present
+                  if (data.data.content && (data.data.senderId || (data.data.sender && data.data.sender.id))) {
+                    onNewMessage(data.data);
+                  } else {
+                    console.error('Message missing required fields:', data.data);
+                  }
+                } else {
+                  console.error('Invalid direct message format', data);
+                }
                 break;
                 
               case 'chat_history':
                 if (data?.data) {
-                  onChatHistory(data.data);
+                  console.log('Received chat history data:', data.data);
+                  // Validate that we have the messages array before passing to handler
+                  if (data.data.messages && Array.isArray(data.data.messages)) {
+                    console.log(`Processing ${data.data.messages.length} messages from chat history`);
+                    onChatHistory(data.data);
+                  } else {
+                    console.error('Chat history missing messages array or has invalid format');
+                    console.log('Chat history response structure:', JSON.stringify(data.data));
+                    toast({
+                      title: 'Error Loading Messages',
+                      description: 'Invalid message format received from server. Please refresh and try again.',
+                      variant: 'destructive'
+                    });
+                  }
                 } else {
-                  console.error('Invalid chat history format');
+                  console.error('Invalid chat history format', data);
                   toast({
                     title: 'Error',
                     description: 'Could not load chat history. Please try again.',
@@ -173,19 +245,39 @@ const RobustChatConnection = ({
                 break;
                 
               case 'user_online':
-                onUserOnline(data.data.userId);
+                if (data?.data && data.data.userId) {
+                  console.log('User online notification:', data.data.userId);
+                  onUserOnline(data.data.userId);
+                } else {
+                  console.error('Invalid user_online format - missing userId', data);
+                }
                 break;
                 
               case 'user_offline':
-                onUserOffline(data.data.userId);
+                if (data?.data && data.data.userId) {
+                  console.log('User offline notification:', data.data.userId);
+                  onUserOffline(data.data.userId);
+                } else {
+                  console.error('Invalid user_offline format - missing userId', data);
+                }
                 break;
                 
               case 'error':
-                toast({
-                  title: 'Chat Error',
-                  description: data.data.message,
-                  variant: 'destructive'
-                });
+                if (data?.data && data.data.message) {
+                  console.error('Error message from server:', data.data.message);
+                  toast({
+                    title: 'Chat Error',
+                    description: data.data.message,
+                    variant: 'destructive'
+                  });
+                } else {
+                  console.error('Received error message with invalid format:', data);
+                  toast({
+                    title: 'Chat Error',
+                    description: 'An error occurred with the chat service.',
+                    variant: 'destructive'
+                  });
+                }
                 break;
                 
               case 'pong':
@@ -226,6 +318,14 @@ const RobustChatConnection = ({
         // Error handler
         socket.onerror = (error) => {
           console.error('WebSocket error:', error);
+          
+          // Display error in toast for better user visibility
+          toast({
+            title: 'Chat Connection Error',
+            description: 'Failed to connect to chat service. Will retry automatically.',
+            variant: 'destructive'
+          });
+          
           // The onclose handler will handle reconnection
         };
       } catch (error) {
