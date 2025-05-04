@@ -22,8 +22,8 @@ const LearningToolsTab = () => {
   const { isAuthenticated, user } = useAuth();
   const { toast } = useToast();
   const [page, setPage] = useState(1);
-  const [categoryFilter, setCategoryFilter] = useState('');
-  const [pricingFilter, setPricingFilter] = useState('');
+  const [categoryFilter, setCategoryFilter] = useState('all');
+  const [pricingFilter, setPricingFilter] = useState('all');
   const [searchQuery, setSearchQuery] = useState('');
   const [showAddToolDialog, setShowAddToolDialog] = useState(false);
   const [activeView, setActiveView] = useState('all'); // 'all', 'mine'
@@ -45,11 +45,11 @@ const LearningToolsTab = () => {
     queryFn: async () => {
       let url = `/api/learning-tools?limit=${limit}&offset=${(page - 1) * limit}`;
       
-      if (categoryFilter) {
+      if (categoryFilter && categoryFilter !== 'all') {
         url += `&category=${encodeURIComponent(categoryFilter)}`;
       }
       
-      if (pricingFilter) {
+      if (pricingFilter && pricingFilter !== 'all') {
         url += `&pricing=${encodeURIComponent(pricingFilter)}`;
       }
       
@@ -279,7 +279,7 @@ const LearningToolsTab = () => {
               </div>
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="">All Categories</SelectItem>
+              <SelectItem value="all">All Categories</SelectItem>
               {categories.map((category) => (
                 <SelectItem key={category} value={category}>{category}</SelectItem>
               ))}
@@ -300,7 +300,7 @@ const LearningToolsTab = () => {
               </div>
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="">All Pricing</SelectItem>
+              <SelectItem value="all">All Pricing</SelectItem>
               <SelectItem value="free">Free</SelectItem>
               <SelectItem value="freemium">Freemium</SelectItem>
               <SelectItem value="paid">Paid</SelectItem>

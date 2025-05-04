@@ -1,21 +1,29 @@
 import React, { useState } from 'react';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useMutation } from '@tanstack/react-query';
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
+import { zodResolver } from '@hookform/resolvers/zod';
+import { useForm } from 'react-hook-form';
+import { z } from 'zod';
+import { Textarea } from '@/components/ui/textarea';
+import { useToast } from '@/hooks/use-toast';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Pagination, PaginationContent, PaginationEllipsis, PaginationItem, PaginationLink, PaginationNext, PaginationPrevious } from '@/components/ui/pagination';
-import { BookOpen, School, ChevronRight, Search, BookmarkPlus, BookmarkCheck, Filter } from 'lucide-react';
+import { BookOpen, School, ChevronRight, Search, BookmarkPlus, BookmarkCheck, Filter, Plus } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { queryClient } from '@/lib/queryClient';
 
 const UniversityCoursesTab = () => {
   const { isAuthenticated } = useAuth();
   const [page, setPage] = useState(1);
-  const [universityFilter, setUniversityFilter] = useState('');
-  const [deptFilter, setDeptFilter] = useState('');
+  const [universityFilter, setUniversityFilter] = useState('all');
+  const [deptFilter, setDeptFilter] = useState('all');
   const [searchQuery, setSearchQuery] = useState('');
+  const [showAddCourseDialog, setShowAddCourseDialog] = useState(false);
   const limit = 9; // Number of courses per page
   
   // Fetch universities for filter dropdown
@@ -48,11 +56,11 @@ const UniversityCoursesTab = () => {
     queryFn: async () => {
       let url = `/api/university-courses?limit=${limit}&offset=${(page - 1) * limit}`;
       
-      if (universityFilter) {
+      if (universityFilter && universityFilter !== 'all') {
         url += `&university=${encodeURIComponent(universityFilter)}`;
       }
       
-      if (deptFilter) {
+      if (deptFilter && deptFilter !== 'all') {
         url += `&courseDept=${encodeURIComponent(deptFilter)}`;
       }
       
@@ -97,6 +105,90 @@ const UniversityCoursesTab = () => {
   const courses = coursesData?.courses || [];
   const totalPages = Math.ceil((coursesData?.totalCount || 0) / limit);
   
+  // Form schema for adding a new university course
+  const formSchema = z.object({
+    university: z.string().min(1, "University is required"),
+    courseDept: z.string().min(1, "Department is required"),
+    courseNumber: z.string().min(1, "Course number is required"),
+    courseTitle: z.string().min(1, "Course title is required"),
+    description: z.string().optional(),
+    professors: z.string().optional(),
+    recentSemesters: z.string().optional(),
+    url: z.string().url("Please enter a valid URL").optional().or(z.literal('')),
+  });
+
+  // Form for adding a new university course
+  const form = useForm({
+    resolver: zodResolver(formSchema),
+    defaultValues: {
+      university: universities[0] || "",
+      courseDept: "",
+      courseNumber: "",
+      courseTitle: "",
+      description: "",
+      professors: "",
+      recentSemesters: "",
+      url: "",
+    },
+  });
+
+  // Mutation for adding a new university course
+  const addCourseMutation = useMutation({
+    mutationFn: async (data) => {
+      const response = await fetch('/api/university-courses', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${localStorage.getItem('authToken')}`,
+        },
+        body: JSON.stringify(data),
+      });
+      
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || 'Failed to add university course');
+      }
+      
+      return response.json();
+    },
+    onSuccess: () => {
+      // Reset form and close dialog
+      form.reset();
+      setShowAddCourseDialog(false);
+      
+      // Show success toast
+      toast({
+        title: "Success!",
+        description: "The university course has been added successfully.",
+        variant: "default",
+      });
+      
+      // Invalidate query to refresh the list
+      queryClient.invalidateQueries({ queryKey: ['university-courses'] });
+    },
+    onError: (error) => {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to add university course. Please try again.",
+        variant: "destructive",
+      });
+    },
+  });
+  
+  // Function to handle form submission
+  const onSubmit = (data) => {
+    if (!isAuthenticated) {
+      toast({
+        title: "Authentication Required",
+        description: "Please log in to add university courses.",
+        variant: "destructive",
+      });
+      return;
+    }
+    
+    addCourseMutation.mutate(data);
+  };
+
   // Function to toggle bookmark
   const toggleBookmark = async (courseId) => {
     if (!isAuthenticated) {
@@ -144,14 +236,23 @@ const UniversityCoursesTab = () => {
         </div>
         
         {isAuthenticated && (
-          <Button 
-            variant="outline" 
-            className="flex items-center gap-2 border-orange-300 hover:bg-orange-50 hover:text-orange-700"
-            onClick={() => window.location.href = '/bookmarks?type=courses'}
-          >
-            <BookmarkCheck className="h-4 w-4 text-orange-500" />
-            View Bookmarked Courses
-          </Button>
+          <div className="flex gap-3">
+            <Button 
+              variant="outline" 
+              className="flex items-center gap-2 border-orange-300 hover:bg-orange-50 hover:text-orange-700"
+              onClick={() => window.location.href = '/bookmarks?type=courses'}
+            >
+              <BookmarkCheck className="h-4 w-4 text-orange-500" />
+              View Bookmarked Courses
+            </Button>
+            <Button 
+              className="bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 flex items-center gap-2"
+              onClick={() => setShowAddCourseDialog(true)}
+            >
+              <Plus className="h-4 w-4" />
+              Add Course
+            </Button>
+          </div>
         )}
       </div>
       
@@ -187,7 +288,7 @@ const UniversityCoursesTab = () => {
               </div>
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="">All Universities</SelectItem>
+              <SelectItem value="all">All Universities</SelectItem>
               {universities.map((uni) => (
                 <SelectItem key={uni} value={uni}>{uni}</SelectItem>
               ))}
@@ -208,7 +309,7 @@ const UniversityCoursesTab = () => {
               </div>
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="">All Departments</SelectItem>
+              <SelectItem value="all">All Departments</SelectItem>
               {departments.map((dept) => (
                 <SelectItem key={dept} value={dept}>{dept}</SelectItem>
               ))}
@@ -233,7 +334,11 @@ const UniversityCoursesTab = () => {
         <>
           <div className="grid gap-6 grid-cols-1 md:grid-cols-2 lg:grid-cols-3">
             {courses.map((course) => (
-              <Card key={course.id} className="overflow-hidden border-orange-100 hover:border-orange-300 transition-all duration-300 hover:shadow-lg transform hover:-translate-y-1">
+              <Card 
+                key={course.id} 
+                className="overflow-hidden border-orange-100 hover:border-orange-300 transition-all duration-300 hover:shadow-lg transform hover:-translate-y-1 cursor-pointer"
+                onClick={() => course.url && window.open(course.url, '_blank', 'noopener,noreferrer')}
+              >
                 <CardHeader className="bg-gradient-to-r from-orange-100/40 to-amber-100/40 pb-3">
                   <CardTitle className="text-lg font-bold text-orange-800 flex justify-between">
                     <span className="truncate">{course.courseNumber}: {course.courseTitle}</span>
@@ -272,10 +377,6 @@ const UniversityCoursesTab = () => {
                       <span className="text-gray-700 font-medium">{course.professors}</span>
                     </div>
                     <div className="flex justify-between">
-                      <span className="text-gray-500">Credits:</span>
-                      <span className="text-gray-700 font-medium">{course.credits}</span>
-                    </div>
-                    <div className="flex justify-between">
                       <span className="text-gray-500">Recent Semesters:</span>
                       <span className="text-gray-700 font-medium">{course.recentSemesters}</span>
                     </div>
@@ -283,10 +384,16 @@ const UniversityCoursesTab = () => {
                 </CardContent>
                 
                 <CardFooter className="pt-0 flex justify-end">
-                  <Button asChild variant="ghost" className="text-orange-600 hover:text-orange-800 hover:bg-orange-50">
-                    <a href={course.url} target="_blank" rel="noopener noreferrer" className="flex items-center">
-                      View Course <ChevronRight className="h-4 w-4 ml-1" />
-                    </a>
+                  <Button 
+                    variant="ghost" 
+                    className="text-orange-600 hover:text-orange-800 hover:bg-orange-50 flex items-center gap-1"
+                    onClick={(e) => {
+                      e.preventDefault();
+                      e.stopPropagation();
+                      if (course.url) window.open(course.url, '_blank', 'noopener,noreferrer');
+                    }}
+                  >
+                    View Course <ChevronRight className="h-4 w-4" />
                   </Button>
                 </CardFooter>
               </Card>
@@ -408,6 +515,177 @@ const UniversityCoursesTab = () => {
           )}
         </>
       )}
+      
+      {/* Add Course Dialog */}
+      <Dialog open={showAddCourseDialog} onOpenChange={setShowAddCourseDialog}>
+        <DialogContent className="sm:max-w-[600px]">
+          <DialogHeader>
+            <DialogTitle className="text-orange-700 text-xl">Add University Course</DialogTitle>
+            <DialogDescription>
+              Share a course from a prestigious university to help other learners discover valuable educational resources.
+            </DialogDescription>
+          </DialogHeader>
+          
+          <Form {...form}>
+            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <FormField
+                  control={form.control}
+                  name="university"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>University</FormLabel>
+                      <Select onValueChange={field.onChange} defaultValue={field.value}>
+                        <FormControl>
+                          <SelectTrigger className="bg-white">
+                            <SelectValue placeholder="Select university" />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          {universities.map((uni) => (
+                            <SelectItem key={uni} value={uni}>{uni}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                
+                <FormField
+                  control={form.control}
+                  name="courseDept"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Department</FormLabel>
+                      <FormControl>
+                        <Input placeholder="e.g. CS, ECON, MATH" {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              </div>
+              
+              <FormField
+                control={form.control}
+                name="courseNumber"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Course Number</FormLabel>
+                    <FormControl>
+                      <Input placeholder="e.g. 101, CS50, 6.006" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              
+              <FormField
+                control={form.control}
+                name="courseTitle"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Course Title</FormLabel>
+                    <FormControl>
+                      <Input placeholder="e.g. Introduction to Computer Science" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              
+              <FormField
+                control={form.control}
+                name="professors"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Professors</FormLabel>
+                    <FormControl>
+                      <Input placeholder="e.g. John Smith, Jane Doe" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              
+              <FormField
+                control={form.control}
+                name="recentSemesters"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Recent Semesters</FormLabel>
+                    <FormControl>
+                      <Input placeholder="e.g. Fall 2023, Spring 2024" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              
+              <FormField
+                control={form.control}
+                name="description"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Course Description</FormLabel>
+                    <FormControl>
+                      <Textarea 
+                        placeholder="Provide a brief description of the course content and objectives..."
+                        className="min-h-[100px]"
+                        {...field} 
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              
+              <FormField
+                control={form.control}
+                name="url"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Course URL</FormLabel>
+                    <FormControl>
+                      <Input 
+                        type="url" 
+                        placeholder="https://university.edu/courses/cs101" 
+                        {...field} 
+                      />
+                    </FormControl>
+                    <FormDescription>
+                      Link to the official course page or materials
+                    </FormDescription>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              
+              <div className="flex justify-end space-x-2 pt-4">
+                <Button 
+                  type="button" 
+                  variant="outline" 
+                  onClick={() => setShowAddCourseDialog(false)}
+                >
+                  Cancel
+                </Button>
+                <Button 
+                  type="submit"
+                  className="bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600"
+                  disabled={addCourseMutation.isPending}
+                >
+                  {addCourseMutation.isPending ? (
+                    <>
+                      <span className="animate-spin mr-2">⟳</span> Submitting...
+                    </>
+                  ) : "Add Course"}
+                </Button>
+              </div>
+            </form>
+          </Form>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };

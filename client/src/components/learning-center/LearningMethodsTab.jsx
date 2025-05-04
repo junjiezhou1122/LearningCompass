@@ -11,7 +11,7 @@ import { Pagination, PaginationContent, PaginationEllipsis, PaginationItem, Pagi
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
-import { AlertCircle, User, Star, Lightbulb, Search, Filter, ThumbsUp, MessageSquare } from 'lucide-react';
+import { AlertCircle, User, Star, Lightbulb, Search, Filter, ThumbsUp, MessageSquare, Eye } from 'lucide-react';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useForm } from 'react-hook-form';
 import { z } from 'zod';
@@ -23,8 +23,8 @@ const LearningMethodsTab = () => {
   const { isAuthenticated, user } = useAuth();
   const { toast } = useToast();
   const [page, setPage] = useState(1);
-  const [difficultyFilter, setDifficultyFilter] = useState('');
-  const [tagFilter, setTagFilter] = useState('');
+  const [difficultyFilter, setDifficultyFilter] = useState('all');
+  const [tagFilter, setTagFilter] = useState('all');
   const [searchQuery, setSearchQuery] = useState('');
   const [showAddMethodDialog, setShowAddMethodDialog] = useState(false);
   const [activeView, setActiveView] = useState('all'); // 'all', 'mine', 'bookmarked'
@@ -46,11 +46,11 @@ const LearningMethodsTab = () => {
     queryFn: async () => {
       let url = `/api/learning-methods?limit=${limit}&offset=${(page - 1) * limit}`;
       
-      if (difficultyFilter) {
+      if (difficultyFilter && difficultyFilter !== 'all') {
         url += `&difficulty=${encodeURIComponent(difficultyFilter)}`;
       }
       
-      if (tagFilter) {
+      if (tagFilter && tagFilter !== 'all') {
         url += `&tag=${encodeURIComponent(tagFilter)}`;
       }
       
@@ -280,7 +280,7 @@ const LearningMethodsTab = () => {
               </div>
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="">All Difficulty Levels</SelectItem>
+              <SelectItem value="all">All Difficulty Levels</SelectItem>
               <SelectItem value="beginner">Beginner</SelectItem>
               <SelectItem value="intermediate">Intermediate</SelectItem>
               <SelectItem value="advanced">Advanced</SelectItem>
@@ -301,7 +301,7 @@ const LearningMethodsTab = () => {
               </div>
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="">All Tags</SelectItem>
+              <SelectItem value="all">All Tags</SelectItem>
               {tags.map((tag) => (
                 <SelectItem key={tag} value={tag}>{tag}</SelectItem>
               ))}
@@ -373,9 +373,9 @@ const LearningMethodsTab = () => {
                     </div>
                   </div>
                   <div className="flex flex-wrap gap-2 mt-1">
-                    {method.tags && method.tags.split(',').map((tag, index) => (
+                    {method.tags && Array.isArray(method.tags) && method.tags.map((tag, index) => (
                       <Badge key={index} variant="secondary" className="bg-amber-100 text-amber-800 hover:bg-amber-200">
-                        {tag.trim()}
+                        {tag}
                       </Badge>
                     ))}
                   </div>
@@ -386,7 +386,15 @@ const LearningMethodsTab = () => {
                 
                 <CardContent className="pt-3">
                   <h4 className="font-medium text-orange-800 mb-2">Steps:</h4>
-                  <p className="text-gray-700 whitespace-pre-line line-clamp-3">{method.steps}</p>
+                  {Array.isArray(method.steps) ? (
+                    <ul className="list-disc pl-5 space-y-1 line-clamp-3">
+                      {method.steps.map((step, index) => (
+                        <li key={index} className="text-gray-700">{step}</li>
+                      ))}
+                    </ul>
+                  ) : (
+                    <p className="text-gray-700 whitespace-pre-line line-clamp-3">{method.steps}</p>
+                  )}
                 </CardContent>
                 
                 <CardFooter className="flex justify-between border-t border-orange-100 pt-3">
@@ -399,17 +407,102 @@ const LearningMethodsTab = () => {
                   
                   <div className="flex items-center gap-2">
                     <span className="text-sm text-gray-500">{method.views} views</span>
-                    <Button 
-                      variant="outline" 
-                      size="sm" 
-                      className="border-orange-200 text-orange-700 hover:bg-orange-50"
-                      onClick={() => {
-                        // Navigate to method detail page
-                        window.location.href = `/learning-methods/${method.id}`;
-                      }}
-                    >
-                      Read More
-                    </Button>
+                    <Dialog>
+                      <DialogTrigger asChild>
+                        <Button 
+                          variant="outline" 
+                          size="sm" 
+                          className="border-orange-200 text-orange-700 hover:bg-orange-50 flex items-center gap-1"
+                        >
+                          <Eye className="h-4 w-4" />
+                          View Details
+                        </Button>
+                      </DialogTrigger>
+                      <DialogContent className="max-w-3xl">
+                        <DialogHeader>
+                          <DialogTitle className="text-2xl font-bold text-orange-800">{method.title}</DialogTitle>
+                          <div className="flex flex-wrap gap-2 mt-1">
+                            {method.tags && Array.isArray(method.tags) && method.tags.map((tag, index) => (
+                              <Badge key={index} variant="secondary" className="bg-amber-100 text-amber-800 hover:bg-amber-200">
+                                {tag}
+                              </Badge>
+                            ))}
+                          </div>
+                        </DialogHeader>
+                        
+                        <div className="mt-4 space-y-4">
+                          <div>
+                            <h3 className="font-medium text-orange-800 mb-2">Description:</h3>
+                            <p className="text-gray-700">{method.description}</p>
+                          </div>
+                          
+                          <div>
+                            <h3 className="font-medium text-orange-800 mb-2">Steps:</h3>
+                            {Array.isArray(method.steps) ? (
+                              <ul className="list-disc pl-5 space-y-1">
+                                {method.steps.map((step, index) => (
+                                  <li key={index} className="text-gray-700">{step}</li>
+                                ))}
+                              </ul>
+                            ) : (
+                              <p className="text-gray-700 whitespace-pre-line">{method.steps}</p>
+                            )}
+                          </div>
+                          
+                          {method.benefits && (
+                            <div>
+                              <h3 className="font-medium text-orange-800 mb-2">Benefits:</h3>
+                              {Array.isArray(method.benefits) && method.benefits.length > 0 ? (
+                                <ul className="list-disc pl-5 space-y-1">
+                                  {method.benefits.map((benefit, index) => (
+                                    <li key={index} className="text-gray-700">{benefit}</li>
+                                  ))}
+                                </ul>
+                              ) : (
+                                <p className="text-gray-700">{method.benefits}</p>
+                              )}
+                            </div>
+                          )}
+                          
+                          {method.resources && (
+                            <div>
+                              <h3 className="font-medium text-orange-800 mb-2">Resources:</h3>
+                              {Array.isArray(method.resources) && method.resources.length > 0 ? (
+                                <ul className="list-disc pl-5 space-y-1">
+                                  {method.resources.map((resource, index) => (
+                                    <li key={index} className="text-gray-700">{resource}</li>
+                                  ))}
+                                </ul>
+                              ) : (
+                                <p className="text-gray-700">{method.resources}</p>
+                              )}
+                            </div>
+                          )}
+                        </div>
+                        
+                        <div className="flex justify-between items-center mt-6 pt-4 border-t border-gray-200">
+                          <div className="flex items-center gap-2">
+                            <Avatar className="h-6 w-6 bg-orange-200">
+                              <AvatarFallback>{method.authorName?.charAt(0) || 'U'}</AvatarFallback>
+                            </Avatar>
+                            <span className="text-sm text-gray-500">{method.authorName || 'Anonymous'}</span>
+                          </div>
+                          
+                          <div className="flex items-center gap-3">
+                            <Badge variant="outline" className="flex gap-1 items-center">
+                              <ThumbsUp className="h-3.5 w-3.5" />
+                              <span>{method.upvotes}</span>
+                            </Badge>
+                            
+                            <Badge variant="outline" className="flex gap-1 items-center">
+                              <Eye className="h-3.5 w-3.5" />
+                              <span>{method.views}</span>
+                            </Badge>
+                          </div>
+                        </div>
+                        
+                      </DialogContent>
+                    </Dialog>
                   </div>
                 </CardFooter>
               </Card>
