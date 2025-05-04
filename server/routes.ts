@@ -19,6 +19,7 @@ import {
   insertUserNoteSchema,
   // Learning Center schemas
   insertUniversityCourseSchema, insertUniversityCourseBookmarkSchema,
+  insertUniversityCourseCommentSchema, insertUniversityCourseResourceSchema, insertUniversityCourseCollaborationSchema,
   insertLearningMethodSchema, insertLearningMethodReviewSchema,
   insertLearningToolSchema, insertLearningToolReviewSchema,
   // Chat message schema
@@ -2783,6 +2784,332 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Error deleting university course bookmark:", error);
       res.status(500).json({ message: "Error deleting university course bookmark" });
+    }
+  });
+
+  // University Course Comments API Routes
+  app.get("/api/university-courses/:courseId/comments", async (req: Request, res: Response) => {
+    try {
+      const courseId = parseInt(req.params.courseId);
+      
+      // Check if the course exists
+      const course = await storage.getUniversityCourse(courseId);
+      if (!course) {
+        return res.status(404).json({ message: "University course not found" });
+      }
+      
+      const comments = await storage.getUniversityCourseCommentsByCourseId(courseId);
+      res.json(comments);
+    } catch (error) {
+      console.error("Error fetching university course comments:", error);
+      res.status(500).json({ message: "Error fetching university course comments" });
+    }
+  });
+  
+  app.post("/api/university-courses/:courseId/comments", authenticateJWT, async (req: Request, res: Response) => {
+    try {
+      const userId = (req as any).user.id;
+      const courseId = parseInt(req.params.courseId);
+      const { content } = req.body;
+      
+      if (!content) {
+        return res.status(400).json({ message: "Comment content is required" });
+      }
+      
+      // Check if the course exists
+      const course = await storage.getUniversityCourse(courseId);
+      if (!course) {
+        return res.status(404).json({ message: "University course not found" });
+      }
+      
+      const commentData = insertUniversityCourseCommentSchema.parse({
+        userId,
+        courseId,
+        content,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString()
+      });
+      
+      const comment = await storage.createUniversityCourseComment(commentData);
+      res.status(201).json(comment);
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ message: fromZodError(error).message });
+      }
+      console.error("Error creating university course comment:", error);
+      res.status(500).json({ message: "Error creating university course comment" });
+    }
+  });
+  
+  app.put("/api/university-course-comments/:id", authenticateJWT, async (req: Request, res: Response) => {
+    try {
+      const userId = (req as any).user.id;
+      const commentId = parseInt(req.params.id);
+      const { content } = req.body;
+      
+      if (!content) {
+        return res.status(400).json({ message: "Comment content is required" });
+      }
+      
+      // Check if the comment exists and belongs to the user
+      const comment = await storage.getUniversityCourseComment(commentId);
+      if (!comment) {
+        return res.status(404).json({ message: "Comment not found" });
+      }
+      
+      if (comment.userId !== userId) {
+        return res.status(403).json({ message: "You can only edit your own comments" });
+      }
+      
+      const updatedComment = await storage.updateUniversityCourseComment(commentId, content);
+      res.json(updatedComment);
+    } catch (error) {
+      console.error("Error updating university course comment:", error);
+      res.status(500).json({ message: "Error updating university course comment" });
+    }
+  });
+  
+  app.delete("/api/university-course-comments/:id", authenticateJWT, async (req: Request, res: Response) => {
+    try {
+      const userId = (req as any).user.id;
+      const commentId = parseInt(req.params.id);
+      
+      // Check if the comment exists
+      const comment = await storage.getUniversityCourseComment(commentId);
+      if (!comment) {
+        return res.status(404).json({ message: "Comment not found" });
+      }
+      
+      // Only allow the comment owner to delete it
+      if (comment.userId !== userId) {
+        return res.status(403).json({ message: "You can only delete your own comments" });
+      }
+      
+      const success = await storage.deleteUniversityCourseComment(commentId, userId);
+      if (!success) {
+        return res.status(500).json({ message: "Failed to delete comment" });
+      }
+      
+      res.status(204).end();
+    } catch (error) {
+      console.error("Error deleting university course comment:", error);
+      res.status(500).json({ message: "Error deleting university course comment" });
+    }
+  });
+  
+  // University Course Resources API Routes
+  app.get("/api/university-courses/:courseId/resources", async (req: Request, res: Response) => {
+    try {
+      const courseId = parseInt(req.params.courseId);
+      
+      // Check if the course exists
+      const course = await storage.getUniversityCourse(courseId);
+      if (!course) {
+        return res.status(404).json({ message: "University course not found" });
+      }
+      
+      const resources = await storage.getUniversityCourseResourcesByCourseId(courseId);
+      res.json(resources);
+    } catch (error) {
+      console.error("Error fetching university course resources:", error);
+      res.status(500).json({ message: "Error fetching university course resources" });
+    }
+  });
+  
+  app.post("/api/university-courses/:courseId/resources", authenticateJWT, async (req: Request, res: Response) => {
+    try {
+      const userId = (req as any).user.id;
+      const courseId = parseInt(req.params.courseId);
+      const { title, url, description, resourceType } = req.body;
+      
+      if (!title || !url) {
+        return res.status(400).json({ message: "Title and URL are required" });
+      }
+      
+      // Check if the course exists
+      const course = await storage.getUniversityCourse(courseId);
+      if (!course) {
+        return res.status(404).json({ message: "University course not found" });
+      }
+      
+      const resourceData = insertUniversityCourseResourceSchema.parse({
+        userId,
+        courseId,
+        title,
+        url,
+        description: description || null,
+        resourceType: resourceType || 'link',
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString()
+      });
+      
+      const resource = await storage.createUniversityCourseResource(resourceData);
+      res.status(201).json(resource);
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ message: fromZodError(error).message });
+      }
+      console.error("Error creating university course resource:", error);
+      res.status(500).json({ message: "Error creating university course resource" });
+    }
+  });
+  
+  app.put("/api/university-course-resources/:id", authenticateJWT, async (req: Request, res: Response) => {
+    try {
+      const userId = (req as any).user.id;
+      const resourceId = parseInt(req.params.id);
+      const { title, url, description, resourceType } = req.body;
+      
+      if (!title && !url && !description && !resourceType) {
+        return res.status(400).json({ message: "At least one field must be provided" });
+      }
+      
+      // Check if the resource exists and belongs to the user
+      const resource = await storage.getUniversityCourseResource(resourceId);
+      if (!resource) {
+        return res.status(404).json({ message: "Resource not found" });
+      }
+      
+      if (resource.userId !== userId) {
+        return res.status(403).json({ message: "You can only edit your own resources" });
+      }
+      
+      const updateData: Partial<InsertUniversityCourseResource> = {};
+      if (title) updateData.title = title;
+      if (url) updateData.url = url;
+      if (description !== undefined) updateData.description = description || null;
+      if (resourceType) updateData.resourceType = resourceType;
+      
+      const updatedResource = await storage.updateUniversityCourseResource(resourceId, updateData);
+      res.json(updatedResource);
+    } catch (error) {
+      console.error("Error updating university course resource:", error);
+      res.status(500).json({ message: "Error updating university course resource" });
+    }
+  });
+  
+  app.delete("/api/university-course-resources/:id", authenticateJWT, async (req: Request, res: Response) => {
+    try {
+      const userId = (req as any).user.id;
+      const resourceId = parseInt(req.params.id);
+      
+      // Check if the resource exists
+      const resource = await storage.getUniversityCourseResource(resourceId);
+      if (!resource) {
+        return res.status(404).json({ message: "Resource not found" });
+      }
+      
+      // Only allow the resource owner to delete it
+      if (resource.userId !== userId) {
+        return res.status(403).json({ message: "You can only delete your own resources" });
+      }
+      
+      const success = await storage.deleteUniversityCourseResource(resourceId, userId);
+      if (!success) {
+        return res.status(500).json({ message: "Failed to delete resource" });
+      }
+      
+      res.status(204).end();
+    } catch (error) {
+      console.error("Error deleting university course resource:", error);
+      res.status(500).json({ message: "Error deleting university course resource" });
+    }
+  });
+  
+  // University Course Collaborations API Routes
+  app.get("/api/university-courses/:courseId/collaborations", async (req: Request, res: Response) => {
+    try {
+      const courseId = parseInt(req.params.courseId);
+      
+      // Check if the course exists
+      const course = await storage.getUniversityCourse(courseId);
+      if (!course) {
+        return res.status(404).json({ message: "University course not found" });
+      }
+      
+      const collaborations = await storage.getUniversityCourseCollaborationsByCourseId(courseId);
+      res.json(collaborations);
+    } catch (error) {
+      console.error("Error fetching university course collaborations:", error);
+      res.status(500).json({ message: "Error fetching university course collaborations" });
+    }
+  });
+  
+  app.get("/api/user/collaborations", authenticateJWT, async (req: Request, res: Response) => {
+    try {
+      const userId = (req as any).user.id;
+      const collaborations = await storage.getUniversityCourseCollaborationsByUserId(userId);
+      res.json(collaborations);
+    } catch (error) {
+      console.error("Error fetching user's university course collaborations:", error);
+      res.status(500).json({ message: "Error fetching user's university course collaborations" });
+    }
+  });
+  
+  app.post("/api/university-courses/:courseId/collaborations", authenticateJWT, async (req: Request, res: Response) => {
+    try {
+      const userId = (req as any).user.id;
+      const courseId = parseInt(req.params.courseId);
+      const { goals, availability, preferredContactMethod, contactInfo } = req.body;
+      
+      if (!goals || !availability || !preferredContactMethod || !contactInfo) {
+        return res.status(400).json({ message: "All fields are required" });
+      }
+      
+      // Check if the course exists
+      const course = await storage.getUniversityCourse(courseId);
+      if (!course) {
+        return res.status(404).json({ message: "University course not found" });
+      }
+      
+      const collaborationData = insertUniversityCourseCollaborationSchema.parse({
+        userId,
+        courseId,
+        goals,
+        availability,
+        preferredContactMethod,
+        contactInfo,
+        status: 'active',
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString()
+      });
+      
+      const collaboration = await storage.createUniversityCourseCollaboration(collaborationData);
+      res.status(201).json(collaboration);
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ message: fromZodError(error).message });
+      }
+      console.error("Error creating university course collaboration:", error);
+      res.status(500).json({ message: "Error creating university course collaboration" });
+    }
+  });
+  
+  app.delete("/api/university-course-collaborations/:id", authenticateJWT, async (req: Request, res: Response) => {
+    try {
+      const userId = (req as any).user.id;
+      const collaborationId = parseInt(req.params.id);
+      
+      // Check if the collaboration exists
+      const collaboration = await storage.getUniversityCourseCollaboration(collaborationId);
+      if (!collaboration) {
+        return res.status(404).json({ message: "Collaboration not found" });
+      }
+      
+      // Only allow the collaboration owner to delete it
+      if (collaboration.userId !== userId) {
+        return res.status(403).json({ message: "You can only delete your own collaboration listings" });
+      }
+      
+      const success = await storage.deleteUniversityCourseCollaboration(collaborationId, userId);
+      if (!success) {
+        return res.status(500).json({ message: "Failed to delete collaboration" });
+      }
+      
+      res.status(204).end();
+    } catch (error) {
+      console.error("Error deleting university course collaboration:", error);
+      res.status(500).json({ message: "Error deleting university course collaboration" });
     }
   });
 

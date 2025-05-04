@@ -1035,12 +1035,138 @@ export const usersChatRelations = relations(users, ({ many }) => ({
 export type ChatMessage = typeof chatMessages.$inferSelect;
 export type InsertChatMessage = typeof chatMessages.$inferInsert;
 
+// University Course Comments schema
+export const universityCourseComments = pgTable("university_course_comments", {
+  id: serial("id").primaryKey(),
+  courseId: integer("course_id")
+    .notNull()
+    .references(() => universityCourses.id),
+  userId: integer("user_id")
+    .notNull()
+    .references(() => users.id),
+  content: text("content").notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at"),
+});
+
+export const insertUniversityCourseCommentSchema = createInsertSchema(universityCourseComments).pick({
+  courseId: true,
+  userId: true,
+  content: true,
+  updatedAt: true,
+});
+
+// University Course Resources schema
+export const universityCourseResources = pgTable("university_course_resources", {
+  id: serial("id").primaryKey(),
+  courseId: integer("course_id")
+    .notNull()
+    .references(() => universityCourses.id),
+  userId: integer("user_id")
+    .notNull()
+    .references(() => users.id),
+  title: text("title").notNull(),
+  url: text("url").notNull(),
+  description: text("description"),
+  resourceType: text("resource_type").notNull(), // github, documentation, video, article, certificate, other
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at"),
+});
+
+export const insertUniversityCourseResourceSchema = createInsertSchema(universityCourseResources).pick({
+  courseId: true,
+  userId: true,
+  title: true,
+  url: true,
+  description: true,
+  resourceType: true,
+  updatedAt: true,
+});
+
+// University Course Collaborations schema
+export const universityCourseCollaborations = pgTable("university_course_collaborations", {
+  id: serial("id").primaryKey(),
+  courseId: integer("course_id")
+    .notNull()
+    .references(() => universityCourses.id),
+  userId: integer("user_id")
+    .notNull()
+    .references(() => users.id),
+  message: text("message").notNull(),
+  contactMethod: text("contact_method").notNull(),
+  contactDetails: text("contact_details").notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at"),
+});
+
+export const insertUniversityCourseCollaborationSchema = createInsertSchema(universityCourseCollaborations).pick({
+  courseId: true,
+  userId: true,
+  message: true,
+  contactMethod: true,
+  contactDetails: true,
+  updatedAt: true,
+});
+
+// Relations for university course comments
+export const universityCourseCommentsRelations = relations(universityCourseComments, ({ one }) => ({
+  course: one(universityCourses, {
+    fields: [universityCourseComments.courseId],
+    references: [universityCourses.id],
+  }),
+  user: one(users, {
+    fields: [universityCourseComments.userId],
+    references: [users.id],
+  }),
+}));
+
+// Relations for university course resources
+export const universityCourseResourcesRelations = relations(universityCourseResources, ({ one }) => ({
+  course: one(universityCourses, {
+    fields: [universityCourseResources.courseId],
+    references: [universityCourses.id],
+  }),
+  user: one(users, {
+    fields: [universityCourseResources.userId],
+    references: [users.id],
+  }),
+}));
+
+// Relations for university course collaborations
+export const universityCourseCollaborationsRelations = relations(universityCourseCollaborations, ({ one }) => ({
+  course: one(universityCourses, {
+    fields: [universityCourseCollaborations.courseId],
+    references: [universityCourses.id],
+  }),
+  user: one(users, {
+    fields: [universityCourseCollaborations.userId],
+    references: [users.id],
+  }),
+}));
+
+// Update university courses relations to include comments, resources, and collaborations
+export const universityCoursesRelationsExtended = relations(universityCourses, ({ many }) => ({
+  bookmarks: many(universityCourseBookmarks),
+  comments: many(universityCourseComments),
+  resources: many(universityCourseResources),
+  collaborations: many(universityCourseCollaborations),
+}));
+
 // Type definitions for university courses and learning center
 export type UniversityCourse = typeof universityCourses.$inferSelect;
 export type InsertUniversityCourse = typeof universityCourses.$inferInsert;
 
 export type UniversityCourseBookmark = typeof universityCourseBookmarks.$inferSelect;
 export type InsertUniversityCourseBookmark = typeof universityCourseBookmarks.$inferInsert;
+
+export type UniversityCourseComment = typeof universityCourseComments.$inferSelect;
+export type InsertUniversityCourseComment = typeof universityCourseComments.$inferInsert;
+
+export type UniversityCourseResource = typeof universityCourseResources.$inferSelect;
+export type InsertUniversityCourseResource = typeof universityCourseResources.$inferInsert;
+
+export type UniversityCourseCollaboration = typeof universityCourseCollaborations.$inferSelect;
+export type InsertUniversityCourseCollaboration = typeof universityCourseCollaborations.$inferInsert;
 
 export type LearningMethod = typeof learningMethods.$inferSelect;
 export type InsertLearningMethod = typeof learningMethods.$inferInsert;

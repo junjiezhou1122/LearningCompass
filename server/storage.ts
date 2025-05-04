@@ -24,8 +24,12 @@ import {
   chatMessages, ChatMessage, InsertChatMessage,
   // Learning Center - University Courses
   universityCourses, universityCourseBookmarks,
+  universityCourseComments, universityCourseResources, universityCourseCollaborations,
   UniversityCourse, InsertUniversityCourse,
   UniversityCourseBookmark, InsertUniversityCourseBookmark,
+  UniversityCourseComment, InsertUniversityCourseComment,
+  UniversityCourseResource, InsertUniversityCourseResource,
+  UniversityCourseCollaboration, InsertUniversityCourseCollaboration,
   // Learning Center - Learning Methods and Tools
   learningMethods, learningMethodReviews,
   LearningMethod, InsertLearningMethod,
@@ -231,6 +235,27 @@ export interface IStorage {
   getUniversityCourseBookmarksByUserId(userId: number): Promise<UniversityCourseBookmark[]>;
   createUniversityCourseBookmark(bookmark: InsertUniversityCourseBookmark): Promise<UniversityCourseBookmark>;
   deleteUniversityCourseBookmark(userId: number, courseId: number): Promise<boolean>;
+
+  // University Course Comments operations
+  getUniversityCourseComment(id: number): Promise<UniversityCourseComment | undefined>;
+  getUniversityCourseCommentsByCourseId(courseId: number): Promise<UniversityCourseComment[]>;
+  createUniversityCourseComment(comment: InsertUniversityCourseComment): Promise<UniversityCourseComment>;
+  updateUniversityCourseComment(id: number, content: string): Promise<UniversityCourseComment | undefined>;
+  deleteUniversityCourseComment(id: number, userId: number): Promise<boolean>;
+
+  // University Course Resources operations
+  getUniversityCourseResource(id: number): Promise<UniversityCourseResource | undefined>;
+  getUniversityCourseResourcesByCourseId(courseId: number): Promise<UniversityCourseResource[]>;
+  createUniversityCourseResource(resource: InsertUniversityCourseResource): Promise<UniversityCourseResource>;
+  updateUniversityCourseResource(id: number, resource: Partial<InsertUniversityCourseResource>): Promise<UniversityCourseResource | undefined>;
+  deleteUniversityCourseResource(id: number, userId: number): Promise<boolean>;
+
+  // University Course Collaborations operations
+  getUniversityCourseCollaboration(id: number): Promise<UniversityCourseCollaboration | undefined>;
+  getUniversityCourseCollaborationsByCourseId(courseId: number): Promise<UniversityCourseCollaboration[]>;
+  getUniversityCourseCollaborationsByUserId(userId: number): Promise<UniversityCourseCollaboration[]>;
+  createUniversityCourseCollaboration(collaboration: InsertUniversityCourseCollaboration): Promise<UniversityCourseCollaboration>;
+  deleteUniversityCourseCollaboration(id: number, userId: number): Promise<boolean>;
 
   // Learning Methods operations
   getLearningMethod(id: number): Promise<LearningMethod | undefined>;
@@ -1905,6 +1930,154 @@ export class DatabaseStorage implements IStorage {
       and(
         eq(universityCourseBookmarks.userId, userId),
         eq(universityCourseBookmarks.universityCourseId, courseId)
+      )
+    );
+    return result.rowCount > 0;
+  }
+
+  // University Course Comments Implementation
+  async getUniversityCourseComment(id: number): Promise<UniversityCourseComment | undefined> {
+    const [comment] = await db.select().from(universityCourseComments).where(eq(universityCourseComments.id, id));
+    return comment || undefined;
+  }
+
+  async getUniversityCourseCommentsByCourseId(courseId: number): Promise<UniversityCourseComment[]> {
+    return await db.select({
+      ...universityCourseComments,
+      user: {
+        id: users.id,
+        username: users.username,
+        photoURL: users.photoURL
+      }
+    })
+    .from(universityCourseComments)
+    .innerJoin(users, eq(universityCourseComments.userId, users.id))
+    .where(eq(universityCourseComments.courseId, courseId))
+    .orderBy(desc(universityCourseComments.createdAt));
+  }
+
+  async createUniversityCourseComment(comment: InsertUniversityCourseComment): Promise<UniversityCourseComment> {
+    const [result] = await db.insert(universityCourseComments).values(comment).returning();
+    return result;
+  }
+
+  async updateUniversityCourseComment(id: number, content: string): Promise<UniversityCourseComment | undefined> {
+    const [result] = await db.update(universityCourseComments)
+      .set({
+        content,
+        updatedAt: new Date()
+      })
+      .where(eq(universityCourseComments.id, id))
+      .returning();
+    return result || undefined;
+  }
+
+  async deleteUniversityCourseComment(id: number, userId: number): Promise<boolean> {
+    const result = await db.delete(universityCourseComments).where(
+      and(
+        eq(universityCourseComments.id, id),
+        eq(universityCourseComments.userId, userId)
+      )
+    );
+    return result.rowCount > 0;
+  }
+
+  // University Course Resources Implementation
+  async getUniversityCourseResource(id: number): Promise<UniversityCourseResource | undefined> {
+    const [resource] = await db.select().from(universityCourseResources).where(eq(universityCourseResources.id, id));
+    return resource || undefined;
+  }
+
+  async getUniversityCourseResourcesByCourseId(courseId: number): Promise<UniversityCourseResource[]> {
+    return await db.select({
+      ...universityCourseResources,
+      user: {
+        id: users.id,
+        username: users.username,
+        photoURL: users.photoURL
+      }
+    })
+    .from(universityCourseResources)
+    .innerJoin(users, eq(universityCourseResources.userId, users.id))
+    .where(eq(universityCourseResources.courseId, courseId))
+    .orderBy(desc(universityCourseResources.createdAt));
+  }
+
+  async createUniversityCourseResource(resource: InsertUniversityCourseResource): Promise<UniversityCourseResource> {
+    const [result] = await db.insert(universityCourseResources).values(resource).returning();
+    return result;
+  }
+
+  async updateUniversityCourseResource(id: number, resource: Partial<InsertUniversityCourseResource>): Promise<UniversityCourseResource | undefined> {
+    const updatedFields = {
+      ...resource,
+      updatedAt: new Date()
+    };
+    const [result] = await db.update(universityCourseResources)
+      .set(updatedFields)
+      .where(eq(universityCourseResources.id, id))
+      .returning();
+    return result || undefined;
+  }
+
+  async deleteUniversityCourseResource(id: number, userId: number): Promise<boolean> {
+    const result = await db.delete(universityCourseResources).where(
+      and(
+        eq(universityCourseResources.id, id),
+        eq(universityCourseResources.userId, userId)
+      )
+    );
+    return result.rowCount > 0;
+  }
+
+  // University Course Collaborations Implementation
+  async getUniversityCourseCollaboration(id: number): Promise<UniversityCourseCollaboration | undefined> {
+    const [collaboration] = await db.select().from(universityCourseCollaborations).where(eq(universityCourseCollaborations.id, id));
+    return collaboration || undefined;
+  }
+
+  async getUniversityCourseCollaborationsByCourseId(courseId: number): Promise<UniversityCourseCollaboration[]> {
+    return await db.select({
+      ...universityCourseCollaborations,
+      user: {
+        id: users.id,
+        username: users.username,
+        photoURL: users.photoURL
+      }
+    })
+    .from(universityCourseCollaborations)
+    .innerJoin(users, eq(universityCourseCollaborations.userId, users.id))
+    .where(eq(universityCourseCollaborations.courseId, courseId))
+    .orderBy(desc(universityCourseCollaborations.createdAt));
+  }
+
+  async getUniversityCourseCollaborationsByUserId(userId: number): Promise<UniversityCourseCollaboration[]> {
+    return await db.select({
+      ...universityCourseCollaborations,
+      course: {
+        id: universityCourses.id,
+        university: universityCourses.university,
+        courseDept: universityCourses.courseDept,
+        courseNumber: universityCourses.courseNumber,
+        courseTitle: universityCourses.courseTitle
+      }
+    })
+    .from(universityCourseCollaborations)
+    .innerJoin(universityCourses, eq(universityCourseCollaborations.courseId, universityCourses.id))
+    .where(eq(universityCourseCollaborations.userId, userId))
+    .orderBy(desc(universityCourseCollaborations.createdAt));
+  }
+
+  async createUniversityCourseCollaboration(collaboration: InsertUniversityCourseCollaboration): Promise<UniversityCourseCollaboration> {
+    const [result] = await db.insert(universityCourseCollaborations).values(collaboration).returning();
+    return result;
+  }
+
+  async deleteUniversityCourseCollaboration(id: number, userId: number): Promise<boolean> {
+    const result = await db.delete(universityCourseCollaborations).where(
+      and(
+        eq(universityCourseCollaborations.id, id),
+        eq(universityCourseCollaborations.userId, userId)
       )
     );
     return result.rowCount > 0;

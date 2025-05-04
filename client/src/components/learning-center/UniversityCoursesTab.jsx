@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { useQuery, useMutation } from '@tanstack/react-query';
+import { useLocation } from 'wouter';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -13,12 +14,14 @@ import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Pagination, PaginationContent, PaginationEllipsis, PaginationItem, PaginationLink, PaginationNext, PaginationPrevious } from '@/components/ui/pagination';
-import { BookOpen, School, ChevronRight, Search, BookmarkPlus, BookmarkCheck, Filter, Plus } from 'lucide-react';
+import { BookOpen, School, ChevronRight, Search, BookmarkPlus, BookmarkCheck, Filter, Plus, ExternalLink } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { queryClient } from '@/lib/queryClient';
 
 const UniversityCoursesTab = () => {
   const { isAuthenticated } = useAuth();
+  const [, setLocation] = useLocation();
+  const { toast } = useToast();
   const [page, setPage] = useState(1);
   const [universityFilter, setUniversityFilter] = useState('all');
   const [deptFilter, setDeptFilter] = useState('all');
@@ -336,8 +339,7 @@ const UniversityCoursesTab = () => {
             {courses.map((course) => (
               <Card 
                 key={course.id} 
-                className="overflow-hidden border-orange-100 hover:border-orange-300 transition-all duration-300 hover:shadow-lg transform hover:-translate-y-1 cursor-pointer"
-                onClick={() => course.url && window.open(course.url, '_blank', 'noopener,noreferrer')}
+                className="overflow-hidden border-orange-100 hover:border-orange-300 transition-all duration-300 hover:shadow-lg transform hover:-translate-y-1"
               >
                 <CardHeader className="bg-gradient-to-r from-orange-100/40 to-amber-100/40 pb-3">
                   <CardTitle className="text-lg font-bold text-orange-800 flex justify-between">
@@ -383,17 +385,24 @@ const UniversityCoursesTab = () => {
                   </div>
                 </CardContent>
                 
-                <CardFooter className="pt-0 flex justify-end">
+                <CardFooter className="pt-0 flex justify-between">
+                  <Button 
+                    variant="outline" 
+                    className="text-orange-700 hover:text-orange-800 hover:bg-orange-50 flex items-center gap-1 border-orange-200"
+                    onClick={() => setLocation(`/learning-center/courses/${course.id}`)}
+                  >
+                    Course Details <ChevronRight className="h-4 w-4" />
+                  </Button>
                   <Button 
                     variant="ghost" 
-                    className="text-orange-600 hover:text-orange-800 hover:bg-orange-50 flex items-center gap-1"
+                    className="text-blue-600 hover:text-blue-800 hover:bg-blue-50 flex items-center gap-1"
                     onClick={(e) => {
                       e.preventDefault();
                       e.stopPropagation();
                       if (course.url) window.open(course.url, '_blank', 'noopener,noreferrer');
                     }}
                   >
-                    View Course <ChevronRight className="h-4 w-4" />
+                    University Site <ExternalLink className="h-4 w-4" />
                   </Button>
                 </CardFooter>
               </Card>

@@ -7,6 +7,9 @@ import { getApiBaseUrl } from "../lib/utils";
 // Create auth context
 const AuthContext = createContext(null);
 
+// Export the context so it can be imported directly in the use-auth hook
+export { AuthContext };
+
 export function AuthProvider({ children }) {
   const [user, setUser] = useState(null);
   const [token, setToken] = useState(null);

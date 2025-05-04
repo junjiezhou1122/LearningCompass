@@ -8,6 +8,7 @@ import { LanguageProvider } from "./contexts/LanguageContext";
 import NotFound from "@/pages/not-found";
 import Home from "@/pages/Home";
 import CourseDetail from "@/pages/CourseDetail";
+import CourseDetailsPage from "@/pages/CourseDetailsPage";
 import Bookmarks from "@/pages/Bookmarks";
 import LearningHowToLearn from "@/pages/LearningHowToLearn";
 import LearningCenter from "@/pages/LearningCenter";
@@ -47,6 +48,7 @@ function Router() {
               <Route path="/courses" component={Home} />
               <Route path="/course/:id" component={CourseDetail} />
               <Route path="/learning-center" component={LearningCenter} />
+              <Route path="/learning-center/courses/:id" component={CourseDetailsPage} />
               <Route path="/bookmarks" component={Bookmarks} />
               <Route path="/share" component={Share} />
               <Route path="/post/:id" component={PostDetail} />
