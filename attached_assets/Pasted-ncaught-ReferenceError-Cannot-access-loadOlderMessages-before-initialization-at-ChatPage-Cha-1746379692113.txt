@@ -1,0 +1,71 @@
+ncaught ReferenceError: Cannot access 'loadOlderMessages' before initialization
+    at ChatPage (ChatPage.jsx:209:31)
+    at renderWithHooks (chunk-RPCDYKBN.js?v=d8acb256:11548:26)
+    at mountIndeterminateComponent (chunk-RPCDYKBN.js?v=d8acb256:14926:21)
+    at beginWork (chunk-RPCDYKBN.js?v=d8acb256:15914:22)
+    at HTMLUnknownElement.callCallback2 (chunk-RPCDYKBN.js?v=d8acb256:3674:22)
+    at Object.invokeGuardedCallbackDev (chunk-RPCDYKBN.js?v=d8acb256:3699:24)
+    at invokeGuardedCallback (chunk-RPCDYKBN.js?v=d8acb256:3733:39)
+    at beginWork$1 (chunk-RPCDYKBN.js?v=d8acb256:19765:15)
+    at performUnitOfWork (chunk-RPCDYKBN.js?v=d8acb256:19198:20)
+    at workLoopSync (chunk-RPCDYKBN.js?v=d8acb256:19137:13)
+ChatPage @ ChatPage.jsx:209
+renderWithHooks @ chunk-RPCDYKBN.js?v=d8acb256:11548
+mountIndeterminateComponent @ chunk-RPCDYKBN.js?v=d8acb256:14926
+beginWork @ chunk-RPCDYKBN.js?v=d8acb256:15914
+callCallback2 @ chunk-RPCDYKBN.js?v=d8acb256:3674
+invokeGuardedCallbackDev @ chunk-RPCDYKBN.js?v=d8acb256:3699
+invokeGuardedCallback @ chunk-RPCDYKBN.js?v=d8acb256:3733
+beginWork$1 @ chunk-RPCDYKBN.js?v=d8acb256:19765
+performUnitOfWork @ chunk-RPCDYKBN.js?v=d8acb256:19198
+workLoopSync @ chunk-RPCDYKBN.js?v=d8acb256:19137
+renderRootSync @ chunk-RPCDYKBN.js?v=d8acb256:19116
+recoverFromConcurrentError @ chunk-RPCDYKBN.js?v=d8acb256:18736
+performConcurrentWorkOnRoot @ chunk-RPCDYKBN.js?v=d8acb256:18684
+workLoop @ chunk-RPCDYKBN.js?v=d8acb256:197
+flushWork @ chunk-RPCDYKBN.js?v=d8acb256:176
+performWorkUntilDeadline @ chunk-RPCDYKBN.js?v=d8acb256:384Understand this error
+hook.js:608 The above error occurred in the <ChatPage> component:
+
+    at ChatPage (https://3dfc56df-215e-420c-b5f9-7861b5a57ba9-00-2jpu9osoxeowk.picard.replit.dev/src/pages/ChatPage.jsx:330:27)
+    at Route (https://3dfc56df-215e-420c-b5f9-7861b5a57ba9-00-2jpu9osoxeowk.picard.replit.dev/@fs/home/runner/workspace/node_modules/.vite/deps/wouter.js?v=d8acb256:323:16)
+    at Switch (https://3dfc56df-215e-420c-b5f9-7861b5a57ba9-00-2jpu9osoxeowk.picard.replit.dev/@fs/home/runner/workspace/node_modules/.vite/deps/wouter.js?v=d8acb256:379:17)
+    at div
+    at div
+    at Router (https://3dfc56df-215e-420c-b5f9-7861b5a57ba9-00-2jpu9osoxeowk.picard.replit.dev/src/App.tsx?v=_pM38cJy_pK_diFSC6CIZ:46:22)
+    at Provider (https://3dfc56df-215e-420c-b5f9-7861b5a57ba9-00-2jpu9osoxeowk.picard.replit.dev/@fs/home/runner/workspace/node_modules/.vite/deps/chunk-E7IAXTU4.js?v=d8acb256:38:15)
+    at TooltipProvider (https://3dfc56df-215e-420c-b5f9-7861b5a57ba9-00-2jpu9osoxeowk.picard.replit.dev/@fs/home/runner/workspace/node_modules/.vite/deps/@radix-ui_react-tooltip.js?v=d8acb256:63:5)
+    at AuthProvider (https://3dfc56df-215e-420c-b5f9-7861b5a57ba9-00-2jpu9osoxeowk.picard.replit.dev/src/contexts/AuthContext.jsx:25:32)
+    at LanguageProvider (https://3dfc56df-215e-420c-b5f9-7861b5a57ba9-00-2jpu9osoxeowk.picard.replit.dev/src/contexts/LanguageContext.jsx:325:36)
+    at QueryClientProvider (https://3dfc56df-215e-420c-b5f9-7861b5a57ba9-00-2jpu9osoxeowk.picard.replit.dev/@fs/home/runner/workspace/node_modules/.vite/deps/@tanstack_react-query.js?v=d8acb256:2805:3)
+    at App
+
+Consider adding an error boundary to your tree to customize error handling behavior.
+Visit https://reactjs.org/link/error-boundaries to learn more about error boundaries.
+overrideMethod @ hook.js:608
+logCapturedError @ chunk-RPCDYKBN.js?v=d8acb256:14032
+update.callback @ chunk-RPCDYKBN.js?v=d8acb256:14052
+callCallback @ chunk-RPCDYKBN.js?v=d8acb256:11248
+commitUpdateQueue @ chunk-RPCDYKBN.js?v=d8acb256:11265
+commitLayoutEffectOnFiber @ chunk-RPCDYKBN.js?v=d8acb256:17093
+commitLayoutMountEffects_complete @ chunk-RPCDYKBN.js?v=d8acb256:17980
+commitLayoutEffects_begin @ chunk-RPCDYKBN.js?v=d8acb256:17969
+commitLayoutEffects @ chunk-RPCDYKBN.js?v=d8acb256:17920
+commitRootImpl @ chunk-RPCDYKBN.js?v=d8acb256:19353
+commitRoot @ chunk-RPCDYKBN.js?v=d8acb256:19277
+finishConcurrentRender @ chunk-RPCDYKBN.js?v=d8acb256:18760
+performConcurrentWorkOnRoot @ chunk-RPCDYKBN.js?v=d8acb256:18718
+workLoop @ chunk-RPCDYKBN.js?v=d8acb256:197
+flushWork @ chunk-RPCDYKBN.js?v=d8acb256:176
+performWorkUntilDeadline @ chunk-RPCDYKBN.js?v=d8acb256:384Understand this error
+chunk-RPCDYKBN.js?v=d8acb256:19413 Uncaught ReferenceError: Cannot access 'loadOlderMessages' before initialization
+    at ChatPage (ChatPage.jsx:209:31)
+    at renderWithHooks (chunk-RPCDYKBN.js?v=d8acb256:11548:26)
+    at mountIndeterminateComponent (chunk-RPCDYKBN.js?v=d8acb256:14926:21)
+    at beginWork (chunk-RPCDYKBN.js?v=d8acb256:15914:22)
+    at beginWork$1 (chunk-RPCDYKBN.js?v=d8acb256:19753:22)
+    at performUnitOfWork (chunk-RPCDYKBN.js?v=d8acb256:19198:20)
+    at workLoopSync (chunk-RPCDYKBN.js?v=d8acb256:19137:13)
+    at renderRootSync (chunk-RPCDYKBN.js?v=d8acb256:19116:15)
+    at recoverFromConcurrentError (chunk-RPCDYKBN.js?v=d8acb256:18736:28)
+    at performConcurrentWorkOnRoot (chunk-RPCDYKBN.js?v=d8acb256:18684:30)

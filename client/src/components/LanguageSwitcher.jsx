@@ -18,15 +18,15 @@ const LanguageSwitcher = () => {
         <Button 
           variant="ghost" 
           size="icon" 
-          className="text-white hover:text-white hover:bg-amber-600"
+          className="text-[#b5bac1] hover:text-white hover:bg-[#3f4248] rounded-sm"
           aria-label={t('language')}
         >
-          <Globe className="h-5 w-5" />
+          <Globe className="h-4 w-4" />
         </Button>
       </DropdownMenuTrigger>
-      <DropdownMenuContent align="end">
+      <DropdownMenuContent align="end" className="bg-[#313338] border-[#1e1f22] text-[#f2f3f5]">
         <DropdownMenuItem 
-          className={`cursor-pointer ${language === LANGUAGES.ENGLISH ? 'font-bold bg-amber-50' : ''}`}
+          className={`cursor-pointer hover:bg-[#3f4248] ${language === LANGUAGES.ENGLISH ? 'font-medium text-white bg-[#3f4248]' : 'text-[#b5bac1]'}`}
           onClick={() => setLanguage(LANGUAGES.ENGLISH)}
         >
           <div className="flex items-center">
@@ -35,7 +35,7 @@ const LanguageSwitcher = () => {
           </div>
         </DropdownMenuItem>
         <DropdownMenuItem 
-          className={`cursor-pointer ${language === LANGUAGES.CHINESE ? 'font-bold bg-amber-50' : ''}`}
+          className={`cursor-pointer hover:bg-[#3f4248] ${language === LANGUAGES.CHINESE ? 'font-medium text-white bg-[#3f4248]' : 'text-[#b5bac1]'}`}
           onClick={() => setLanguage(LANGUAGES.CHINESE)}
         >
           <div className="flex items-center">

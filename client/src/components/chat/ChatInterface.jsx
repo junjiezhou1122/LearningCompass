@@ -20,27 +20,27 @@ const ChatMessage = ({ message, isCurrentUser }) => {
     <div className={`flex items-end mb-4 ${isCurrentUser ? 'justify-end' : 'justify-start'}`}>
       {!isCurrentUser && (
         <div className="flex-shrink-0 mr-2 mb-1">
-          <div className="h-8 w-8 rounded-full bg-gray-200 flex items-center justify-center">
-            <User className="h-4 w-4 text-gray-600" />
+          <div className="h-8 w-8 rounded-full bg-orange-100 border border-orange-200 flex items-center justify-center">
+            <User className="h-4 w-4 text-orange-600" />
           </div>
         </div>
       )}
       
       <div className={`max-w-[70%]`}>
         <div className={`px-4 py-2 rounded-lg ${isCurrentUser 
-          ? 'bg-blue-500 text-white rounded-br-none' 
-          : 'bg-gray-100 text-gray-800 rounded-bl-none'}`}
+          ? 'bg-orange-600 text-white rounded-br-none shadow-sm' 
+          : 'bg-orange-50 text-orange-800 rounded-bl-none border border-orange-100 shadow-sm'}`}
         >
           <p className="text-sm">{message.content}</p>
         </div>
-        <div className={`text-xs text-gray-500 mt-1 ${isCurrentUser ? 'text-right mr-2' : 'ml-2'}`}>
+        <div className={`text-xs text-orange-400 mt-1 ${isCurrentUser ? 'text-right mr-2' : 'ml-2'}`}>
           {formattedTime}
         </div>
       </div>
       
       {isCurrentUser && (
         <div className="flex-shrink-0 ml-2 mb-1">
-          <div className="h-8 w-8 rounded-full bg-blue-500 flex items-center justify-center">
+          <div className="h-8 w-8 rounded-full bg-orange-600 border border-orange-300 flex items-center justify-center">
             <User className="h-4 w-4 text-white" />
           </div>
         </div>
@@ -269,23 +269,23 @@ const ChatInterface = ({ otherUser, onClose }) => {
       <div className="flex flex-col flex-grow">
         {/* Chat header */}
         <div 
-          className="px-4 py-3 border-b flex items-center justify-between bg-blue-500 text-white shadow-sm"
+          className="px-4 py-3 border-b flex items-center justify-between bg-orange-600 text-white shadow-sm"
         >
           <div className="flex items-center">
             <Button 
               variant="ghost" 
               size="icon" 
               onClick={onClose}
-              className="mr-2 text-white hover:bg-blue-600"
+              className="mr-2 text-white hover:bg-orange-700"
             >
               <ArrowLeft className="h-5 w-5" />
             </Button>
             
             <div className="flex items-center">
               <div 
-                className="h-9 w-9 rounded-full bg-blue-100 flex items-center justify-center mr-3 border border-white"
+                className="h-9 w-9 rounded-full bg-orange-100 flex items-center justify-center mr-3 border border-white"
               >
-                <User className="h-5 w-5 text-blue-600" />
+                <User className="h-5 w-5 text-orange-600" />
               </div>
               <div>
                 <h3 className="font-semibold">{otherUser?.username || 'User'}</h3>
@@ -306,20 +306,20 @@ const ChatInterface = ({ otherUser, onClose }) => {
         </div>
         
         {/* Chat messages */}
-        <div className="flex-1 p-4 overflow-y-auto bg-gray-50">
+        <div className="flex-1 p-4 overflow-y-auto bg-white">
           {loading ? (
             <div className="flex items-center justify-center h-full">
               <div 
-                className="rounded-full h-8 w-8 border-2 border-gray-200 border-t-blue-500 animate-spin"
+                className="rounded-full h-8 w-8 border-2 border-orange-200 border-t-orange-600 animate-spin"
               ></div>
             </div>
           ) : messages.length === 0 ? (
-            <div className="flex flex-col items-center justify-center h-full text-gray-500">
+            <div className="flex flex-col items-center justify-center h-full text-orange-500">
               <div>
-                <MessageSquare className="h-12 w-12 mb-3 text-blue-300" />
+                <MessageSquare className="h-12 w-12 mb-3 text-orange-300" />
               </div>
-              <p className="font-medium text-lg text-blue-600 mb-2">No messages yet</p>
-              <p className="text-sm text-gray-600">Send a message to start the conversation</p>
+              <p className="font-medium text-lg text-orange-600 mb-2">No messages yet</p>
+              <p className="text-sm text-orange-700">Send a message to start the conversation</p>
             </div>
           ) : (
             <AnimatePresence>
@@ -344,13 +344,13 @@ const ChatInterface = ({ otherUser, onClose }) => {
         
         {/* Chat input */}
         <div 
-          className="p-3 border-t flex items-center bg-gray-50"
+          className="p-3 border-t flex items-center bg-orange-50"
         >
           <div className="flex items-center space-x-2 mr-2">
             <Button 
               variant="ghost" 
               size="icon" 
-              className="text-gray-400 hover:text-blue-500 hover:bg-gray-100"
+              className="text-orange-400 hover:text-orange-600 hover:bg-orange-100"
               disabled={!connected}
             >
               <Paperclip className="h-5 w-5" />
@@ -358,7 +358,7 @@ const ChatInterface = ({ otherUser, onClose }) => {
             <Button 
               variant="ghost" 
               size="icon" 
-              className="text-gray-400 hover:text-blue-500 hover:bg-gray-100"
+              className="text-orange-400 hover:text-orange-600 hover:bg-orange-100"
               disabled={!connected}
             >
               <Image className="h-5 w-5" />
@@ -370,12 +370,12 @@ const ChatInterface = ({ otherUser, onClose }) => {
             onChange={(e) => setInput(e.target.value)}
             onKeyDown={handleKeyDown}
             placeholder="Type a message..."
-            className="flex-grow rounded-md border-gray-200 focus:border-blue-500 focus:ring-blue-200 mx-2"
+            className="flex-grow rounded-md border-orange-200 focus:border-orange-500 focus:ring-orange-200 mx-2"
             disabled={!connected}
           />
           <Button 
             onClick={sendMessage} 
-            className="bg-blue-500 hover:bg-blue-600 text-white rounded-md px-4 ml-3"
+            className="bg-orange-600 hover:bg-orange-700 text-white rounded-md px-4 ml-3"
             disabled={!connected || !input.trim()}
           >
             <Send className="h-4 w-4" />
@@ -390,17 +390,17 @@ const ChatInterface = ({ otherUser, onClose }) => {
           className="absolute inset-0 bg-white bg-opacity-80 flex items-center justify-center rounded-lg z-50"
         >
           <div 
-            className="text-center p-6 bg-white shadow-md rounded-md border border-gray-200"
+            className="text-center p-6 bg-white shadow-md rounded-md border border-orange-200"
           >
             <div className="mb-4 inline-block">
-              <Badge variant="outline" className="mb-2 text-lg bg-gray-50 text-blue-700 border-blue-200 px-4 py-1">
+              <Badge variant="outline" className="mb-2 text-lg bg-orange-50 text-orange-700 border-orange-200 px-4 py-1">
                 <WifiOff className="mr-2 h-4 w-4" />
                 Disconnected
               </Badge>
             </div>
-            <p className="text-gray-600 mb-2">Trying to reconnect to chat service...</p>
+            <p className="text-orange-600 mb-2">Trying to reconnect to chat service...</p>
             <div 
-              className="mx-auto h-6 w-6 rounded-full border-2 border-gray-200 border-t-blue-500 animate-spin mt-4"
+              className="mx-auto h-6 w-6 rounded-full border-2 border-orange-200 border-t-orange-600 animate-spin mt-4"
             ></div>
           </div>
         </div>

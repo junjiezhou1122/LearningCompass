@@ -2,6 +2,29 @@
 @tailwind components;
 @tailwind utilities;
 
+/* Chat UI utilities */
+.chat-container {
+  /* Set a fixed height for the chat container */
+  height: calc(100vh - 132px); /* Subtract header height */
+  max-height: calc(100vh - 132px);
+  min-height: 400px;
+}
+
+.messages-container {
+  /* Set a fixed height for the messages container */
+  height: calc(100% - 128px); /* Subtract chat header and input area */
+  overflow-y: auto;
+}
+
+.sidebar-scroll-area {
+  /* Set a fixed height for the sidebar scroll area */
+  height: calc(100% - 57px); /* Subtract search input area */
+}
+
+.empty-state-container {
+  height: 100%;
+}
+
 :root {
   --background: 0 0% 100%;
   --foreground: 20 14.3% 4.1%;

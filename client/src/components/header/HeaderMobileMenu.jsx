@@ -60,18 +60,18 @@ export default function HeaderMobileMenu({
             {/* Header */}
             <div className="flex justify-between items-center mb-6">
               <div className="flex items-center">
-                <div className="bg-white rounded-full p-1 mr-2 shadow-sm">
-                  <Brain className="text-orange-600 h-5 w-5" />
+                <div className="bg-amber-600 rounded-md p-1 mr-2 shadow-sm">
+                  <Brain className="text-white h-4 w-4" />
                 </div>
-                <span className="text-xl font-bold">{t("learning")}</span>
+                <span className="text-base font-semibold">{t("learning")}</span>
               </div>
               <Button
                 variant="ghost"
                 size="icon"
-                className="text-white hover:bg-amber-700 transition-all duration-300"
+                className="text-[#b5bac1] hover:text-white hover:bg-[#3f4248] transition-all duration-300 rounded-sm"
                 onClick={() => onOpenChange(false)}
               >
-                <X className="h-6 w-6" />
+                <X className="h-5 w-5" />
               </Button>
             </div>
 

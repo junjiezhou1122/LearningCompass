@@ -11,47 +11,47 @@ export default function HeaderNav() {
   const { isAuthenticated } = useAuth();
 
   return (
-    <div className="hidden md:flex items-center space-x-2">
+    <div className="hidden md:flex items-center space-x-1">
       <Button
         variant="ghost"
-        className="text-white hover:text-white hover:bg-amber-600/80 transition-all duration-500"
+        className="text-[#b5bac1] hover:text-white hover:bg-[#3f4248] transition-all duration-300 text-sm font-medium rounded-sm h-8"
         onClick={() => navigate("/courses")}
       >
-        <BookOpen className="h-5 w-5 mr-2" />
+        <BookOpen className="h-4 w-4 mr-2" />
         {t("resourcesHub")}
       </Button>
       <Button
         variant="ghost"
-        className="text-white hover:text-white hover:bg-amber-600/80 transition-all duration-500"
+        className="text-[#b5bac1] hover:text-white hover:bg-[#3f4248] transition-all duration-300 text-sm font-medium rounded-sm h-8"
         onClick={() => navigate("/learning-center")}
       >
-        <GraduationCap className="h-5 w-5 mr-2" />
+        <GraduationCap className="h-4 w-4 mr-2" />
         Learning Center
       </Button>
       <Button
         variant="ghost"
-        className="text-white hover:text-white hover:bg-amber-600/80 transition-all duration-500"
+        className="text-[#b5bac1] hover:text-white hover:bg-[#3f4248] transition-all duration-300 text-sm font-medium rounded-sm h-8"
         onClick={() => navigate("/share")}
       >
-        <MessageSquare className="h-5 w-5 mr-2" />
+        <MessageSquare className="h-4 w-4 mr-2" />
         {t("shareConnect")}
       </Button>
       {isAuthenticated && (
         <>
           <Button
             variant="ghost"
-            className="text-white hover:text-white hover:bg-amber-600/80 transition-all duration-500"
+            className="text-[#b5bac1] hover:text-white hover:bg-[#3f4248] transition-all duration-300 text-sm font-medium rounded-sm h-8"
             onClick={() => navigate("/notes")}
           >
-            <StickyNote className="h-5 w-5 mr-2" />
+            <StickyNote className="h-4 w-4 mr-2" />
             Notes
           </Button>
           <Button
             variant="ghost"
-            className="text-white hover:text-white hover:bg-amber-600/80 transition-all duration-500"
+            className="text-white bg-[#3f4248] hover:bg-[#4f5258] transition-all duration-300 text-sm font-medium rounded-sm h-8"
             onClick={() => navigate("/chat")}
           >
-            <MessagesSquare className="h-5 w-5 mr-2" />
+            <MessagesSquare className="h-4 w-4 mr-2" />
             Chat
           </Button>
         </>
