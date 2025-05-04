@@ -373,11 +373,21 @@ const LearningMethodsTab = () => {
                     </div>
                   </div>
                   <div className="flex flex-wrap gap-2 mt-1">
-                    {method.tags && Array.isArray(method.tags) && method.tags.map((tag, index) => (
-                      <Badge key={index} variant="secondary" className="bg-amber-100 text-amber-800 hover:bg-amber-200">
-                        {tag}
-                      </Badge>
-                    ))}
+                    {method.tags ? (
+                      Array.isArray(method.tags) ? 
+                        method.tags.map((tag, index) => (
+                          <Badge key={index} variant="secondary" className="bg-amber-100 text-amber-800 hover:bg-amber-200">
+                            {tag}
+                          </Badge>
+                        ))
+                      : typeof method.tags === 'string' ?
+                        method.tags.split(',').map((tag, index) => (
+                          <Badge key={index} variant="secondary" className="bg-amber-100 text-amber-800 hover:bg-amber-200">
+                            {tag.trim()}
+                          </Badge>
+                        ))
+                      : null
+                    ) : null}
                   </div>
                   <CardDescription className="text-gray-700 mt-2">
                     {method.description}
@@ -422,11 +432,21 @@ const LearningMethodsTab = () => {
                         <DialogHeader>
                           <DialogTitle className="text-2xl font-bold text-orange-800">{method.title}</DialogTitle>
                           <div className="flex flex-wrap gap-2 mt-1">
-                            {method.tags && Array.isArray(method.tags) && method.tags.map((tag, index) => (
-                              <Badge key={index} variant="secondary" className="bg-amber-100 text-amber-800 hover:bg-amber-200">
-                                {tag}
-                              </Badge>
-                            ))}
+                            {method.tags ? (
+                              Array.isArray(method.tags) ? 
+                                method.tags.map((tag, index) => (
+                                  <Badge key={index} variant="secondary" className="bg-amber-100 text-amber-800 hover:bg-amber-200">
+                                    {tag}
+                                  </Badge>
+                                ))
+                              : typeof method.tags === 'string' ?
+                                method.tags.split(',').map((tag, index) => (
+                                  <Badge key={index} variant="secondary" className="bg-amber-100 text-amber-800 hover:bg-amber-200">
+                                    {tag.trim()}
+                                  </Badge>
+                                ))
+                              : null
+                            ) : null}
                           </div>
                         </DialogHeader>
                         

@@ -300,7 +300,13 @@ export function setupWebSocketServer(httpServer: Server): WebSocketServer {
                 return;
               }
               
-              const chatHistory = await storage.getChatHistory(userId, otherUserId);
+              // Support pagination with limit and offset parameters
+              const limit = data.limit ? parseInt(data.limit) : 20;
+              const offset = data.offset ? parseInt(data.offset) : 0;
+              
+              console.log(`Fetching chat history with limit=${limit}, offset=${offset}`);
+              
+              const chatHistory = await storage.getChatHistory(userId, otherUserId, { limit, offset });
               console.log(`Retrieved ${chatHistory?.length || 0} messages for chat history`);
               
               // Fetch user details for each sender in the chat history
@@ -324,6 +330,12 @@ export function setupWebSocketServer(httpServer: Server): WebSocketServer {
                   userId: otherUserId,
                   // Use enhanced messages with sender info to ensure correct message positioning
                   messages: enhancedMessages,
+                  // Include pagination info in the response
+                  pagination: {
+                    limit,
+                    offset,
+                    hasMore: enhancedMessages.length >= limit
+                  }
                 }
               }));
               

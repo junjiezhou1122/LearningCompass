@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
 import { useLanguage } from '@/contexts/LanguageContext';
@@ -11,9 +11,13 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { Badge } from '@/components/ui/badge';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { MessagesSquare, MessageCircle, Send, User, Users, Search } from 'lucide-react';
+import { MessagesSquare, MessageCircle, Send, User, Users, Search, CornerDownLeft, ArrowDown } from 'lucide-react';
 
 const DEFAULT_WS_RECONNECT_TIMEOUT = 2000;
+
+// Message cache to persist messages between page reloads
+const messageCache = new Map();
+const MESSAGES_PER_PAGE = 20; // Number of messages to load at once
 
 export default function ChatPage() {
   const { user, isAuthenticated, token } = useAuth();
@@ -28,8 +32,13 @@ export default function ChatPage() {
   const [onlineUsers, setOnlineUsers] = useState(new Set());
   const [searchQuery, setSearchQuery] = useState('');
   const [isConnectionOpen, setIsConnectionOpen] = useState(false);
+  const [isLoadingOlderMessages, setIsLoadingOlderMessages] = useState(false);
+  const [hasMoreMessages, setHasMoreMessages] = useState(true);
+  const [showScrollToBottom, setShowScrollToBottom] = useState(false);
   const socketRef = useRef(null);
   const messagesEndRef = useRef(null);
+  const messagesStartRef = useRef(null);
+  const scrollAreaRef = useRef(null);
   const previousMessagesLength = useRef(0); // Track previous message count to control auto-scrolling
 
   // Query to fetch user's chat partners
@@ -51,87 +60,165 @@ export default function ChatPage() {
   // Setup WebSocket connection
   useEffect(() => {
     if (!isAuthenticated || !user?.id) return;
+    
+    // Close any existing connection before creating a new one
+    if (socketRef.current) {
+      console.log('Closing existing WebSocket connection before creating a new one');
+      try {
+        socketRef.current.close();
+      } catch (err) {
+        console.error('Error closing WebSocket:', err);
+      }
+    }
 
     const connectWebSocket = () => {
       // Determine the correct protocol (ws or wss)
       const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
       const wsUrl = `${protocol}//${window.location.host}/ws`;
+      
+      console.log('Connecting to WebSocket at:', wsUrl);
 
-      // Create WebSocket connection
-      const socket = new WebSocket(wsUrl);
-      socketRef.current = socket;
-
-      socket.onopen = () => {
-        console.log('WebSocket connection established');
-        setIsConnectionOpen(true);
+      try {
+        // Create WebSocket connection
+        const socket = new WebSocket(wsUrl);
+        socketRef.current = socket;
         
-        // Authenticate with the server
-        // Use actual auth token for authentication, or user ID as fallback
-        console.log('Auth token available:', !!token);
-        socket.send(JSON.stringify({
-          type: 'auth',
-          data: { token: token }
-        }));
-        
-        console.log('Sending authentication to WebSocket server');
-
-        // Setup ping interval to keep connection alive
-        const pingInterval = setInterval(() => {
-          if (socket.readyState === WebSocket.OPEN) {
-            socket.send(JSON.stringify({ type: 'ping' }));
+        // Monitor connection state for debugging
+        const connectionStateLog = setInterval(() => {
+          if (socket) {
+            const states = ['CONNECTING', 'OPEN', 'CLOSING', 'CLOSED'];
+            console.log(`WebSocket connection state: ${states[socket.readyState]}`);
+          } else {
+            clearInterval(connectionStateLog);
           }
-        }, 30000);
+        }, 5000); // Log every 5 seconds
 
-        return () => clearInterval(pingInterval);
-      };
+        socket.onopen = () => {
+          console.log('WebSocket connection established successfully');
+          setIsConnectionOpen(true);
+          
+          // Authenticate with the server
+          console.log('Auth token available:', !!token);
+          socket.send(JSON.stringify({
+            type: 'auth',
+            data: { token: token }
+          }));
+          
+          console.log('Sending authentication to WebSocket server');
+
+          // Setup ping interval to keep connection alive
+          const pingInterval = setInterval(() => {
+            if (socket && socket.readyState === WebSocket.OPEN) {
+              socket.send(JSON.stringify({ type: 'ping' }));
+              console.log('Ping sent to server to keep connection alive');
+            } else {
+              console.log('Socket not open, clearing ping interval');
+              clearInterval(pingInterval);
+            }
+          }, 30000);
+          
+          // If we have an active chat, request chat history immediately
+          // after successful authentication
+          if (activeChat) {
+            setTimeout(() => {
+              if (socket && socket.readyState === WebSocket.OPEN) {
+                console.log('Auto-requesting chat history for active chat:', activeChat.id);
+                socket.send(JSON.stringify({
+                  type: 'get_chat_history',
+                  data: { userId: activeChat.id }
+                }));
+              }
+            }, 500); // Small delay to ensure auth is processed first
+          }
+
+          return () => {
+            clearInterval(pingInterval);
+            clearInterval(connectionStateLog);
+          };
+        };
 
       socket.onmessage = (event) => {
-        const data = JSON.parse(event.data);
-        console.log('WebSocket message received:', data);
+        try {
+          const data = JSON.parse(event.data);
+          console.log('WebSocket message received:', data);
 
-        switch (data.type) {
-          case 'direct_message':
-            handleNewMessage(data.data);
-            break;
-          case 'chat_history':
-            handleChatHistory(data.data);
-            break;
-          case 'user_online':
-            handleUserOnline(data.data.userId);
-            break;
-          case 'user_offline':
-            handleUserOffline(data.data.userId);
-            break;
-          case 'error':
-            toast({
-              title: 'Chat Error',
-              description: data.data.message,
-              variant: 'destructive'
-            });
-            break;
-          case 'pong':
-            // Handle ping response (keep-alive)
-            break;
-          default:
-            console.log('Unhandled message type:', data.type);
+          switch (data.type) {
+            case 'direct_message':
+              // Use requestAnimationFrame to debounce and wait for React's next render cycle
+              requestAnimationFrame(() => {
+                handleNewMessage(data.data);
+              });
+              break;
+            case 'chat_history':
+              handleChatHistory(data.data);
+              break;
+            case 'user_online':
+              handleUserOnline(data.data.userId);
+              break;
+            case 'user_offline':
+              handleUserOffline(data.data.userId);
+              break;
+            case 'error':
+              toast({
+                title: 'Chat Error',
+                description: data.data.message,
+                variant: 'destructive'
+              });
+              break;
+            case 'pong':
+              // Handle ping response (keep-alive)
+              break;
+            default:
+              console.log('Unhandled message type:', data.type);
+          }
+        } catch (error) {
+          console.error('Error parsing WebSocket message:', error, event.data);
         }
       };
 
       socket.onclose = (event) => {
-        console.log('WebSocket connection closed:', event);
+        console.log('WebSocket connection closed:', event.code, event.reason);
         setIsConnectionOpen(false);
         
-        // Attempt to reconnect after timeout
-        setTimeout(() => {
-          console.log('Attempting to reconnect WebSocket...');
-          connectWebSocket();
-        }, DEFAULT_WS_RECONNECT_TIMEOUT);
+        // Log more detail about connection close
+        if (event.wasClean) {
+          console.log('WebSocket closed cleanly');
+        } else {
+          console.error('WebSocket connection died unexpectedly');
+        }
+        
+        // Only attempt to reconnect if not a normal closure or closing due to component unmount
+        // Normal closure = 1000, Going Away = 1001 (typically browser navigating away)  
+        if (event.code !== 1000 && event.code !== 1001) {
+          console.log('Scheduling reconnection attempt...');
+          const reconnectTimer = setTimeout(() => {
+            console.log('Attempting to reconnect WebSocket after timeout...');
+            connectWebSocket();
+          }, DEFAULT_WS_RECONNECT_TIMEOUT);
+          
+          // Store the timer in a ref to be able to clear it if component unmounts
+          // This helps prevent memory leaks and attempts to update state on unmounted components
+          return () => {
+            console.log('Clearing reconnection timer');
+            clearTimeout(reconnectTimer);
+          };
+        }
       };
 
       socket.onerror = (error) => {
-        console.error('WebSocket error:', error);
-        socket.close();
+        console.error('WebSocket error occurred:', error);
+        // Don't immediately close, just log the error
+        // The onclose handler will be called automatically if the error causes disconnection
+        // This gives the WebSocket implementation a chance to recover if possible
       };
+    } catch (error) {
+      console.error('Error setting up WebSocket:', error);
+      // Attempt to reconnect after a short delay
+      setTimeout(() => {
+        console.log('Attempting to reconnect after connection setup error...');
+        connectWebSocket();
+      }, DEFAULT_WS_RECONNECT_TIMEOUT);
+    }
     };
 
     connectWebSocket();
@@ -151,93 +238,288 @@ export default function ChatPage() {
     }
   }, [chatPartners]);
 
-  // Auto-scroll to bottom only when loading initial history, not on every message
+  // Auto-scroll to bottom only when necessary, not on every message or history load
   useEffect(() => {
-    // Only scroll when messages are first loaded or cleared
-    if (messages.length <= 1 || previousMessagesLength.current === 0) {
-      messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-    }
-    // Keep track of previous messages length
+    // We only want to auto-scroll in these scenarios:
+    // 1. When user sends their own message (handled in sendMessage function)
+    // 2. When the very first load of messages occurs (handled in handleChatHistory)
+    // For other cases (like receiving messages from others), don't auto-scroll
+    
+    // Update the previous message count for comparing later
     previousMessagesLength.current = messages.length;
   }, [messages]);
 
   // Request chat history when a chat is selected
   useEffect(() => {
-    if (activeChat && socketRef.current?.readyState === WebSocket.OPEN) {
-      socketRef.current.send(JSON.stringify({
-        type: 'get_chat_history',
-        data: { userId: activeChat.id }
-      }));
+    if (activeChat && socketRef.current) {
+      // If connection is open, request immediately
+      if (socketRef.current.readyState === WebSocket.OPEN) {
+        console.log('Requesting chat history for user:', activeChat.id);
+        socketRef.current.send(JSON.stringify({
+          type: 'get_chat_history',
+          data: { userId: activeChat.id }
+        }));
+      } else {
+        // If connection isn't open yet, set up a check that tries again after a short delay
+        console.log('WebSocket not ready, will retry requesting chat history');
+        const checkInterval = setInterval(() => {
+          if (socketRef.current?.readyState === WebSocket.OPEN) {
+            console.log('WebSocket now ready, requesting chat history for:', activeChat.id);
+            socketRef.current.send(JSON.stringify({
+              type: 'get_chat_history',
+              data: { userId: activeChat.id }
+            }));
+            clearInterval(checkInterval);
+          }
+        }, 500); // Check every 500ms
+        
+        // Clean up interval on component unmount or chat change
+        return () => clearInterval(checkInterval);
+      }
+      
+      // Always set this user as the active recipient for future messages
+      socketRef.current.activeRecipient = activeChat.id;
     }
   }, [activeChat]);
 
-  // Handle new incoming message
+  // Handle new incoming message with cache support
   const handleNewMessage = (messageData) => {
     console.log('Received message:', messageData);
-    // Log the sender ID and user ID to debug message alignment issue
-    const senderIdNum = parseInt(messageData.senderId);
-    const userIdNum = parseInt(user?.id);
-    const isFromMe = !isNaN(senderIdNum) && !isNaN(userIdNum) && senderIdNum === userIdNum;
-    console.log('Message sender ID:', messageData.senderId, '(', senderIdNum, ')');
-    console.log('Current user ID:', user?.id, '(', userIdNum, ')');
-    console.log('Is from me?', isFromMe);
     
-    // Ensure senderId is present as a number for proper display logic and timestamp is normalized
+    // Check if the message belongs to the active chat
+    // If there's no active chat, don't process the message
+    const activeChatId = activeChat?.id;
+    const messageRecipientId = parseInt(messageData.recipientId);
+    const messageSenderId = parseInt(messageData.senderId);
+    const currentUserId = parseInt(user?.id);
+    
+    console.log('Message belongs to chat:', 
+      activeChatId === messageRecipientId || activeChatId === messageSenderId,
+      'Active chat:', activeChatId,
+      'Message recipient:', messageRecipientId,
+      'Message sender:', messageSenderId);
+    
+    // Ensure the message has an ID for caching
+    const messageId = messageData.id || `temp-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`;
     const processedMessage = {
       ...messageData,
+      id: messageId,
       senderId: messageData.senderId || (messageData.sender && messageData.sender.id) || null,
       createdAt: messageData.createdAt ? new Date(messageData.createdAt) : new Date()
     };
     
-    // Add message to state and ensure proper sorting
-    setMessages(prevMessages => {
-      const newMessages = [...prevMessages, processedMessage];
-      // Sort by timestamp to ensure consistent ordering
-      return newMessages.sort((a, b) => new Date(a.createdAt) - new Date(b.createdAt));
-    });
+    // Determine the chat partner ID (the other user in this conversation)
+    const chatPartnerId = currentUserId === messageSenderId ? messageRecipientId : messageSenderId;
     
-    // Only auto-scroll when message is from the current user (you send a message)
-    // This prevents unwanted scrolling when receiving messages from others
-    if (isFromMe) {
-      setTimeout(() => {
-        messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-      }, 100);
+    // Add message to cache regardless of active chat
+    if (!messageCache.has(chatPartnerId)) {
+      messageCache.set(chatPartnerId, new Map());
     }
     
+    // Only add to cache if it doesn't already exist
+    const chatCache = messageCache.get(chatPartnerId);
+    const messageExists = chatCache.has(messageId) || Array.from(chatCache.values()).some(
+      msg => msg.content === processedMessage.content && 
+             msg.senderId === processedMessage.senderId &&
+             Math.abs(new Date(msg.createdAt) - new Date(processedMessage.createdAt)) < 1000
+    );
+    
+    if (!messageExists) {
+      chatCache.set(messageId, processedMessage);
+      console.log(`Added message to cache for user ${chatPartnerId}. Cache now has ${chatCache.size} messages`);
+    }
+      
+    // Only process messages relevant to the current active chat
+    const isRelevantToActiveChat = 
+      (activeChatId === messageRecipientId && currentUserId === messageSenderId) || 
+      (activeChatId === messageSenderId && currentUserId === messageRecipientId);
+    
+    // If this is a message from/to the active chat, process it
+    if (isRelevantToActiveChat || !activeChat) {
+      // Log the sender ID and user ID to debug message alignment issue
+      const senderIdNum = messageSenderId;
+      const userIdNum = currentUserId;
+      const isFromMe = !isNaN(senderIdNum) && !isNaN(userIdNum) && senderIdNum === userIdNum;
+      console.log('Message sender ID:', messageData.senderId, '(', senderIdNum, ')');
+      console.log('Current user ID:', user?.id, '(', userIdNum, ')');
+      console.log('Is from me?', isFromMe);
+      
+      // Add message to state and ensure proper sorting
+      setMessages(prevMessages => {
+        // Check if this message is already in our list (avoid duplicates)
+        const messageExistsInState = prevMessages.some(msg => 
+          msg.id === processedMessage.id || 
+          (msg.content === processedMessage.content && 
+           msg.senderId === processedMessage.senderId &&
+           Math.abs(new Date(msg.createdAt) - new Date(processedMessage.createdAt)) < 1000));
+           
+        if (messageExistsInState) {
+          console.log('Message already exists in state, not adding duplicate');
+          return prevMessages;
+        }
+        
+        const newMessages = [...prevMessages, processedMessage];
+        // Sort by timestamp to ensure consistent ordering
+        return newMessages.sort((a, b) => new Date(a.createdAt) - new Date(b.createdAt));
+      });
+      
+      // Only auto-scroll when message is from the current user (you send a message)
+      // This prevents unwanted scrolling when receiving messages from others
+      if (isFromMe) {
+        setTimeout(() => {
+          messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+        }, 100);
+      }
+    } else {
+      console.log('Message not for active chat, ignoring for current view');
+      // TODO: Add a notification indicator for chats with unread messages
+    }
+    
+    // Regardless of active chat, add to contacts list if this is a new contact
     // Only add to contacts list if this is a message from someone else (not self-messages)
     // and only if the contact doesn't already exist in the list
-    if (messageData.sender && !isFromMe && 
+    if (messageData.sender && messageSenderId !== currentUserId && 
         !contacts.some(contact => contact.id === messageData.sender.id)) {
       console.log('Adding new contact from message:', messageData.sender);
       setContacts(prevContacts => [...prevContacts, messageData.sender]);
     }
   };
 
-  // Handle received chat history
+  // Handle received chat history with caching support
   const handleChatHistory = (data) => {
     console.log('Received chat history:', data);
     if (data.messages) {
-      // Log each message to check sender and receiver IDs
-      data.messages.forEach((msg, index) => {
-        console.log(`Message ${index} - sender: ${msg.senderId}, receiver: ${msg.recipientId}, content: ${msg.content}`);
-      });
+      // Log only the first few messages to avoid console clutter
+      const sampleSize = Math.min(data.messages.length, 3);
+      for (let i = 0; i < sampleSize; i++) {
+        const msg = data.messages[i];
+        console.log(`Message ${i} - sender: ${msg.senderId}, receiver: ${msg.recipientId}, content: ${msg.content}`);
+      }
       
       // Process messages to ensure all have senderId property
       const processedMessages = data.messages.map(msg => ({
         ...msg,
+        id: msg.id || `temp-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`,
         senderId: msg.senderId || (msg.sender && msg.sender.id) || null,
-        // 确保消息时间有正确格式，便于排序
+        // Ensure message times have correct format for sorting
         createdAt: msg.createdAt ? new Date(msg.createdAt) : new Date()
       }));
       
-      // 按时间排序消息
+      // Sort messages by time
       const sortedMessages = processedMessages.sort(
         (a, b) => new Date(a.createdAt) - new Date(b.createdAt)
       );
       
-      setMessages(sortedMessages);
+      // Check for duplicates before setting state
+      const messageMap = new Map();
+      sortedMessages.forEach(msg => messageMap.set(msg.id, msg));
+      
+      // Handle pagination logic and update message cache
+      const isInitialLoad = !data.pagination || data.pagination.offset === 0;
+      const chatId = activeChat?.id;
+      
+      if (chatId) {
+        // Cache these messages for this chat
+        if (!messageCache.has(chatId)) {
+          messageCache.set(chatId, new Map());
+        }
+        
+        // Add all messages to the cache
+        const chatCache = messageCache.get(chatId);
+        sortedMessages.forEach(msg => chatCache.set(msg.id, msg));
+        
+        // Check if we have more messages to load
+        setHasMoreMessages(sortedMessages.length >= MESSAGES_PER_PAGE);
+        
+        // If loading older messages, prepend them to the existing list
+        if (!isInitialLoad && data.pagination?.offset > 0) {
+          setMessages(prevMessages => {
+            // Combine older messages with existing ones, avoiding duplicates
+            const combinedMessages = [...sortedMessages];
+            prevMessages.forEach(msg => {
+              if (!messageMap.has(msg.id)) {
+                combinedMessages.push(msg);
+              }
+            });
+            
+            // Sort all messages by time
+            return combinedMessages.sort(
+              (a, b) => new Date(a.createdAt) - new Date(b.createdAt)
+            );
+          });
+          
+          // Mark loading as complete
+          setIsLoadingOlderMessages(false);
+        } else {
+          // For initial load, just set the messages
+          // When we get chat history, we want to prevent auto-scrolling that happens in the useEffect
+          // Setting previousMessagesLength to a non-zero value prevents unwanted auto-scrolling
+          previousMessagesLength.current = sortedMessages.length;
+          
+          // We're seeing only the most recent messages (up to MESSAGES_PER_PAGE)
+          setMessages(sortedMessages);
+          
+          // Only scroll to bottom automatically if this is the first load of history
+          setTimeout(() => {
+            messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+          }, 100);
+        }
+      }
     }
   };
+  
+  // Handle scroll events to detect scrolling near the top
+  const handleScroll = useCallback((e) => {
+    if (!scrollAreaRef.current) return;
+    
+    // Show scroll to bottom button when not at the bottom
+    const scrollContainer = scrollAreaRef.current.querySelector('[data-radix-scroll-area-viewport]');
+    if (scrollContainer) {
+      const { scrollTop, scrollHeight, clientHeight } = scrollContainer;
+      const distanceFromBottom = scrollHeight - scrollTop - clientHeight;
+      
+      // If we're more than 200px from the bottom, show the scroll-to-bottom button
+      setShowScrollToBottom(distanceFromBottom > 200);
+      
+      // If we're near the top (first 50px) and have more messages, load them
+      if (scrollTop < 50 && hasMoreMessages && !isLoadingOlderMessages) {
+        loadOlderMessages();
+      }
+    }
+  }, [hasMoreMessages, isLoadingOlderMessages]);
+  
+  // Function to scroll to the bottom of the messages
+  const scrollToBottom = useCallback(() => {
+    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  }, []);
+  
+  // Load older messages when scrolling to the top
+  const loadOlderMessages = useCallback(() => {
+    if (isLoadingOlderMessages || !hasMoreMessages || !activeChat || !socketRef.current) return;
+    
+    setIsLoadingOlderMessages(true);
+    console.log('Loading older messages for chat with', activeChat.id);
+    
+    if (socketRef.current.readyState === WebSocket.OPEN) {
+      socketRef.current.send(JSON.stringify({
+        type: 'get_chat_history',
+        data: {
+          userId: activeChat.id,
+          offset: messages.length,
+          limit: MESSAGES_PER_PAGE
+        }
+      }));
+    } else {
+      setIsLoadingOlderMessages(false);
+      toast({
+        title: 'Connection Error',
+        description: 'Unable to load older messages. Please try again later.',
+        variant: 'destructive'
+      });
+    }
+  }, [activeChat, hasMoreMessages, isLoadingOlderMessages, messages.length, toast]);
+  
+
 
   // Handle user online status update
   const handleUserOnline = (userId) => {
@@ -276,10 +558,40 @@ export default function ChatPage() {
     }
   };
 
-  // Select a chat
+  // Select a chat with cache support
   const selectChat = (contact) => {
+    // We're about to change chats, so set previousMessagesLength to non-zero
+    // This prevents auto-scrolling when chat history loads for the new chat
+    previousMessagesLength.current = 1;
+    
+    // Reset state for the new chat
     setActiveChat(contact);
-    setMessages([]);
+    setHasMoreMessages(true);
+    setIsLoadingOlderMessages(false);
+    
+    // Check if we have cached messages for this contact
+    if (messageCache.has(contact.id)) {
+      console.log(`Loading ${messageCache.get(contact.id).size} cached messages for chat with ${contact.id}`);
+      // Convert Map values to array and sort by timestamp
+      const cachedMessages = Array.from(messageCache.get(contact.id).values())
+        .sort((a, b) => new Date(a.createdAt) - new Date(b.createdAt));
+      
+      setMessages(cachedMessages);
+      
+      // Still request latest messages from server to make sure cache is up-to-date
+      // But we don't need to clear the messages display while loading
+      setTimeout(() => {
+        if (socketRef.current?.readyState === WebSocket.OPEN) {
+          socketRef.current.send(JSON.stringify({
+            type: 'get_chat_history',
+            data: { userId: contact.id }
+          }));
+        }
+      }, 100);
+    } else {
+      // No cached messages, clear and wait for server response
+      setMessages([]);
+    }
   };
 
   // Filter contacts based on search query and exclude current user
@@ -353,8 +665,15 @@ export default function ChatPage() {
                         <Avatar 
                           className="cursor-pointer"
                           onClick={(e) => {
-                            e.stopPropagation(); // 阻止冒泡到通话选择
-                            window.location.href = `/profile/${contact.id}`;
+                            e.stopPropagation(); // Prevent propagation to chat selection
+                            // Use router navigation instead of direct window.location to avoid page refresh
+                            const profileUrl = `/users/${contact.id}`;
+                            // Open in new tab if modifier key is pressed
+                            if (e.ctrlKey || e.metaKey) {
+                              window.open(profileUrl, '_blank');
+                            } else {
+                              window.location.href = profileUrl;
+                            }
                           }}
                         >
                           <AvatarFallback>{contact.username?.[0] || contact.firstName?.[0] || '?'}</AvatarFallback>
@@ -398,7 +717,16 @@ export default function ChatPage() {
                 <div className="flex items-center">
                   <Avatar 
                     className="cursor-pointer"
-                    onClick={() => window.location.href = `/profile/${activeChat.id}`}
+                    onClick={(e) => {
+                      // Use router navigation instead of direct window.location to avoid page refresh
+                      const profileUrl = `/users/${activeChat.id}`;
+                      // Open in new tab if modifier key is pressed
+                      if (e.ctrlKey || e.metaKey) {
+                        window.open(profileUrl, '_blank');
+                      } else {
+                        window.location.href = profileUrl;
+                      }
+                    }}
                   >
                     <AvatarFallback>{activeChat.username?.[0] || activeChat.firstName?.[0] || '?'}</AvatarFallback>
                     {activeChat.avatar && <AvatarImage src={activeChat.avatar} />}
@@ -426,7 +754,31 @@ export default function ChatPage() {
                 </Button>
               </div>
               
-              <ScrollArea className="flex-1 p-4">
+              <ScrollArea 
+                className="flex-1 p-4" 
+                ref={scrollAreaRef}
+                onScroll={handleScroll}
+              >
+                {/* Loading indicator at the top for older messages */}
+                <div ref={messagesStartRef} className="py-2 text-center">
+                  {isLoadingOlderMessages && (
+                    <div className="flex items-center justify-center gap-2 text-sm text-muted-foreground">
+                      <div className="h-3 w-3 animate-spin rounded-full border-2 border-slate-300 border-t-slate-600"></div>
+                      Loading older messages...
+                    </div>
+                  )}
+                  {!isLoadingOlderMessages && hasMoreMessages && (
+                    <Button 
+                      variant="ghost" 
+                      size="sm" 
+                      onClick={loadOlderMessages}
+                      className="text-xs text-muted-foreground hover:text-foreground"
+                    >
+                      Load more messages
+                    </Button>
+                  )}
+                </div>
+                
                 <div className="space-y-4">
                   {messages.length > 0 ? (
                     messages.map((msg, index) => {
@@ -451,7 +803,14 @@ export default function ChatPage() {
                           {!isFromMe && showAvatar && (
                             <Avatar 
                               className="h-8 w-8 flex-shrink-0 cursor-pointer"
-                              onClick={() => window.location.href = `/profile/${sender.id}`}
+                              onClick={(e) => {
+                                const profileUrl = `/users/${sender.id}`;
+                                if (e.ctrlKey || e.metaKey) {
+                                  window.open(profileUrl, '_blank');
+                                } else {
+                                  window.location.href = profileUrl;
+                                }
+                              }}
                             >
                               <AvatarFallback>{sender?.username?.[0] || sender?.firstName?.[0] || '?'}</AvatarFallback>
                               {sender?.avatar && <AvatarImage src={sender.avatar} />}
@@ -484,7 +843,14 @@ export default function ChatPage() {
                           {isFromMe && showAvatar && (
                             <Avatar 
                               className="h-8 w-8 flex-shrink-0 cursor-pointer"
-                              onClick={() => window.location.href = `/profile/${user.id}`}
+                              onClick={(e) => {
+                                const profileUrl = `/users/${user.id}`;
+                                if (e.ctrlKey || e.metaKey) {
+                                  window.open(profileUrl, '_blank');
+                                } else {
+                                  window.location.href = profileUrl;
+                                }
+                              }}
                             >
                               <AvatarFallback>{user?.username?.[0] || user?.firstName?.[0] || '?'}</AvatarFallback>
                               {user?.avatar && <AvatarImage src={user.avatar} />}
@@ -507,6 +873,18 @@ export default function ChatPage() {
                   )}
                   <div ref={messagesEndRef} />
                 </div>
+                
+                {/* Scroll to bottom button */}
+                {showScrollToBottom && (
+                  <Button
+                    className="fixed bottom-20 right-12 z-10 rounded-full bg-primary p-2 text-primary-foreground shadow-lg hover:bg-primary/90"
+                    size="icon"
+                    onClick={scrollToBottom}
+                    aria-label="Scroll to bottom"
+                  >
+                    <ArrowDown className="h-5 w-5" />
+                  </Button>
+                )}
               </ScrollArea>
               
               <div className="p-4 border-t bg-white">
