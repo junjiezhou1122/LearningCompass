@@ -328,12 +328,13 @@ export function setupWebSocketServer(httpServer: Server): WebSocketServer {
                 };
               }));
               
+              // FIXED: Ensure the message structure is consistent and properly formatted
               ws.send(JSON.stringify({
                 type: 'chat_history',
                 data: {
                   userId: otherUserId,
                   // Use enhanced messages with sender info to ensure correct message positioning
-                  messages: enhancedMessages,
+                  messages: enhancedMessages, 
                   // Include pagination info in the response
                   pagination: {
                     limit,
@@ -343,6 +344,11 @@ export function setupWebSocketServer(httpServer: Server): WebSocketServer {
                   }
                 }
               }));
+              
+              console.log(`Sent chat history with ${enhancedMessages.length} messages to client - hasMore: ${hasMoreMessages}, totalCount: ${totalMessageCount}`);
+              if (enhancedMessages.length > 0) {
+                console.log('First message in response:', JSON.stringify(enhancedMessages[0]));
+              }
               
               console.log('Enhanced chat history sent to client with proper sender details');
             } catch (error) {

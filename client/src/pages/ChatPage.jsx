@@ -12,6 +12,7 @@ import { Badge } from '@/components/ui/badge';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { MessagesSquare, MessageCircle, Send, User, Users, Search, CornerDownLeft, ArrowDown } from 'lucide-react';
+import RobustChatConnection from '@/components/chat/RobustChatConnection';
 
 const DEFAULT_WS_RECONNECT_TIMEOUT = 2000;
 
@@ -35,7 +36,7 @@ export default function ChatPage() {
   const [isLoadingOlderMessages, setIsLoadingOlderMessages] = useState(false);
   const [hasMoreMessages, setHasMoreMessages] = useState(true);
   const [showScrollToBottom, setShowScrollToBottom] = useState(false);
-  const socketRef = useRef(null);
+  // We no longer need socketRef as we're using RobustChatConnection
   const messagesEndRef = useRef(null);
   const messagesStartRef = useRef(null);
   const scrollAreaRef = useRef(null);
@@ -57,186 +58,24 @@ export default function ChatPage() {
     enabled: isAuthenticated,
   });
 
-  // Setup WebSocket connection
-  useEffect(() => {
-    if (!isAuthenticated || !user?.id) return;
-    
-    // Close any existing connection before creating a new one
-    if (socketRef.current) {
-      console.log('Closing existing WebSocket connection before creating a new one');
-      try {
-        socketRef.current.close();
-      } catch (err) {
-        console.error('Error closing WebSocket:', err);
-      }
-    }
-
-    const connectWebSocket = () => {
-      // Determine the correct protocol (ws or wss)
-      const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-      const wsUrl = `${protocol}//${window.location.host}/ws`;
-      
-      console.log('Connecting to WebSocket at:', wsUrl);
-
-      try {
-        // Create WebSocket connection
-        const socket = new WebSocket(wsUrl);
-        socketRef.current = socket;
-        
-        // Monitor connection state for debugging
-        const connectionStateLog = setInterval(() => {
-          if (socket) {
-            const states = ['CONNECTING', 'OPEN', 'CLOSING', 'CLOSED'];
-            console.log(`WebSocket connection state: ${states[socket.readyState]}`);
-          } else {
-            clearInterval(connectionStateLog);
-          }
-        }, 5000); // Log every 5 seconds
-
-        socket.onopen = () => {
-          console.log('WebSocket connection established successfully');
-          setIsConnectionOpen(true);
-          
-          // Authenticate with the server
-          console.log('Auth token available:', !!token);
-          // Ensure we send token in the format expected by the server
-          socket.send(JSON.stringify({
-            type: 'auth',
-            data: { token: token }
-          }));
-          
-          // Additional log to confirm the exact auth payload
-          console.log('Auth payload sent:', JSON.stringify({
-            type: 'auth',
-            data: { token: token }
-          }));
-          
-          console.log('Sending authentication to WebSocket server');
-
-          // Setup ping interval to keep connection alive
-          const pingInterval = setInterval(() => {
-            if (socket && socket.readyState === WebSocket.OPEN) {
-              socket.send(JSON.stringify({ type: 'ping' }));
-              console.log('Ping sent to server to keep connection alive');
-            } else {
-              console.log('Socket not open, clearing ping interval');
-              clearInterval(pingInterval);
-            }
-          }, 30000);
-          
-          // If we have an active chat, request chat history immediately
-          // after successful authentication
-          if (activeChat) {
-            setTimeout(() => {
-              if (socket && socket.readyState === WebSocket.OPEN) {
-                console.log('Auto-requesting chat history for active chat:', activeChat.id);
-                socket.send(JSON.stringify({
-                  type: 'get_chat_history',
-                  data: { userId: activeChat.id }
-                }));
-              }
-            }, 500); // Small delay to ensure auth is processed first
-          }
-
-          return () => {
-            clearInterval(pingInterval);
-            clearInterval(connectionStateLog);
-          };
-        };
-
-      socket.onmessage = (event) => {
-        try {
-          const data = JSON.parse(event.data);
-          console.log('WebSocket message received:', data);
-
-          switch (data.type) {
-            case 'direct_message':
-              // Use requestAnimationFrame to debounce and wait for React's next render cycle
-              requestAnimationFrame(() => {
-                handleNewMessage(data.data);
-              });
-              break;
-            case 'chat_history':
-              handleChatHistory(data.data);
-              break;
-            case 'user_online':
-              handleUserOnline(data.data.userId);
-              break;
-            case 'user_offline':
-              handleUserOffline(data.data.userId);
-              break;
-            case 'error':
-              toast({
-                title: 'Chat Error',
-                description: data.data.message,
-                variant: 'destructive'
-              });
-              break;
-            case 'pong':
-              // Handle ping response (keep-alive)
-              break;
-            default:
-              console.log('Unhandled message type:', data.type);
-          }
-        } catch (error) {
-          console.error('Error parsing WebSocket message:', error, event.data);
-        }
-      };
-
-      socket.onclose = (event) => {
-        console.log('WebSocket connection closed:', event.code, event.reason);
-        setIsConnectionOpen(false);
-        
-        // Log more detail about connection close
-        if (event.wasClean) {
-          console.log('WebSocket closed cleanly');
-        } else {
-          console.error('WebSocket connection died unexpectedly');
-        }
-        
-        // Only attempt to reconnect if not a normal closure or closing due to component unmount
-        // Normal closure = 1000, Going Away = 1001 (typically browser navigating away)  
-        if (event.code !== 1000 && event.code !== 1001) {
-          console.log('Scheduling reconnection attempt...');
-          const reconnectTimer = setTimeout(() => {
-            console.log('Attempting to reconnect WebSocket after timeout...');
-            connectWebSocket();
-          }, DEFAULT_WS_RECONNECT_TIMEOUT);
-          
-          // Store the timer in a ref to be able to clear it if component unmounts
-          // This helps prevent memory leaks and attempts to update state on unmounted components
-          return () => {
-            console.log('Clearing reconnection timer');
-            clearTimeout(reconnectTimer);
-          };
-        }
-      };
-
-      socket.onerror = (error) => {
-        console.error('WebSocket error occurred:', error);
-        // Don't immediately close, just log the error
-        // The onclose handler will be called automatically if the error causes disconnection
-        // This gives the WebSocket implementation a chance to recover if possible
-      };
-    } catch (error) {
-      console.error('Error setting up WebSocket:', error);
-      // Attempt to reconnect after a short delay
-      setTimeout(() => {
-        console.log('Attempting to reconnect after connection setup error...');
-        connectWebSocket();
-      }, DEFAULT_WS_RECONNECT_TIMEOUT);
-    }
-    };
-
-    connectWebSocket();
-
-    // Clean up the WebSocket connection when the component unmounts
-    return () => {
-      if (socketRef.current) {
-        socketRef.current.close();
-      }
-    };
-  }, [isAuthenticated, user?.id, token, toast]);
+  // Use our new robust WebSocket connection with better stability
+  const { sendMessage } = RobustChatConnection({
+    isAuthenticated,
+    user,
+    token,
+    activeChat,
+    onConnectionChange: setIsConnectionOpen,
+    onNewMessage: (data) => {
+      // Process new messages with requestAnimationFrame to avoid UI blocking
+      requestAnimationFrame(() => handleNewMessage(data));
+    },
+    onChatHistory: (data) => {
+      console.log('Received chat history');
+      handleChatHistory(data);
+    },
+    onUserOnline: handleUserOnline,
+    onUserOffline: handleUserOffline
+  });
 
   // Fetch chat partners when authenticated
   useEffect(() => {
@@ -254,40 +93,10 @@ export default function ChatPage() {
     
     // Update the previous message count for comparing later
     previousMessagesLength.current = messages.length;
-  }, [messages]);
+  }, [messages, activeChat, isLoadingOlderMessages]);
 
-  // Request chat history when a chat is selected
-  useEffect(() => {
-    if (activeChat && socketRef.current) {
-      // If connection is open, request immediately
-      if (socketRef.current.readyState === WebSocket.OPEN) {
-        console.log('Requesting chat history for user:', activeChat.id);
-        socketRef.current.send(JSON.stringify({
-          type: 'get_chat_history',
-          data: { userId: activeChat.id }
-        }));
-      } else {
-        // If connection isn't open yet, set up a check that tries again after a short delay
-        console.log('WebSocket not ready, will retry requesting chat history');
-        const checkInterval = setInterval(() => {
-          if (socketRef.current?.readyState === WebSocket.OPEN) {
-            console.log('WebSocket now ready, requesting chat history for:', activeChat.id);
-            socketRef.current.send(JSON.stringify({
-              type: 'get_chat_history',
-              data: { userId: activeChat.id }
-            }));
-            clearInterval(checkInterval);
-          }
-        }, 500); // Check every 500ms
-        
-        // Clean up interval on component unmount or chat change
-        return () => clearInterval(checkInterval);
-      }
-      
-      // Always set this user as the active recipient for future messages
-      socketRef.current.activeRecipient = activeChat.id;
-    }
-  }, [activeChat]);
+  // We no longer need the request chat history useEffect as this is handled 
+  // by our RobustChatConnection component when activeChat changes
 
   // Handle new incoming message with cache support
   const handleNewMessage = (messageData) => {
@@ -395,7 +204,18 @@ export default function ChatPage() {
   // Handle received chat history with caching support
   const handleChatHistory = (data) => {
     console.log('Received chat history:', data);
-    if (data.messages) {
+    // FIXED: Add additional logging to debug empty messages issue
+    console.log('Chat history messages array length:', data.messages?.length || 0);
+    console.log('Chat history is array?', Array.isArray(data.messages));
+    
+    // BUGFIX: Ensure the loading indicator is removed even if there's a problem
+    if (!data.messages || !Array.isArray(data.messages)) {
+      console.error('Invalid messages format received:', data);
+      setIsLoadingOlderMessages(false);
+      return;
+    }
+    
+    if (data.messages && Array.isArray(data.messages)) {
       // Log only the first few messages to avoid console clutter
       const sampleSize = Math.min(data.messages.length, 3);
       for (let i = 0; i < sampleSize; i++) {
@@ -404,13 +224,43 @@ export default function ChatPage() {
       }
       
       // Process messages to ensure all have senderId property
-      const processedMessages = data.messages.map(msg => ({
-        ...msg,
-        id: msg.id || `temp-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`,
-        senderId: msg.senderId || (msg.sender && msg.sender.id) || null,
-        // Ensure message times have correct format for sorting
-        createdAt: msg.createdAt ? new Date(msg.createdAt) : new Date()
-      }));
+      const processedMessages = data.messages.map(msg => {
+        // BUGFIX: Add detailed validation and logging for each message
+        if (!msg) {
+          console.error('Null message object in data.messages');
+          return null;
+        }
+        
+        // Generate a guaranteed unique ID if missing
+        const messageId = msg.id || `temp-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`;
+        
+        // Handle missing senderId by extracting from sender object or setting a fallback
+        let senderId = null;
+        if (msg.senderId) {
+          senderId = msg.senderId;
+        } else if (msg.sender && msg.sender.id) {
+          senderId = msg.sender.id;
+          console.log(`Message ${messageId} missing senderId, extracted ${senderId} from sender object`);
+        } else {
+          console.error(`Message ${messageId} missing both senderId and sender.id`);
+        }
+        
+        // Ensure createdAt is a valid date
+        let createdAt;
+        try {
+          createdAt = msg.createdAt ? new Date(msg.createdAt) : new Date();
+        } catch (e) {
+          console.error(`Invalid date format for message ${messageId}:`, msg.createdAt);
+          createdAt = new Date();
+        }
+        
+        return {
+          ...msg,
+          id: messageId,
+          senderId,
+          createdAt
+        };
+      }).filter(Boolean); // Remove any null entries
       
       // Sort messages by time
       const sortedMessages = processedMessages.sort(
@@ -506,26 +356,29 @@ export default function ChatPage() {
   
   // Load older messages when scrolling to the top
   const loadOlderMessages = useCallback(() => {
-    if (isLoadingOlderMessages || !hasMoreMessages || !activeChat || !socketRef.current) return;
+    if (isLoadingOlderMessages || !hasMoreMessages || !activeChat) return;
     
     setIsLoadingOlderMessages(true);
     console.log('Loading older messages for chat with', activeChat.id);
     
-    if (socketRef.current.readyState === WebSocket.OPEN) {
-      socketRef.current.send(JSON.stringify({
-        type: 'get_chat_history',
-        data: {
-          userId: activeChat.id,
-          offset: messages.length,
-          limit: MESSAGES_PER_PAGE
-        }
-      }));
-    } else {
-      setIsLoadingOlderMessages(false);
+    // Use our robust connection to request older messages
+    const wasQueued = sendMessage({
+      type: 'get_chat_history',
+      data: {
+        userId: activeChat.id,
+        offset: messages.length,
+        limit: MESSAGES_PER_PAGE
+      }
+    });
+    
+    // If the message was queued (connection is down), let the user know
+    if (wasQueued === false) {
+      // We don't reset loading state here because the message will be sent
+      // when connection is restored
       toast({
-        title: 'Connection Error',
-        description: 'Unable to load older messages. Please try again later.',
-        variant: 'destructive'
+        title: 'Connection Issues',
+        description: 'Will load messages when connection is restored.',
+        duration: 3000,
       });
     }
   }, [activeChat, hasMoreMessages, isLoadingOlderMessages, messages.length, toast]);
@@ -547,24 +400,27 @@ export default function ChatPage() {
   };
 
   // Send a new message
-  const sendMessage = () => {
-    if (!message.trim() || !activeChat || !socketRef.current) return;
+  const handleSendMessage = () => {
+    if (!message.trim() || !activeChat) return;
     
-    if (socketRef.current.readyState === WebSocket.OPEN) {
-      socketRef.current.send(JSON.stringify({
-        type: 'direct_message',
-        data: {
-          recipientId: activeChat.id,
-          content: message.trim()
-        }
-      }));
-      
-      setMessage('');
-    } else {
+    // Use our robust connection to send the message
+    const wasQueued = sendMessage({
+      type: 'chat_message',
+      data: {
+        recipientId: activeChat.id,
+        content: message.trim()
+      }
+    });
+    
+    // Always clear the input field
+    setMessage('');
+    
+    // If the message was queued (connection is down), notify the user
+    if (wasQueued === false) {
       toast({
-        title: 'Connection Error',
-        description: 'Unable to send message. Please try again later.',
-        variant: 'destructive'
+        title: 'Message Queued',
+        description: 'Message will be delivered when connection is restored.',
+        duration: 3000,
       });
     }
   };
@@ -592,12 +448,11 @@ export default function ChatPage() {
       // Still request latest messages from server to make sure cache is up-to-date
       // But we don't need to clear the messages display while loading
       setTimeout(() => {
-        if (socketRef.current?.readyState === WebSocket.OPEN) {
-          socketRef.current.send(JSON.stringify({
-            type: 'get_chat_history',
-            data: { userId: contact.id }
-          }));
-        }
+        // Use our robust connection to request chat history
+        sendMessage({
+          type: 'get_chat_history',
+          data: { userId: contact.id }
+        });
       }, 100);
     } else {
       // No cached messages, clear and wait for server response
@@ -793,17 +648,23 @@ export default function ChatPage() {
                 <div className="space-y-4">
                   {messages.length > 0 ? (
                     messages.map((msg, index) => {
-                      // 强制显示所有接收到的消息都在左侧，自己发送的都在右侧
-                      // 使用 parseInt 确保 ID 类型一致进行比较
+                      // BUGFIX: Add error handling for missing/invalid message data
+                      if (!msg || !msg.senderId) {
+                        console.error(`Invalid message at index ${index}:`, msg);
+                        return null; // Skip rendering this message
+                      }
+                      
+                      // Force all received messages to display on the left, sent messages on the right
+                      // Use parseInt to ensure ID types match for comparison
                       const senderIdNum = parseInt(msg.senderId);
                       const userIdNum = parseInt(user?.id);
                       const isFromMe = !isNaN(senderIdNum) && !isNaN(userIdNum) && senderIdNum === userIdNum;
                       console.log(`Message ${index} - from me? ${isFromMe}, senderId: ${msg.senderId}(${senderIdNum}), myId: ${user?.id}(${userIdNum})`);
                       
-                      // 使用发送者ID对应的用户或当前选中的用户
+                      // Use sender ID's corresponding user or currently selected user
                       const sender = isFromMe ? user : activeChat;
                       const prevMsg = index > 0 ? messages[index - 1] : null;
-                      const showAvatar = !prevMsg || prevMsg.senderId !== msg.senderId; // 只在消息组的第一条消息显示头像
+                      const showAvatar = !prevMsg || prevMsg.senderId !== msg.senderId; // Only show avatar on first message in a group
                       
                       return (
                         <div 
@@ -904,11 +765,11 @@ export default function ChatPage() {
                     placeholder="Type a message..."
                     value={message}
                     onChange={(e) => setMessage(e.target.value)}
-                    onKeyDown={(e) => e.key === 'Enter' && sendMessage()}
+                    onKeyDown={(e) => e.key === 'Enter' && handleSendMessage()}
                     disabled={!isConnectionOpen}
                   />
                   <Button 
-                    onClick={sendMessage} 
+                    onClick={handleSendMessage} 
                     disabled={!message.trim() || !isConnectionOpen}
                   >
                     <Send className="h-4 w-4" />
