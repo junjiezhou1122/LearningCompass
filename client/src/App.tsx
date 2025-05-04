@@ -45,9 +45,12 @@ function Router() {
   if (isChatPage) {
     return (
       <div className="min-h-screen flex flex-col">
-        <Switch>
-          <Route path="/chat" component={ChatPage} />
-        </Switch>
+        <Header />
+        <div className="flex-grow">
+          <Switch>
+            <Route path="/chat" component={ChatPage} />
+          </Switch>
+        </div>
       </div>
     );
   }

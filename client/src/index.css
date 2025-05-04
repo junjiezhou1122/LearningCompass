@@ -152,6 +152,30 @@
 }
 
 @layer utilities {
+  /* Chat interface custom classes */
+  .chat-container {
+    height: calc(100vh - 132px); /* Header (64px) + top bar (68px) */
+    max-height: calc(100vh - 132px);
+    overflow: hidden;
+  }
+  
+  .messages-container {
+    height: calc(100% - 128px); /* Account for chat header and input area */
+    max-height: calc(100% - 128px);
+    overflow-y: auto;
+  }
+  
+  .sidebar-scroll-area {
+    height: calc(100% - 57px); /* Account for search input height */
+    max-height: calc(100% - 57px);
+  }
+  
+  .empty-state-container {
+    height: 100%;
+    max-height: 100%;
+  }
+  
+  /* Animation delay utilities */
   .animation-delay-150 {
     animation-delay: 150ms;
   }

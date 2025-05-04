@@ -29,18 +29,20 @@ import {
   Menu,
   Phone,
   Video,
-  UserPlus
+  UserPlus,
+  Info
 } from 'lucide-react';
 
 // Chat message component
 const ChatMessage = ({ message, isCurrentUser }) => {
   const formattedTime = format(new Date(message.createdAt), 'h:mm a');
+  const formattedDate = format(new Date(message.createdAt), 'MMMM d, yyyy');
   
   return (
-    <div className={`flex items-start mb-4 group ${isCurrentUser ? 'justify-end' : 'justify-start'}`}>
+    <div className={`relative flex items-start mb-1 py-1 px-2 group hover:bg-gray-50 rounded ${isCurrentUser ? 'justify-end' : 'justify-start'}`}>
       {!isCurrentUser && (
-        <div className="flex-shrink-0 mr-2">
-          <Avatar className="h-8 w-8 border border-gray-200">
+        <div className="flex-shrink-0 mr-3 mt-1">
+          <Avatar className="h-9 w-9 border border-gray-200">
             <AvatarFallback className="bg-indigo-100 text-indigo-600">
               {message.sender?.username?.substring(0, 2) || 'U'}
             </AvatarFallback>
@@ -51,10 +53,19 @@ const ChatMessage = ({ message, isCurrentUser }) => {
       <div className={`max-w-[75%]`}>
         {!isCurrentUser && (
           <div className="flex items-center mb-1">
-            <span className="text-sm font-medium text-gray-900">
+            <span className="text-sm font-medium text-indigo-600 hover:underline cursor-pointer">
               {message.sender?.username || 'User'}
             </span>
-            <span className="text-xs text-gray-500 ml-2">{formattedTime}</span>
+            <TooltipProvider>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <span className="text-xs text-gray-500 ml-2 cursor-default">{formattedTime}</span>
+                </TooltipTrigger>
+                <TooltipContent>
+                  <p>{formattedDate}</p>
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
           </div>
         )}
         <div className={`px-4 py-2 rounded-lg ${isCurrentUser 
@@ -65,21 +76,47 @@ const ChatMessage = ({ message, isCurrentUser }) => {
         </div>
         {isCurrentUser && (
           <div className="text-xs text-gray-500 mt-1 text-right mr-1">
-            {formattedTime}
+            <TooltipProvider>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <span className="cursor-default">{formattedTime}</span>
+                </TooltipTrigger>
+                <TooltipContent>
+                  <p>{formattedDate}</p>
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
             {message.isRead && <span className="ml-1">• Read</span>}
           </div>
         )}
       </div>
       
       {isCurrentUser && (
-        <div className="flex-shrink-0 ml-2">
-          <Avatar className="h-8 w-8 border border-gray-200">
+        <div className="flex-shrink-0 ml-3 mt-1">
+          <Avatar className="h-9 w-9 border border-gray-200">
             <AvatarFallback className="bg-indigo-600 text-white">
               {message.sender?.username?.substring(0, 2) || 'U'}
             </AvatarFallback>
           </Avatar>
         </div>
       )}
+      
+      <div className="absolute right-2 top-2 opacity-0 group-hover:opacity-100 transition-opacity">
+        <div className="flex space-x-1 bg-white rounded-md border border-gray-200 shadow-sm p-1">
+          <TooltipProvider>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button variant="ghost" size="icon" className="h-7 w-7 text-gray-500 hover:bg-gray-100 rounded-full">
+                  <MessageSquare className="h-3.5 w-3.5" />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>
+                <p>Reply</p>
+              </TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
+        </div>
+      </div>
     </div>
   );
 };
@@ -106,25 +143,32 @@ const Channel = ({ name, isActive, unreadCount, onClick }) => {
 const DirectMessage = ({ user, isActive, isOnline, unreadCount, onClick }) => {
   return (
     <div 
-      className={`flex items-center py-1 px-2 rounded-md mb-1 cursor-pointer ${isActive ? 'bg-indigo-100 text-indigo-700' : 'text-gray-700 hover:bg-gray-100'}`}
+      className={`flex items-center py-2 px-3 rounded-md mb-1 cursor-pointer ${isActive ? 'bg-indigo-100 text-indigo-700' : 'text-gray-700 hover:bg-gray-100'}`}
       onClick={onClick}
     >
-      <div className="relative mr-2">
-        <Avatar className="h-6 w-6 border border-gray-200">
+      <div className="relative mr-3">
+        <Avatar className="h-8 w-8 border border-gray-200">
           <AvatarFallback className={`${isActive ? 'bg-indigo-200 text-indigo-700' : 'bg-gray-200 text-gray-700'}`}>
             {user.username?.substring(0, 2) || 'U'}
           </AvatarFallback>
         </Avatar>
         {isOnline && (
-          <span className="absolute bottom-0 right-0 h-2 w-2 rounded-full bg-green-500 border border-white"></span>
+          <span className="absolute bottom-0 right-0 h-2.5 w-2.5 rounded-full bg-green-500 border border-white"></span>
         )}
       </div>
-      <span className="text-sm font-medium truncate">{user.username}</span>
-      {unreadCount > 0 && (
-        <Badge variant="destructive" className="ml-auto h-5 w-5 p-0 flex items-center justify-center text-xs">
-          {unreadCount}
-        </Badge>
-      )}
+      <div className="flex-1 min-w-0">
+        <div className="flex items-center justify-between">
+          <span className="text-sm font-medium truncate">{user.username}</span>
+          {unreadCount > 0 && (
+            <Badge variant="destructive" className="ml-2 h-5 w-5 p-0 flex items-center justify-center text-xs">
+              {unreadCount}
+            </Badge>
+          )}
+        </div>
+        <p className="text-xs text-gray-500 truncate">
+          {isOnline ? 'Online' : 'Offline'}
+        </p>
+      </div>
     </div>
   );
 };
@@ -137,17 +181,99 @@ const ChatPage = () => {
   const [messages, setMessages] = useState([]);
   const [input, setInput] = useState('');
   const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
+  const [isLoadingMore, setIsLoadingMore] = useState(false);
+  const [page, setPage] = useState(1);
+  const [hasMore, setHasMore] = useState(true);
   const messagesEndRef = useRef(null);
+  const scrollAreaRef = useRef(null);
   const { toast } = useToast();
+  const MESSAGES_PER_PAGE = 15; // Number of messages to load per page
   
-  // Scroll to bottom when new messages arrive
-  const scrollToBottom = () => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  // Scroll to bottom when new messages arrive - with optimized performance
+  const scrollToBottom = (smooth = true) => {
+    if (messagesEndRef.current) {
+      messagesEndRef.current.scrollIntoView({ 
+        behavior: smooth ? 'smooth' : 'auto',
+        block: 'end'
+      });
+    }
   };
   
+  // Handle scroll events for detecting when to load more messages
+  const handleScroll = useCallback((event) => {
+    // Load older messages when user scrolls to the top
+    const scrollTop = event.currentTarget.scrollTop;
+    if (scrollTop < 50 && hasMore && !isLoadingMore) {
+      loadOlderMessages();
+    }
+  }, [hasMore, isLoadingMore, loadOlderMessages]);
+  
+  // Set up scroll event listener
   useEffect(() => {
-    scrollToBottom();
+    const scrollContainer = scrollAreaRef.current?.querySelector('div[role="presentation"]');
+    if (scrollContainer) {
+      scrollContainer.addEventListener('scroll', handleScroll);
+      return () => scrollContainer.removeEventListener('scroll', handleScroll);
+    }
+  }, [handleScroll]);
+  
+  // Scroll to bottom when messages change (new message received or sent)
+  useEffect(() => {
+    if (messages.length > 0) {
+      // Use non-smooth scroll when loading a chat for the first time or older messages
+      // Use smooth scroll when just receiving a new message
+      scrollToBottom(messages.length < MESSAGES_PER_PAGE);
+    }
   }, [messages]);
+  
+  // Keep chat container sized properly when window resizes
+  useEffect(() => {
+    const handleResize = () => {
+      // Force recalculation of container heights
+      const chatContainer = document.querySelector('.chat-container');
+      const messagesContainer = document.querySelector('.messages-container');
+      const sidebarScrollArea = document.querySelector('.sidebar-scroll-area');
+      const emptyStateContainer = document.querySelector('.empty-state-container');
+      
+      if (chatContainer) {
+        const headerHeight = 132; // Height of the site header + top bar
+        const viewportHeight = window.innerHeight;
+        chatContainer.style.height = `${viewportHeight - headerHeight}px`;
+      }
+      
+      if (messagesContainer) {
+        // Set the messages container height by accounting for the chat input and header
+        const chatHeaderHeight = 56; // 14px height and padding
+        const chatInputHeight = 72; // 3px padding * 2 + inputs height
+        const messagesContainerHeight = chatContainer.offsetHeight - chatHeaderHeight - chatInputHeight;
+        messagesContainer.style.height = `${messagesContainerHeight}px`;
+      }
+      
+      if (sidebarScrollArea) {
+        // Handle the sidebar scroll area height - account for search input height
+        const searchInputHeight = 57; // Height of search input area including padding
+        const sidebarAreaHeight = chatContainer.offsetHeight - searchInputHeight;
+        sidebarScrollArea.style.height = `${sidebarAreaHeight}px`;
+      }
+      
+      if (emptyStateContainer) {
+        // Handle the empty state container height
+        emptyStateContainer.style.height = `${chatContainer.offsetHeight}px`;
+      }
+    };
+    
+    window.addEventListener('resize', handleResize);
+    // Initial calculation
+    handleResize();
+    
+    // Re-run handleResize when activeChat changes
+    if (activeChat) {
+      // Adding a slight delay to ensure the DOM has updated
+      setTimeout(handleResize, 100);
+    }
+    
+    return () => window.removeEventListener('resize', handleResize);
+  }, [activeChat]);
   
   // Get chat partners
   const { data: chatPartners = [], isLoading: isPartnersLoading } = useQuery({
@@ -160,7 +286,9 @@ const ChatPage = () => {
         }
       });
       if (!response.ok) throw new Error("Failed to fetch chat partners");
-      return response.json();
+      const partners = await response.json();
+      // Filter out the current user since users can't chat with themselves
+      return partners.filter(partner => partner.id !== user?.id);
     },
     enabled: !!token,
     staleTime: 30 * 1000, // 30 seconds
@@ -201,13 +329,23 @@ const ChatPage = () => {
         
         // Add to messages if it's part of the active chat
         if (activeChat && (newMessage.senderId === activeChat.id || newMessage.receiverId === activeChat.id)) {
-          setMessages(prev => [...prev, newMessage]);
+          setMessages(prev => {
+            const updatedMessages = [...prev, newMessage].sort((a, b) => 
+              new Date(a.createdAt) - new Date(b.createdAt)
+            );
+            return updatedMessages;
+          });
           
           // Mark as read
           socket.send(JSON.stringify({
             type: 'mark_read',
             senderId: activeChat.id
           }));
+          
+          // Scroll to bottom after receiving a new message
+          setTimeout(() => {
+            scrollToBottom();
+          }, 100);
         } else {
           // Show notification for messages from other chats
           toast({
@@ -219,7 +357,18 @@ const ChatPage = () => {
         }
       } else if (data.type === 'message_sent') {
         // Add message to chat
-        setMessages(prev => [...prev, data.message]);
+        setMessages(prev => {
+          const updatedMessages = [...prev, data.message].sort((a, b) => 
+            new Date(a.createdAt) - new Date(b.createdAt)
+          );
+          
+          // Scroll to bottom after sending a message
+          setTimeout(() => {
+            scrollToBottom();
+          }, 100);
+          
+          return updatedMessages;
+        });
       } else if (data.type === 'messages_read') {
         // Update read status of sent messages
         setMessages(prev => 
@@ -269,11 +418,23 @@ const ChatPage = () => {
     }
   }, [activeChat, connected]);
   
-  // Load messages for a specific chat
-  const loadMessages = async (partnerId) => {
+  // Load messages for a specific chat - now with pagination to only load recent messages first
+  const loadMessages = async (partnerId, isLoadingOlder = false) => {
     if (!token) return;
     
     try {
+      // Only clear messages when loading a new chat (not when loading older messages)
+      if (!isLoadingOlder) {
+        setMessages([]);
+        setPage(1);
+        setHasMore(true);
+      }
+      
+      // Show loading indicator
+      setIsLoadingMore(true);
+      
+      // In a real implementation, we would add pagination parameters to the API endpoint
+      // For this mock, we'll simulate pagination client-side
       const response = await fetch(`/api/chat/messages/${partnerId}`, {
         headers: {
           'Authorization': `Bearer ${token}`
@@ -281,8 +442,40 @@ const ChatPage = () => {
       });
       
       if (response.ok) {
-        const data = await response.json();
-        setMessages(data);
+        const allData = await response.json();
+        // Sort messages by date (oldest to newest)
+        const sortedData = [...allData].sort((a, b) => 
+          new Date(a.createdAt) - new Date(b.createdAt)
+        );
+        
+        // Simulate pagination by only returning the most recent messages
+        // This would normally be handled by the server
+        const totalMessages = sortedData.length;
+        const currentPage = isLoadingOlder ? page + 1 : 1;
+        const startIndex = Math.max(0, totalMessages - (currentPage * MESSAGES_PER_PAGE));
+        const endIndex = totalMessages;
+        const paginatedData = sortedData.slice(startIndex, endIndex);
+        
+        // Update state
+        if (isLoadingOlder) {
+          // If loading older messages, prepend them to existing messages
+          setMessages(prev => [...paginatedData.filter(msg => 
+            !prev.some(existing => existing.id === msg.id)
+          ), ...prev]);
+          setPage(currentPage);
+          
+          // Check if there are more messages to load
+          setHasMore(startIndex > 0);
+        } else {
+          // If loading a new chat, replace all messages
+          setMessages(paginatedData);
+          setHasMore(startIndex > 0);
+          
+          // After setting messages, scroll to bottom with a slight delay
+          setTimeout(() => {
+            scrollToBottom();
+          }, 100);
+        }
       } else {
         console.error('Error fetching messages:', await response.text());
         toast({
@@ -298,7 +491,15 @@ const ChatPage = () => {
         description: "Failed to load messages",
         variant: "destructive"
       });
+    } finally {
+      setIsLoadingMore(false);
     }
+  };
+  
+  // Function to load older messages when the user scrolls up
+  const loadOlderMessages = () => {
+    if (!hasMore || isLoadingMore || !activeChat) return;
+    loadMessages(activeChat.id, true);
   };
   
   // Send message through WebSocket
@@ -322,25 +523,25 @@ const ChatPage = () => {
   };
 
   return (
-    <div className="h-screen flex flex-col bg-white">
-      {/* Header */}
-      <header className="h-12 bg-indigo-600 text-white flex items-center justify-between px-4 shadow-md z-10">
+    <div className="h-full flex flex-col bg-white">
+      {/* Top control bar */}
+      <div className="h-12 border-b border-gray-200 flex items-center justify-between px-4 shadow-sm z-10">
         <div className="flex items-center">
           <Button 
             variant="ghost" 
             size="icon"
-            className="lg:hidden text-white hover:bg-indigo-700 mr-2"
+            className="lg:hidden text-gray-600 hover:bg-gray-100 mr-2"
             onClick={() => setIsMobileSidebarOpen(!isMobileSidebarOpen)}
           >
             <Menu className="h-5 w-5" />
           </Button>
-          <h1 className="text-xl font-bold">LearningChat</h1>
+          <h1 className="text-lg font-semibold text-gray-800">Messages</h1>
         </div>
         <div className="flex items-center space-x-2">
           <TooltipProvider>
             <Tooltip>
               <TooltipTrigger asChild>
-                <Button variant="ghost" size="icon" className="text-white hover:bg-indigo-700">
+                <Button variant="ghost" size="icon" className="text-gray-600 hover:bg-gray-100">
                   <Bell className="h-5 w-5" />
                 </Button>
               </TooltipTrigger>
@@ -352,7 +553,7 @@ const ChatPage = () => {
           <TooltipProvider>
             <Tooltip>
               <TooltipTrigger asChild>
-                <Button variant="ghost" size="icon" className="text-white hover:bg-indigo-700">
+                <Button variant="ghost" size="icon" className="text-gray-600 hover:bg-gray-100">
                   <Settings className="h-5 w-5" />
                 </Button>
               </TooltipTrigger>
@@ -361,39 +562,36 @@ const ChatPage = () => {
               </TooltipContent>
             </Tooltip>
           </TooltipProvider>
-          <Avatar className="h-8 w-8 border-2 border-indigo-300">
-            <AvatarFallback className="bg-indigo-300 text-indigo-800 font-medium">
-              {user?.username?.substring(0, 2) || 'U'}
-            </AvatarFallback>
-          </Avatar>
         </div>
-      </header>
+      </div>
       
-      <div className="flex-1 flex overflow-hidden">
+      <div className="flex-1 flex overflow-hidden chat-container">
         {/* Sidebar */}
         <div 
-          className={`w-64 bg-gray-50 border-r flex flex-col ${isMobileSidebarOpen ? 'block' : 'hidden'} lg:block`}
+          className={`w-64 bg-gray-50 border-r flex flex-col ${isMobileSidebarOpen ? 'block' : 'hidden'} lg:block overflow-hidden`}
+          style={{ minWidth: '256px', maxWidth: '256px' }}
         >
           {/* Search */}
           <div className="p-3 border-b">
             <div className="relative">
               <Search className="absolute left-2 top-2.5 h-4 w-4 text-gray-500" />
               <Input 
-                placeholder="Search" 
-                className="pl-8 bg-gray-100 border-gray-200"
+                placeholder="Find or start a conversation" 
+                className="pl-8 bg-gray-100 border-gray-200 text-sm"
               />
             </div>
           </div>
           
-          <ScrollArea className="flex-1">
+          <ScrollArea className="flex-1 sidebar-scroll-area">
             <div className="p-3">
               <div className="mb-6">
-                <div className="flex items-center justify-between mb-2">
+                <div className="flex items-center justify-between mb-2 px-1">
                   <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wider">Direct Messages</h3>
                   <Button variant="ghost" size="icon" className="h-5 w-5 text-gray-500 hover:text-indigo-600">
                     <PlusCircle className="h-4 w-4" />
                   </Button>
                 </div>
+                <div className="h-px bg-gray-200 my-2"></div>
                 
                 {isPartnersLoading ? (
                   <div className="flex justify-center py-2">
@@ -424,9 +622,10 @@ const ChatPage = () => {
               </div>
               
               <div>
-                <div className="flex items-center justify-between mb-2">
+                <div className="flex items-center justify-between mb-2 px-1">
                   <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wider">Suggested Peers</h3>
                 </div>
+                <div className="h-px bg-gray-200 my-2"></div>
                 
                 <div className="text-center py-2 text-sm text-gray-500">
                   <p>Follow more users to expand</p>
@@ -494,29 +693,52 @@ const ChatPage = () => {
                 </div>
               </div>
               
-              {/* Chat messages */}
-              <ScrollArea className="flex-1 px-4 py-4">
-                {messages.length === 0 ? (
-                  <div className="flex flex-col items-center justify-center h-full text-gray-500">
-                    <div className="bg-gray-100 p-4 rounded-full mb-4">
-                      <MessageSquare className="h-12 w-12 text-indigo-400" />
+              {/* Chat messages - Fixed height container */}
+              <div className="flex-1 relative overflow-hidden messages-container">
+                <ScrollArea ref={scrollAreaRef} className="absolute inset-0 px-4 py-4">
+                  {messages.length === 0 ? (
+                    <div className="flex flex-col items-center justify-center h-full text-gray-500">
+                      <div className="bg-gray-100 p-4 rounded-full mb-4">
+                        <MessageSquare className="h-12 w-12 text-indigo-400" />
+                      </div>
+                      <p className="font-medium text-lg text-gray-700 mb-2">No messages yet</p>
+                      <p className="text-sm text-gray-500">Start the conversation with {activeChat.username}</p>
                     </div>
-                    <p className="font-medium text-lg text-gray-700 mb-2">No messages yet</p>
-                    <p className="text-sm text-gray-500">Start the conversation with {activeChat.username}</p>
-                  </div>
-                ) : (
-                  <div>
-                    {messages.map((message, index) => (
-                      <ChatMessage 
-                        key={message.id || index}
-                        message={message} 
-                        isCurrentUser={message.senderId === user?.id} 
-                      />
-                    ))}
-                    <div ref={messagesEndRef} />
-                  </div>
-                )}
-              </ScrollArea>
+                  ) : (
+                    <div>
+                      {/* Load Older Messages Button - Only show if there are more messages to load */}
+                      {hasMore && (
+                        <div className="flex justify-center py-2 mb-2">
+                          <Button 
+                            variant="ghost" 
+                            size="sm"
+                            className="text-xs text-gray-500 hover:text-indigo-600 flex items-center gap-1"
+                            onClick={loadOlderMessages}
+                            disabled={isLoadingMore}
+                          >
+                            {isLoadingMore ? (
+                              <div className="animate-spin h-3 w-3 border border-indigo-500 border-t-transparent rounded-full mr-1"></div>
+                            ) : (
+                              <span>⟲</span>
+                            )}
+                            {isLoadingMore ? 'Loading...' : 'Load older messages'}
+                          </Button>
+                        </div>
+                      )}
+                      
+                      {/* Messages List */}
+                      {messages.map((message, index) => (
+                        <ChatMessage 
+                          key={message.id || index}
+                          message={message} 
+                          isCurrentUser={message.senderId === user?.id} 
+                        />
+                      ))}
+                      <div ref={messagesEndRef} />
+                    </div>
+                  )}
+                </ScrollArea>
+              </div>
               
               {/* Chat input */}
               <div className="border-t p-3">
@@ -581,21 +803,30 @@ const ChatPage = () => {
               </div>
             </>
           ) : (
-            <div className="flex-1 flex flex-col items-center justify-center text-center p-6">
-              <div className="bg-indigo-100 p-6 rounded-full mb-4">
-                <MessageSquare className="h-16 w-16 text-indigo-500" />
-              </div>
-              <h2 className="text-2xl font-bold text-gray-900 mb-2">Welcome to Learning Chat</h2>
-              <p className="text-gray-600 max-w-md mb-6">
-                Connect with fellow learners to discuss courses, share resources, and collaborate on projects.
-              </p>
-              <div className="text-gray-500 text-sm max-w-md">
-                <p>To start chatting:</p>
-                <ol className="list-decimal list-inside text-left mt-2 space-y-1">
-                  <li>Follow users you're interested in connecting with</li>
-                  <li>Once they follow you back, you can start chatting</li>
-                  <li>Select a conversation from the sidebar to begin</li>
-                </ol>
+            <div className="flex-1 flex flex-col items-center justify-center text-center p-6 empty-state-container">
+              <div className="relative">
+                <div className="absolute -top-20 -left-20 w-40 h-40 bg-indigo-50 rounded-full blur-xl opacity-70"></div>
+                <div className="absolute -bottom-16 -right-16 w-40 h-40 bg-blue-50 rounded-full blur-xl opacity-70"></div>
+                <div className="relative z-10 flex flex-col items-center">
+                  <div className="bg-indigo-100 p-6 rounded-full mb-6 shadow-md">
+                    <MessageSquare className="h-16 w-16 text-indigo-500" />
+                  </div>
+                  <h2 className="text-2xl font-bold text-gray-900 mb-3">Welcome to Learning Chat</h2>
+                  <p className="text-gray-600 max-w-md mb-8">
+                    Connect with fellow learners to discuss courses, share resources, and collaborate on projects.
+                  </p>
+                  <div className="bg-gray-50 border border-gray-200 rounded-lg p-5 text-left text-gray-700 text-sm max-w-md shadow-sm">
+                    <div className="flex items-center mb-3">
+                      <Info className="h-5 w-5 text-indigo-500 mr-2" />
+                      <p className="font-medium">Getting Started</p>
+                    </div>
+                    <ol className="list-decimal list-inside space-y-2 ml-1">
+                      <li>Follow users you're interested in connecting with</li>
+                      <li>Once they follow you back, you can start chatting</li>
+                      <li>Select a conversation from the sidebar to begin</li>
+                    </ol>
+                  </div>
+                </div>
               </div>
             </div>
           )}
