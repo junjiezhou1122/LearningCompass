@@ -1,7 +1,7 @@
 import { useLocation } from "wouter";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { Button } from "@/components/ui/button";
-import { BookOpen, MessageSquare, StickyNote, GraduationCap, MessagesSquare } from "lucide-react";
+import { BookOpen, MessageSquare, StickyNote, GraduationCap } from "lucide-react";
 import LanguageSwitcher from "../LanguageSwitcher";
 import { useAuth } from "@/contexts/AuthContext";
 
@@ -37,24 +37,14 @@ export default function HeaderNav() {
         {t("shareConnect")}
       </Button>
       {isAuthenticated && (
-        <>
-          <Button
-            variant="ghost"
-            className="text-white hover:text-white hover:bg-amber-600/80 transition-all duration-500"
-            onClick={() => navigate("/notes")}
-          >
-            <StickyNote className="h-5 w-5 mr-2" />
-            Notes
-          </Button>
-          <Button
-            variant="ghost"
-            className="text-white hover:text-white hover:bg-amber-600/80 transition-all duration-500"
-            onClick={() => navigate("/chat")}
-          >
-            <MessagesSquare className="h-5 w-5 mr-2" />
-            Chat
-          </Button>
-        </>
+        <Button
+          variant="ghost"
+          className="text-white hover:text-white hover:bg-amber-600/80 transition-all duration-500"
+          onClick={() => navigate("/notes")}
+        >
+          <StickyNote className="h-5 w-5 mr-2" />
+          Notes
+        </Button>
       )}
       <LanguageSwitcher />
     </div>

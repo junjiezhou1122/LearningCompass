@@ -16,7 +16,6 @@ import Share from "@/pages/Share";
 import PostDetail from "@/pages/PostDetail";
 import UserProfile from "./pages/UserProfile";
 import NotesPage from "./pages/NotesPage";
-import ChatPage from "./pages/ChatPage";
 import Header from "@/components/Header";
 import Footer from "@/components/Footer";
 import FloatingAIButton from "@/components/FloatingAIButton";
@@ -55,7 +54,6 @@ function Router() {
               <Route path="/post/:id" component={PostDetail} />
               <Route path="/users/:userId" component={UserProfile} />
               <Route path="/notes" component={NotesPage} />
-              <Route path="/chat" component={ChatPage} />
               <Route component={NotFound} />
             </Switch>
           </div>
