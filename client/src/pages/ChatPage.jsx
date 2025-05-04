@@ -99,7 +99,14 @@ export default function ChatPage() {
           
           // Authenticate with the server
           console.log('Auth token available:', !!token);
+          // Ensure we send token in the format expected by the server
           socket.send(JSON.stringify({
+            type: 'auth',
+            data: { token: token }
+          }));
+          
+          // Additional log to confirm the exact auth payload
+          console.log('Auth payload sent:', JSON.stringify({
             type: 'auth',
             data: { token: token }
           }));
@@ -428,29 +435,33 @@ export default function ChatPage() {
         const chatCache = messageCache.get(chatId);
         sortedMessages.forEach(msg => chatCache.set(msg.id, msg));
         
-        // Check if we have more messages to load
-        setHasMoreMessages(sortedMessages.length >= MESSAGES_PER_PAGE);
+        // Check if we have more messages to load based on pagination info
+        // We have more messages if we received the full page size
+        setHasMoreMessages(data.pagination?.hasMore || sortedMessages.length >= MESSAGES_PER_PAGE);
         
         // If loading older messages, prepend them to the existing list
         if (!isInitialLoad && data.pagination?.offset > 0) {
+          console.log('Loading older messages, appending to existing messages');
           setMessages(prevMessages => {
-            // Combine older messages with existing ones, avoiding duplicates
-            const combinedMessages = [...sortedMessages];
-            prevMessages.forEach(msg => {
-              if (!messageMap.has(msg.id)) {
-                combinedMessages.push(msg);
-              }
-            });
+            // Create a set of existing message IDs for faster lookup
+            const existingMessageIds = new Set(prevMessages.map(msg => msg.id));
             
-            // Sort all messages by time
-            return combinedMessages.sort(
+            // Add only messages that don't already exist
+            const newMessages = sortedMessages.filter(msg => !existingMessageIds.has(msg.id));
+            console.log(`Adding ${newMessages.length} new messages to existing ${prevMessages.length}`);
+            
+            // Combine and sort all messages by time
+            const combinedMessages = [...prevMessages, ...newMessages].sort(
               (a, b) => new Date(a.createdAt) - new Date(b.createdAt)
             );
+            
+            return combinedMessages;
           });
           
           // Mark loading as complete
           setIsLoadingOlderMessages(false);
         } else {
+          console.log('Initial message load, setting messages directly');
           // For initial load, just set the messages
           // When we get chat history, we want to prevent auto-scrolling that happens in the useEffect
           // Setting previousMessagesLength to a non-zero value prevents unwanted auto-scrolling

@@ -68,9 +68,10 @@ export interface IStorage {
   // Chat operations
   createChatMessage(message: InsertChatMessage): Promise<ChatMessage>;
   getChatMessagesBetweenUsers(senderId: number, receiverId: number, options?: { limit?: number, offset?: number }): Promise<ChatMessage[]>;
-  getChatHistory(userId1: number, userId2: number): Promise<ChatMessage[]>;
+  getChatHistory(userId1: number, userId2: number, options?: { limit?: number, offset?: number }): Promise<ChatMessage[]>;
   markChatMessagesAsRead(senderId: number, receiverId: number): Promise<void>;
   getUnreadMessageCount(userId: number): Promise<number>;
+  getChatMessageCount(userId1: number, userId2: number): Promise<number>;
   canUsersChat(userId1: number, userId2: number): Promise<boolean>;
   getChatPartners(userId: number): Promise<User[]>;
   
@@ -421,8 +422,10 @@ export class DatabaseStorage implements IStorage {
           )
         )
       )
-      .orderBy(asc(chatMessages.createdAt));
+      // Order by creation time, most recent first when loading older messages
+      .orderBy(desc(chatMessages.createdAt));
       
+    // Apply limit and offset if provided
     if (options?.limit) {
       query = query.limit(options.limit);
     }
@@ -431,7 +434,11 @@ export class DatabaseStorage implements IStorage {
       query = query.offset(options.offset);
     }
     
-    return await query;
+    // Execute query and return results
+    const results = await query;
+    
+    // Reverse the results to get chronological order (oldest first) for display
+    return results.reverse();
   }
   
   async getChatHistory(userId1: number, userId2: number, options?: { limit?: number, offset?: number }): Promise<ChatMessage[]> {
@@ -468,6 +475,25 @@ export class DatabaseStorage implements IStorage {
         and(
           eq(chatMessages.receiverId, userId),
           eq(chatMessages.isRead, false)
+        )
+      );
+    
+    return parseInt(result[0]?.count?.toString() || '0');
+  }
+  
+  async getChatMessageCount(userId1: number, userId2: number): Promise<number> {
+    const result = await db.select({ count: sql`count(*)` })
+      .from(chatMessages)
+      .where(
+        or(
+          and(
+            eq(chatMessages.senderId, userId1),
+            eq(chatMessages.receiverId, userId2)
+          ),
+          and(
+            eq(chatMessages.senderId, userId2),
+            eq(chatMessages.receiverId, userId1)
+          )
         )
       );
     

@@ -38,7 +38,7 @@ export function setupWebSocketServer(httpServer: Server): WebSocketServer {
             try {
               console.log('Auth data received:', data);
               
-              // Support both formats of authentication token
+              // Support multiple formats of authentication token
               const authToken = data.token || (data.data && data.data.token);
               
               if (!authToken) {
@@ -306,8 +306,12 @@ export function setupWebSocketServer(httpServer: Server): WebSocketServer {
               
               console.log(`Fetching chat history with limit=${limit}, offset=${offset}`);
               
+              // Get total count of messages between users for accurate pagination
               const chatHistory = await storage.getChatHistory(userId, otherUserId, { limit, offset });
-              console.log(`Retrieved ${chatHistory?.length || 0} messages for chat history`);
+              const totalMessageCount = await storage.getChatMessageCount(userId, otherUserId);
+              
+              console.log(`Retrieved ${chatHistory?.length || 0} messages out of ${totalMessageCount} total messages`);
+              const hasMoreMessages = offset + chatHistory.length < totalMessageCount;
               
               // Fetch user details for each sender in the chat history
               const enhancedMessages = await Promise.all(chatHistory.map(async (message) => {
@@ -334,7 +338,8 @@ export function setupWebSocketServer(httpServer: Server): WebSocketServer {
                   pagination: {
                     limit,
                     offset,
-                    hasMore: enhancedMessages.length >= limit
+                    hasMore: hasMoreMessages,
+                    totalCount: totalMessageCount
                   }
                 }
               }));
