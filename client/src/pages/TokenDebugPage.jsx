@@ -1,12 +1,14 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import TokenHelper from '@/components/TokenHelper';
-import { useTitle } from '@/hooks/use-title';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { InfoIcon } from 'lucide-react';
 
 export default function TokenDebugPage() {
-  useTitle('Token Debugger');
+  // Set document title
+  useEffect(() => {
+    document.title = 'Token Debugger - Learning Compass';
+  }, []);
 
   return (
     <div className="container max-w-5xl py-8">
