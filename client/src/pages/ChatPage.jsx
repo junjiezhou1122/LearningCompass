@@ -30,6 +30,7 @@ export default function ChatPage() {
   const [isConnectionOpen, setIsConnectionOpen] = useState(false);
   const socketRef = useRef(null);
   const messagesEndRef = useRef(null);
+  const previousMessagesLength = useRef(0); // Track previous message count to control auto-scrolling
 
   // Query to fetch user's chat partners
   const { data: chatPartners, isLoading: isLoadingPartners } = useQuery({
@@ -150,9 +151,14 @@ export default function ChatPage() {
     }
   }, [chatPartners]);
 
-  // Auto-scroll to bottom of messages
+  // Auto-scroll to bottom only when loading initial history, not on every message
   useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+    // Only scroll when messages are first loaded or cleared
+    if (messages.length <= 1 || previousMessagesLength.current === 0) {
+      messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+    }
+    // Keep track of previous messages length
+    previousMessagesLength.current = messages.length;
   }, [messages]);
 
   // Request chat history when a chat is selected
@@ -190,10 +196,13 @@ export default function ChatPage() {
       return newMessages.sort((a, b) => new Date(a.createdAt) - new Date(b.createdAt));
     });
     
-    // Auto-scroll to bottom when new message arrives
-    setTimeout(() => {
-      messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-    }, 100);
+    // Only auto-scroll when message is from the current user (you send a message)
+    // This prevents unwanted scrolling when receiving messages from others
+    if (isFromMe) {
+      setTimeout(() => {
+        messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+      }, 100);
+    }
     
     // Only add to contacts list if this is a message from someone else (not self-messages)
     // and only if the contact doesn't already exist in the list
@@ -405,6 +414,16 @@ export default function ChatPage() {
                     </div>
                   </div>
                 </div>
+                <Button 
+                  variant="ghost" 
+                  size="sm" 
+                  onClick={() => messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })}
+                  title="Scroll to bottom"
+                  className="flex items-center gap-1 text-xs"
+                >
+                  <MessageCircle className="h-3.5 w-3.5" />
+                  Latest
+                </Button>
               </div>
               
               <ScrollArea className="flex-1 p-4">
