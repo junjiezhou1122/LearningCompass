@@ -5,6 +5,7 @@ import { storage } from "./storage";
 import jwt from "jsonwebtoken";
 import bcrypt from "bcrypt";
 import { handleChatRequest } from "./ai-service";
+import { upload, getRelativePath, getAbsolutePath } from './utils/multer';
 import { 
   insertUserSchema, insertBookmarkSchema, insertSubscriberSchema, 
   insertCommentSchema, insertSearchHistorySchema,
@@ -2664,6 +2665,34 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // PUT route for updating university courses
+  app.put("/api/university-courses/:id([0-9]+)", authenticateJWT, async (req: Request, res: Response) => {
+    try {
+      const id = parseInt(req.params.id);
+      const user = (req as any).user;
+      
+      // Check if the course exists
+      const existingCourse = await storage.getUniversityCourse(id);
+      if (!existingCourse) {
+        return res.status(404).json({ message: "University course not found" });
+      }
+      
+      // Add updatedAt timestamp
+      const courseData = {
+        ...req.body,
+        updatedAt: new Date()
+      };
+      
+      // Update the course
+      const updatedCourse = await storage.updateUniversityCourse(id, courseData);
+      
+      res.json(updatedCourse);
+    } catch (error) {
+      console.error("Error updating university course:", error);
+      res.status(500).json({ message: "Error updating university course" });
+    }
+  });
+
   app.post("/api/university-courses", authenticateJWT, async (req: Request, res: Response) => {
     try {
       // Any authenticated user can create university courses
@@ -2871,8 +2900,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         userId,
         courseId,
         content,
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString()
+        updatedAt: new Date()
       });
       
       const comment = await storage.createUniversityCourseComment(commentData);
@@ -2961,7 +2989,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
   
-  app.post("/api/university-courses/:courseId/resources", authenticateJWT, async (req: Request, res: Response) => {
+
+  
+  // Regular endpoint for URL-based resources
+  app.post("/api/university-courses/:courseId/resources/url", authenticateJWT, async (req: Request, res: Response) => {
     try {
       const userId = (req as any).user.id;
       const courseId = parseInt(req.params.courseId);
@@ -2987,6 +3018,73 @@ export async function registerRoutes(app: Express): Promise<Server> {
         tags: tags || [], // Include tags or empty array if not provided
         updatedAt: new Date()
       });
+      
+      const resource = await storage.createUniversityCourseResource(resourceData);
+      res.status(201).json(resource);
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ message: fromZodError(error).message });
+      }
+      console.error("Error creating university course resource:", error);
+      res.status(500).json({ message: "Error creating university course resource" });
+    }
+  });
+  
+  // File upload endpoint for resources
+  app.post("/api/university-courses/:courseId/resources", authenticateJWT, upload.single('file'), async (req: Request, res: Response) => {
+    try {
+      const userId = (req as any).user.id;
+      const courseId = parseInt(req.params.courseId);
+      const { title, description, resourceType, tags } = req.body;
+      const file = req.file;
+      
+      if (!title) {
+        return res.status(400).json({ message: "Title is required" });
+      }
+      
+      if (!file && !req.body.url) {
+        return res.status(400).json({ message: "Either a file or URL must be provided" });
+      }
+      
+      // Check if the course exists
+      const course = await storage.getUniversityCourse(courseId);
+      if (!course) {
+        return res.status(404).json({ message: "University course not found" });
+      }
+      
+      let resourceData;
+      
+      if (file) {
+        // Handle file upload case
+        const relativeFilePath = getRelativePath(file.path);
+        
+        resourceData = insertUniversityCourseResourceSchema.parse({
+          userId,
+          courseId,
+          title,
+          url: null, // No URL for file uploads
+          filePath: relativeFilePath,
+          fileName: file.originalname,
+          fileSize: file.size,
+          mimeType: file.mimetype,
+          description: description || null,
+          resourceType: resourceType || 'file',
+          tags: tags ? (typeof tags === 'string' ? [tags] : tags) : [], // Handle string or array
+          updatedAt: new Date()
+        });
+      } else {
+        // Handle URL case
+        resourceData = insertUniversityCourseResourceSchema.parse({
+          userId,
+          courseId,
+          title,
+          url: req.body.url,
+          description: description || null,
+          resourceType: resourceType || 'link',
+          tags: tags ? (typeof tags === 'string' ? [tags] : tags) : [],
+          updatedAt: new Date()
+        });
+      }
       
       const resource = await storage.createUniversityCourseResource(resourceData);
       res.status(201).json(resource);
@@ -3050,6 +3148,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(403).json({ message: "You can only delete your own resources" });
       }
       
+      // If it's a file resource, delete the file from the filesystem
+      if (resource.filePath) {
+        try {
+          const fs = require('fs');
+          const absolutePath = getAbsolutePath(resource.filePath);
+          if (fs.existsSync(absolutePath)) {
+            fs.unlinkSync(absolutePath);
+          }
+        } catch (fileError) {
+          console.error("Error deleting file:", fileError);
+          // Continue with database deletion even if file deletion fails
+        }
+      }
+      
       const success = await storage.deleteUniversityCourseResource(resourceId, userId);
       if (!success) {
         return res.status(500).json({ message: "Failed to delete resource" });
@@ -3059,6 +3171,46 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Error deleting university course resource:", error);
       res.status(500).json({ message: "Error deleting university course resource" });
+    }
+  });
+  
+  // Download endpoint for file resources
+  app.get("/api/university-course-resources/:id/download", async (req: Request, res: Response) => {
+    try {
+      const resourceId = parseInt(req.params.id);
+      
+      // Get the resource
+      const resource = await storage.getUniversityCourseResource(resourceId);
+      if (!resource) {
+        return res.status(404).json({ message: "Resource not found" });
+      }
+      
+      // Check if it's a file resource
+      if (!resource.filePath) {
+        return res.status(400).json({ message: "This resource does not have a file to download" });
+      }
+      
+      // Get the file path
+      const absolutePath = getAbsolutePath(resource.filePath);
+      
+      // Check if file exists
+      const fs = require('fs');
+      if (!fs.existsSync(absolutePath)) {
+        return res.status(404).json({ message: "File not found" });
+      }
+      
+      // Set appropriate headers
+      res.setHeader('Content-Disposition', `attachment; filename="${resource.fileName}"`);
+      if (resource.mimeType) {
+        res.setHeader('Content-Type', resource.mimeType);
+      }
+      
+      // Stream the file to the response
+      const fileStream = fs.createReadStream(absolutePath);
+      fileStream.pipe(res);
+    } catch (error) {
+      console.error("Error downloading file:", error);
+      res.status(500).json({ message: "Error downloading file" });
     }
   });
   
@@ -3103,8 +3255,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         url,
         description: description || null,
         provider: provider || null,
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString()
+        updatedAt: new Date()
       });
       
       const link = await storage.createUniversityCourseLink(linkData);
@@ -3216,13 +3367,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const collaborationData = insertUniversityCourseCollaborationSchema.parse({
         userId,
         courseId,
-        goals,
-        availability,
-        preferredContactMethod,
-        contactInfo,
-        status: 'active',
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString()
+        message: goals,
+        contactMethod: preferredContactMethod,
+        contactDetails: contactInfo,
+        updatedAt: new Date()
       });
       
       const collaboration = await storage.createUniversityCourseCollaboration(collaborationData);

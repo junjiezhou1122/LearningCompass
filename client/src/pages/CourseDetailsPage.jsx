@@ -165,7 +165,8 @@ const CourseDetailsPage = () => {
     },
   });
 
-  // Resource form
+  // Resource form with file state
+  const [resourceFile, setResourceFile] = useState(null);
   const resourceForm = useForm({
     resolver: zodResolver(resourceFormSchema),
     defaultValues: {
@@ -277,14 +278,48 @@ const CourseDetailsPage = () => {
   // Add resource mutation
   const addResourceMutation = useMutation({
     mutationFn: async (data) => {
-      const response = await fetch(`/api/university-courses/${id}/resources`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`,
-        },
-        body: JSON.stringify(data),
-      });
+      // Check if we're uploading a file or just a URL
+      const isFileUpload = data.file && data.file instanceof File;
+      
+      let response;
+      
+      if (isFileUpload) {
+        // Create FormData for file upload
+        const formData = new FormData();
+        formData.append('file', data.file);
+        formData.append('title', data.title);
+        formData.append('resourceType', data.resourceType);
+        
+        if (data.description) {
+          formData.append('description', data.description);
+        }
+        
+        // Add tags as array
+        if (data.tags && data.tags.length > 0) {
+          data.tags.forEach(tag => {
+            formData.append('tags', tag);
+          });
+        }
+        
+        // Use the file upload endpoint
+        response = await fetch(`/api/university-courses/${id}/resources`, {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${token}`,
+          },
+          body: formData,
+        });
+      } else {
+        // Use the URL-based endpoint
+        response = await fetch(`/api/university-courses/${id}/resources/url`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`,
+          },
+          body: JSON.stringify(data),
+        });
+      }
 
       if (!response.ok) {
         const errorData = await response.json();
@@ -476,10 +511,11 @@ const CourseDetailsPage = () => {
       return;
     }
     
-    // Include the current tags in the form data
+    // Include the current tags and file in the form data
     const resourceData = {
       ...data,
-      tags: resourceTags
+      tags: resourceTags,
+      file: resourceFile
     };
 
     addResourceMutation.mutate(resourceData);
@@ -1117,7 +1153,12 @@ const CourseDetailsPage = () => {
           )}
 
           {/* Add Resource Dialog */}
-          <Dialog open={showResourceDialog} onOpenChange={setShowResourceDialog}>
+          <Dialog open={showResourceDialog} onOpenChange={(open) => {
+                setShowResourceDialog(open);
+                if (!open) {
+                  setResourceFile(null);
+                }
+              }}>
             <DialogContent className="sm:max-w-[500px]">
               <DialogHeader>
                 <DialogTitle className="text-xl text-orange-700">Add Course Resource</DialogTitle>
@@ -1142,23 +1183,77 @@ const CourseDetailsPage = () => {
                     )}
                   />
                   
-                  <FormField
-                    control={resourceForm.control}
-                    name="url"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Resource URL</FormLabel>
-                        <FormControl>
-                          <Input 
-                            type="url" 
-                            placeholder="https://example.com/resource" 
-                            {...field} 
-                          />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
+                  <div className="space-y-4 border border-orange-100 rounded-md p-4 bg-orange-50/30">
+                    <div className="text-sm font-medium text-gray-700 mb-1">Resource Source (Choose one)</div>
+                    
+                    <FormField
+                      control={resourceForm.control}
+                      name="url"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Resource URL (Optional if uploading a file)</FormLabel>
+                          <FormControl>
+                            <Input 
+                              type="url" 
+                              placeholder="https://example.com/resource" 
+                              {...field} 
+                              disabled={resourceFile !== null}
+                            />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                    
+                    <div className="- or -">
+                      <Separator className="my-4">
+                        <span className="px-2 text-xs text-gray-500 bg-orange-50/30">OR</span>
+                      </Separator>
+                    </div>
+
+                    <div className="space-y-2">
+                      <FormLabel>Upload File</FormLabel>
+                      <div className="flex items-center gap-2">
+                        <Input
+                          key={showResourceDialog ? 'file-input-open' : 'file-input-closed'}
+                          type="file"
+                          className="flex-1"
+                          onChange={(e) => {
+                            const file = e.target.files?.[0] || null;
+                            setResourceFile(file);
+                            // Clear URL field and set resourceType to 'file' if a file is selected
+                            if (file) {
+                              resourceForm.setValue('url', '');
+                              resourceForm.setValue('resourceType', 'file');
+                            }
+                          }}
+                          disabled={resourceForm.watch('url') !== ''}
+                        />
+                        {resourceFile && (
+                          <Button 
+                            type="button" 
+                            variant="outline" 
+                            size="sm" 
+                            className="text-red-500 hover:text-red-700"
+                            onClick={() => {
+                              setResourceFile(null);
+                              // Reset resourceType only if it's currently set to 'file'
+                              if (resourceForm.watch('resourceType') === 'file') {
+                                resourceForm.setValue('resourceType', 'other');
+                              }
+                            }}
+                          >
+                            Clear
+                          </Button>
+                        )}
+                      </div>
+                      {resourceFile && (
+                        <p className="text-xs text-gray-500">
+                          Selected file: {resourceFile.name} ({Math.round(resourceFile.size / 1024)} KB)
+                        </p>
+                      )}
+                    </div>
+                  </div>
                   
                   <FormField
                     control={resourceForm.control}
@@ -1176,6 +1271,7 @@ const CourseDetailsPage = () => {
                             <option value="video">Video</option>
                             <option value="article">Article</option>
                             <option value="certificate">Certificate</option>
+                            <option value="file">File</option>
                             <option value="other">Other</option>
                           </select>
                         </FormControl>

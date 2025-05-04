@@ -7,6 +7,7 @@ import { courses } from "@shared/schema";
 import { sql } from "drizzle-orm";
 import { addNotesFeatures } from "./migrations/add_notes_features";
 import { addAdvancedNotesFeatures } from "./migrations/add_advanced_notes_features";
+import { addFileFieldsToResources } from "./migrations/add-file-fields-to-resources";
 import cors from "cors";
 import { createRequire } from "module";
 
@@ -122,6 +123,7 @@ app.use((req, res, next) => {
   try {
     await addNotesFeatures();
     await addAdvancedNotesFeatures();
+    await addFileFieldsToResources();
     console.log("Database migrations completed successfully.");
   } catch (error) {
     console.error("Error running database migrations:", error);

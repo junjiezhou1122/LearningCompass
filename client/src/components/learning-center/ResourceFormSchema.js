@@ -10,7 +10,9 @@ export const resourceFormSchema = z.object({
     .max(100, { message: 'Title must be less than 100 characters' }),
   url: z
     .string()
-    .url({ message: 'Please enter a valid URL' }),
+    .url({ message: 'Please enter a valid URL' })
+    .optional()
+    .or(z.literal('')),
   resourceType: z
     .string()
     .min(1, { message: 'Please select a resource type' }),

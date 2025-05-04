@@ -1094,9 +1094,13 @@ export const universityCourseResources = pgTable("university_course_resources", 
     .notNull()
     .references(() => users.id),
   title: text("title").notNull(),
-  url: text("url").notNull(),
+  url: text("url"), // URL can be null if it's a file upload
+  filePath: text("file_path"), // Path to the uploaded file
+  fileName: text("file_name"), // Original filename
+  fileSize: integer("file_size"), // File size in bytes
+  mimeType: text("mime_type"), // MIME type of the file
   description: text("description"),
-  resourceType: text("resource_type").notNull(), // github, documentation, video, article, certificate, other
+  resourceType: text("resource_type").notNull(), // github, documentation, video, article, certificate, file, other
   tags: text("tags").array(), // Store tags as an array of strings
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at"),
@@ -1107,6 +1111,10 @@ export const insertUniversityCourseResourceSchema = createInsertSchema(universit
   userId: true,
   title: true,
   url: true,
+  filePath: true,
+  fileName: true,
+  fileSize: true,
+  mimeType: true,
   description: true,
   resourceType: true,
   tags: true,
