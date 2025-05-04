@@ -32,6 +32,19 @@ import { fromZodError } from "zod-validation-error";
 // import { importCoursesFromCSV } from "./utils/courseParser";
 import { authenticateJWT, generateToken } from "./utils/auth";
 
+// Test the validity of a JWT token for debugging purposes
+function validateToken(token: string): {valid: boolean, payload?: any, error?: string} {
+  try {
+    if (!token) {
+      return { valid: false, error: "No token provided" };
+    }
+    const decoded = jwt.verify(token, process.env.JWT_SECRET || "your_jwt_secret_key");
+    return { valid: true, payload: decoded };
+  } catch (error: any) {
+    return { valid: false, error: error.message };
+  }
+}
+
 // JWT secret key
 const JWT_SECRET = process.env.JWT_SECRET || "your_jwt_secret_key";
 
@@ -161,6 +174,23 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ message: fromZodError(error).message });
       }
       res.status(500).json({ message: "Error creating user" });
+    }
+  });
+
+  // Debug endpoint to validate tokens
+  app.post("/api/auth/validate-token", async (req: Request, res: Response) => {
+    try {
+      const { token } = req.body;
+      
+      if (!token) {
+        return res.status(400).json({ message: "Token is required" });
+      }
+      
+      const validation = validateToken(token);
+      res.json(validation);
+    } catch (error) {
+      console.error("Error validating token:", error);
+      res.status(500).json({ message: "Error validating token" });
     }
   });
 

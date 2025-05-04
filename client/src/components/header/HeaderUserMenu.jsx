@@ -11,7 +11,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { UserCircle, LogOut, Bookmark } from "lucide-react";
+import { UserCircle, LogOut, Bookmark, KeyRound } from "lucide-react";
 import AuthModals from "../AuthModals";
 
 export default function HeaderUserMenu() {
@@ -90,6 +90,14 @@ export default function HeaderUserMenu() {
         >
           <Bookmark className="mr-2 h-4 w-4" />
           <span>{t("bookmarks")}</span>
+        </DropdownMenuItem>
+        <DropdownMenuSeparator className="bg-orange-100" />
+        <DropdownMenuItem
+          className="px-2 py-2 cursor-pointer transition-all duration-500 hover:bg-orange-50 hover:text-orange-700 focus:bg-orange-50 focus:text-orange-700 rounded-md focus:ring-1 focus:ring-orange-200 focus:ring-offset-1 animate-slideIn"
+          onClick={() => navigate("/token-debug")}
+        >
+          <KeyRound className="mr-2 h-4 w-4" />
+          <span>Token Debug</span>
         </DropdownMenuItem>
         <DropdownMenuSeparator className="bg-orange-100" />
         <DropdownMenuItem
