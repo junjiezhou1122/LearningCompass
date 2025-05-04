@@ -17,6 +17,7 @@ import PostDetail from "@/pages/PostDetail";
 import UserProfile from "./pages/UserProfile";
 import NotesPage from "./pages/NotesPage";
 import TokenDebugPage from "./pages/TokenDebugPage";
+import ChatPage from "./pages/ChatPage";
 import Header from "@/components/Header";
 import Footer from "@/components/Footer";
 import FloatingAIButton from "@/components/FloatingAIButton";
@@ -33,10 +34,23 @@ function Router() {
     location === "/register" || 
     location === "/forgot-password" ||
     location === "/reset-password";
+    
+  // Check if it's the chat page which needs a different layout
+  const isChatPage = location === "/chat";
 
   // Debug location and sidebar visibility
   console.log("Current location:", location);
   console.log("Show sidebar:", !hideSidebar);
+
+  if (isChatPage) {
+    return (
+      <div className="min-h-screen flex flex-col">
+        <Switch>
+          <Route path="/chat" component={ChatPage} />
+        </Switch>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen flex flex-col">
