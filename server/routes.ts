@@ -27,10 +27,6 @@ import {
 } from "@shared/schema";
 import { z, ZodError } from "zod";
 import { fromZodError } from "zod-validation-error";
-import { importUniversityCoursesFromCSV } from "./utils/universityCourseParser";
-import multer from "multer";
-import fs from "fs";
-import path from "path";
 // Import data already complete
 // import { importCoursesFromCSV } from "./utils/courseParser";
 import { authenticateJWT, generateToken } from "./utils/auth";
@@ -2679,78 +2675,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Error fetching universities:", error);
       res.status(500).json({ message: "Error fetching universities" });
-    }
-  });
-  
-  // Configure multer for file uploads
-  const upload = multer({
-    dest: "uploads/",
-    limits: {
-      fileSize: 5 * 1024 * 1024, // 5MB file size limit
-    },
-    fileFilter: (req, file, cb) => {
-      // Accept only CSV files
-      if (file.mimetype === "text/csv" || file.originalname.endsWith(".csv")) {
-        cb(null, true);
-      } else {
-        cb(null, false);
-        return cb(new Error("Only CSV files are allowed"));
-      }
-    }
-  });
-  
-  // Create uploads directory if it doesn't exist
-  if (!fs.existsSync("uploads")) {
-    fs.mkdirSync("uploads", { recursive: true });
-  }
-  
-  // Batch import university courses from CSV file
-  app.post("/api/university-courses/import", authenticateJWT, upload.single("file"), async (req: Request, res: Response) => {
-    try {
-      // Only admins can import courses
-      const user = (req as any).user;
-      if (!user.isAdmin) {
-        // Remove the uploaded file
-        if (req.file && fs.existsSync(req.file.path)) {
-          fs.unlinkSync(req.file.path);
-        }
-        return res.status(403).json({ message: "Only admins can import university courses" });
-      }
-      
-      if (!req.file) {
-        return res.status(400).json({ message: "CSV file is required" });
-      }
-      
-      const filePath = req.file.path;
-      
-      // Import courses from CSV file
-      const result = await importUniversityCoursesFromCSV(storage, filePath);
-      
-      // Clean up - delete the uploaded file
-      if (fs.existsSync(filePath)) {
-        fs.unlinkSync(filePath);
-      }
-      
-      if (!result.success) {
-        return res.status(500).json({ message: result.message });
-      }
-      
-      res.status(200).json({ 
-        message: result.message,
-        count: result.count
-      });
-    } catch (error) {
-      console.error("Error importing university courses:", error);
-      
-      // Clean up uploaded file in case of error
-      if (req.file && fs.existsSync(req.file.path)) {
-        fs.unlinkSync(req.file.path);
-      }
-      
-      res.status(500).json({ 
-        message: "Error importing university courses", 
-        error: error instanceof Error ? error.message : String(error) 
-      });
     }
   });
 

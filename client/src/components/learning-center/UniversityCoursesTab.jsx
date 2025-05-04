@@ -1,7 +1,7 @@
-import React, { useState, useRef } from 'react';
+import React, { useState } from 'react';
 import { useQuery, useMutation } from '@tanstack/react-query';
 import { useLocation } from 'wouter';
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useForm } from 'react-hook-form';
@@ -14,13 +14,12 @@ import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Pagination, PaginationContent, PaginationEllipsis, PaginationItem, PaginationLink, PaginationNext, PaginationPrevious } from '@/components/ui/pagination';
-import { BookOpen, School, ChevronRight, Search, BookmarkPlus, BookmarkCheck, Filter, Plus, Upload, Download, FileText, ExternalLink } from 'lucide-react';
+import { BookOpen, School, ChevronRight, Search, BookmarkPlus, BookmarkCheck, Filter, Plus, ExternalLink } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { queryClient } from '@/lib/queryClient';
-import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert';
 
 const UniversityCoursesTab = () => {
-  const { isAuthenticated, user } = useAuth();
+  const { isAuthenticated } = useAuth();
   const [, setLocation] = useLocation();
   const { toast } = useToast();
   const [page, setPage] = useState(1);
@@ -28,11 +27,6 @@ const UniversityCoursesTab = () => {
   const [deptFilter, setDeptFilter] = useState('all');
   const [searchQuery, setSearchQuery] = useState('');
   const [showAddCourseDialog, setShowAddCourseDialog] = useState(false);
-  const [showImportDialog, setShowImportDialog] = useState(false);
-  const [csvFile, setCsvFile] = useState(null);
-  const [importLoading, setImportLoading] = useState(false);
-  const [importResults, setImportResults] = useState(null);
-  const fileInputRef = useRef(null);
   const limit = 9; // Number of courses per page
   
   // Fetch universities for filter dropdown
@@ -198,75 +192,6 @@ const UniversityCoursesTab = () => {
     addCourseMutation.mutate(data);
   };
 
-  // Mutation for importing courses from CSV
-  const importCsvMutation = useMutation({
-    mutationFn: async (formData) => {
-      const response = await fetch('/api/university-courses/import', {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${localStorage.getItem('authToken')}`,
-        },
-        body: formData,
-      });
-      
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.message || 'Failed to import courses');
-      }
-      
-      return response.json();
-    },
-    onSuccess: (data) => {
-      setImportResults(data);
-      setCsvFile(null);
-      
-      toast({
-        title: "Import Successful",
-        description: `${data.count} courses imported successfully.`,
-        variant: "default",
-      });
-      
-      // Invalidate query to refresh the list
-      queryClient.invalidateQueries({ queryKey: ['university-courses'] });
-      queryClient.invalidateQueries({ queryKey: ['universities'] });
-      queryClient.invalidateQueries({ queryKey: ['course-departments'] });
-    },
-    onError: (error) => {
-      toast({
-        title: "Import Failed",
-        description: error.message || "There was an error importing courses. Please check your CSV file and try again.",
-        variant: "destructive",
-      });
-    },
-    onSettled: () => {
-      setImportLoading(false);
-    }
-  });
-
-  // Function to handle file selection
-  const handleFileChange = (e) => {
-    if (e.target.files && e.target.files.length > 0) {
-      setCsvFile(e.target.files[0]);
-    }
-  };
-
-  // Function to handle CSV import
-  const handleImport = () => {
-    if (!csvFile) {
-      toast({
-        title: "No File Selected",
-        description: "Please select a CSV file to import.",
-        variant: "destructive",
-      });
-      return;
-    }
-
-    setImportLoading(true);
-    const formData = new FormData();
-    formData.append('file', csvFile);
-    importCsvMutation.mutate(formData);
-  };
-
   // Function to toggle bookmark
   const toggleBookmark = async (courseId) => {
     if (!isAuthenticated) {
@@ -329,15 +254,6 @@ const UniversityCoursesTab = () => {
             >
               <Plus className="h-4 w-4" />
               Add Course
-            </Button>
-            {/* Only show import button for authenticated users */}
-            <Button 
-              variant="outline"
-              className="flex items-center gap-2 border-orange-300 hover:bg-orange-50 hover:text-orange-700"
-              onClick={() => setShowImportDialog(true)}
-            >
-              <Upload className="h-4 w-4 text-orange-500" />
-              Import CSV
             </Button>
           </div>
         )}
@@ -777,113 +693,6 @@ const UniversityCoursesTab = () => {
               </div>
             </form>
           </Form>
-        </DialogContent>
-      </Dialog>
-
-      {/* Import CSV Dialog */}
-      <Dialog open={showImportDialog} onOpenChange={setShowImportDialog}>
-        <DialogContent className="sm:max-w-[600px]">
-          <DialogHeader>
-            <DialogTitle className="text-orange-700 text-xl">Import Courses from CSV</DialogTitle>
-            <DialogDescription>
-              Batch import university courses from a CSV file. The CSV should follow this format: <br />
-              <code className="bg-gray-100 p-1 rounded text-xs">university, course_dept, course_number, course_title, description, professors, recent_semesters, url</code>
-            </DialogDescription>
-          </DialogHeader>
-          
-          <div className="space-y-6">
-            {importResults && (
-              <Alert className={importResults.success ? "bg-green-50 border-green-200" : "bg-red-50 border-red-200"}>
-                <AlertTitle className={importResults.success ? "text-green-800" : "text-red-800"}>
-                  {importResults.success ? "Import Successful" : "Import Failed"}
-                </AlertTitle>
-                <AlertDescription className={importResults.success ? "text-green-700" : "text-red-700"}>
-                  {importResults.message}.
-                  {importResults.success && ` Successfully imported ${importResults.count} courses.`}
-                </AlertDescription>
-              </Alert>
-            )}
-
-            <div className="flex flex-col gap-4">
-              <div className="border-2 border-dashed border-gray-300 rounded-lg p-8 text-center cursor-pointer hover:border-orange-300 transition-colors"
-                   onClick={() => fileInputRef.current?.click()}
-              >
-                <FileText className="h-10 w-10 mx-auto mb-4 text-orange-500" />
-                {csvFile ? (
-                  <p className="text-gray-700">Selected: <span className="font-medium">{csvFile.name}</span></p>
-                ) : (
-                  <>
-                    <p className="text-gray-700 font-medium">Click to select a CSV file</p>
-                    <p className="text-gray-500 text-sm mt-1">or drag and drop</p>
-                  </>
-                )}
-                <input 
-                  ref={fileInputRef}
-                  type="file" 
-                  accept=".csv"
-                  className="hidden" 
-                  onChange={handleFileChange}
-                />
-              </div>
-
-              <div className="bg-amber-50 p-4 rounded-lg border border-amber-200">
-                <h4 className="text-amber-800 font-medium flex items-center gap-2 mb-2">
-                  <Download className="h-4 w-4" /> Download Template
-                </h4>
-                <p className="text-amber-700 text-sm">
-                  Need a starting point? Download our CSV template with the correct format.
-                </p>
-                <Button 
-                  variant="link" 
-                  className="text-amber-600 hover:text-amber-800 p-0 h-auto mt-1 text-sm"
-                  onClick={() => {
-                    // Create template CSV content
-                    const template = 'university,course_dept,course_number,course_title,description,professors,recent_semesters,url\n' + 
-                                    'MIT,CS,6.0001,Introduction to Computer Science,Learn Python programming basics,Prof. Ana Bell,Fall 2022,https://ocw.mit.edu/courses/6-0001-introduction-to-computer-science-and-programming-in-python-fall-2016/\n' +
-                                    'Stanford,MATH,51,Linear Algebra,Matrices and vector spaces,Prof. John Smith,Spring 2023,https://mathematics.stanford.edu/';
-                    
-                    // Create download link
-                    const element = document.createElement('a');
-                    const file = new Blob([template], {type: 'text/csv'});
-                    element.href = URL.createObjectURL(file);
-                    element.download = 'university_courses_template.csv';
-                    document.body.appendChild(element);
-                    element.click();
-                    document.body.removeChild(element);
-                  }}
-                >
-                  Download CSV Template
-                </Button>
-              </div>
-            </div>
-
-            <DialogFooter>
-              <Button 
-                type="button" 
-                variant="outline" 
-                onClick={() => {
-                  setCsvFile(null);
-                  setImportResults(null);
-                  setShowImportDialog(false);
-                }}
-              >
-                Cancel
-              </Button>
-              <Button 
-                type="button" 
-                onClick={handleImport}
-                disabled={!csvFile || importLoading}
-                className="bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600"
-              >
-                {importLoading ? (
-                  <>
-                    <div className="mr-2 h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent"></div>
-                    Importing...
-                  </>
-                ) : "Import Courses"}
-              </Button>
-            </DialogFooter>
-          </div>
         </DialogContent>
       </Dialog>
     </div>
