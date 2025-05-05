@@ -409,7 +409,8 @@ export const WebSocketContextProvider = ({ children }) => {
     
     try {
       console.log('Fetching group chats with token:', token ? 'token-present' : 'no-token');
-      const response = await fetch('/api/groups', {
+      // Updated to use correct API path
+      const response = await fetch('/api/chat/groups', {
         headers: {
           'Authorization': `Bearer ${token}`
         }
@@ -449,7 +450,8 @@ export const WebSocketContextProvider = ({ children }) => {
     }
     
     try {
-      const response = await fetch('/api/groups', {
+      // Updated to use correct API path
+      const response = await fetch('/api/chat/groups', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -483,7 +485,8 @@ export const WebSocketContextProvider = ({ children }) => {
     }
     
     try {
-      const response = await fetch(`/api/groups/${groupId}/members`, {
+      // Updated to use correct API path
+      const response = await fetch(`/api/chat/groups/${groupId}/members`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -513,7 +516,8 @@ export const WebSocketContextProvider = ({ children }) => {
     }
     
     try {
-      const response = await fetch(`/api/groups/${groupId}/members/${userId}`, {
+      // Updated to use correct API path
+      const response = await fetch(`/api/chat/groups/${groupId}/members/${userId}`, {
         method: 'DELETE',
         headers: {
           'Authorization': `Bearer ${token}`
@@ -547,7 +551,8 @@ export const WebSocketContextProvider = ({ children }) => {
     }
     
     try {
-      const response = await fetch(`/api/groups/${groupId}`, {
+      // Updated to use correct API path
+      const response = await fetch(`/api/chat/groups/${groupId}`, {
         method: 'PATCH',
         headers: {
           'Content-Type': 'application/json',
@@ -579,7 +584,8 @@ export const WebSocketContextProvider = ({ children }) => {
     }
     
     try {
-      const response = await fetch(`/api/groups/${groupId}`, {
+      // Updated to use correct API path
+      const response = await fetch(`/api/chat/groups/${groupId}`, {
         method: 'DELETE',
         headers: {
           'Authorization': `Bearer ${token}`
