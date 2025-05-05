@@ -73,11 +73,7 @@ function Router() {
               <Route path="/courses" component={Home} />
               <Route path="/course/:id" component={CourseDetail} />
               <Route path="/learning-center" component={LearningCenter} />
-              <Route path="/learning-center/courses/:id">
-                <ErrorBoundary>
-                  <CourseDetailsPage />
-                </ErrorBoundary>
-              </Route>
+              <Route path="/learning-center/courses/:id" component={CourseDetailsPage} />
               <Route path="/bookmarks" component={Bookmarks} />
               <Route path="/share" component={Share} />
               <Route path="/post/:id" component={PostDetail} />

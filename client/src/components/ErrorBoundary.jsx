@@ -1,49 +1,58 @@
-import React from 'react';
+import React, { Component } from 'react';
+import { AlertTriangle } from 'lucide-react';
 
-class ErrorBoundary extends React.Component {
+class ErrorBoundary extends Component {
   constructor(props) {
     super(props);
     this.state = { hasError: false, error: null, errorInfo: null };
   }
 
   static getDerivedStateFromError(error) {
-    // Update state so the next render will show the fallback UI
-    return { hasError: true };
+    // Update state so the next render will show the fallback UI.
+    return { hasError: true, error };
   }
 
   componentDidCatch(error, errorInfo) {
-    // You can also log the error to an error reporting service
-    console.error('ErrorBoundary caught an error', error, errorInfo);
-    this.setState({
-      error: error,
-      errorInfo: errorInfo
-    });
+    // You can log the error to an error reporting service
+    console.error('Error caught by ErrorBoundary:', error, errorInfo);
+    this.setState({ errorInfo });
   }
+
+  handleReset = () => {
+    this.setState({ hasError: false, error: null, errorInfo: null });
+    // Refresh the page or reset the component
+    if (this.props.onReset) {
+      this.props.onReset();
+    }
+  };
 
   render() {
     if (this.state.hasError) {
-      // You can render any custom fallback UI
+      // Fallback UI when an error occurs
       return (
-        <div className="p-4 bg-red-50 border border-red-200 rounded-lg">
-          <h3 className="text-red-800 font-medium mb-2">Something went wrong</h3>
-          {this.props.fallback || (
-            <div>
-              <p className="text-red-700 mb-2">{this.state.error?.toString()}</p>
-              {this.props.showDetails && (
-                <details className="text-xs text-gray-600 mt-2">
-                  <summary>Error details</summary>
-                  <pre className="mt-2 whitespace-pre-wrap">
-                    {this.state.errorInfo?.componentStack}
-                  </pre>
-                </details>
-              )}
-              {this.props.resetLabel && (
-                <button 
-                  onClick={() => this.setState({ hasError: false, error: null, errorInfo: null })}
-                  className="mt-3 px-3 py-1 bg-red-100 text-red-900 rounded-md hover:bg-red-200 text-sm"
-                >
-                  {this.props.resetLabel}
-                </button>
+        <div className="p-8 flex flex-col items-center justify-center min-h-[300px] text-center bg-orange-50 border border-orange-200 rounded-lg shadow-sm">
+          <div className="bg-orange-100 p-4 rounded-full mb-4">
+            <AlertTriangle className="h-8 w-8 text-orange-500" />
+          </div>
+          <h2 className="text-2xl font-semibold text-orange-800 mb-2">Something went wrong</h2>
+          <p className="text-orange-700 mb-6 max-w-md">
+            We're having trouble with this component. The error has been logged and we're working on fixing it.
+          </p>
+          <button 
+            onClick={this.handleReset}
+            className="px-4 py-2 bg-gradient-to-r from-orange-500 to-orange-600 hover:from-orange-600 hover:to-orange-700 text-white rounded-md transition-colors duration-200"
+          >
+            Try Again
+          </button>
+          
+          {process.env.NODE_ENV === 'development' && this.state.error && (
+            <div className="mt-6 p-4 bg-gray-100 rounded text-left w-full overflow-auto max-h-[200px] text-xs">
+              <p className="font-semibold mb-2 text-gray-800">Error Details (Development Only):</p>
+              <pre className="text-red-500">{this.state.error.toString()}</pre>
+              {this.state.errorInfo && (
+                <pre className="mt-2 text-gray-700">
+                  {this.state.errorInfo.componentStack}
+                </pre>
               )}
             </div>
           )}
@@ -51,6 +60,7 @@ class ErrorBoundary extends React.Component {
       );
     }
 
+    // If no error, render children normally
     return this.props.children;
   }
 }
