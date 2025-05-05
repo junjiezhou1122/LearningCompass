@@ -41,7 +41,7 @@ import {
   School, 
   Share, 
   ThumbsUp, 
-  Trash,
+  Trash, Trash2,
   Edit,
   User, 
   Users 
@@ -452,6 +452,37 @@ const CourseDetailsPage = () => {
     },
   });
 
+  // Delete resource mutation
+  const deleteResourceMutation = useMutation({
+    mutationFn: async (resourceId) => {
+      const response = await fetch(`/api/university-course-resources/${resourceId}`, {
+        method: 'DELETE',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+        },
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || 'Failed to delete resource');
+      }
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['course-resources', id] });
+      toast({
+        title: 'Resource Deleted',
+        description: 'Resource has been deleted successfully.',
+      });
+    },
+    onError: (error) => {
+      toast({
+        title: 'Error',
+        description: error.message || 'Failed to delete resource',
+        variant: 'destructive',
+      });
+    },
+  });
+
   // Add collaboration request mutation
   const addCollaborationMutation = useMutation({
     mutationFn: async (data) => {
@@ -578,6 +609,22 @@ const CourseDetailsPage = () => {
 
     if (window.confirm('Are you sure you want to delete this link?')) {
       deleteCourseLinkMutation.mutate(linkId);
+    }
+  };
+  
+  // Handle resource deletion
+  const onResourceDelete = (resourceId) => {
+    if (!isAuthenticated) {
+      toast({
+        title: 'Authentication Required',
+        description: 'Please log in to delete resources',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    if (window.confirm('Are you sure you want to delete this resource?')) {
+      deleteResourceMutation.mutate(resourceId);
     }
   };
 
@@ -1075,7 +1122,7 @@ const CourseDetailsPage = () => {
                 <Card key={resource.id} className="border-orange-100 hover:border-orange-300 transition-all duration-300 hover:shadow-md overflow-hidden">
                   <CardHeader className="pb-3">
                     <div className="flex justify-between items-start">
-                      <div>
+                      <div className="flex-1">
                         <Badge 
                           className={`mb-2 ${resource.resourceType === 'github' ? 'bg-black text-white' : 
                                          resource.resourceType === 'documentation' ? 'bg-blue-600 text-white' : 
@@ -1109,14 +1156,29 @@ const CourseDetailsPage = () => {
                         </Badge>
                         <CardTitle className="text-lg text-orange-800">{resource.title}</CardTitle>
                       </div>
-                      <Button 
-                        variant="ghost" 
-                        size="sm" 
-                        className="hover:bg-orange-50 text-orange-600"
-                        onClick={() => window.open(resource.url, '_blank', 'noopener,noreferrer')}
-                      >
-                        <ExternalLink className="h-4 w-4" />
-                      </Button>
+                      <div className="flex items-center gap-1">
+                        {/* Delete button - only shown to the resource uploader */}
+                        {isAuthenticated && resource.user?.id === user?.id && (
+                          <Button 
+                            variant="ghost" 
+                            size="sm" 
+                            className="hover:bg-red-50 text-red-600"
+                            onClick={() => onResourceDelete(resource.id)}
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        )}
+                        
+                        {/* External link button */}
+                        <Button 
+                          variant="ghost" 
+                          size="sm" 
+                          className="hover:bg-orange-50 text-orange-600"
+                          onClick={() => window.open(resource.url, '_blank', 'noopener,noreferrer')}
+                        >
+                          <ExternalLink className="h-4 w-4" />
+                        </Button>
+                      </div>
                     </div>
                     
                     <div className="flex items-center gap-2 text-xs text-gray-500">
