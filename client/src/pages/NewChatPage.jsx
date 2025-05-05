@@ -5,33 +5,23 @@ import { Menu } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { motion } from "framer-motion";
 
-// Import our new chat components
+// Import chat components
 import ChatHeader from "@/components/chat/ChatHeader";
 import ChatSidebar from "@/components/chat/ChatSidebar";
 import ChatConversationHeader from "@/components/chat/ChatConversationHeader";
 import ChatMessagesList from "@/components/chat/ChatMessagesList";
 import ChatInput from "@/components/chat/ChatInput";
 import ChatEmptyState from "@/components/chat/ChatEmptyState";
-
-// Import our new WebSocket hook
 import { useWebSocketContext } from "@/components/chat/WebSocketProvider";
 
 const ChatPage = () => {
-  const { user, token } = useAuth();
+  const { user } = useAuth();
   const { toast } = useToast();
+  const { connected, sendMessage: wsSendMessage } = useWebSocketContext();
   const messagesEndRef = useRef(null);
   const scrollAreaRef = useRef(null);
 
-  // Get WebSocket connection from context
-  const {
-    connected,
-    connectionState,
-    sendMessage,
-    lastMessage,
-    reconnectAttempt
-  } = useWebSocketContext();
-
-  // State variables
+  // State
   const [activeChat, setActiveChat] = useState(null);
   const [messages, setMessages] = useState([]);
   const [input, setInput] = useState("");
@@ -39,546 +29,205 @@ const ChatPage = () => {
   const [isLoadingMore, setIsLoadingMore] = useState(false);
   const [page, setPage] = useState(1);
   const [hasMore, setHasMore] = useState(true);
-  
-  // Constants
-  const MESSAGES_PER_PAGE = 15; // Number of messages to load per page
-
-  // Scroll to bottom when new messages arrive
-  const scrollToBottom = useCallback(
-    (smooth = true) => {
-      if (messagesEndRef.current) {
-        messagesEndRef.current.scrollIntoView({
-          behavior: smooth ? "smooth" : "auto",
-          block: "end",
-        });
-      }
-    },
-    [messagesEndRef]
-  );
-
-  // Load chat partners from API
   const [chatPartners, setChatPartners] = useState([]);
   const [isPartnersLoading, setIsPartnersLoading] = useState(true);
 
-  // Fetch chat partners from API
+  // Scroll to bottom
+  const scrollToBottom = useCallback((smooth = true) => {
+    if (messagesEndRef.current) {
+      messagesEndRef.current.scrollIntoView({
+        behavior: smooth ? "smooth" : "auto",
+        block: "end",
+      });
+    }
+  }, [messagesEndRef]);
+
+  // Send message
+  const sendMessage = useCallback(() => {
+    if (!input.trim() || !activeChat || !connected) return;
+
+    const tempId = `temp-${Date.now()}`;
+    const messageData = {
+      type: "chat_message",
+      content: input.trim(),
+      receiverId: activeChat.id,
+      tempId,
+      senderId: user.id
+    };
+
+    // Add message locally
+    const tempMessage = {
+      id: tempId,
+      content: input.trim(),
+      senderId: user.id,
+      receiverId: activeChat.id,
+      createdAt: new Date().toISOString(),
+      isPending: true,
+      sender: user
+    };
+
+    setMessages(prev => [...prev, tempMessage]);
+    setInput("");
+    scrollToBottom();
+
+    // Send via WebSocket
+    wsSendMessage(messageData);
+  }, [input, activeChat, connected, user, wsSendMessage, scrollToBottom]);
+
+  // Message handler
   useEffect(() => {
-    if (!token) return;
-    
-    const fetchChatPartners = async () => {
+    const handleMessage = (data) => {
+      if (!data) return;
+
+      if (data.type === 'new_message' && data.message) {
+        const newMessage = data.message;
+        if (activeChat && (newMessage.senderId === activeChat.id || newMessage.receiverId === activeChat.id)) {
+          setMessages(prev => {
+            if (!prev.some(msg => msg.id === newMessage.id)) {
+              return [...prev, newMessage].sort((a, b) => 
+                new Date(a.createdAt) - new Date(b.createdAt)
+              );
+            }
+            return prev;
+          });
+          scrollToBottom();
+
+          // Mark received messages as read
+          if (newMessage.senderId !== user.id) {
+            wsSendMessage({
+              type: 'mark_read',
+              messageId: newMessage.id,
+              senderId: newMessage.senderId
+            });
+          }
+        }
+      } else if (data.type === 'message_sent' || data.type === 'message_ack') {
+        // Update message status
+        setMessages(prev => prev.map(msg => 
+          msg.id === data.tempId ? { ...msg, id: data.messageId, isPending: false } : msg
+        ));
+      }
+    };
+
+    window.addEventListener('ws:message', handleMessage);
+    return () => window.removeEventListener('ws:message', handleMessage);
+  }, [activeChat, user, wsSendMessage, scrollToBottom]);
+
+  // Load messages
+  const loadMessages = useCallback(async (partnerId) => {
+    if (!partnerId) return;
+
+    try {
+      setIsLoadingMore(true);
+      const response = await fetch(`/api/chat/messages/${partnerId}`);
+      if (response.ok) {
+        const data = await response.json();
+        setMessages(data.sort((a, b) => new Date(a.createdAt) - new Date(b.createdAt)));
+        scrollToBottom(false);
+      }
+    } catch (error) {
+      console.error('Error loading messages:', error);
+      toast({
+        title: "Error",
+        description: "Failed to load messages",
+        variant: "destructive"
+      });
+    } finally {
+      setIsLoadingMore(false);
+    }
+  }, [scrollToBottom, toast]);
+
+  // Load chat partners
+  useEffect(() => {
+    const loadPartners = async () => {
       try {
         setIsPartnersLoading(true);
-        const response = await fetch('/api/chat/partners', {
-          headers: {
-            Authorization: `Bearer ${token}`
-          }
-        });
-        
+        const response = await fetch('/api/chat/partners');
         if (response.ok) {
           const data = await response.json();
           setChatPartners(data);
-        } else {
-          console.error('Failed to fetch chat partners');
-          setChatPartners([]); // Set empty array on failure
         }
       } catch (error) {
-        console.error('Error fetching chat partners:', error);
-        setChatPartners([]); // Set empty array on error
+        console.error('Error loading chat partners:', error);
       } finally {
         setIsPartnersLoading(false);
       }
     };
-    
-    fetchChatPartners();
-  }, [token]);
 
-  // Function to load older messages when user scrolls to the top of the chat
-  const loadOlderMessages = useCallback(() => {
-    if (!hasMore || isLoadingMore || !activeChat || !token) return;
-
-    setIsLoadingMore(true);
-
-    fetch(`/api/chat/messages/${activeChat.id}`, {
-      headers: {
-        Authorization: `Bearer ${token}`,
-      },
-    })
-      .then((response) => {
-        if (response.ok) return response.json();
-        throw new Error("Failed to load older messages");
-      })
-      .then((allData) => {
-        // Sort messages by date (oldest to newest)
-        const sortedData = [...allData].sort(
-          (a, b) => new Date(a.createdAt) - new Date(b.createdAt)
-        );
-
-        // Simulate pagination
-        const totalMessages = sortedData.length;
-        const currentPage = page + 1;
-        const startIndex = Math.max(
-          0,
-          totalMessages - currentPage * MESSAGES_PER_PAGE
-        );
-        const endIndex = totalMessages;
-        const paginatedData = sortedData.slice(startIndex, endIndex);
-
-        // Update messages
-        setMessages((prev) => [
-          ...paginatedData.filter(
-            (msg) => !prev.some((existing) => existing.id === msg.id)
-          ),
-          ...prev,
-        ]);
-
-        setPage(currentPage);
-        setHasMore(startIndex > 0);
-      })
-      .catch((error) => {
-        console.error("Error loading older messages:", error);
-        toast({
-          title: "Error",
-          description: "Failed to load older messages",
-          variant: "destructive",
-        });
-      })
-      .finally(() => {
-        setIsLoadingMore(false);
-      });
-  }, [
-    hasMore,
-    isLoadingMore,
-    activeChat,
-    token,
-    page,
-    MESSAGES_PER_PAGE,
-    toast,
-  ]);
-
-  // Function to load messages for a chat conversation
-  const loadMessages = useCallback(
-    async (partnerId, isLoadingOlder = false) => {
-      if (!token) return;
-
-      try {
-        // Only clear messages when loading a new chat (not when loading older messages)
-        if (!isLoadingOlder) {
-          setMessages([]);
-          setPage(1);
-          setHasMore(true);
-        }
-
-        // Show loading indicator
-        setIsLoadingMore(true);
-
-        const response = await fetch(`/api/chat/messages/${partnerId}`, {
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-        });
-
-        if (response.ok) {
-          const allData = await response.json();
-          // Sort messages by date (oldest to newest)
-          const sortedData = [...allData].sort(
-            (a, b) => new Date(a.createdAt) - new Date(b.createdAt)
-          );
-
-          // Simulate pagination
-          const totalMessages = sortedData.length;
-          const currentPage = isLoadingOlder ? page + 1 : 1;
-          const startIndex = Math.max(
-            0,
-            totalMessages - currentPage * MESSAGES_PER_PAGE
-          );
-          const endIndex = totalMessages;
-          const paginatedData = sortedData.slice(startIndex, endIndex);
-
-          // Update state
-          if (isLoadingOlder) {
-            // If loading older messages, prepend them to existing messages
-            setMessages((prev) => [
-              ...paginatedData.filter(
-                (msg) => !prev.some((existing) => existing.id === msg.id)
-              ),
-              ...prev,
-            ]);
-            setPage(currentPage);
-
-            // Check if there are more messages to load
-            setHasMore(startIndex > 0);
-          } else {
-            // If loading a new chat, replace all messages
-            setMessages(paginatedData);
-            setHasMore(startIndex > 0);
-
-            // After setting messages, scroll to bottom with a slight delay
-            setTimeout(() => {
-              scrollToBottom();
-            }, 100);
-          }
-        } else {
-          console.error("Error fetching messages:", await response.text());
-          toast({
-            title: "Error",
-            description: "Failed to load messages",
-            variant: "destructive",
-          });
-        }
-      } catch (error) {
-        console.error("Error fetching messages:", error);
-        toast({
-          title: "Error",
-          description: "Failed to load messages",
-          variant: "destructive",
-        });
-      } finally {
-        setIsLoadingMore(false);
-      }
-    },
-    [token, page, MESSAGES_PER_PAGE, toast, scrollToBottom]
-  );
-
-  // Handle scroll events for detecting when to load more messages
-  const handleScroll = useCallback(
-    (event) => {
-      // Load older messages when user scrolls to the top
-      const scrollTop = event.currentTarget.scrollTop;
-      if (scrollTop < 50 && hasMore && !isLoadingMore) {
-        loadOlderMessages();
-      }
-    },
-    [hasMore, isLoadingMore, loadOlderMessages]
-  );
-
-  // Set up scroll event listener
-  useEffect(() => {
-    const scrollContainer = scrollAreaRef.current?.querySelector(
-      'div[role="presentation"]'
-    );
-    if (scrollContainer) {
-      scrollContainer.addEventListener("scroll", handleScroll);
-      return () => scrollContainer.removeEventListener("scroll", handleScroll);
-    }
-  }, [handleScroll]);
-
-  // Scroll to bottom when messages change
-  useEffect(() => {
-    if (messages.length > 0) {
-      scrollToBottom(messages.length < MESSAGES_PER_PAGE);
-    }
-  }, [messages, scrollToBottom, MESSAGES_PER_PAGE]);
-
-  // Handle viewport and container resizing
-  useEffect(() => {
-    const handleResize = () => {
-      // Force recalculation of container heights
-      const chatContainer = document.querySelector(".chat-container");
-      const messagesContainer = document.querySelector(".messages-container");
-      const sidebarScrollArea = document.querySelector(".sidebar-scroll-area");
-      const emptyStateContainer = document.querySelector(
-        ".empty-state-container"
-      );
-
-      if (chatContainer) {
-        const headerHeight = 64; // Height of the main app header
-        const viewportHeight = window.innerHeight;
-        chatContainer.style.height = `${viewportHeight - headerHeight}px`;
-      }
-
-      if (messagesContainer) {
-        // Set the messages container height by accounting for the chat input and header
-        const chatHeaderHeight = 64; // Estimated
-        const chatInputHeight = 68; // Estimated
-        const messagesContainerHeight =
-          chatContainer.offsetHeight - chatHeaderHeight - chatInputHeight;
-        messagesContainer.style.height = `${messagesContainerHeight}px`;
-      }
-
-      if (sidebarScrollArea) {
-        // Handle the sidebar scroll area height - account for search input height
-        const searchInputHeight = 72; // Estimated
-        const sidebarAreaHeight =
-          chatContainer.offsetHeight - searchInputHeight;
-        sidebarScrollArea.style.height = `${sidebarAreaHeight}px`;
-      }
-
-      if (emptyStateContainer) {
-        // Handle the empty state container height
-        emptyStateContainer.style.height = `${chatContainer.offsetHeight}px`;
-      }
-    };
-
-    // Initial calculation
-    setTimeout(handleResize, 100);
-
-    // Add event listener for window resize
-    window.addEventListener("resize", handleResize);
-
-    // Clean up on unmount
-    return () => window.removeEventListener("resize", handleResize);
+    loadPartners();
   }, []);
 
-  // Process new WebSocket messages
+  // Load messages when active chat changes
   useEffect(() => {
-    if (!lastMessage || !activeChat) return;
-    
-    // Handle new messages
-    if (lastMessage.type === 'new_message' && lastMessage.message) {
-      const newMessage = lastMessage.message;
-      
-      // Only add if it's from or to the active chat partner
-      if (newMessage.senderId === activeChat.id || newMessage.receiverId === activeChat.id) {
-        // Add the message if it's not already in the list
-        setMessages(prev => {
-          if (!prev.some(msg => msg.id === newMessage.id)) {
-            const updatedMessages = [...prev, newMessage];
-            // Sort messages by time
-            return updatedMessages.sort((a, b) => new Date(a.createdAt) - new Date(b.createdAt));
-          }
-          return prev;
-        });
-        
-        // Scroll to bottom when receiving a new message
-        setTimeout(scrollToBottom, 100);
-        
-        // Mark message as read if it's not from the current user
-        if (newMessage.senderId !== user.id) {
-          sendMessage({
-            type: 'mark_read',
-            senderId: newMessage.senderId
-          });
-        }
-      }
+    if (activeChat) {
+      loadMessages(activeChat.id);
     }
-    // Handle message sent confirmation
-    else if (lastMessage.type === 'message_sent' && lastMessage.tempId) {
-      console.log('Message sent confirmation received:', lastMessage);
-      // Update the message in the UI to show it's been delivered
-      setMessages(prev => 
-        prev.map(msg => {
-          if (msg.id === lastMessage.tempId) {
-            return {
-              ...msg,
-              id: lastMessage.message.id,
-              isPending: false
-            };
-          }
-          return msg;
-        })
-      );
-    }
-    // Handle error messages from server, including message sending errors
-    else if (lastMessage.type === 'error' && lastMessage.tempId) {
-      console.error('Message error received:', lastMessage);
-      // Update the UI to show the message failed to send
-      setMessages(prev => 
-        prev.map(msg => {
-          if (msg.id === lastMessage.tempId) {
-            return {
-              ...msg,
-              error: lastMessage.message,
-              isPending: false,
-              isFailed: true // Mark as failed
-            };
-          }
-          return msg;
-        })
-      );
-      
-      // Show toast with error message
-      toast({
-        title: 'Message not sent',
-        description: lastMessage.message,
-        variant: 'destructive',
-      });
-    }
-    // Handle read receipts
-    else if (lastMessage.type === 'messages_read' && lastMessage.readBy) {
-      // Update all sent messages to the reader as read
-      if (activeChat && lastMessage.readBy === activeChat.id) {
-        setMessages(prev => prev.map(msg => 
-          msg.senderId === user.id && msg.receiverId === activeChat.id
-            ? { ...msg, isRead: true }
-            : msg
-        ));
-      }
-    }
-  }, [lastMessage, activeChat, user, sendMessage, scrollToBottom]);
-  
-  // Listen for message delivery failure events from WebSocketProvider
-  useEffect(() => {
-    const handleMessageFailed = (event) => {
-      const { tempId, error } = event.detail;
-      
-      // Mark the failed message
-      if (tempId) {
-        setMessages(prevMessages => 
-          prevMessages.map(msg => {
-            if (msg.id === tempId) {
-              return { 
-                ...msg, 
-                isPending: false, 
-                isFailed: true,
-                error: error || 'Failed to deliver after multiple attempts'
-              };
-            }
-            return msg;
-          })
-        );
-      }
-    };
-    
-    // Add event listener
-    window.addEventListener('chat:message:failed', handleMessageFailed);
-    
-    // Cleanup on unmount
-    return () => {
-      window.removeEventListener('chat:message:failed', handleMessageFailed);
-    };
-  }, []);
+  }, [activeChat, loadMessages]);
 
-  // Send message function
-  const handleSendMessage = (messageContent = input.trim(), existingTempId = null) => {
-    if ((!messageContent && !input?.trim()) || !activeChat) return;
-    
-    // Use provided content or input field content
-    const finalContent = messageContent || input.trim();
-    
-    // Use existing tempId (for retries) or create a new one
-    const tempId = existingTempId || `temp-${Date.now()}`; // temporary ID with 'temp-' prefix
-    
-    // Create a temporary message with local ID
-    const tempMessage = {
-      id: tempId,
-      senderId: user.id,
-      receiverId: activeChat.id,
-      content: finalContent,
-      createdAt: new Date().toISOString(),
-      isRead: false,
-      sender: user,
-      isPending: true, // Mark as pending so we can style it differently
-      onRetry: (msg) => handleRetryMessage(msg) // Add retry handler
-    };
-    
-    // Create message object to send to server
-    const messageToSend = {
-      type: "chat_message",
-      receiverId: activeChat.id,
-      content: tempMessage.content,
-      tempId // Include temporary ID so we can update the message when we get a response
-    };
-    
-    // Only add to messages if it's a new message, not a retry
-    if (!existingTempId) {
-      setMessages((prev) => [...prev, tempMessage]);
-      // Clear input field immediately
-      setInput("");
-    } else {
-      // For retries, update the message to show it's pending again
-      setMessages(prev => prev.map(msg => 
-        msg.id === existingTempId 
-          ? { ...msg, isPending: true, isFailed: false, error: null }
-          : msg
-      ));
+  const handleKeyDown = (e) => {
+    if (e.key === "Enter" && !e.shiftKey) {
+      e.preventDefault();
+      sendMessage();
     }
-    
-    // Scroll to bottom
-    setTimeout(scrollToBottom, 50);
-    
-    // Send message via WebSocket
-    sendMessage(messageToSend);
-  };
-  
-  // Handle retrying failed messages
-  const handleRetryMessage = (message) => {
-    if (!message || !activeChat) return;
-    
-    // Toast notification to inform user
-    toast({
-      title: "Retrying message",
-      description: "Attempting to resend your message..."
-    });
-    
-    // Call send function with the message content and the original tempId
-    handleSendMessage(message.content, message.id);
   };
 
   return (
-    <div className="flex flex-col h-full bg-gray-50 dark:bg-gray-900 chat-container">
-      {/* Mobile Menu Button - Only visible on small screens */}
-      <div className="lg:hidden absolute left-4 top-4 z-20">
-        <Button
-          variant="ghost"
-          size="icon"
-          onClick={() => setIsMobileSidebarOpen(!isMobileSidebarOpen)}
-          aria-label={isMobileSidebarOpen ? "Close sidebar" : "Open sidebar"}
+    <div className="h-full flex flex-col bg-gradient-to-b from-orange-50 to-white">
+      <div className="flex items-center h-12 border-b border-orange-200 px-4 bg-gradient-to-r from-orange-50 via-orange-100 to-orange-50 text-orange-800 shadow-sm z-10">
+        <motion.div 
+          whileHover={{ rotate: 15 }} 
+          whileTap={{ scale: 0.9 }}
+          className="mr-2 lg:hidden"
         >
-          <Menu className="h-5 w-5" />
-        </Button>
+          <Button
+            variant="ghost"
+            size="icon"
+            className="text-orange-700 hover:bg-orange-200/70 h-8 w-8 rounded-full transition-colors duration-200 shadow-sm"
+            onClick={() => setIsMobileSidebarOpen(!isMobileSidebarOpen)}
+          >
+            <Menu className="h-5 w-5" />
+          </Button>
+        </motion.div>
+
+        <ChatHeader 
+          isMobileSidebarOpen={isMobileSidebarOpen} 
+          setIsMobileSidebarOpen={setIsMobileSidebarOpen} 
+        />
       </div>
 
-      <div className="flex flex-1 overflow-hidden">
-        {/* Chat Sidebar - Fixed on large screens, sliding on small screens */}
-        <ChatSidebar
-          isOpen={isMobileSidebarOpen}
-          setIsOpen={setIsMobileSidebarOpen}
-          chatPartners={chatPartners}
-          isLoading={isPartnersLoading}
+      <div className="flex-1 flex overflow-hidden chat-container">
+        <ChatSidebar 
+          isMobileSidebarOpen={isMobileSidebarOpen}
+          setActiveChat={setActiveChat}
           activeChat={activeChat}
-          setActiveChat={(partner) => {
-            setActiveChat(partner);
-            setIsMobileSidebarOpen(false); // Close sidebar on mobile when selecting a chat
-            if (partner) {
-              loadMessages(partner.id);
-            }
-          }}
-          currentUser={user}
+          chatPartners={chatPartners}
+          isPartnersLoading={isPartnersLoading}
         />
 
-        {/* Main Chat Area */}
-        <main className="flex-1 flex flex-col">
+        <div className="flex-1 flex flex-col overflow-hidden bg-white">
           {activeChat ? (
             <>
-              <ChatConversationHeader
-                partner={activeChat}
-                online={connected}
-                statusMessage={connectionState === 'connecting' ? 'Reconnecting...' : ''}
-              />
-
-              <ChatMessagesList
-                messages={messages}
-                isLoading={isLoadingMore}
-                user={user} /* Fixed: changed from currentUser to user */
-                hasMore={hasMore}
-                partner={activeChat}
-                messagesEndRef={messagesEndRef}
+              <ChatConversationHeader activeChat={activeChat} />
+              <ChatMessagesList 
                 scrollAreaRef={scrollAreaRef}
-                loadOlderMessages={loadOlderMessages}
-                page={page}
+                isLoadingMore={isLoadingMore}
+                messages={messages}
+                user={user}
+                messagesEndRef={messagesEndRef}
               />
-
-              <ChatInput
+              <ChatInput 
                 input={input}
                 setInput={setInput}
-                handleKeyDown={(e) => {
-                  if (e.key === 'Enter' && !e.shiftKey) {
-                    e.preventDefault();
-                    handleSendMessage();
-                  }
-                }}
-                sendMessage={handleSendMessage}
+                handleKeyDown={handleKeyDown}
+                sendMessage={sendMessage}
                 connected={connected}
                 activeChat={activeChat}
-                connectionStatus={connectionState}
               />
             </>
           ) : (
-            <ChatEmptyState 
-              connected={connected} 
-              reconnectAttempt={reconnectAttempt} 
-            />
+            <ChatEmptyState connected={connected} />
           )}
-        </main>
+        </div>
       </div>
     </div>
   );
