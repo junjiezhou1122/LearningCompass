@@ -3,8 +3,8 @@ import { queryClient } from "./lib/queryClient";
 import { QueryClientProvider } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
-import { AuthProvider } from "./contexts/AuthContext";
-import { LanguageProvider } from "./contexts/LanguageContext";
+import { AuthProvider } from "@/contexts/AuthContext";
+import { LanguageProvider } from "@/contexts/LanguageContext";
 import { WebSocketProvider } from "@/components/chat/WebSocketProvider";
 import { WebSocketContextProvider } from "@/components/chat/WebSocketContextProvider";
 import NotFound from "@/pages/not-found";
@@ -16,12 +16,11 @@ import LearningHowToLearn from "@/pages/LearningHowToLearn";
 import LearningCenter from "@/pages/LearningCenter";
 import Share from "@/pages/Share";
 import PostDetail from "@/pages/PostDetail";
-import UserProfile from "./pages/UserProfile";
-import NotesPage from "./pages/NotesPage";
-import TokenDebugPage from "./pages/TokenDebugPage";
-import NewChatPage from "./pages/NewChatPage";
-import EnhancedChatPage from "./pages/EnhancedChatPage";
-import GroupChatPage from "./pages/GroupChatPage";
+import UserProfile from "@/pages/UserProfile";
+import NotesPage from "@/pages/NotesPage";
+import TokenDebugPage from "@/pages/TokenDebugPage";
+import NewChatPage from "@/pages/NewChatPage";
+import UnifiedChatPage from "@/pages/UnifiedChatPage";
 import Header from "@/components/Header";
 import Footer from "@/components/Footer";
 import FloatingAIButton from "@/components/FloatingAIButton";
@@ -41,11 +40,17 @@ function Router() {
     location === "/reset-password";
     
   // Check if it's the chat page which needs a different layout
-  const isChatPage = location === "/chat" || location === "/group-chat";
+  const isChatPage = location === "/chat";
 
   // Debug location and sidebar visibility
   console.log("Current location:", location);
+  console.log("Is chat page:", isChatPage);
   console.log("Show sidebar:", !hideSidebar);
+  
+  // Add additional debug for chat page
+  if (location === "/chat") {
+    console.log("Rendering chat page layout");
+  }
 
   if (isChatPage) {
     return (
@@ -56,14 +61,7 @@ function Router() {
             <Route path="/chat">
               <ErrorBoundary>
                 <WebSocketContextProvider>
-                  <EnhancedChatPage />
-                </WebSocketContextProvider>
-              </ErrorBoundary>
-            </Route>
-            <Route path="/group-chat">
-              <ErrorBoundary>
-                <WebSocketContextProvider>
-                  <GroupChatPage />
+                  <UnifiedChatPage />
                 </WebSocketContextProvider>
               </ErrorBoundary>
             </Route>

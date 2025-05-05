@@ -7,7 +7,7 @@ import GroupDetailsPanel from '@/components/chat/GroupDetailsPanel';
 import { Button } from '@/components/ui/button';
 import { PlusCircle, Info } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
-import { useAuth } from '../../contexts/AuthContext';
+import { useAuth } from '@/contexts/AuthContext';
 
 const GroupChatPage = () => {
   const { toast } = useToast();

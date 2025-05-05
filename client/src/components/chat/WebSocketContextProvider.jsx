@@ -516,6 +516,45 @@ export const WebSocketContextProvider = ({ children }) => {
     }
   }, [user, token, activeGroupId]);
   
+  // Request group message history
+  const getGroupMessageHistory = useCallback((groupId, options = {}) => {
+    if (!connected || !ws.current) {
+      console.log('Cannot request group message history: not connected');
+      return false;
+    }
+    
+    try {
+      ws.current.send(JSON.stringify({
+        type: 'get_group_message_history',
+        groupId,
+        ...options
+      }));
+      return true;
+    } catch (error) {
+      console.error('Error requesting group message history:', error);
+      return false;
+    }
+  }, [connected]);
+  
+  // Mark group messages as read
+  const markGroupMessagesAsRead = useCallback((groupId) => {
+    if (!connected || !ws.current) {
+      console.log('Cannot mark group messages as read: not connected');
+      return false;
+    }
+    
+    try {
+      ws.current.send(JSON.stringify({
+        type: 'mark_group_read',
+        groupId
+      }));
+      return true;
+    } catch (error) {
+      console.error('Error marking group messages as read:', error);
+      return false;
+    }
+  }, [connected]);
+  
   // Set the active group ID
   const setActiveGroup = useCallback((groupId) => {
     setActiveGroupId(groupId);
@@ -683,44 +722,8 @@ export const WebSocketContextProvider = ({ children }) => {
     }
   }, [connected]);
   
-  // Request group message history
-  const getGroupMessageHistory = useCallback((groupId, options = {}) => {
-    if (!connected || !ws.current) {
-      console.log('Cannot request group message history: not connected');
-      return false;
-    }
-    
-    try {
-      ws.current.send(JSON.stringify({
-        type: 'get_group_message_history',
-        groupId,
-        ...options
-      }));
-      return true;
-    } catch (error) {
-      console.error('Error requesting group message history:', error);
-      return false;
-    }
-  }, [connected]);
-  
-  // Mark group messages as read
-  const markGroupMessagesAsRead = useCallback((groupId) => {
-    if (!connected || !ws.current) {
-      console.log('Cannot mark group messages as read: not connected');
-      return false;
-    }
-    
-    try {
-      ws.current.send(JSON.stringify({
-        type: 'mark_group_read',
-        groupId
-      }));
-      return true;
-    } catch (error) {
-      console.error('Error marking group messages as read:', error);
-      return false;
-    }
-  }, [connected]);
+  // Note: Order of function definitions is important
+  // getGroupMessageHistory and markGroupMessagesAsRead must be defined before setActiveGroup
   
   // The context value
   const value = {

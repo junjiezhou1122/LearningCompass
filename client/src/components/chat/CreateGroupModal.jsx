@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useWebSocketContext } from '@/components/chat/WebSocketContextProvider';
-import { useAuth } from '../../contexts/AuthContext';
+import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
 import { 
   Dialog, 

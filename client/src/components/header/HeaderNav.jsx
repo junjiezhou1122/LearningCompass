@@ -62,18 +62,13 @@ export default function HeaderNav() {
           <Button
             variant="ghost"
             className={getButtonClass("/chat")}
-            onClick={() => navigate("/chat")}
+            onClick={() => {
+              console.log("Chat button clicked, navigating to /chat");
+              navigate("/chat");
+            }}
           >
             <MessagesSquare className="h-4 w-4 mr-2" />
-            Direct Chat
-          </Button>
-          <Button
-            variant="ghost"
-            className={getButtonClass("/group-chat")}
-            onClick={() => navigate("/group-chat")}
-          >
-            <Users className="h-4 w-4 mr-2" />
-            Group Chat
+            Chat
           </Button>
         </>
       )}

@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from "react";
-import { useAuth } from "../contexts/AuthContext";
+import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
 import { MessageSquare, Users, Search, UserPlus, ArrowLeft, Settings, BellRing, BellOff } from "lucide-react";
 import EnhancedChatHeader from "@/components/chat/EnhancedChatHeader";
