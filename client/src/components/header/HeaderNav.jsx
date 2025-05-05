@@ -6,15 +6,28 @@ import LanguageSwitcher from "../LanguageSwitcher";
 import { useAuth } from "@/contexts/AuthContext";
 
 export default function HeaderNav() {
-  const [location, navigate] = useLocation();
+  const [location] = useLocation();
+  // Using wouter's navigate for SPA navigation
+  const navigate = useLocation()[1];
   const { t } = useLanguage();
   const { isAuthenticated } = useAuth();
+
+  // Define base button style for consistency
+  const baseButtonStyle = "text-orange-100 hover:text-white hover:bg-orange-700 transition-all duration-300 text-sm font-medium rounded-sm h-8 px-3";
+  // Define active button style
+  const activeButtonStyle = "text-white bg-orange-700 hover:bg-orange-800 transition-all duration-300 text-sm font-medium rounded-sm h-8 px-3";
+
+  // Helper function to get button class
+  const getButtonClass = (path) => {
+    // Check if the current location starts with the path to handle nested routes if necessary
+    return location.startsWith(path) ? activeButtonStyle : baseButtonStyle;
+  };
 
   return (
     <div className="hidden md:flex items-center space-x-1">
       <Button
         variant="ghost"
-        className="text-[#b5bac1] hover:text-white hover:bg-[#3f4248] transition-all duration-300 text-sm font-medium rounded-sm h-8"
+        className={getButtonClass("/courses")}
         onClick={() => navigate("/courses")}
       >
         <BookOpen className="h-4 w-4 mr-2" />
@@ -22,7 +35,7 @@ export default function HeaderNav() {
       </Button>
       <Button
         variant="ghost"
-        className="text-[#b5bac1] hover:text-white hover:bg-[#3f4248] transition-all duration-300 text-sm font-medium rounded-sm h-8"
+        className={getButtonClass("/learning-center")}
         onClick={() => navigate("/learning-center")}
       >
         <GraduationCap className="h-4 w-4 mr-2" />
@@ -30,7 +43,7 @@ export default function HeaderNav() {
       </Button>
       <Button
         variant="ghost"
-        className="text-[#b5bac1] hover:text-white hover:bg-[#3f4248] transition-all duration-300 text-sm font-medium rounded-sm h-8"
+        className={getButtonClass("/share")}
         onClick={() => navigate("/share")}
       >
         <MessageSquare className="h-4 w-4 mr-2" />
@@ -40,7 +53,7 @@ export default function HeaderNav() {
         <>
           <Button
             variant="ghost"
-            className="text-[#b5bac1] hover:text-white hover:bg-[#3f4248] transition-all duration-300 text-sm font-medium rounded-sm h-8"
+            className={getButtonClass("/notes")}
             onClick={() => navigate("/notes")}
           >
             <StickyNote className="h-4 w-4 mr-2" />
@@ -48,7 +61,7 @@ export default function HeaderNav() {
           </Button>
           <Button
             variant="ghost"
-            className="text-white bg-[#3f4248] hover:bg-[#4f5258] transition-all duration-300 text-sm font-medium rounded-sm h-8"
+            className={getButtonClass("/chat")}
             onClick={() => navigate("/chat")}
           >
             <MessagesSquare className="h-4 w-4 mr-2" />
