@@ -68,7 +68,7 @@ export default function HeaderMobileMenu({
               <Button
                 variant="ghost"
                 size="icon"
-                className="text-white hover:text-white hover:bg-orange-700 transition-all duration-300 rounded-sm"
+                className="text-[#b5bac1] hover:text-white hover:bg-[#3f4248] transition-all duration-300 rounded-sm"
                 onClick={() => onOpenChange(false)}
               >
                 <X className="h-5 w-5" />
