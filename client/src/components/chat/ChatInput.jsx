@@ -1,10 +1,20 @@
 import React from 'react';
 import { motion } from 'framer-motion';
-import { PlusCircle, Image, Paperclip, Smile, Mic, Send } from 'lucide-react';
+import { PlusCircle, Image, Paperclip, Smile, Mic, Send, Wifi, WifiOff } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 
-const ChatInput = ({ input, setInput, handleKeyDown, sendMessage, connected, activeChat }) => {
+const ChatInput = ({ input, setInput, handleKeyDown, sendMessage, connected, activeChat, connectionStatus = 'disconnected' }) => {
+  // Connection status details
+  const statusInfo = {
+    'connected': { color: 'text-green-500', message: 'Connection is stable', icon: Wifi },
+    'connecting': { color: 'text-amber-500', message: 'Connecting...', icon: Wifi },
+    'disconnected': { color: 'text-red-500', message: 'Connection lost. Messages will be sent when reconnected.', icon: WifiOff },
+    'reconnecting': { color: 'text-amber-500', message: 'Attempting to reconnect...', icon: Wifi }
+  };
+  
+  const status = statusInfo[connectionStatus] || statusInfo.disconnected;
   return (
     <motion.div 
       initial={{ opacity: 0, y: 20 }}
@@ -19,6 +29,26 @@ const ChatInput = ({ input, setInput, handleKeyDown, sendMessage, connected, act
         }}
         className="flex items-end bg-white rounded-2xl px-3 py-2.5 border border-orange-200 shadow-sm transition-all duration-200"
       >
+        {/* Connection status indicator */}
+        <TooltipProvider>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <div className="mr-2">
+                <motion.div 
+                  animate={{ scale: connectionStatus === 'connecting' || connectionStatus === 'reconnecting' ? [1, 1.2, 1] : 1 }}
+                  transition={{ repeat: connectionStatus === 'connecting' || connectionStatus === 'reconnecting' ? Infinity : 0, duration: 1.5 }}
+                  className={`h-4 w-4 ${status.color} flex-shrink-0`}
+                >
+                  <status.icon size={16} />
+                </motion.div>
+              </div>
+            </TooltipTrigger>
+            <TooltipContent side="top" className="bg-white border border-orange-200 text-gray-800 text-xs">
+              <p>{status.message}</p>
+            </TooltipContent>
+          </Tooltip>
+        </TooltipProvider>
+          
         {/* Left action buttons */}
         <div className="flex space-x-2 mr-2">
           <motion.div 

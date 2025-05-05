@@ -24,6 +24,7 @@ import FloatingAIButton from "@/components/FloatingAIButton";
 import FloatingNoteButton from "@/components/notes/FloatingNoteButton";
 import RecommendationSidebar from "@/components/RecommendationSidebar";
 import TokenDebugger from "@/components/TokenDebugger";
+import ErrorBoundary from "@/components/ErrorBoundary";
 
 function Router() {
   const [location] = useLocation();
@@ -48,7 +49,11 @@ function Router() {
         <Header />
         <div className="flex-grow">
           <Switch>
-            <Route path="/chat" component={ChatPage} />
+            <Route path="/chat">
+              <ErrorBoundary>
+                <ChatPage />
+              </ErrorBoundary>
+            </Route>
           </Switch>
         </div>
       </div>

@@ -3868,14 +3868,26 @@ export async function registerRoutes(app: Express): Promise<Server> {
   }
   const pendingMessages = new Map<number, PendingMessage[]>();
   
-  // Ping interval to keep connections alive (every 30 seconds)
+  // Ping interval to keep connections alive (every 25 seconds)
+  // Note: Client expects a server ping every 30s and sends its own pong every 20s
   const pingInterval = setInterval(() => {
     wss.clients.forEach((client) => {
       if (client.readyState === WebSocket.OPEN) {
+        // Send application-level ping
         client.send(JSON.stringify({ type: 'ping' }));
+        
+        // Also try to send a protocol-level ping to support browsers with native ping/pong
+        try {
+          if (typeof client.ping === 'function') {
+            client.ping();
+            console.log('Sent protocol-level ping frame');
+          }
+        } catch (error) {
+          console.log('Browser does not support native ping - using application ping instead');
+        }
       }
     });
-  }, 30000);
+  }, 25000);
   
   // Retry sending pending messages every minute
   const retryInterval = setInterval(() => {
@@ -3950,6 +3962,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       clearTimeout(pingTimeout);
       pingTimeout = setTimeout(() => {
         if (ws.readyState === WebSocket.OPEN) {
+          console.log('Client connection timed out - terminating connection');
           ws.terminate();
         }
       }, 40000);
@@ -3958,7 +3971,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
     // Initial heartbeat
     heartbeat();
     
-    ws.on('pong', heartbeat);
+    // Handle protocol-level pong frame
+    ws.on('pong', () => {
+      console.log('Received WebSocket protocol-level pong frame');
+      heartbeat();
+    });
     
     ws.on('message', async (message: string) => {
       try {

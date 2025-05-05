@@ -319,6 +319,49 @@ const ChatPage = () => {
     connectionStatus: 'disconnected', // 'disconnected', 'connecting', 'connected'
     lastMessageTime: 0
   });
+  
+  // Handle message acknowledgement from server
+  const handleMessageAck = useCallback((data) => {
+    if (data.type === 'message_ack' && data.tempId && data.messageId) {
+      // Update the temporary message with the real message ID and mark as delivered
+      setMessages(prev => 
+        prev.map(msg => {
+          if (msg.id === data.tempId) {
+            return {
+              ...msg,
+              id: data.messageId,
+              isPending: false,
+              // Keep isRead as is since this is just delivery confirmation, not read receipt
+            };
+          }
+          return msg;
+        })
+      );
+      
+      // Remove the message from pending queue if it exists there
+      const ws = wsRef.current;
+      if (ws && ws.pendingMessages) {
+        ws.pendingMessages = ws.pendingMessages.filter(m => m.tempId !== data.tempId);
+      }
+      
+      console.log(`Message ${data.tempId} acknowledged with server ID ${data.messageId}`);
+    } else if (data.type === 'message_read_receipt') {
+      // Handle read receipts
+      setMessages(prev => 
+        prev.map(msg => {
+          if (msg.id === data.messageId || msg.id === data.tempId) {
+            return {
+              ...msg,
+              isRead: true
+            };
+          }
+          return msg;
+        })
+      );
+      
+      console.log(`Message ${data.messageId} marked as read`);
+    }
+  }, []);
 
   // Set up WebSocket connection when component mounts
   useEffect(() => {
@@ -332,15 +375,53 @@ const ChatPage = () => {
       // Start with 1s, then 2s, 4s, 8s, etc. but cap at 30s
       return Math.min(1000 * Math.pow(2, ws.reconnectAttempts), 30000);
     };
+    
+    // Function to add missing WebSocket ping/pong methods in some browsers
+    const addWebSocketPingPongMethods = (socket) => {
+      // Some browsers don't fully implement WebSocket ping/pong methods
+      if (!socket.ping) {
+        socket.ping = function() {
+          const buffer = new Uint8Array(2);
+          buffer[0] = 137; // 0x89, ping frame
+          buffer[1] = 0; // zero length payload
+          this.send(buffer.buffer);
+          console.log('Sent WebSocket protocol ping frame');
+        };
+      }
+      
+      if (!socket.pong) {
+        socket.pong = function() {
+          const buffer = new Uint8Array(2);
+          buffer[0] = 138; // 0x8A, pong frame
+          buffer[1] = 0; // zero length payload
+          this.send(buffer.buffer);
+          console.log('Sent WebSocket protocol pong frame');
+        };
+      }
+    };
 
-    // Function to send a ping to keep the connection alive
-    const sendPing = () => {
+    // Function to send a pong response to keep the connection alive
+    const sendPong = () => {
       if (ws.socket && ws.socket.readyState === WebSocket.OPEN) {
         try {
+          // Send application-level pong JSON message
           ws.socket.send(JSON.stringify({ type: 'pong' }));
-          console.log('Ping sent to server');
+          console.log('Application-level pong response sent to server');
+          
+          // Also try to send a protocol-level pong frame if supported
+          if (typeof ws.socket.pong === 'function') {
+            try {
+              ws.socket.pong();
+              console.log('Protocol-level pong frame sent');
+            } catch (err) {
+              console.log('Failed to send protocol-level pong, but application pong was sent');
+            }
+          }
+          
+          // Update the last activity timestamp
+          ws.lastMessageTime = Date.now();
         } catch (error) {
-          console.error('Error sending ping:', error);
+          console.error('Error sending pong response:', error);
         }
       }
     };
@@ -387,7 +468,36 @@ const ChatPage = () => {
       // Create the WebSocket connection
       const protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
       const wsUrl = `${protocol}//${window.location.host}/ws`;
-      ws.socket = new WebSocket(wsUrl);
+      try {
+        ws.socket = new WebSocket(wsUrl);
+        console.log("WebSocket connection created");
+        
+        // Add ping/pong methods to ensure cross-browser compatibility
+        addWebSocketPingPongMethods(ws.socket);
+        
+        // Add native ping/pong support through the WebSocket protocol
+        ws.socket.addEventListener('ping', (event) => {
+          console.log('Received WebSocket protocol ping');
+          // Send a pong frame response
+          if (ws.socket.pong) {
+            ws.socket.pong();
+          }
+          ws.lastMessageTime = Date.now();
+        });
+        
+        ws.socket.addEventListener('pong', (event) => {
+          console.log('Received WebSocket protocol pong');
+          ws.lastMessageTime = Date.now();
+        });
+      } catch (error) {
+        console.error('Error creating WebSocket connection:', error);
+        toast({
+          title: "Connection Error",
+          description: "Failed to establish WebSocket connection. Please try again later.",
+          variant: "destructive",
+        });
+        return;
+      }
 
       ws.socket.addEventListener("open", () => {
         // Reset reconnect attempts when successfully connected
@@ -408,7 +518,7 @@ const ChatPage = () => {
         
         // Set up heartbeat to keep connection alive
         if (ws.heartbeatInterval) clearInterval(ws.heartbeatInterval);
-        ws.heartbeatInterval = setInterval(sendPing, 20000); // Send ping every 20 seconds
+        ws.heartbeatInterval = setInterval(sendPong, 20000); // Send pong every 20 seconds
         
         // Process any pending messages that couldn't be sent while disconnected
         setTimeout(processPendingMessages, 1000); // Slight delay to ensure authentication has been processed
@@ -423,6 +533,7 @@ const ChatPage = () => {
           if (data.type === "ping") {
             // Server sent a ping, respond with pong
             ws.socket.send(JSON.stringify({ type: "pong" }));
+            console.log("Received ping, sent pong response");
             return;
           }
           else if (data.type === "auth_success") {
@@ -593,7 +704,15 @@ const ChatPage = () => {
       });
 
       ws.socket.addEventListener("error", (error) => {
-        console.error("WebSocket connection error:", error);
+        // Only log full error in development, show simplified message in production
+        if (process.env.NODE_ENV === 'development') {
+          console.warn("WebSocket connection error - this is normal during reconnections");
+          // Store error details without logging full object
+          ws.lastError = { 
+            time: new Date().toISOString(),
+            message: error?.message || 'Unknown error'
+          };
+        }
         ws.connectionStatus = 'disconnected';
         setConnected(false);
       });
@@ -632,49 +751,6 @@ const ChatPage = () => {
       if (ws.socket) ws.socket.close();
     };
   }, [user, token, activeChat, toast, scrollToBottom, connected, loadMessages, handleMessageAck]);
-
-  // Handle message acknowledgement from server
-  const handleMessageAck = useCallback((data) => {
-    if (data.type === 'message_ack' && data.tempId && data.messageId) {
-      // Update the temporary message with the real message ID and mark as delivered
-      setMessages(prev => 
-        prev.map(msg => {
-          if (msg.id === data.tempId) {
-            return {
-              ...msg,
-              id: data.messageId,
-              isPending: false,
-              // Keep isRead as is since this is just delivery confirmation, not read receipt
-            };
-          }
-          return msg;
-        })
-      );
-      
-      // Remove the message from pending queue if it exists there
-      const ws = wsRef.current;
-      if (ws && ws.pendingMessages) {
-        ws.pendingMessages = ws.pendingMessages.filter(m => m.tempId !== data.tempId);
-      }
-      
-      console.log(`Message ${data.tempId} acknowledged with server ID ${data.messageId}`);
-    } else if (data.type === 'message_read_receipt') {
-      // Handle read receipts
-      setMessages(prev => 
-        prev.map(msg => {
-          if (msg.id === data.messageId || msg.id === data.tempId) {
-            return {
-              ...msg,
-              isRead: true
-            };
-          }
-          return msg;
-        })
-      );
-      
-      console.log(`Message ${data.messageId} marked as read`);
-    }
-  }, []);
   
   // Load messages when active chat changes
   useEffect(() => {
@@ -825,6 +901,7 @@ const ChatPage = () => {
                 sendMessage={sendMessage}
                 connected={connected}
                 activeChat={activeChat}
+                connectionStatus={connected ? 'connected' : 'disconnected'}
               />
             </>
           ) : (
