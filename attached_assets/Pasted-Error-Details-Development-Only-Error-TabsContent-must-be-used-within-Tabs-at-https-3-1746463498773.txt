@@ -1,0 +1,23 @@
+Error Details (Development Only):
+
+Error: `TabsContent` must be used within `Tabs`
+
+    at https://3dfc56df-215e-420c-b5f9-7861b5a57ba9-00-2jpu9osoxeowk.picard.replit.dev/@fs/home/runner/workspace/node_modules/.vite/deps/@radix-ui_react-tabs.js?v=d8acb256:175:13
+    at _c5 (https://3dfc56df-215e-420c-b5f9-7861b5a57ba9-00-2jpu9osoxeowk.picard.replit.dev/src/components/ui/tabs.tsx:72:12)
+    at div
+    at div
+    at UnifiedChatPage (https://3dfc56df-215e-420c-b5f9-7861b5a57ba9-00-2jpu9osoxeowk.picard.replit.dev/src/pages/UnifiedChatPage.jsx:30:20)
+    at WebSocketContextProvider (https://3dfc56df-215e-420c-b5f9-7861b5a57ba9-00-2jpu9osoxeowk.picard.replit.dev/src/components/chat/WebSocketContextProvider.jsx:22:44)
+    at ErrorBoundary (https://3dfc56df-215e-420c-b5f9-7861b5a57ba9-00-2jpu9osoxeowk.picard.replit.dev/src/components/ErrorBoundary.jsx:8:5)
+    at Route (https://3dfc56df-215e-420c-b5f9-7861b5a57ba9-00-2jpu9osoxeowk.picard.replit.dev/@fs/home/runner/workspace/node_modules/.vite/deps/wouter.js?v=d8acb256:323:16)
+    at Switch (https://3dfc56df-215e-420c-b5f9-7861b5a57ba9-00-2jpu9osoxeowk.picard.replit.dev/@fs/home/runner/workspace/node_modules/.vite/deps/wouter.js?v=d8acb256:379:17)
+    at div
+    at div
+    at Router (https://3dfc56df-215e-420c-b5f9-7861b5a57ba9-00-2jpu9osoxeowk.picard.replit.dev/src/App.tsx?v=KtbWDrq6J5zUYYjfj3Oq3:49:22)
+    at Provider (https://3dfc56df-215e-420c-b5f9-7861b5a57ba9-00-2jpu9osoxeowk.picard.replit.dev/@fs/home/runner/workspace/node_modules/.vite/deps/chunk-5AJU3CG7.js?v=d8acb256:38:15)
+    at TooltipProvider (https://3dfc56df-215e-420c-b5f9-7861b5a57ba9-00-2jpu9osoxeowk.picard.replit.dev/@fs/home/runner/workspace/node_modules/.vite/deps/@radix-ui_react-tooltip.js?v=d8acb256:63:5)
+    at WebSocketProvider (https://3dfc56df-215e-420c-b5f9-7861b5a57ba9-00-2jpu9osoxeowk.picard.replit.dev/src/components/chat/WebSocketProvider.jsx:23:37)
+    at AuthProvider (https://3dfc56df-215e-420c-b5f9-7861b5a57ba9-00-2jpu9osoxeowk.picard.replit.dev/src/contexts/AuthContext.jsx:25:32)
+    at LanguageProvider (https://3dfc56df-215e-420c-b5f9-7861b5a57ba9-00-2jpu9osoxeowk.picard.replit.dev/src/contexts/LanguageContext.jsx:325:36)
+    at QueryClientProvider (https://3dfc56df-215e-420c-b5f9-7861b5a57ba9-00-2jpu9osoxeowk.picard.replit.dev/@fs/home/runner/workspace/node_modules/.vite/deps/@tanstack_react-query.js?v=d8acb256:2805:3)
+    at App

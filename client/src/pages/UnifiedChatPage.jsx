@@ -405,84 +405,84 @@ const UnifiedChatPage = () => {
 
   return (
     <div className="flex flex-col h-full bg-white">
-      <div className="border-b">
-        <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+      <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full h-full flex flex-col">
+        <div className="border-b">
           <TabsList className="grid w-full max-w-md mx-auto grid-cols-2">
             <TabsTrigger value="directMessages">Direct Messages</TabsTrigger>
             <TabsTrigger value="groupChats">Group Chats</TabsTrigger>
           </TabsList>
-        </Tabs>
-      </div>
+        </div>
       
-      <div className="flex-1 overflow-hidden">
-        <TabsContent value="directMessages" className="h-full">
-          {wsConnectionStatus !== 'connected' ? (
-            <div className="flex items-center justify-center h-full">
-              <div className="text-center p-6 max-w-md">
-                <h2 className="text-xl font-semibold mb-2">Connecting to chat service...</h2>
-                <p className="text-muted-foreground">
-                  Status: {wsConnectionStatus}
-                </p>
-                {wsError && (
-                  <div className="mt-4 p-4 bg-red-50 text-red-600 rounded-md">
-                    <p className="font-semibold">Connection Error</p>
-                    <p>{wsError}</p>
-                  </div>
-                )}
+        <div className="flex-1 overflow-hidden">
+          <TabsContent value="directMessages" className="h-full">
+            {wsConnectionStatus !== 'connected' ? (
+              <div className="flex items-center justify-center h-full">
+                <div className="text-center p-6 max-w-md">
+                  <h2 className="text-xl font-semibold mb-2">Connecting to chat service...</h2>
+                  <p className="text-muted-foreground">
+                    Status: {wsConnectionStatus}
+                  </p>
+                  {wsError && (
+                    <div className="mt-4 p-4 bg-red-50 text-red-600 rounded-md">
+                      <p className="font-semibold">Connection Error</p>
+                      <p>{wsError}</p>
+                    </div>
+                  )}
+                </div>
               </div>
-            </div>
-          ) : (
-            <DirectChatUI
-              chatPartners={chatPartners}
-              activeChat={activeChat}
-              setActiveChat={setActiveChat}
-              messages={directMessages}
-              input={input}
-              setInput={setInput}
-              sendMessage={sendDirectMessage}
-              isLoadingPartners={isLoadingPartners}
-              isLoadingMessages={isLoadingDirectMessages}
-              hasMoreMessages={hasMoreDirectMessages}
-              loadMoreMessages={loadMoreDirectMessages}
-            />
-          )}
-        </TabsContent>
-        
-        <TabsContent value="groupChats" className="h-full">
-          {wsConnectionStatus !== 'connected' ? (
-            <div className="flex items-center justify-center h-full">
-              <div className="text-center p-6 max-w-md">
-                <h2 className="text-xl font-semibold mb-2">Connecting to chat service...</h2>
-                <p className="text-muted-foreground">
-                  Status: {wsConnectionStatus}
-                </p>
-                {wsError && (
-                  <div className="mt-4 p-4 bg-red-50 text-red-600 rounded-md">
-                    <p className="font-semibold">Connection Error</p>
-                    <p>{wsError}</p>
-                  </div>
-                )}
+            ) : (
+              <DirectChatUI
+                chatPartners={chatPartners}
+                activeChat={activeChat}
+                setActiveChat={setActiveChat}
+                messages={directMessages}
+                input={input}
+                setInput={setInput}
+                sendMessage={sendDirectMessage}
+                isLoadingPartners={isLoadingPartners}
+                isLoadingMessages={isLoadingDirectMessages}
+                hasMoreMessages={hasMoreDirectMessages}
+                loadMoreMessages={loadMoreDirectMessages}
+              />
+            )}
+          </TabsContent>
+          
+          <TabsContent value="groupChats" className="h-full">
+            {wsConnectionStatus !== 'connected' ? (
+              <div className="flex items-center justify-center h-full">
+                <div className="text-center p-6 max-w-md">
+                  <h2 className="text-xl font-semibold mb-2">Connecting to chat service...</h2>
+                  <p className="text-muted-foreground">
+                    Status: {wsConnectionStatus}
+                  </p>
+                  {wsError && (
+                    <div className="mt-4 p-4 bg-red-50 text-red-600 rounded-md">
+                      <p className="font-semibold">Connection Error</p>
+                      <p>{wsError}</p>
+                    </div>
+                  )}
+                </div>
               </div>
-            </div>
-          ) : (
-            <GroupChatUI
-              groups={groups}
-              activeGroup={activeGroup}
-              setActiveGroup={setActiveGroup}
-              messages={groupMessages}
-              input={input}
-              setInput={setInput}
-              sendGroupMessage={sendGroupMessage}
-              isLoadingGroups={isLoadingGroups}
-              isLoadingMessages={isLoadingGroupMessages}
-              hasMoreMessages={hasMoreGroupMessages}
-              loadMoreMessages={loadMoreGroupMessages}
-              onCreateGroup={handleOpenCreateGroupModal}
-              onShowDetails={handleOpenGroupDetails}
-            />
-          )}
-        </TabsContent>
-      </div>
+            ) : (
+              <GroupChatUI
+                groups={groups}
+                activeGroup={activeGroup}
+                setActiveGroup={setActiveGroup}
+                messages={groupMessages}
+                input={input}
+                setInput={setInput}
+                sendGroupMessage={sendGroupMessage}
+                isLoadingGroups={isLoadingGroups}
+                isLoadingMessages={isLoadingGroupMessages}
+                hasMoreMessages={hasMoreGroupMessages}
+                loadMoreMessages={loadMoreGroupMessages}
+                onCreateGroup={handleOpenCreateGroupModal}
+                onShowDetails={handleOpenGroupDetails}
+              />
+            )}
+          </TabsContent>
+        </div>
+      </Tabs>
 
       {/* Modals and Panels */}
       <CreateGroupModal
