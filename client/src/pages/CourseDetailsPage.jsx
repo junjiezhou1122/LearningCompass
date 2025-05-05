@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, Suspense } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useLocation, useParams } from 'wouter';
 import { useToast } from '@/hooks/use-toast';
@@ -21,9 +21,19 @@ import { Textarea } from '@/components/ui/textarea';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Separator } from '@/components/ui/separator';
 import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import ResourcePreview from '@/components/learning-center/ResourcePreview';
 import ResourceTags from '@/components/learning-center/ResourceTags';
+import CourseDetailDebug from '@/components/learning-center/CourseDetailDebug';
+import ErrorBoundary from '@/components/ErrorBoundary';
 
 // Icons
 import { 
@@ -36,7 +46,9 @@ import {
   Github, 
   Globe, 
   Link as LinkIcon,
+  Lock,
   MessageSquare, 
+  MoreVertical,
   Plus, 
   School, 
   Share, 
@@ -66,12 +78,13 @@ const CourseDetailsPage = () => {
   const [resourceFilter, setResourceFilter] = useState('all');
 
   // Fetch course details
-  const { data: course, isLoading: isLoadingCourse } = useQuery({
+  const { data: course, isLoading: isLoadingCourse, error: courseError } = useQuery({
     queryKey: ['university-course', id],
     queryFn: async () => {
       const response = await fetch(`/api/university-courses/${id}`);
       if (!response.ok) {
-        throw new Error('Course not found');
+        // Instead of throwing an error, return null to trigger the !course condition below
+        return null;
       }
       return response.json();
     },
@@ -80,6 +93,7 @@ const CourseDetailsPage = () => {
   // Fetch course comments
   const { data: comments = [], isLoading: isLoadingComments } = useQuery({
     queryKey: ['course-comments', id],
+    enabled: !!course, // Only fetch comments if course exists
     queryFn: async () => {
       const response = await fetch(`/api/university-courses/${id}/comments`);
       if (!response.ok) {
@@ -92,6 +106,7 @@ const CourseDetailsPage = () => {
   // Fetch course resources
   const { data: resources = [], isLoading: isLoadingResources } = useQuery({
     queryKey: ['course-resources', id],
+    enabled: !!course, // Only fetch resources if course exists
     queryFn: async () => {
       const response = await fetch(`/api/university-courses/${id}/resources`);
       if (!response.ok) {
@@ -104,6 +119,7 @@ const CourseDetailsPage = () => {
   // Fetch collaboration requests
   const { data: collaborations = [], isLoading: isLoadingCollaborations } = useQuery({
     queryKey: ['course-collaborations', id],
+    enabled: !!course, // Only fetch collaborations if course exists
     queryFn: async () => {
       const response = await fetch(`/api/university-courses/${id}/collaborations`);
       if (!response.ok) {
@@ -116,6 +132,7 @@ const CourseDetailsPage = () => {
   // Fetch course links
   const { data: courseLinks = [], isLoading: isLoadingLinks } = useQuery({
     queryKey: ['course-links', id],
+    enabled: !!course, // Only fetch links if course exists
     queryFn: async () => {
       const response = await fetch(`/api/university-courses/${id}/links`);
       if (!response.ok) {
@@ -385,6 +402,82 @@ const CourseDetailsPage = () => {
     },
   });
 
+  // Delete comment mutation
+  const deleteCommentMutation = useMutation({
+    mutationFn: async (commentId) => {
+      const response = await fetch(`/api/university-course-comments/${commentId}`, {
+        method: 'DELETE',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+        },
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || 'Failed to delete comment');
+      }
+
+      return true;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['course-comments', id] });
+      toast({
+        title: 'Comment Deleted',
+        description: 'Your comment has been deleted successfully.',
+      });
+    },
+    onError: (error) => {
+      toast({
+        title: 'Error',
+        description: error.message || 'Failed to delete comment',
+        variant: 'destructive',
+      });
+    },
+  });
+
+  // Delete resource mutation
+  const deleteResourceMutation = useMutation({
+    mutationFn: async (resourceId) => {
+      const response = await fetch(`/api/university-course-resources/${resourceId}`, {
+        method: 'DELETE',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+        },
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || 'Failed to delete resource');
+      }
+
+      return true;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['course-resources', id] });
+      toast({
+        title: 'Resource Deleted',
+        description: 'Your resource has been deleted successfully.',
+      });
+    },
+    onError: (error) => {
+      toast({
+        title: 'Error',
+        description: error.message || 'Failed to delete resource',
+        variant: 'destructive',
+      });
+    },
+  });
+
+  // Handle comment deletion
+  const onCommentDelete = (commentId) => {
+    if (!commentId) return;
+    
+    // Confirm deletion with the user
+    if (window.confirm('Are you sure you want to delete this comment? This action cannot be undone.')) {
+      deleteCommentMutation.mutate(commentId);
+    }
+  };
+
   // Add course link mutation
   const addCourseLinkMutation = useMutation({
     mutationFn: async (data) => {
@@ -580,8 +673,27 @@ const CourseDetailsPage = () => {
       deleteCourseLinkMutation.mutate(linkId);
     }
   };
+  
+  // Handle resource deletion
+  const onResourceDelete = (resourceId) => {
+    if (!isAuthenticated) {
+      toast({
+        title: 'Authentication Required',
+        description: 'Please log in to delete resources',
+        variant: 'destructive',
+      });
+      return;
+    }
 
-  if (isLoadingCourse) {
+    if (window.confirm('Are you sure you want to delete this resource? This action cannot be undone.')) {
+      deleteResourceMutation.mutate(resourceId);
+    }
+  };
+
+  // Add debug component
+console.log('CourseDetailsPage rendering', { course, resources, comments, collaborations, courseLinks });
+
+if (isLoadingCourse) {
     return (
       <div className="container max-w-5xl py-12">
         <div className="flex justify-center items-center h-60 text-orange-500">
@@ -592,6 +704,7 @@ const CourseDetailsPage = () => {
   }
 
   if (!course) {
+    console.log('Course not found condition triggered for ID:', id);
     return (
       <div className="container max-w-5xl py-12">
         <div className="text-center py-12 bg-white/50 rounded-xl border border-orange-100">
@@ -614,6 +727,7 @@ const CourseDetailsPage = () => {
 
   return (
     <div className="container max-w-5xl py-8">
+      <CourseDetailDebug />
       {/* Back button */}
       <div className="mb-6">
         <Button 
@@ -720,15 +834,32 @@ const CourseDetailsPage = () => {
               <h2 className="text-xl font-bold text-orange-800 mb-4">Discussion</h2>
               
               {/* Comment form */}
-              {isAuthenticated && (
-                <Card className="mb-6 border-orange-100">
-                  <CardHeader className="pb-3">
-                    <CardTitle className="text-lg text-orange-700">Add a Comment</CardTitle>
-                    <CardDescription>
-                      Share your thoughts, questions, or experiences about this course
-                    </CardDescription>
-                  </CardHeader>
-                  <CardContent>
+              {isAuthenticated ? (
+                <div className="mb-6 bg-gradient-to-r from-orange-50 to-amber-50 rounded-xl border border-orange-100 overflow-hidden shadow-sm">
+                  <div className="p-4 sm:p-6">
+                    <div className="flex items-start gap-3 mb-4">
+                      {user?.photoURL || user?.avatar ? (
+                        <div className="cursor-pointer" onClick={() => user?.id && setLocation(`/users/${user.id}`)}>
+                          <Avatar className="h-10 w-10 border-2 border-white shadow-sm">
+                            <AvatarImage src={user?.photoURL || user?.avatar} />
+                            <AvatarFallback className="bg-gradient-to-br from-orange-400 to-amber-500 text-white">
+                              {user?.username?.charAt(0).toUpperCase() || 'U'}
+                            </AvatarFallback>
+                          </Avatar>
+                        </div>
+                      ) : (
+                        <Avatar className="h-10 w-10 border-2 border-white shadow-sm">
+                          <AvatarFallback className="bg-gradient-to-br from-orange-400 to-amber-500 text-white">
+                            {user?.username?.charAt(0).toUpperCase() || 'U'}
+                          </AvatarFallback>
+                        </Avatar>
+                      )}
+                      <div className="flex-1">
+                        <p className="font-medium text-orange-800">{user?.username || 'You'}</p>
+                        <p className="text-xs text-gray-500">Posting as yourself</p>
+                      </div>
+                    </div>
+                    
                     <Form {...commentForm}>
                       <form onSubmit={commentForm.handleSubmit(onCommentSubmit)} className="space-y-4">
                         <FormField
@@ -738,8 +869,8 @@ const CourseDetailsPage = () => {
                             <FormItem>
                               <FormControl>
                                 <Textarea 
-                                  placeholder="Write your comment here..."
-                                  className="min-h-[100px] resize-none border-orange-200 focus:border-orange-500"
+                                  placeholder="Share your experience with this course..."
+                                  className="min-h-[120px] resize-none bg-white/80 border-orange-200 focus-visible:ring-orange-500 text-gray-700 rounded-lg shadow-inner"
                                   {...field} 
                                 />
                               </FormControl>
@@ -747,10 +878,11 @@ const CourseDetailsPage = () => {
                             </FormItem>
                           )}
                         />
-                        <div className="flex justify-end">
+                        <div className="flex justify-between items-center">
+                          <p className="text-xs text-gray-500">Your comment will be visible to all users</p>
                           <Button 
                             type="submit"
-                            className="bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600"
+                            className="bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 shadow-sm transition-all duration-200 hover:shadow"
                             disabled={addCommentMutation.isPending}
                           >
                             {addCommentMutation.isPending ? (
@@ -758,55 +890,112 @@ const CourseDetailsPage = () => {
                                 <span className="animate-spin mr-2">⟳</span> Posting...
                               </>
                             ) : (
-                              <>Post Comment</>
+                              <><MessageSquare className="mr-2 h-4 w-4" /> Post Comment</>
                             )}
                           </Button>
                         </div>
                       </form>
                     </Form>
+                  </div>
+                </div>
+              ) : (
+                <Card className="mb-6 border-orange-100 bg-orange-50/50">
+                  <CardContent className="pt-6 pb-6 text-center">
+                    <Lock className="mx-auto h-8 w-8 text-orange-300 mb-2" />
+                    <p className="text-gray-700 font-medium">Sign in to join the discussion</p>
+                    <p className="text-sm text-gray-500 mt-1 mb-4">Share your experiences and connect with other students</p>
+                    <Button 
+                      variant="outline" 
+                      className="border-orange-200 text-orange-700 hover:bg-orange-100 hover:text-orange-800"
+                      onClick={() => setLocation('/login')}
+                    >
+                      Sign In to Comment
+                    </Button>
                   </CardContent>
                 </Card>
               )}
 
+              {/* Comments section title */}
+              <div className="flex items-center gap-2 mb-4 mt-8">
+                <h3 className="text-lg font-semibold text-gray-800">Course Discussion</h3>
+                <Badge className="bg-orange-100 text-orange-700 hover:bg-orange-200">
+                  {comments.length} {comments.length === 1 ? 'comment' : 'comments'}
+                </Badge>
+              </div>
+
               {/* Comments list */}
               {isLoadingComments ? (
-                <div className="flex justify-center items-center h-40 text-orange-500">
-                  <div className="animate-spin h-6 w-6 border-4 border-current border-t-transparent rounded-full"></div>
+                <div className="flex justify-center items-center h-40 bg-orange-50/50 rounded-lg border border-orange-100">
+                  <div className="flex flex-col items-center gap-2">
+                    <div className="animate-spin h-8 w-8 border-3 border-orange-300 border-t-orange-500 rounded-full"></div>
+                    <p className="text-orange-600 text-sm">Loading comments...</p>
+                  </div>
                 </div>
               ) : comments.length === 0 ? (
-                <Card className="border-dashed border-orange-200 bg-orange-50/30">
-                  <CardContent className="pt-6 text-center">
-                    <MessageSquare className="mx-auto h-10 w-10 text-orange-300 mb-2" />
-                    <p className="text-gray-500">No comments yet</p>
-                    <p className="text-sm text-gray-400 mt-1">Be the first to share your thoughts on this course</p>
-                  </CardContent>
-                </Card>
+                <div className="border-2 border-dashed border-orange-200 bg-orange-50/30 rounded-xl p-8 text-center">
+                  <MessageSquare className="mx-auto h-12 w-12 text-orange-300 mb-3" />
+                  <p className="text-gray-700 font-medium">No comments yet</p>
+                  <p className="text-sm text-gray-500 mt-2 max-w-md mx-auto">
+                    Be the first to share your thoughts, experiences, or questions about this course with the community
+                  </p>
+                </div>
               ) : (
-                <div className="space-y-4">
+                <div className="space-y-5">
                   {comments.map((comment) => (
-                    <Card key={comment.id} className="border-orange-100">
-                      <CardHeader className="pb-2">
-                        <div className="flex items-center gap-3">
-                          <Avatar className="h-8 w-8">
-                            <AvatarImage src={comment.user?.avatar} />
-                            <AvatarFallback className="bg-orange-100 text-orange-700">
-                              {comment.user?.username.charAt(0).toUpperCase() || 'U'}
-                            </AvatarFallback>
-                          </Avatar>
-                          <div>
-                            <div className="font-medium">{comment.user?.username || 'Anonymous'}</div>
-                            <div className="text-xs text-gray-500">
-                              {new Date(comment.createdAt).toLocaleDateString('en-US', {
-                                year: 'numeric', month: 'short', day: 'numeric'
-                              })}
+                    <div key={comment.id} className="bg-white border border-orange-100 rounded-xl shadow-sm overflow-hidden hover:shadow-md transition-shadow duration-200">
+                      <div className="p-4 sm:p-5">
+                        <div className="flex items-start gap-3 mb-3">
+                          <div 
+                            className="cursor-pointer" 
+                            onClick={() => comment.user?.id && setLocation(`/users/${comment.user.id}`)}
+                          >
+                            <Avatar className="h-10 w-10 border-2 border-white shadow-sm">
+                              <AvatarImage src={comment.user?.photoURL || comment.user?.avatar} />
+                              <AvatarFallback className="bg-gradient-to-br from-orange-400 to-amber-500 text-white">
+                                {comment.user?.username?.charAt(0).toUpperCase() || 'U'}
+                              </AvatarFallback>
+                            </Avatar>
+                          </div>
+                          <div className="flex-1">
+                            <div className="flex justify-between items-start">
+                              <div>
+                                <p 
+                                  className="font-medium text-orange-800 hover:text-orange-600 cursor-pointer"
+                                  onClick={() => comment.user?.id && setLocation(`/users/${comment.user.id}`)}
+                                >
+                                  {comment.user?.username || 'Anonymous'}
+                                </p>
+                                <p className="text-xs text-gray-500">
+                                  {new Date(comment.createdAt).toLocaleDateString('en-US', {
+                                    year: 'numeric', month: 'short', day: 'numeric'
+                                  })}
+                                </p>
+                              </div>
+                              
+                              {/* Comment action buttons */}
+                              {user?.id === comment.userId && (
+                                <DropdownMenu>
+                                  <DropdownMenuTrigger asChild>
+                                    <Button variant="ghost" size="sm" className="h-8 w-8 p-0 text-gray-400 hover:text-gray-600">
+                                      <MoreVertical className="h-4 w-4" />
+                                    </Button>
+                                  </DropdownMenuTrigger>
+                                  <DropdownMenuContent align="end">
+                                    <DropdownMenuItem className="text-red-600 cursor-pointer" onClick={() => onCommentDelete(comment.id)}>
+                                      <Trash className="mr-2 h-4 w-4" />
+                                      <span>Delete</span>
+                                    </DropdownMenuItem>
+                                  </DropdownMenuContent>
+                                </DropdownMenu>
+                              )}
                             </div>
                           </div>
                         </div>
-                      </CardHeader>
-                      <CardContent>
-                        <p className="text-gray-700">{comment.content}</p>
-                      </CardContent>
-                    </Card>
+                        <div className="pl-12 sm:pl-14">
+                          <p className="text-gray-700 whitespace-pre-line">{comment.content}</p>
+                        </div>
+                      </div>
+                    </div>
                   ))}
                 </div>
               )}
@@ -960,6 +1149,7 @@ const CourseDetailsPage = () => {
         </TabsContent>
 
         <TabsContent value="resources" className="mt-6">
+          <ErrorBoundary showDetails resetLabel="Reset Resources Section">
           <div className="flex justify-between items-center mb-4">
             <div>
               <h2 className="text-xl font-bold text-orange-800">Course Resources</h2>
@@ -1107,23 +1297,42 @@ const CourseDetailsPage = () => {
                         </Badge>
                         <CardTitle className="text-lg text-orange-800">{resource.title}</CardTitle>
                       </div>
-                      <Button 
-                        variant="ghost" 
-                        size="sm" 
-                        className="hover:bg-orange-50 text-orange-600"
-                        onClick={() => window.open(resource.url, '_blank', 'noopener,noreferrer')}
-                      >
-                        <ExternalLink className="h-4 w-4" />
-                      </Button>
+                      <div className="flex gap-1">
+                        {isAuthenticated && resource.userId === user?.id && (
+                          <Button 
+                            variant="ghost" 
+                            size="sm" 
+                            className="hover:bg-red-50 text-red-600"
+                            onClick={() => onResourceDelete(resource.id)}
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        )}
+                        {resource.url && (
+                          <Button 
+                            variant="ghost" 
+                            size="sm" 
+                            className="hover:bg-orange-50 text-orange-600"
+                            onClick={() => window.open(resource.url, '_blank', 'noopener,noreferrer')}
+                          >
+                            <ExternalLink className="h-4 w-4" />
+                          </Button>
+                        )}
+                      </div>
                     </div>
                     
                     <div className="flex items-center gap-2 text-xs text-gray-500">
-                      <Avatar className="h-5 w-5">
-                        <AvatarImage src={resource.user?.avatar} />
-                        <AvatarFallback className="bg-orange-100 text-orange-700 text-xs">
-                          {resource.user?.username.charAt(0).toUpperCase() || 'U'}
-                        </AvatarFallback>
-                      </Avatar>
+                      <div 
+                        className="cursor-pointer" 
+                        onClick={() => resource.user?.id && setLocation(`/users/${resource.user.id}`)}
+                      >
+                        <Avatar className="h-5 w-5">
+                          <AvatarImage src={resource.user?.photoURL || resource.user?.avatar} />
+                          <AvatarFallback className="bg-orange-100 text-orange-700 text-xs">
+                            {resource.user?.username.charAt(0).toUpperCase() || 'U'}
+                          </AvatarFallback>
+                        </Avatar>
+                      </div>
                       <span>Shared by {resource.user?.username || 'Anonymous'}</span>
                       <span>•</span>
                       <span>
@@ -1136,14 +1345,18 @@ const CourseDetailsPage = () => {
                     {/* Resource tags would go here */}
                     {resource.tags && resource.tags.length > 0 && (
                       <div className="mt-2">
-                        <ResourceTags tags={resource.tags} readOnly={true} />
+                        <ErrorBoundary showDetails={false} fallback={<div className="text-xs text-red-500">Could not display tags</div>}>
+                          <ResourceTags tags={resource.tags} readOnly={true} />
+                        </ErrorBoundary>
                       </div>
                     )}
                   </CardHeader>
                   
                   {/* Rich resource preview */}
                   <CardContent className="pb-0 pt-2">
-                    <ResourcePreview resource={resource} />
+                    <ErrorBoundary showDetails={false} fallback={<div className="p-3 bg-red-50 text-red-700 rounded-md">Could not display resource preview</div>}>
+                      <ResourcePreview resource={resource} />
+                    </ErrorBoundary>
                   </CardContent>
                   
                   {resource.description && (
@@ -1153,24 +1366,27 @@ const CourseDetailsPage = () => {
                   )}
                   
                   <CardFooter className="pt-0 pb-4">
-                    <Button 
-                      variant="outline" 
-                      size="sm" 
-                      className="hover:bg-orange-50 text-orange-600 gap-1 ml-auto border-orange-200"
-                      onClick={() => window.open(resource.url, '_blank', 'noopener,noreferrer')}
-                    >
-                      {resource.resourceType === 'file' ? (
-                        <>
-                          Download File
-                          <Download className="h-3 w-3" />
-                        </>
-                      ) : (
-                        <>
-                          Visit Resource
-                          <ExternalLink className="h-3 w-3" />
-                        </>
-                      )}
-                    </Button>
+                    {resource.resourceType === 'file' ? (
+                      <Button 
+                        variant="outline" 
+                        size="sm" 
+                        className="hover:bg-orange-50 text-orange-600 gap-1 ml-auto border-orange-200"
+                        onClick={() => window.open(`/api/university-course-resources/${resource.id}/download`, '_blank')}
+                      >
+                        Download File
+                        <Download className="h-3 w-3" />
+                      </Button>
+                    ) : resource.url ? (
+                      <Button 
+                        variant="outline" 
+                        size="sm" 
+                        className="hover:bg-orange-50 text-orange-600 gap-1 ml-auto border-orange-200"
+                        onClick={() => window.open(resource.url, '_blank', 'noopener,noreferrer')}
+                      >
+                        Visit Resource
+                        <ExternalLink className="h-3 w-3" />
+                      </Button>
+                    ) : null}
                   </CardFooter>
                 </Card>
               ))}
@@ -1325,15 +1541,17 @@ const CourseDetailsPage = () => {
                   
                   <div className="space-y-2">
                     <FormLabel>Tags (Optional)</FormLabel>
-                    <ResourceTags 
-                      tags={resourceTags} 
-                      onAddTag={(tag) => setResourceTags([...resourceTags, tag])} 
-                      onRemoveTag={(index) => {
-                        const newTags = [...resourceTags];
-                        newTags.splice(index, 1);
-                        setResourceTags(newTags);
-                      }}
-                    />
+                    <ErrorBoundary showDetails={false} fallback={<div className="text-sm text-red-500 p-2 border border-red-100 rounded">Tag editor unavailable</div>}>
+                      <ResourceTags 
+                        tags={resourceTags} 
+                        onAddTag={(tag) => setResourceTags([...resourceTags, tag])} 
+                        onRemoveTag={(index) => {
+                          const newTags = [...resourceTags];
+                          newTags.splice(index, 1);
+                          setResourceTags(newTags);
+                        }}
+                      />
+                    </ErrorBoundary>
                     <p className="text-sm text-muted-foreground">
                       Add relevant tags to help others find this resource
                     </p>
@@ -1365,6 +1583,7 @@ const CourseDetailsPage = () => {
               </Form>
             </DialogContent>
           </Dialog>
+          </ErrorBoundary>
         </TabsContent>
 
         <TabsContent value="collaborate" className="mt-6">
@@ -1478,12 +1697,17 @@ const CourseDetailsPage = () => {
                     <Card key={collab.id} className="border-orange-100">
                       <CardHeader className="pb-2">
                         <div className="flex items-center gap-3">
-                          <Avatar className="h-10 w-10">
-                            <AvatarImage src={collab.user?.avatar} />
-                            <AvatarFallback className="bg-orange-100 text-orange-700">
-                              {collab.user?.username.charAt(0).toUpperCase() || 'U'}
-                            </AvatarFallback>
-                          </Avatar>
+                          <div 
+                            className="cursor-pointer" 
+                            onClick={() => collab.user?.id && setLocation(`/users/${collab.user.id}`)}
+                          >
+                            <Avatar className="h-10 w-10">
+                              <AvatarImage src={collab.user?.photoURL || collab.user?.avatar} />
+                              <AvatarFallback className="bg-orange-100 text-orange-700">
+                                {collab.user?.username.charAt(0).toUpperCase() || 'U'}
+                              </AvatarFallback>
+                            </Avatar>
+                          </div>
                           <div>
                             <div className="font-medium">{collab.user?.username || 'Anonymous'}</div>
                             <div className="text-xs text-gray-500">
