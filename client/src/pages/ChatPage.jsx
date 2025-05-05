@@ -1,271 +1,17 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { useAuth } from "../contexts/AuthContext";
-import { useQuery } from "@tanstack/react-query";
 import { useToast } from "@/hooks/use-toast";
-import { format } from "date-fns";
-import { motion } from "framer-motion";
+import { Menu } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Separator } from "@/components/ui/separator";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Badge } from "@/components/ui/badge";
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from "@/components/ui/tooltip";
-import { ScrollArea } from "@/components/ui/scroll-area";
-import {
-  User,
-  Search,
-  Hash,
-  Send,
-  Settings,
-  Bell,
-  MessageSquare,
-  PlusCircle,
-  AtSign,
-  Image,
-  Paperclip,
-  Smile,
-  Mic,
-  WifiOff,
-  Menu,
-  Phone,
-  Video,
-  UserPlus,
-  Info,
-  Circle,
-} from "lucide-react";
+import { motion } from "framer-motion";
 
-// Chat message component
-const ChatMessage = ({ message, isCurrentUser }) => {
-  const formattedTime = format(new Date(message.createdAt), "h:mm a");
-  const formattedDate = format(new Date(message.createdAt), "MMMM d, yyyy");
-
-  return (
-    <motion.div
-      initial={{ opacity: 0, y: 10 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.3, type: "spring" }}
-      className={`relative flex items-start mb-2.5 py-1.5 px-2 group hover:bg-orange-50/70 rounded ${
-        isCurrentUser ? "justify-end" : "justify-start"
-      }`}
-    >
-      {!isCurrentUser && (
-        <motion.div 
-          initial={{ scale: 0.8 }}
-          animate={{ scale: 1 }}
-          transition={{ duration: 0.2 }}
-          className="flex-shrink-0 mr-2 mt-1"
-        >
-          <Avatar className="h-8 w-8 border border-orange-100 shadow-sm animate-float">
-            <AvatarFallback className="bg-gradient-to-r from-orange-400 to-orange-500 text-white text-xs font-medium">
-              {message.sender?.username?.substring(0, 2) || "U"}
-            </AvatarFallback>
-          </Avatar>
-        </motion.div>
-      )}
-
-      <motion.div 
-        className={`max-w-[75%]`}
-        initial={{ opacity: 0, scale: 0.95 }}
-        animate={{ opacity: 1, scale: 1 }}
-        transition={{ duration: 0.3 }}
-      >
-        {!isCurrentUser && (
-          <div className="flex items-center mb-1">
-            <span className="text-sm font-medium text-orange-600 hover:underline cursor-pointer">
-              {message.sender?.username || "User"}
-            </span>
-            <TooltipProvider>
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <span className="text-xs text-orange-400 ml-2 cursor-default">
-                    {formattedTime}
-                  </span>
-                </TooltipTrigger>
-                <TooltipContent className="bg-orange-50 border-orange-200 text-orange-700">
-                  <p>{formattedDate}</p>
-                </TooltipContent>
-              </Tooltip>
-            </TooltipProvider>
-          </div>
-        )}
-        <div
-          className={`px-4 py-2.5 rounded-2xl shadow-sm backdrop-blur-sm ${
-            isCurrentUser
-              ? "bg-gradient-to-r from-orange-500 to-orange-600 text-white"
-              : "bg-gradient-to-r from-orange-50 to-orange-100 text-orange-800 border border-orange-100"
-          } ${isCurrentUser ? "rounded-tr-sm" : "rounded-tl-sm"}`}
-        >
-          <p className="text-sm whitespace-pre-wrap break-words">
-            {message.content}
-          </p>
-        </div>
-        {isCurrentUser && (
-          <div className="text-xs text-orange-400 mt-1 text-right mr-1 flex items-center justify-end">
-            <TooltipProvider>
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <span className="cursor-default">{formattedTime}</span>
-                </TooltipTrigger>
-                <TooltipContent className="bg-orange-50 border-orange-200 text-orange-700">
-                  <p>{formattedDate}</p>
-                </TooltipContent>
-              </Tooltip>
-            </TooltipProvider>
-            {message.isRead && (
-              <motion.span 
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                className="ml-1 text-orange-500 flex items-center"
-              >
-                • Read
-              </motion.span>
-            )}
-          </div>
-        )}
-      </motion.div>
-
-      {isCurrentUser && (
-        <motion.div 
-          initial={{ scale: 0.8 }}
-          animate={{ scale: 1 }}
-          transition={{ duration: 0.2 }}
-          className="flex-shrink-0 ml-2 mt-1"
-        >
-          <Avatar className="h-8 w-8 border border-orange-100 shadow-sm animate-float">
-            <AvatarFallback className="bg-gradient-to-r from-orange-600 to-orange-700 text-white text-xs font-medium">
-              {message.sender?.username?.substring(0, 2) || "U"}
-            </AvatarFallback>
-          </Avatar>
-        </motion.div>
-      )}
-
-      <div className="absolute right-2 top-2 opacity-0 group-hover:opacity-100 transition-all duration-200 transform scale-90 group-hover:scale-100">
-        <div className="flex space-x-1 bg-white/80 backdrop-blur-sm rounded-md border border-orange-200 shadow-sm p-1">
-          <TooltipProvider>
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="h-7 w-7 text-orange-500 hover:bg-orange-50 rounded-full transition-colors duration-200"
-                >
-                  <MessageSquare className="h-3.5 w-3.5" />
-                </Button>
-              </TooltipTrigger>
-              <TooltipContent className="bg-orange-50 border-orange-200 text-orange-700">
-                <p>Reply</p>
-              </TooltipContent>
-            </Tooltip>
-          </TooltipProvider>
-        </div>
-      </div>
-    </motion.div>
-  );
-};
-
-// Server/Channel component
-const Channel = ({ name, isActive, unreadCount, onClick }) => {
-  return (
-    <motion.div
-      whileHover={{ x: 3, scale: 1.02 }}
-      initial={{ opacity: 0, x: -10 }}
-      animate={{ opacity: 1, x: 0 }}
-      transition={{ type: "spring", stiffness: 300, damping: 20 }}
-      className={`flex items-center py-2 px-3 rounded-xl mb-1.5 cursor-pointer shadow-sm transition-all duration-200 ${
-        isActive
-          ? "bg-gradient-to-r from-orange-500 to-orange-600 text-white"
-          : "text-orange-800 hover:bg-orange-100 hover:text-orange-900"
-      }`}
-      onClick={onClick}
-    >
-      <div className={`mr-2 ${isActive ? "text-white" : "text-orange-500"}`}>
-        <Hash className="h-3.5 w-3.5" />
-      </div>
-      <span className="text-xs font-medium truncate">{name}</span>
-      {unreadCount > 0 && (
-        <motion.div
-          initial={{ scale: 0.5, opacity: 0 }}
-          animate={{ scale: 1, opacity: 1 }}
-          className="ml-auto"
-        >
-          <Badge className="h-4 w-4 p-0 flex items-center justify-center text-[10px] bg-orange-500 text-white border-0 shadow-md">
-            {unreadCount}
-          </Badge>
-        </motion.div>
-      )}
-    </motion.div>
-  );
-};
-
-// Direct message component
-const DirectMessage = ({ user, isActive, isOnline, unreadCount, onClick }) => {
-  return (
-    <motion.div
-      whileHover={{ x: 3, scale: 1.02 }}
-      initial={{ opacity: 0, x: -10 }}
-      animate={{ opacity: 1, x: 0 }}
-      transition={{ type: "spring", stiffness: 300, damping: 20 }}
-      className={`flex items-center py-2 px-3 rounded-xl mb-1.5 cursor-pointer ${isActive 
-        ? "bg-gradient-to-r from-orange-500 to-orange-600 text-white shadow-md" 
-        : "text-orange-800 hover:bg-orange-100/70 hover:text-orange-900 shadow-sm"} 
-        border border-orange-100 transition-all duration-200`}
-      onClick={onClick}
-    >
-      <div className="relative mr-2.5">
-        <Avatar className="h-8 w-8 border border-orange-100 shadow-md">
-          <AvatarFallback
-            className={`${
-              isActive
-                ? "bg-gradient-to-r from-orange-600 to-orange-700 text-white"
-                : "bg-gradient-to-r from-orange-100 to-orange-200 text-orange-800"
-            } text-xs font-medium`}
-          >
-            {user.username?.substring(0, 2) || "U"}
-          </AvatarFallback>
-        </Avatar>
-        {isOnline ? (
-          <motion.span 
-            initial={{ scale: 0 }}
-            animate={{ scale: 1 }}
-            className="absolute bottom-0 right-0 h-2.5 w-2.5 rounded-full bg-green-500 border-[1.5px] border-white shadow-sm"
-          ></motion.span>
-        ) : (
-          <motion.span 
-            initial={{ scale: 0 }}
-            animate={{ scale: 1 }}
-            className="absolute bottom-0 right-0 h-2.5 w-2.5 rounded-full bg-gray-400 border-[1.5px] border-white shadow-sm"
-          ></motion.span>
-        )}
-      </div>
-      <div className="flex-1 min-w-0">
-        <div className="flex items-center justify-between">
-          <span className={`text-sm font-medium truncate ${isActive ? "text-white" : "text-orange-800"}`}>
-            {user.username}
-          </span>
-          {unreadCount > 0 && (
-            <motion.div
-              initial={{ scale: 0.5, opacity: 0 }}
-              animate={{ scale: 1, opacity: 1 }}
-              transition={{ type: "spring" }}
-            >
-              <Badge className="ml-1.5 h-5 w-5 p-0 flex items-center justify-center text-[10px] bg-orange-500 text-white border-0 shadow-md">
-                {unreadCount}
-              </Badge>
-            </motion.div>
-          )}
-        </div>
-        <p className={`text-xs truncate ${isActive ? "text-orange-100" : "text-orange-500"}`}>
-          {isOnline ? "Online" : "Offline"}
-        </p>
-      </div>
-    </motion.div>
-  );
-};
+// Import our new chat components
+import ChatHeader from "@/components/chat/ChatHeader";
+import ChatSidebar from "@/components/chat/ChatSidebar";
+import ChatConversationHeader from "@/components/chat/ChatConversationHeader";
+import ChatMessagesList from "@/components/chat/ChatMessagesList";
+import ChatInput from "@/components/chat/ChatInput";
+import ChatEmptyState from "@/components/chat/ChatEmptyState";
 
 const ChatPage = () => {
   const { user, token } = useAuth();
@@ -283,7 +29,7 @@ const ChatPage = () => {
   const [isLoadingMore, setIsLoadingMore] = useState(false);
   const [page, setPage] = useState(1);
   const [hasMore, setHasMore] = useState(true);
-
+  
   // Constants
   const MESSAGES_PER_PAGE = 15; // Number of messages to load per page
 
@@ -300,14 +46,41 @@ const ChatPage = () => {
     [messagesEndRef]
   );
 
-  // Mock chat partners - replace with real data from API
-  const chatPartners = [
-    { id: 1, username: "Alice", online: true, unreadCount: 3 },
-    { id: 2, username: "Bob", online: false, unreadCount: 0 },
-    { id: 3, username: "Charlie", online: true, unreadCount: 1 },
-    { id: 4, username: "David", online: false, unreadCount: 0 },
-  ];
-  const isPartnersLoading = false;
+  // Load chat partners from API
+  // For now, we'll use a very minimal placeholder that will be replaced with real API data
+  const [chatPartners, setChatPartners] = useState([]);
+  const [isPartnersLoading, setIsPartnersLoading] = useState(true);
+
+  // Fetch chat partners from API
+  useEffect(() => {
+    if (!token) return;
+    
+    const fetchChatPartners = async () => {
+      try {
+        setIsPartnersLoading(true);
+        const response = await fetch('/api/chat/partners', {
+          headers: {
+            Authorization: `Bearer ${token}`
+          }
+        });
+        
+        if (response.ok) {
+          const data = await response.json();
+          setChatPartners(data);
+        } else {
+          console.error('Failed to fetch chat partners');
+          setChatPartners([]); // Set empty array on failure
+        }
+      } catch (error) {
+        console.error('Error fetching chat partners:', error);
+        setChatPartners([]); // Set empty array on error
+      } finally {
+        setIsPartnersLoading(false);
+      }
+    };
+    
+    fetchChatPartners();
+  }, [token]);
 
   // Function to load older messages when user scrolls to the top of the chat
   const loadOlderMessages = useCallback(() => {
@@ -486,7 +259,7 @@ const ChatPage = () => {
     }
   }, [messages, scrollToBottom, MESSAGES_PER_PAGE]);
 
-  // Keep chat container sized properly when window resizes
+  // Handle viewport and container resizing
   useEffect(() => {
     const handleResize = () => {
       // Force recalculation of container heights
@@ -498,15 +271,15 @@ const ChatPage = () => {
       );
 
       if (chatContainer) {
-        const headerHeight = 66; 
+        const headerHeight = 64; // Height of the main app header
         const viewportHeight = window.innerHeight;
         chatContainer.style.height = `${viewportHeight - headerHeight}px`;
       }
 
       if (messagesContainer) {
         // Set the messages container height by accounting for the chat input and header
-        const chatHeaderHeight = 56; // Updated for the new larger header
-        const chatInputHeight = 60; // Estimated
+        const chatHeaderHeight = 64; // Estimated
+        const chatInputHeight = 68; // Estimated
         const messagesContainerHeight =
           chatContainer.offsetHeight - chatHeaderHeight - chatInputHeight;
         messagesContainer.style.height = `${messagesContainerHeight}px`;
@@ -514,7 +287,7 @@ const ChatPage = () => {
 
       if (sidebarScrollArea) {
         // Handle the sidebar scroll area height - account for search input height
-        const searchInputHeight = 60; // Estimated for new design
+        const searchInputHeight = 72; // Estimated
         const sidebarAreaHeight =
           chatContainer.offsetHeight - searchInputHeight;
         sidebarScrollArea.style.height = `${sidebarAreaHeight}px`;
@@ -536,93 +309,442 @@ const ChatPage = () => {
     return () => window.removeEventListener("resize", handleResize);
   }, []);
 
+  // Define references for WebSocket variables that persist between renders
+  const wsRef = useRef({
+    socket: null,
+    reconnectTimeout: null,
+    reconnectAttempts: 0,
+    heartbeatInterval: null,
+    pendingMessages: [], // Queue for messages that couldn't be sent
+    connectionStatus: 'disconnected', // 'disconnected', 'connecting', 'connected'
+    lastMessageTime: 0
+  });
+
   // Set up WebSocket connection when component mounts
   useEffect(() => {
     if (!user || !token) return;
 
-    // Mock WebSocket setup - you'd use a real WebSocket URL in production
-    const protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
-    const wsUrl = `${protocol}//${window.location.host}/ws`;
-    const socket = new WebSocket(wsUrl);
+    const ws = wsRef.current;
+    const maxReconnectAttempts = 10;
+    
+    // Function to calculate exponential backoff time
+    const getReconnectDelay = () => {
+      // Start with 1s, then 2s, 4s, 8s, etc. but cap at 30s
+      return Math.min(1000 * Math.pow(2, ws.reconnectAttempts), 30000);
+    };
 
-    socket.addEventListener("open", () => {
-      // Authenticate with the server
-      socket.send(
-        JSON.stringify({
-          type: "auth",
-          token,
+    // Function to send a ping to keep the connection alive
+    const sendPing = () => {
+      if (ws.socket && ws.socket.readyState === WebSocket.OPEN) {
+        try {
+          ws.socket.send(JSON.stringify({ type: 'pong' }));
+          console.log('Ping sent to server');
+        } catch (error) {
+          console.error('Error sending ping:', error);
+        }
+      }
+    };
+
+    // Function to process any pending messages in the queue
+    const processPendingMessages = () => {
+      if (ws.pendingMessages.length === 0 || !ws.socket || ws.socket.readyState !== WebSocket.OPEN) {
+        return;
+      }
+
+      console.log(`Processing ${ws.pendingMessages.length} pending messages`);
+      
+      // Clone and clear the queue to avoid processing the same message multiple times
+      const messagesToProcess = [...ws.pendingMessages];
+      ws.pendingMessages = [];
+
+      messagesToProcess.forEach(msg => {
+        try {
+          ws.socket.send(JSON.stringify(msg));
+          console.log('Sent pending message:', msg.type);
+          
+          // For chat messages, update UI to show they're no longer pending
+          if (msg.type === 'chat_message' && msg.tempId) {
+            setMessages(prev => 
+              prev.map(m => 
+                m.id === msg.tempId ? { ...m, isPending: false } : m
+              )
+            );
+          }
+        } catch (error) {
+          console.error('Failed to send pending message:', error);
+          // Put the message back in the queue
+          ws.pendingMessages.push(msg);
+        }
+      });
+    };
+
+    // Function to establish WebSocket connection
+    const connectWebSocket = () => {
+      // Update connection status
+      ws.connectionStatus = 'connecting';
+      setConnected(false);
+
+      // Create the WebSocket connection
+      const protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
+      const wsUrl = `${protocol}//${window.location.host}/ws`;
+      ws.socket = new WebSocket(wsUrl);
+
+      ws.socket.addEventListener("open", () => {
+        // Reset reconnect attempts when successfully connected
+        ws.reconnectAttempts = 0;
+        ws.connectionStatus = 'connected';
+        ws.lastMessageTime = Date.now();
+        
+        // Authenticate with the server
+        ws.socket.send(
+          JSON.stringify({
+            type: "auth",
+            token,
+          })
+        );
+
+        console.log("WebSocket connected");
+        setConnected(true);
+        
+        // Set up heartbeat to keep connection alive
+        if (ws.heartbeatInterval) clearInterval(ws.heartbeatInterval);
+        ws.heartbeatInterval = setInterval(sendPing, 20000); // Send ping every 20 seconds
+        
+        // Process any pending messages that couldn't be sent while disconnected
+        setTimeout(processPendingMessages, 1000); // Slight delay to ensure authentication has been processed
+      });
+
+      ws.socket.addEventListener("message", (event) => {
+        try {
+          const data = JSON.parse(event.data);
+          ws.lastMessageTime = Date.now(); // Update last message time
+
+          // Handle different message types
+          if (data.type === "ping") {
+            // Server sent a ping, respond with pong
+            ws.socket.send(JSON.stringify({ type: "pong" }));
+            return;
+          }
+          else if (data.type === "auth_success") {
+            console.log("WebSocket authenticated successfully");
+            // Process any pending messages after successful authentication
+            processPendingMessages();
+          } 
+          else if (data.type === "message_sent" || data.type === "message_ack") {
+            // Handle confirmation of our sent message
+            const { message, tempId, messageId } = data;
+            
+            // Update the temporary message with the actual saved version
+            // Use handleMessageAck which includes updating message in queue
+            handleMessageAck({
+              type: "message_ack",
+              tempId: tempId,
+              messageId: messageId || (message ? message.id : null)
+            });
+          }
+          else if (data.type === "new_message") {
+            // Handle incoming message from other user
+            const message = data.message;
+            
+            // Only process if we have an active chat and it's relevant
+            if (activeChat && (message.senderId === activeChat.id || message.receiverId === activeChat.id)) {
+              // Add message to the list if it's not already there
+              setMessages((prev) => {
+                // Check if message already exists (by id)
+                if (prev.some(msg => msg.id === message.id)) {
+                  return prev;
+                }
+                return [...prev, message];
+              });
+              scrollToBottom();
+              
+              // Mark message as read if we're in the active chat
+              if (ws.socket && ws.socket.readyState === WebSocket.OPEN) {
+                ws.socket.send(JSON.stringify({
+                  type: "mark_read",
+                  senderId: message.senderId
+                }));
+              }
+            } else {
+              // Show a notification for messages in non-active chats
+              const sender = message.sender?.username || 'Someone';
+              toast({
+                title: `New message from ${sender}`,
+                description: message.content.length > 50 ? `${message.content.substring(0, 50)}...` : message.content,
+                variant: "default",
+              });
+            }
+          }
+          else if (data.type === "unread_messages") {
+            // Handle list of unread messages
+            console.log(`You have ${data.count} unread messages`);
+            
+            // We could add visual indicators for unread messages in the sidebar
+            // or add notifications here
+          }
+          else if (data.type === "messages_read" || data.type === "message_read_receipt") {
+            // Handle read receipt - update the UI to show messages as read
+            if (activeChat && (data.readBy === activeChat.id || data.senderId === activeChat.id)) {
+              // For single message read receipt
+              if (data.messageId) {
+                handleMessageAck({
+                  type: 'message_read_receipt',
+                  messageId: data.messageId,
+                  tempId: data.tempId
+                });
+              } 
+              // For bulk read status update
+              else {
+                setMessages(prev => prev.map(msg => 
+                  msg.senderId === user.id && msg.receiverId === activeChat.id
+                    ? { ...msg, isRead: true }
+                    : msg
+                ));
+              }
+            }
+          }
+          else if (data.type === "error") {
+            console.error("WebSocket error:", data.message);
+            toast({
+              title: "Error",
+              description: data.message,
+              variant: "destructive",
+            });
+            
+            // If this was an authentication error, attempt to reconnect
+            if (data.message.includes("authentication")) {
+              ws.socket.close();
+            }
+          }
+        } catch (error) {
+          console.error("Error parsing WebSocket message:", error);
+        }
+      });
+
+      ws.socket.addEventListener("close", (event) => {
+        // Clear any existing intervals
+        if (ws.heartbeatInterval) clearInterval(ws.heartbeatInterval);
+        if (ws.reconnectTimeout) clearTimeout(ws.reconnectTimeout);
+        
+        ws.connectionStatus = 'disconnected';
+        setConnected(false);
+        
+        // Log close event with more contextual information
+        const closeReasons = {
+          1000: "Normal closure",
+          1001: "Going away",
+          1002: "Protocol error",
+          1003: "Unsupported data",
+          1005: "No status received",
+          1006: "Abnormal closure",
+          1007: "Invalid frame payload data",
+          1008: "Policy violation",
+          1009: "Message too big",
+          1010: "Mandatory extension",
+          1011: "Internal server error",
+          1012: "Service restart",
+          1013: "Try again later",
+          1014: "Bad gateway",
+          1015: "TLS handshake"
+        };
+        
+        const reason = closeReasons[event.code] || "Unknown reason";
+        console.log(`WebSocket closed: ${event.code} (${reason})${event.reason ? ': ' + event.reason : ''}`);
+        
+        // Always reconnect for codes 1000 (normal closure), 1001 (going away),
+        // 1005 (no status), 1006 (abnormal closure), 1012 (service restart), 1013 (try again later)
+        const shouldReconnect = [
+          1000, 1001, 1005, 1006, 1012, 1013
+        ].includes(event.code) || event.code === undefined;
+        
+        // Don't reconnect for permanent errors
+        const permanentError = [1002, 1003, 1007, 1008, 1009, 1010, 1011].includes(event.code);
+        
+        // Attempt to reconnect if appropriate and we haven't exceeded max attempts
+        if ((shouldReconnect || !permanentError) && ws.reconnectAttempts < maxReconnectAttempts) {
+          ws.reconnectAttempts++;
+          const delay = getReconnectDelay();
+          console.log(`Attempting to reconnect (${ws.reconnectAttempts}/${maxReconnectAttempts}) in ${delay}ms...`);
+          
+          // Show toast for first reconnection attempt
+          if (ws.reconnectAttempts === 1) {
+            toast({
+              title: "Connection Lost",
+              description: "Attempting to reconnect...",
+              variant: "warning",
+            });
+          }
+          
+          ws.reconnectTimeout = setTimeout(connectWebSocket, delay);
+        } else if (ws.reconnectAttempts >= maxReconnectAttempts) {
+          toast({
+            title: "Connection Failed",
+            description: "Could not establish a stable connection. Please refresh the page.",
+            variant: "destructive",
+          });
+        } else if (permanentError) {
+          // For permanent errors, show appropriate message
+          toast({
+            title: "Connection Error",
+            description: reason,
+            variant: "destructive",
+          });
+        }
+      });
+
+      ws.socket.addEventListener("error", (error) => {
+        console.error("WebSocket connection error:", error);
+        ws.connectionStatus = 'disconnected';
+        setConnected(false);
+      });
+
+      // Set the socket in state for later use
+      setWs(ws.socket);
+    };
+
+    // Connect to WebSocket
+    connectWebSocket();
+
+    // Set up connection health check
+    const healthCheckInterval = setInterval(() => {
+      // If we haven't received any message in 40 seconds, the connection may be dead
+      const timeSinceLastMessage = Date.now() - ws.lastMessageTime;
+      if (ws.connectionStatus === 'connected' && timeSinceLastMessage > 40000) {
+        console.log('Connection appears to be dead, attempting to reconnect...');
+        if (ws.socket) ws.socket.close(); // This will trigger the reconnection logic
+      }
+    }, 15000); // Check every 15 seconds
+
+    // Set up polling as a fallback for message retrieval
+    const pollingInterval = setInterval(() => {
+      if (activeChat && (!connected || ws.connectionStatus !== 'connected')) {
+        console.log("Using polling fallback to fetch messages");
+        loadMessages(activeChat.id);
+      }
+    }, 10000); // Poll every 10 seconds if WebSocket is not connected
+
+    // Clean up on component unmount
+    return () => {
+      if (ws.reconnectTimeout) clearTimeout(ws.reconnectTimeout);
+      if (ws.heartbeatInterval) clearInterval(ws.heartbeatInterval);
+      clearInterval(healthCheckInterval);
+      clearInterval(pollingInterval);
+      if (ws.socket) ws.socket.close();
+    };
+  }, [user, token, activeChat, toast, scrollToBottom, connected, loadMessages, handleMessageAck]);
+
+  // Handle message acknowledgement from server
+  const handleMessageAck = useCallback((data) => {
+    if (data.type === 'message_ack' && data.tempId && data.messageId) {
+      // Update the temporary message with the real message ID and mark as delivered
+      setMessages(prev => 
+        prev.map(msg => {
+          if (msg.id === data.tempId) {
+            return {
+              ...msg,
+              id: data.messageId,
+              isPending: false,
+              // Keep isRead as is since this is just delivery confirmation, not read receipt
+            };
+          }
+          return msg;
         })
       );
-
-      setConnected(true);
-    });
-
-    socket.addEventListener("message", (event) => {
-      try {
-        const data = JSON.parse(event.data);
-
-        if (data.type === "message_received" && activeChat) {
-          // Only add message if it's from the active chat partner
-          if (
-            data.message.senderId === activeChat.id ||
-            data.message.receiverId === activeChat.id
-          ) {
-            setMessages((prev) => [...prev, data.message]);
-            scrollToBottom();
-          }
-        }
-      } catch (error) {
-        console.error("Error parsing WebSocket message:", error);
+      
+      // Remove the message from pending queue if it exists there
+      const ws = wsRef.current;
+      if (ws && ws.pendingMessages) {
+        ws.pendingMessages = ws.pendingMessages.filter(m => m.tempId !== data.tempId);
       }
-    });
-
-    socket.addEventListener("close", () => {
-      setConnected(false);
-    });
-
-    socket.addEventListener("error", () => {
-      setConnected(false);
-      toast({
-        title: "Connection Error",
-        description: "Failed to connect to chat server",
-        variant: "destructive",
-      });
-    });
-
-    setWs(socket);
-
-    return () => {
-      socket.close();
-    };
-  }, [user, token, activeChat, toast, scrollToBottom]);
+      
+      console.log(`Message ${data.tempId} acknowledged with server ID ${data.messageId}`);
+    } else if (data.type === 'message_read_receipt') {
+      // Handle read receipts
+      setMessages(prev => 
+        prev.map(msg => {
+          if (msg.id === data.messageId || msg.id === data.tempId) {
+            return {
+              ...msg,
+              isRead: true
+            };
+          }
+          return msg;
+        })
+      );
+      
+      console.log(`Message ${data.messageId} marked as read`);
+    }
+  }, []);
+  
+  // Load messages when active chat changes
+  useEffect(() => {
+    if (activeChat) {
+      loadMessages(activeChat.id);
+    }
+  }, [activeChat, loadMessages]);
 
   // Send message function
   const sendMessage = () => {
-    if (!input.trim() || !connected || !ws || !activeChat) return;
-
-    ws.send(
-      JSON.stringify({
-        type: "chat_message",
-        receiverId: activeChat.id,
-        content: input.trim(),
-      })
-    );
-
+    if (!input.trim() || !activeChat) return;
+    
+    const tempId = `temp-${Date.now()}`; // temporary ID with 'temp-' prefix
+    
+    // Create a temporary message with local ID
+    const tempMessage = {
+      id: tempId,
+      senderId: user.id,
+      receiverId: activeChat.id,
+      content: input.trim(),
+      createdAt: new Date().toISOString(),
+      isRead: false,
+      sender: user,
+      isPending: true // Mark as pending so we can style it differently
+    };
+    
+    // Create message object to send to server
+    const messageToSend = {
+      type: "chat_message",
+      receiverId: activeChat.id,
+      content: tempMessage.content,
+      tempId // Include temporary ID so we can update the message when we get a response
+    };
+    
     // Add message locally for immediate display
-    setMessages((prev) => [
-      ...prev,
-      {
-        id: Date.now(), // temporary ID
-        senderId: user.id,
-        receiverId: activeChat.id,
-        content: input.trim(),
-        createdAt: new Date().toISOString(),
-        isRead: false,
-        sender: user,
-      },
-    ]);
-
+    setMessages((prev) => [...prev, tempMessage]);
+    
+    // Clear input field immediately
     setInput("");
+    
+    // Scroll to bottom
+    setTimeout(scrollToBottom, 50);
+    
+    // Try to send the message if connected
+    const ws = wsRef.current;
+    let messageSent = false;
+    
+    if (connected && ws.socket && ws.socket.readyState === WebSocket.OPEN) {
+      try {
+        ws.socket.send(JSON.stringify(messageToSend));
+        messageSent = true;
+        console.log('Message sent successfully');
+      } catch (error) {
+        console.error("Error sending message via WebSocket:", error);
+        messageSent = false;
+      }
+    }
+    
+    // If message couldn't be sent, queue it for later
+    if (!messageSent) {
+      // Add to the pending messages queue
+      ws.pendingMessages.push(messageToSend);
+      console.log('Message queued for later delivery');
+      
+      toast({
+        title: "Message queued",
+        description: "We'll send your message when connection is restored",
+        variant: "warning",
+      });
+    }
   };
 
   const handleKeyDown = (e) => {
@@ -632,539 +754,85 @@ const ChatPage = () => {
     }
   };
 
+  // New message button handler
+  const handleNewMessage = () => {
+    // This would typically open a new message dialog
+    toast({
+      title: "New Message",
+      description: "This feature is coming soon!",
+    });
+  };
+
   return (
     <div className="h-full flex flex-col bg-gradient-to-b from-orange-50 to-white">
-      {/* Top control bar */}
-      <motion.div 
-        initial={{ opacity: 0, y: -10 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.3 }}
-        className="h-12 border-b border-orange-200 flex items-center justify-between px-4 z-10 bg-gradient-to-r from-orange-50 via-orange-100 to-orange-50 text-orange-800 shadow-sm backdrop-blur-sm"
-      >
-        <div className="flex items-center">
-          <motion.div whileHover={{ rotate: 15 }} whileTap={{ scale: 0.9 }}>
-            <Button
-              variant="ghost"
-              size="icon"
-              className="lg:hidden text-orange-700 hover:bg-orange-200/70 mr-2 h-8 w-8 rounded-full transition-colors duration-200 shadow-sm"
-              onClick={() => setIsMobileSidebarOpen(!isMobileSidebarOpen)}
-            >
-              <Menu className="h-5 w-5" />
-            </Button>
-          </motion.div>
-          <motion.h1 
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            transition={{ delay: 0.2 }}
-            className="text-base font-semibold text-orange-800 flex items-center"
+      {/* Top control bar with mobile sidebar toggle */}
+      <div className="flex items-center h-12 border-b border-orange-200 px-4 bg-gradient-to-r from-orange-50 via-orange-100 to-orange-50 text-orange-800 shadow-sm z-10">
+        <motion.div 
+          whileHover={{ rotate: 15 }} 
+          whileTap={{ scale: 0.9 }}
+          className="mr-2 lg:hidden"
+        >
+          <Button
+            variant="ghost"
+            size="icon"
+            className="text-orange-700 hover:bg-orange-200/70 h-8 w-8 rounded-full transition-colors duration-200 shadow-sm"
+            onClick={() => setIsMobileSidebarOpen(!isMobileSidebarOpen)}
           >
-            <MessageSquare className="h-5 w-5 mr-2 text-orange-600" /> 
-            Messages
-          </motion.h1>
-        </div>
-        <div className="flex items-center space-x-2">
-          <TooltipProvider>
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <motion.div whileHover={{ y: -2 }} whileTap={{ scale: 0.9 }}>
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    className="text-orange-700 hover:bg-orange-200/70 h-8 w-8 rounded-full transition-all duration-200 shadow-sm"
-                  >
-                    <Bell className="h-4 w-4" />
-                  </Button>
-                </motion.div>
-              </TooltipTrigger>
-              <TooltipContent className="bg-orange-50 border-orange-200 text-orange-700">
-                <p>Notifications</p>
-              </TooltipContent>
-            </Tooltip>
-          </TooltipProvider>
-          <TooltipProvider>
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <motion.div whileHover={{ y: -2 }} whileTap={{ scale: 0.9 }}>
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    className="text-orange-700 hover:bg-orange-200/70 h-8 w-8 rounded-full transition-all duration-200 shadow-sm"
-                  >
-                    <Settings className="h-4 w-4" />
-                  </Button>
-                </motion.div>
-              </TooltipTrigger>
-              <TooltipContent className="bg-orange-50 border-orange-200 text-orange-700">
-                <p>Settings</p>
-              </TooltipContent>
-            </Tooltip>
-          </TooltipProvider>
-        </div>
-      </motion.div>
+            <Menu className="h-5 w-5" />
+          </Button>
+        </motion.div>
+        
+        <ChatHeader 
+          isMobileSidebarOpen={isMobileSidebarOpen} 
+          setIsMobileSidebarOpen={setIsMobileSidebarOpen} 
+        />
+      </div>
 
       <div className="flex-1 flex overflow-hidden chat-container">
-        {/* Sidebar */}
-        <motion.div
-          initial={{ x: -30, opacity: 0 }}
-          animate={{ x: 0, opacity: 1 }}
-          transition={{ type: "spring", stiffness: 300, damping: 30 }}
-          className={`w-72 bg-gradient-to-b from-orange-50 to-white border-r border-orange-200 flex flex-col backdrop-blur-sm ${
-            isMobileSidebarOpen ? "block" : "hidden"
-          } lg:block overflow-hidden shadow-lg`}
-          style={{ minWidth: "288px", maxWidth: "288px" }}
-        >
-          {/* Search */}
-          <div className="p-3 border-b border-orange-200 bg-orange-100/30">
-            <motion.div 
-              initial={{ y: -10, opacity: 0 }}
-              animate={{ y: 0, opacity: 1 }}
-              transition={{ delay: 0.1 }}
-              className="relative"
-            >
-              <div className="absolute left-3 top-1/2 transform -translate-y-1/2 text-orange-500">
-                <motion.div
-                  whileHover={{ scale: 1.1, rotate: 10 }}
-                  animate={{ scale: [1, 1.05, 1] }}
-                  transition={{ repeat: Infinity, repeatType: "reverse", duration: 2 }}
-                >
-                  <Search className="h-4 w-4" />
-                </motion.div>
-              </div>
-              <Input
-                placeholder="Find or start a conversation"
-                className="pl-10 py-2 h-10 bg-white/80 border-orange-200 text-sm rounded-full placeholder:text-orange-300 focus-visible:ring-orange-500 shadow-sm hover:shadow-md transition-shadow duration-200 pr-3" 
-              />
-            </motion.div>
-          </div>
-
-          <ScrollArea className="flex-1 sidebar-scroll-area">
-            <div className="p-3">
-              <div className="mb-6">
-                <motion.div 
-                  initial={{ opacity: 0, y: 5 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: 0.2 }}
-                  className="flex items-center justify-between mb-2 px-1"
-                >
-                  <h3 className="text-xs font-semibold text-orange-700 uppercase tracking-wider">
-                    Direct Messages
-                  </h3>
-                  <motion.div whileHover={{ rotate: 90 }} whileTap={{ scale: 0.9 }}>
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      className="h-6 w-6 text-orange-500 hover:text-orange-700 hover:bg-orange-100 rounded-full transition-all duration-200"
-                    >
-                      <PlusCircle className="h-4 w-4" />
-                    </Button>
-                  </motion.div>
-                </motion.div>
-                <div className="h-px bg-gradient-to-r from-orange-200 via-orange-300 to-orange-200 my-2"></div>
-
-                {isPartnersLoading ? (
-                  <div className="flex justify-center py-2">
-                    <motion.div 
-                      animate={{ rotate: 360 }}
-                      transition={{ repeat: Infinity, duration: 1, ease: "linear" }}
-                      className="h-5 w-5 border-2 border-orange-500 border-t-transparent rounded-full"
-                    ></motion.div>
-                  </div>
-                ) : chatPartners.length === 0 ? (
-                  <div className="text-center py-2 text-sm text-orange-600">
-                    No conversations yet
-                  </div>
-                ) : (
-                  <div className="space-y-1">
-                    {chatPartners.map((partner) => (
-                      <DirectMessage
-                        key={partner.id}
-                        user={partner}
-                        isActive={activeChat?.id === partner.id}
-                        isOnline={partner.online}
-                        unreadCount={partner.unreadCount || 0}
-                        onClick={() => setActiveChat(partner)}
-                      />
-                    ))}
-                  </div>
-                )}
-              </div>
-
-              <div className="mb-6">
-                <motion.div 
-                  initial={{ opacity: 0, y: 5 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: 0.3 }}
-                  className="flex items-center justify-between mb-2 px-1"
-                >
-                  <h3 className="text-xs font-semibold text-orange-700 uppercase tracking-wider">
-                    Channels
-                  </h3>
-                  <motion.div whileHover={{ rotate: 90 }} whileTap={{ scale: 0.9 }}>
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      className="h-6 w-6 text-orange-500 hover:text-orange-700 hover:bg-orange-100 rounded-full transition-all duration-200"
-                    >
-                      <PlusCircle className="h-4 w-4" />
-                    </Button>
-                  </motion.div>
-                </motion.div>
-                <div className="h-px bg-gradient-to-r from-orange-200 via-orange-300 to-orange-200 my-2"></div>
-
-                <div className="space-y-1">
-                  <Channel
-                    name="general"
-                    isActive={false}
-                    unreadCount={0}
-                    onClick={() => {}}
-                  />
-                  <Channel
-                    name="support"
-                    isActive={false}
-                    unreadCount={2}
-                    onClick={() => {}}
-                  />
-                  <Channel
-                    name="announcements"
-                    isActive={false}
-                    unreadCount={0}
-                    onClick={() => {}}
-                  />
-                </div>
-              </div>
-            </div>
-          </ScrollArea>
-        </motion.div>
+        {/* Chat sidebar */}
+        <ChatSidebar 
+          isMobileSidebarOpen={isMobileSidebarOpen}
+          setActiveChat={setActiveChat}
+          activeChat={activeChat}
+          chatPartners={chatPartners}
+          isPartnersLoading={isPartnersLoading}
+        />
 
         {/* Main chat area */}
         <div className="flex-1 flex flex-col overflow-hidden bg-white">
           {activeChat ? (
             <>
-              {/* Chat header */}
-              <motion.div 
-                initial={{ opacity: 0, y: -10 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ type: "spring", stiffness: 300, damping: 30 }}
-                className="h-14 border-b border-orange-200 flex items-center justify-between px-5 py-2 bg-gradient-to-r from-orange-50 via-orange-100 to-orange-50 shadow-sm"
-              >
-                <div className="flex items-center">
-                  <div className="relative mr-3">
-                    <Avatar className="h-10 w-10 border-2 border-orange-200 shadow-md">
-                      <AvatarFallback className="bg-gradient-to-r from-orange-500 to-orange-600 text-white text-xs font-semibold">
-                        {activeChat.username?.substring(0, 2) || "U"}
-                      </AvatarFallback>
-                    </Avatar>
-                    <motion.span 
-                      initial={{ scale: 0 }}
-                      animate={{ scale: 1 }}
-                      transition={{ delay: 0.2 }}
-                      className="absolute -bottom-1 -right-1 h-3.5 w-3.5 rounded-full bg-green-500 border-2 border-white shadow-sm"
-                    ></motion.span>
-                  </div>
-                  <div>
-                    <motion.div 
-                      initial={{ opacity: 0, x: -10 }}
-                      animate={{ opacity: 1, x: 0 }}
-                      transition={{ delay: 0.1 }}
-                      className="flex items-center"
-                    >
-                      <h2 className="text-base font-semibold text-orange-800">
-                        {activeChat.username}
-                      </h2>
-                      <Badge className="ml-2 bg-green-100 text-green-700 text-xs py-0 px-1.5 border border-green-200">
-                        Online
-                      </Badge>
-                    </motion.div>
-                    <motion.p 
-                      initial={{ opacity: 0 }}
-                      animate={{ opacity: 1 }}
-                      transition={{ delay: 0.2 }}
-                      className="text-xs text-orange-500">Last active today at 10:30 AM</motion.p>
-                  </div>
-                </div>
-                <motion.div 
-                  initial={{ opacity: 0, scale: 0.8 }}
-                  animate={{ opacity: 1, scale: 1 }}
-                  transition={{ delay: 0.3 }}
-                  className="flex items-center space-x-2"
-                >
-                  <TooltipProvider>
-                    <Tooltip>
-                      <TooltipTrigger asChild>
-                        <motion.div whileHover={{ y: -2 }} whileTap={{ scale: 0.9 }}>
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            className="h-8 w-8 text-orange-600 hover:bg-orange-200/70 rounded-full transition-all duration-200 shadow-sm"
-                          >
-                            <Phone className="h-4 w-4" />
-                          </Button>
-                        </motion.div>
-                      </TooltipTrigger>
-                      <TooltipContent className="bg-orange-50 border-orange-200 text-orange-700">
-                        <p>Voice call</p>
-                      </TooltipContent>
-                    </Tooltip>
-                  </TooltipProvider>
-                  <TooltipProvider>
-                    <Tooltip>
-                      <TooltipTrigger asChild>
-                        <motion.div whileHover={{ y: -2 }} whileTap={{ scale: 0.9 }}>
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            className="h-8 w-8 text-orange-600 hover:bg-orange-200/70 rounded-full transition-all duration-200 shadow-sm"
-                          >
-                            <Video className="h-4 w-4" />
-                          </Button>
-                        </motion.div>
-                      </TooltipTrigger>
-                      <TooltipContent className="bg-orange-50 border-orange-200 text-orange-700">
-                        <p>Video call</p>
-                      </TooltipContent>
-                    </Tooltip>
-                  </TooltipProvider>
-                  <TooltipProvider>
-                    <Tooltip>
-                      <TooltipTrigger asChild>
-                        <motion.div whileHover={{ y: -2 }} whileTap={{ scale: 0.9 }}>
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            className="h-8 w-8 text-orange-600 hover:bg-orange-200/70 rounded-full transition-all duration-200 shadow-sm"
-                          >
-                            <Info className="h-4 w-4" />
-                          </Button>
-                        </motion.div>
-                      </TooltipTrigger>
-                      <TooltipContent className="bg-orange-50 border-orange-200 text-orange-700">
-                        <p>Info</p>
-                      </TooltipContent>
-                    </Tooltip>
-                  </TooltipProvider>
-                </motion.div>
-              </motion.div>
-
-              {/* Messages area */}
-              <ScrollArea
-                ref={scrollAreaRef}
-                className="flex-1 overflow-y-auto messages-container bg-white"
-              >
-                {isLoadingMore && page > 1 && (
-                  <div className="flex justify-center py-2">
-                    <motion.div 
-                      animate={{ rotate: 360 }}
-                      transition={{ repeat: Infinity, duration: 1, ease: "linear" }}
-                      className="h-4 w-4 border-2 border-orange-500 border-t-transparent rounded-full"
-                    ></motion.div>
-                  </div>
-                )}
-
-                {hasMore && !isLoadingMore && (
-                  <motion.div 
-                    initial={{ opacity: 0, y: -10 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    className="flex justify-center py-2"
-                  >
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      className="text-xs text-orange-600 hover:bg-orange-100 hover:text-orange-700 rounded-full px-4 py-1 shadow-sm transition-all duration-200"
-                      onClick={loadOlderMessages}
-                    >
-                      <motion.div 
-                        animate={{ y: [0, -3, 0] }}
-                        transition={{ repeat: Infinity, duration: 1.5 }}
-                        className="mr-1"
-                      >
-                        ↑
-                      </motion.div>
-                      Load older messages
-                    </Button>
-                  </motion.div>
-                )}
-
-                <div className="flex-1"></div>
-
-                <div className="px-4 py-2 space-y-1.5">
-                  {messages.length === 0 && !isLoadingMore ? (
-                    <motion.div 
-                      initial={{ opacity: 0, y: 20 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      transition={{ type: "spring" }}
-                      className="flex flex-col items-center justify-center py-10 text-orange-600"
-                    >
-                      <motion.div 
-                        animate={{ scale: [1, 1.05, 1], rotate: [0, 5, 0, -5, 0] }}
-                        transition={{ repeat: Infinity, duration: 5 }}
-                        className="mb-4"
-                      >
-                        <MessageSquare className="h-12 w-12 text-orange-300" />
-                      </motion.div>
-                      <p className="text-lg font-medium mb-1">No messages yet</p>
-                      <p className="text-sm text-orange-500">Start a conversation with {activeChat.username}!</p>
-                    </motion.div>
-                  ) : (
-                    messages.map((message) => (
-                      <ChatMessage
-                        key={message.id}
-                        message={message}
-                        isCurrentUser={message.senderId === user?.id}
-                      />
-                    ))
-                  )}
-                  <div ref={messagesEndRef} />
-                </div>
-              </ScrollArea>
-
+              {/* Chat header for active conversation */}
+              <ChatConversationHeader activeChat={activeChat} />
+              
+              {/* Chat messages */}
+              <ChatMessagesList 
+                scrollAreaRef={scrollAreaRef}
+                isLoadingMore={isLoadingMore}
+                page={page}
+                hasMore={hasMore}
+                loadOlderMessages={loadOlderMessages}
+                messages={messages}
+                user={user}
+                messagesEndRef={messagesEndRef}
+              />
+              
               {/* Chat input */}
-              <motion.div 
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ type: "spring" }}
-                className="px-4 py-3 bg-gradient-to-r from-orange-50 via-orange-100/50 to-orange-50 border-t border-orange-200"
-              >
-                <motion.div 
-                  whileHover={{ y: -2, boxShadow: "0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06)" }}
-                  className="flex items-end bg-white rounded-2xl px-3 py-2 border border-orange-200 shadow-sm transition-all duration-200"
-                >
-                  <div className="flex space-x-1 mr-2">
-                    <motion.div whileHover={{ rotate: 15 }} whileTap={{ scale: 0.9 }}>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className="h-8 w-8 text-orange-500 hover:bg-orange-100/70 rounded-full p-0 transition-colors duration-200"
-                      >
-                        <PlusCircle className="h-4 w-4" />
-                      </Button>
-                    </motion.div>
-                    <motion.div whileHover={{ rotate: 15 }} whileTap={{ scale: 0.9 }}>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className="h-8 w-8 text-orange-500 hover:bg-orange-100/70 rounded-full p-0 transition-colors duration-200"
-                      >
-                        <Image className="h-4 w-4" />
-                      </Button>
-                    </motion.div>
-                    <motion.div whileHover={{ rotate: 15 }} whileTap={{ scale: 0.9 }}>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className="h-8 w-8 text-orange-500 hover:bg-orange-100/70 rounded-full p-0 transition-colors duration-200"
-                      >
-                        <Paperclip className="h-4 w-4" />
-                      </Button>
-                    </motion.div>
-                  </div>
-                  <Input
-                    value={input}
-                    onChange={(e) => setInput(e.target.value)}
-                    onKeyDown={handleKeyDown}
-                    placeholder={`Message ${activeChat.username}`}
-                    className="flex-1 border-0 bg-transparent text-gray-800 focus-visible:ring-0 focus-visible:ring-offset-0 px-0 placeholder:text-orange-300 text-sm"
-                  />
-                  <div className="flex space-x-1 ml-2">
-                    <motion.div whileHover={{ rotate: 15 }} whileTap={{ scale: 0.9 }}>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className="h-8 w-8 text-orange-500 hover:bg-orange-100/70 rounded-full p-0 transition-colors duration-200"
-                      >
-                        <Smile className="h-4 w-4" />
-                      </Button>
-                    </motion.div>
-                    <motion.div whileHover={{ rotate: 15 }} whileTap={{ scale: 0.9 }}>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className="h-8 w-8 text-orange-500 hover:bg-orange-100/70 rounded-full p-0 transition-colors duration-200"
-                      >
-                        <Mic className="h-4 w-4" />
-                      </Button>
-                    </motion.div>
-                    <motion.div 
-                      whileHover={{ scale: 1.1 }}
-                      whileTap={{ scale: 0.9 }}
-                    >
-                      <Button
-                        onClick={sendMessage}
-                        disabled={!input.trim() || !connected}
-                        className="bg-gradient-to-r from-orange-500 to-orange-600 hover:from-orange-600 hover:to-orange-700 text-white rounded-full h-9 w-9 flex items-center justify-center p-0 shadow-md transition-all duration-200"
-                      >
-                        <Send className="h-4 w-4" />
-                      </Button>
-                    </motion.div>
-                  </div>
-                </motion.div>
-              </motion.div>
+              <ChatInput 
+                input={input}
+                setInput={setInput}
+                handleKeyDown={handleKeyDown}
+                sendMessage={sendMessage}
+                connected={connected}
+                activeChat={activeChat}
+              />
             </>
           ) : (
             /* Empty state when no chat is selected */
-            <motion.div 
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              transition={{ duration: 0.3 }}
-              className="flex-1 flex flex-col items-center justify-center p-8 text-center empty-state-container bg-white"
-            >
-              <div className="max-w-md">
-                <motion.div 
-                  animate={{ y: [0, -10, 0], rotate: [0, 5, 0, -5, 0] }}
-                  transition={{ repeat: Infinity, duration: 5 }}
-                  className="mb-6 bg-gradient-to-r from-orange-100 to-orange-200 h-24 w-24 rounded-full flex items-center justify-center mx-auto shadow-lg"
-                >
-                  <MessageSquare className="h-12 w-12 text-orange-500" />
-                </motion.div>
-                <motion.h2 
-                  initial={{ opacity: 0, y: 20 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: 0.2 }}
-                  className="text-2xl font-bold mb-3 text-orange-800"
-                >
-                  Your Messages
-                </motion.h2>
-                <motion.p 
-                  initial={{ opacity: 0, y: 20 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: 0.3 }}
-                  className="text-orange-600 mb-6 text-base"
-                >
-                  Send private messages to friends and colleagues. Select a
-                  conversation or start a new one.
-                </motion.p>
-                <motion.div 
-                  initial={{ opacity: 0, y: 20 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: 0.4 }}
-                  whileHover={{ scale: 1.05 }}
-                  whileTap={{ scale: 0.95 }}
-                >
-                  <Button className="bg-gradient-to-r from-orange-500 to-orange-600 hover:from-orange-600 hover:to-orange-700 text-white px-6 py-2 rounded-full shadow-md">
-                    <PlusCircle className="h-4 w-4 mr-2" />
-                    New Message
-                  </Button>
-                </motion.div>
-              </div>
-
-              {!connected && (
-                <motion.div 
-                  initial={{ opacity: 0, y: 20 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: 0.5 }}
-                  className="mt-8 p-4 bg-orange-100/70 text-orange-700 rounded-xl flex items-center shadow-md">
-                  <motion.div 
-                    animate={{ rotate: 360 }}
-                    transition={{ repeat: Infinity, duration: 2 }}
-                    className="mr-3 text-orange-600"
-                  >
-                    <WifiOff className="h-5 w-5" />
-                  </motion.div>
-                  <p className="text-sm font-medium">
-                    Connection to chat server lost. Trying to reconnect...
-                  </p>
-                </motion.div>
-              )}
-            </motion.div>
+            <ChatEmptyState 
+              connected={connected} 
+              onNewMessage={handleNewMessage}
+            />
           )}
         </div>
       </div>

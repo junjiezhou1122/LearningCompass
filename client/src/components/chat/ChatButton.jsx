@@ -4,7 +4,7 @@ import { Dialog, DialogContent, DialogTrigger } from '@/components/ui/dialog';
 import { MessageSquare, Bell } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '../../contexts/AuthContext';
-import ChatInterface from './ChatInterface';
+// Direct chat functionality now handled by ChatPage component
 import { Badge } from '@/components/ui/badge';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { motion, AnimatePresence } from 'framer-motion';
@@ -147,7 +147,22 @@ const ChatButton = ({ otherUser }) => {
         </Button>
       </DialogTrigger>
       <DialogContent className="sm:max-w-[800px] p-0 h-[650px]">
-        <ChatInterface otherUser={otherUser} onClose={() => setIsOpen(false)} />
+        <div className="p-4 h-full flex flex-col justify-center items-center">
+          <MessageSquare className="h-12 w-12 text-purple-400 mb-4" />
+          <h3 className="text-lg font-medium mb-2">Chat with {otherUser?.username || 'User'}</h3>
+          <p className="text-sm text-gray-500 mb-4 text-center">
+            Chat functionality has been moved to the chat page for a better experience.
+          </p>
+          <Button 
+            onClick={() => {
+              setIsOpen(false);
+              window.location.href = '/chat';
+            }}
+            className="bg-gradient-to-r from-purple-500 to-pink-500 text-white"
+          >
+            Go to Chat Page
+          </Button>
+        </div>
       </DialogContent>
     </Dialog>
   );

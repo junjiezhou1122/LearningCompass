@@ -319,9 +319,11 @@ export interface IStorage {
     limit?: number;
     offset?: number;
   }): Promise<ChatMessage[]>;
+  getChatHistory(userId1: number, userId2: number, limit?: number, before?: number): Promise<ChatMessage[]>;
   createChatMessage(message: InsertChatMessage): Promise<ChatMessage>;
   markChatMessagesAsRead(senderId: number, receiverId: number): Promise<boolean>;
   getUnreadMessageCount(userId: number): Promise<number>;
+  getUnreadMessagesForUser(userId: number): Promise<ChatMessage[]>;
   getChatPartners(userId: number): Promise<User[]>;
   canUsersChat(userId1: number, userId2: number): Promise<boolean>;
 }
@@ -1800,9 +1802,51 @@ export class DatabaseStorage implements IStorage {
     sentToUsers.forEach(u => uniqueUsers.set(u.user.id, u.user));
     receivedFromUsers.forEach(u => uniqueUsers.set(u.user.id, u.user));
     
+    // Remove the current user from the list of chat partners
+    uniqueUsers.delete(userId);
+    
     return Array.from(uniqueUsers.values());
   }
   
+  async getChatHistory(userId1: number, userId2: number, limit: number = 50, before?: number): Promise<ChatMessage[]> {
+    let query = db.select().from(chatMessages)
+      .where(
+        or(
+          and(
+            eq(chatMessages.senderId, userId1),
+            eq(chatMessages.receiverId, userId2)
+          ),
+          and(
+            eq(chatMessages.senderId, userId2),
+            eq(chatMessages.receiverId, userId1)
+          )
+        )
+      );
+
+    if (before) {
+      query = query.where(sql`${chatMessages.id} < ${before}`);
+    }
+    
+    const messages = await query
+      .orderBy(asc(chatMessages.createdAt))
+      .limit(limit);
+    
+    return messages;
+  }
+
+  async getUnreadMessagesForUser(userId: number): Promise<ChatMessage[]> {
+    const messages = await db.select().from(chatMessages)
+      .where(
+        and(
+          eq(chatMessages.receiverId, userId),
+          eq(chatMessages.isRead, false)
+        )
+      )
+      .orderBy(asc(chatMessages.createdAt));
+    
+    return messages;
+  }
+
   async canUsersChat(userId1: number, userId2: number): Promise<boolean> {
     // Users can chat if they follow each other
     const user1FollowsUser2 = await this.isFollowing(userId1, userId2);

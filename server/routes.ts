@@ -3859,13 +3859,116 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Store client connections by user ID
   const clients = new Map<number, WebSocket>();
   
+  // Store pending messages for offline users
+  interface PendingMessage {
+    receiverId: number;
+    message: any;
+    attempts: number;
+    lastAttempt: Date;
+  }
+  const pendingMessages = new Map<number, PendingMessage[]>();
+  
+  // Ping interval to keep connections alive (every 30 seconds)
+  const pingInterval = setInterval(() => {
+    wss.clients.forEach((client) => {
+      if (client.readyState === WebSocket.OPEN) {
+        client.send(JSON.stringify({ type: 'ping' }));
+      }
+    });
+  }, 30000);
+  
+  // Retry sending pending messages every minute
+  const retryInterval = setInterval(() => {
+    pendingMessages.forEach((messages, userId) => {
+      const ws = clients.get(userId);
+      if (ws && ws.readyState === WebSocket.OPEN) {
+        // User is online, try to deliver pending messages
+        const delivered: number[] = [];
+        
+        messages.forEach((pendingMsg, index) => {
+          try {
+            ws.send(JSON.stringify(pendingMsg.message));
+            delivered.push(index);
+            console.log(`Delivered pending message to user ${userId}`);
+          } catch (error) {
+            // Increment attempt counter
+            pendingMsg.attempts++;
+            pendingMsg.lastAttempt = new Date();
+            
+            // If we've tried too many times (10), give up
+            if (pendingMsg.attempts > 10) {
+              delivered.push(index);
+              console.log(`Giving up on message delivery to user ${userId} after 10 attempts`);
+            }
+          }
+        });
+        
+        // Remove delivered messages
+        delivered.sort((a, b) => b - a).forEach(index => {
+          messages.splice(index, 1);
+        });
+        
+        // If no more pending messages, remove the user entry
+        if (messages.length === 0) {
+          pendingMessages.delete(userId);
+        }
+      }
+    });
+  }, 60000);
+  
+  // Handle graceful shutdown
+  process.on('SIGINT', () => {
+    clearInterval(pingInterval);
+    clearInterval(retryInterval);
+    wss.close();
+    process.exit(0);
+  });
+  
+  // Helper function to queue a message for offline user
+  const queueMessageForOfflineUser = (userId: number, message: any) => {
+    if (!pendingMessages.has(userId)) {
+      pendingMessages.set(userId, []);
+    }
+    
+    pendingMessages.get(userId)?.push({
+      receiverId: userId,
+      message,
+      attempts: 0,
+      lastAttempt: new Date()
+    });
+    
+    console.log(`Queued message for offline user ${userId}`);
+  };
+  
   wss.on('connection', (ws: WebSocket) => {
     console.log('WebSocket client connected');
     let userId: number | null = null;
     
+    // Set a ping timeout - if client doesn't respond within 40 seconds, close connection
+    let pingTimeout: NodeJS.Timeout;
+    const heartbeat = () => {
+      clearTimeout(pingTimeout);
+      pingTimeout = setTimeout(() => {
+        if (ws.readyState === WebSocket.OPEN) {
+          ws.terminate();
+        }
+      }, 40000);
+    };
+    
+    // Initial heartbeat
+    heartbeat();
+    
+    ws.on('pong', heartbeat);
+    
     ws.on('message', async (message: string) => {
       try {
         const data = JSON.parse(message);
+        
+        // Respond to ping with pong
+        if (data.type === 'pong') {
+          heartbeat();
+          return;
+        }
         
         // Handle authentication
         if (data.type === 'auth') {
@@ -3880,12 +3983,64 @@ export async function registerRoutes(app: Express): Promise<Server> {
             const decoded = jwt.verify(token, JWT_SECRET) as any;
             userId = decoded.id;
             
+            // Get user data
+            const user = await storage.getUser(userId);
+            if (!user) {
+              ws.send(JSON.stringify({ type: 'error', message: 'User not found' }));
+              return;
+            }
+            
             // Store this connection
             clients.set(userId, ws);
             
-            // Send acknowledgment
-            ws.send(JSON.stringify({ type: 'auth_success', userId }));
+            // Send acknowledgment with user details (excluding password)
+            const { password, ...safeUser } = user;
+            ws.send(JSON.stringify({ 
+              type: 'auth_success', 
+              userId,
+              user: safeUser
+            }));
             console.log(`User ${userId} authenticated via WebSocket`);
+            
+            // Check for any unread messages
+            const unreadMessages = await storage.getUnreadMessagesForUser(userId);
+            if (unreadMessages && unreadMessages.length > 0) {
+              ws.send(JSON.stringify({
+                type: 'unread_messages',
+                count: unreadMessages.length,
+                messages: unreadMessages
+              }));
+            }
+            
+            // Deliver any pending messages
+            if (pendingMessages.has(userId)) {
+              const messages = pendingMessages.get(userId) || [];
+              console.log(`Found ${messages.length} pending messages for user ${userId}`);
+              
+              const delivered: number[] = [];
+              messages.forEach((pendingMsg, index) => {
+                try {
+                  ws.send(JSON.stringify(pendingMsg.message));
+                  delivered.push(index);
+                  console.log(`Delivered pending message to user ${userId} on login`);
+                } catch (error) {
+                  console.error(`Failed to deliver pending message on login for user ${userId}`, error);
+                  // Increment attempt counter
+                  pendingMsg.attempts++;
+                  pendingMsg.lastAttempt = new Date();
+                }
+              });
+              
+              // Remove delivered messages
+              delivered.sort((a, b) => b - a).forEach(index => {
+                messages.splice(index, 1);
+              });
+              
+              // If no more pending messages, remove the user entry
+              if (messages.length === 0) {
+                pendingMessages.delete(userId);
+              }
+            }
           } catch (error) {
             ws.send(JSON.stringify({ type: 'error', message: 'Invalid authentication' }));
           }
@@ -3897,7 +4052,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
             return;
           }
           
-          const { receiverId, content } = data;
+          const { receiverId, content, tempId } = data;
           
           // Validate message
           if (!receiverId || !content) {
@@ -3910,7 +4065,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
           if (!canChat) {
             ws.send(JSON.stringify({ 
               type: 'error', 
-              message: 'You can only chat with users who you follow and who follow you back' 
+              message: 'You can only chat with users who you follow and who follow you back',
+              tempId // Return tempId for client to handle error
             }));
             return;
           }
@@ -3923,19 +4079,38 @@ export async function registerRoutes(app: Express): Promise<Server> {
             isRead: false,
           });
           
+          // Get sender info for the message
+          const sender = await storage.getUser(userId);
+          const messageWithSender = {
+            type: 'new_message',
+            message: {
+              ...message,
+              sender // Include sender info for convenience
+            }
+          };
+          
           // Send message to receiver if online
           const receiverWs = clients.get(receiverId);
           if (receiverWs && receiverWs.readyState === WebSocket.OPEN) {
-            receiverWs.send(JSON.stringify({
-              type: 'new_message',
-              message
-            }));
+            try {
+              receiverWs.send(JSON.stringify(messageWithSender));
+              console.log(`Message sent to online user ${receiverId}`);
+            } catch (error) {
+              console.error(`Error sending message to user ${receiverId}`, error);
+              // Queue the message for later delivery
+              queueMessageForOfflineUser(receiverId, messageWithSender);
+            }
+          } else {
+            // Queue message for offline user
+            console.log(`User ${receiverId} is offline, queueing message`);
+            queueMessageForOfflineUser(receiverId, messageWithSender);
           }
           
-          // Send confirmation to sender
+          // Send confirmation to sender with tempId if provided
           ws.send(JSON.stringify({
             type: 'message_sent',
-            message
+            message,
+            tempId // Include original tempId to allow client to update UI
           }));
         } 
         // Handle read receipts
@@ -3969,6 +4144,27 @@ export async function registerRoutes(app: Express): Promise<Server> {
             senderId
           }));
         }
+        // Handle retrieving message history
+        else if (data.type === 'get_message_history') {
+          if (!userId) {
+            ws.send(JSON.stringify({ type: 'error', message: 'Authentication required' }));
+            return;
+          }
+          
+          const { partnerId, limit, before } = data;
+          if (!partnerId) {
+            ws.send(JSON.stringify({ type: 'error', message: 'Partner ID is required' }));
+            return;
+          }
+          
+          // Get message history
+          const messages = await storage.getChatHistory(userId, partnerId, limit || 50, before);
+          ws.send(JSON.stringify({
+            type: 'message_history',
+            partnerId,
+            messages
+          }));
+        }
       } catch (error) {
         console.error('Error handling WebSocket message:', error);
         ws.send(JSON.stringify({ type: 'error', message: 'Internal server error' }));
@@ -3976,9 +4172,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
     });
     
     ws.on('close', () => {
+      clearTimeout(pingTimeout);
       if (userId) {
         clients.delete(userId);
         console.log(`User ${userId} disconnected from WebSocket`);
+      }
+    });
+    
+    ws.on('error', (error) => {
+      console.error('WebSocket error:', error);
+      clearTimeout(pingTimeout);
+      if (userId) {
+        clients.delete(userId);
       }
     });
   });
