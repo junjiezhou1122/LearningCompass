@@ -380,15 +380,15 @@ const ChatPage = () => {
       
       if (messagesContainer) {
         // Set the messages container height by accounting for the chat input and header
-        const chatHeaderHeight = 40; // Reduced from 56 to 40px
-        const chatInputHeight = 58; // Reduced from 72 to 58px
+        const chatHeaderHeight = 24; // Significantly reduced from 40px to 24px 
+        const chatInputHeight = 30; // Significantly reduced from 58px to 30px
         const messagesContainerHeight = chatContainer.offsetHeight - chatHeaderHeight - chatInputHeight;
         messagesContainer.style.height = `${messagesContainerHeight}px`;
       }
       
       if (sidebarScrollArea) {
         // Handle the sidebar scroll area height - account for search input height
-        const searchInputHeight = 48; // Reduced from 57 to 48px
+        const searchInputHeight = 36; // Further reduced from 48px to 36px
         const sidebarAreaHeight = chatContainer.offsetHeight - searchInputHeight;
         sidebarScrollArea.style.height = `${sidebarAreaHeight}px`;
       }
@@ -625,12 +625,12 @@ const ChatPage = () => {
           style={{ minWidth: '256px', maxWidth: '256px' }}
         >
           {/* Search */}
-          <div className="p-3 border-b border-orange-200 bg-orange-100/50">
+          <div className="p-2 border-b border-orange-200 bg-orange-50">
             <div className="relative">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-orange-500" />
+              <Search className="absolute left-2 top-1/2 transform -translate-y-1/2 h-3 w-3 text-orange-500" />
               <Input 
-                placeholder="Find or start a conversation" 
-                className="pl-9 py-2 h-9 bg-white border-orange-200 text-sm rounded-md placeholder:text-orange-300 focus-visible:ring-orange-500"
+                placeholder="Find conversation..." 
+                className="pl-7 py-1 h-7 bg-white border-orange-200 text-xs rounded-md placeholder:text-orange-300 focus-visible:ring-orange-500"
               />
             </div>
           </div>
@@ -709,26 +709,24 @@ const ChatPage = () => {
           {activeChat ? (
             <>
               {/* Chat header */}
-              <div className="h-10 border-b border-orange-200 flex items-center justify-between px-4 py-0 bg-orange-100">
+              <div className="h-6 min-h-6 max-h-6 border-b border-orange-200 flex items-center justify-between px-2 py-0 bg-orange-50">
                 <div className="flex items-center">
-                  <div className="relative mr-2">
-                    <User className="h-4 w-4 text-orange-600" />
+                  <div className="flex h-4 w-4 items-center justify-center rounded-full bg-orange-200 mr-1">
+                    <User className="h-2 w-2 text-orange-600" />
                   </div>
                   <div>
-                    <div className="flex items-center">
-                      <h2 className="text-sm font-medium text-orange-800">{activeChat.username}</h2>
-                    </div>
+                    <h2 className="text-xs font-medium text-orange-800">{activeChat.username}</h2>
                   </div>
                 </div>
-                <div className="flex items-center space-x-1">
+                <div className="flex items-center space-x-0.5">
                   <TooltipProvider>
                     <Tooltip>
                       <TooltipTrigger asChild>
-                        <Button variant="ghost" size="icon" className="h-7 w-7 text-orange-600 hover:bg-orange-200 rounded-md p-1">
-                          <Phone className="h-4 w-4" />
+                        <Button variant="ghost" size="icon" className="h-4 w-4 text-orange-600 hover:bg-orange-200 rounded-md p-0">
+                          <Phone className="h-2 w-2" />
                         </Button>
                       </TooltipTrigger>
-                      <TooltipContent className="bg-orange-50 border-orange-200 text-orange-700">
+                      <TooltipContent className="bg-orange-50 border-orange-200 text-orange-700 text-[10px] py-0.5 px-1.5">
                         <p>Voice call</p>
                       </TooltipContent>
                     </Tooltip>
@@ -736,11 +734,11 @@ const ChatPage = () => {
                   <TooltipProvider>
                     <Tooltip>
                       <TooltipTrigger asChild>
-                        <Button variant="ghost" size="icon" className="h-7 w-7 text-orange-600 hover:bg-orange-200 rounded-md p-1">
-                          <Video className="h-4 w-4" />
+                        <Button variant="ghost" size="icon" className="h-4 w-4 text-orange-600 hover:bg-orange-200 rounded-md p-0">
+                          <Video className="h-2 w-2" />
                         </Button>
                       </TooltipTrigger>
-                      <TooltipContent className="bg-orange-50 border-orange-200 text-orange-700">
+                      <TooltipContent className="bg-orange-50 border-orange-200 text-orange-700 text-[10px] py-0.5 px-1.5">
                         <p>Video call</p>
                       </TooltipContent>
                     </Tooltip>
@@ -748,11 +746,11 @@ const ChatPage = () => {
                   <TooltipProvider>
                     <Tooltip>
                       <TooltipTrigger asChild>
-                        <Button variant="ghost" size="icon" className="h-7 w-7 text-orange-600 hover:bg-orange-200 rounded-md p-1">
-                          <Info className="h-4 w-4" />
+                        <Button variant="ghost" size="icon" className="h-4 w-4 text-orange-600 hover:bg-orange-200 rounded-md p-0">
+                          <Info className="h-2 w-2" />
                         </Button>
                       </TooltipTrigger>
-                      <TooltipContent className="bg-orange-50 border-orange-200 text-orange-700">
+                      <TooltipContent className="bg-orange-50 border-orange-200 text-orange-700 text-[10px] py-0.5 px-1.5">
                         <p>Info</p>
                       </TooltipContent>
                     </Tooltip>
@@ -802,17 +800,14 @@ const ChatPage = () => {
               </ScrollArea>
               
               {/* Chat input */}
-              <div className="px-4 py-3 bg-orange-50 border-t border-orange-200">
-                <div className="flex items-end bg-white rounded-lg px-3 py-2 border border-orange-200 shadow-sm">
-                  <div className="flex space-x-1 mr-2">
-                    <Button variant="ghost" size="icon" className="h-8 w-8 text-orange-500 hover:bg-orange-100 rounded-full p-0">
-                      <PlusCircle className="h-4 w-4" />
+              <div className="px-2 py-1 bg-orange-50 border-t border-orange-200">
+                <div className="flex items-center bg-white rounded-md px-1.5 py-0.5 border border-orange-200 shadow-sm">
+                  <div className="flex space-x-0.5 mr-1">
+                    <Button variant="ghost" size="icon" className="h-4 w-4 text-orange-500 hover:bg-orange-100 rounded-full p-0">
+                      <Image className="h-2 w-2" />
                     </Button>
-                    <Button variant="ghost" size="icon" className="h-8 w-8 text-orange-500 hover:bg-orange-100 rounded-full p-0">
-                      <Image className="h-4 w-4" />
-                    </Button>
-                    <Button variant="ghost" size="icon" className="h-8 w-8 text-orange-500 hover:bg-orange-100 rounded-full p-0">
-                      <Paperclip className="h-4 w-4" />
+                    <Button variant="ghost" size="icon" className="h-4 w-4 text-orange-500 hover:bg-orange-100 rounded-full p-0">
+                      <Paperclip className="h-2 w-2" />
                     </Button>
                   </div>
                   <Input 
@@ -820,21 +815,18 @@ const ChatPage = () => {
                     onChange={(e) => setInput(e.target.value)}
                     onKeyDown={handleKeyDown}
                     placeholder={`Message ${activeChat.username}`}
-                    className="flex-1 border-0 bg-transparent text-gray-800 focus-visible:ring-0 focus-visible:ring-offset-0 px-0 placeholder:text-orange-300 text-sm"
+                    className="flex-1 border-0 bg-transparent text-gray-800 focus-visible:ring-0 focus-visible:ring-offset-0 px-0 placeholder:text-orange-300 text-xs h-4 min-h-4 py-0"
                   />
-                  <div className="flex space-x-1 ml-2">
-                    <Button variant="ghost" size="icon" className="h-8 w-8 text-orange-500 hover:bg-orange-100 rounded-full p-0">
-                      <Smile className="h-4 w-4" />
-                    </Button>
-                    <Button variant="ghost" size="icon" className="h-8 w-8 text-orange-500 hover:bg-orange-100 rounded-full p-0">
-                      <Mic className="h-4 w-4" />
+                  <div className="flex space-x-0.5 ml-1">
+                    <Button variant="ghost" size="icon" className="h-4 w-4 text-orange-500 hover:bg-orange-100 rounded-full p-0">
+                      <Smile className="h-2 w-2" />
                     </Button>
                     <Button 
                       onClick={sendMessage} 
                       disabled={!input.trim() || !connected}
-                      className="bg-orange-600 hover:bg-orange-700 text-white rounded-md h-8 w-8 flex items-center justify-center p-0"
+                      className="bg-orange-600 hover:bg-orange-700 text-white rounded-md h-4 w-4 flex items-center justify-center p-0"
                     >
-                      <Send className="h-4 w-4" />
+                      <Send className="h-2 w-2" />
                     </Button>
                   </div>
                 </div>

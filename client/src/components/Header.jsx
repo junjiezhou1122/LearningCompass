@@ -25,17 +25,17 @@ export default function Header() {
   }, [location]);
 
   return (
-    <header className="bg-[#313338] text-white shadow-md sticky top-0 z-50">
+    <header className="bg-orange-600 text-white shadow-md sticky top-0 z-50">
       <div className="container mx-auto px-4 py-2">
         <div className="flex items-center justify-between">
           {/* Logo */}
           <Button
             variant="ghost"
-            className="p-0 h-auto hover:bg-[#3f4248] hover:text-white text-white rounded-sm"
+            className="p-0 h-auto hover:bg-orange-700 hover:text-white text-white rounded-sm"
             onClick={() => navigate("/")}
           >
             <div className="flex items-center">
-              <div className="bg-[#5865f2] rounded-md p-1 mr-2">
+              <div className="bg-orange-500 rounded-md p-1 mr-2">
                 <Brain className="text-white h-4 w-4" />
               </div>
               <span className="text-base font-semibold">

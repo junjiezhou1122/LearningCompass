@@ -14,7 +14,7 @@ export default function HeaderNav() {
     <div className="hidden md:flex items-center space-x-1">
       <Button
         variant="ghost"
-        className="text-[#b5bac1] hover:text-white hover:bg-[#3f4248] transition-all duration-300 text-sm font-medium rounded-sm h-8"
+        className="text-white hover:text-white hover:bg-orange-700 transition-all duration-300 text-sm font-medium rounded-sm h-8"
         onClick={() => navigate("/courses")}
       >
         <BookOpen className="h-4 w-4 mr-2" />
@@ -22,7 +22,7 @@ export default function HeaderNav() {
       </Button>
       <Button
         variant="ghost"
-        className="text-[#b5bac1] hover:text-white hover:bg-[#3f4248] transition-all duration-300 text-sm font-medium rounded-sm h-8"
+        className="text-white hover:text-white hover:bg-orange-700 transition-all duration-300 text-sm font-medium rounded-sm h-8"
         onClick={() => navigate("/learning-center")}
       >
         <GraduationCap className="h-4 w-4 mr-2" />
@@ -30,7 +30,7 @@ export default function HeaderNav() {
       </Button>
       <Button
         variant="ghost"
-        className="text-[#b5bac1] hover:text-white hover:bg-[#3f4248] transition-all duration-300 text-sm font-medium rounded-sm h-8"
+        className="text-white hover:text-white hover:bg-orange-700 transition-all duration-300 text-sm font-medium rounded-sm h-8"
         onClick={() => navigate("/share")}
       >
         <MessageSquare className="h-4 w-4 mr-2" />
@@ -40,7 +40,7 @@ export default function HeaderNav() {
         <>
           <Button
             variant="ghost"
-            className="text-[#b5bac1] hover:text-white hover:bg-[#3f4248] transition-all duration-300 text-sm font-medium rounded-sm h-8"
+            className="text-white hover:text-white hover:bg-orange-700 transition-all duration-300 text-sm font-medium rounded-sm h-8"
             onClick={() => navigate("/notes")}
           >
             <StickyNote className="h-4 w-4 mr-2" />
@@ -48,7 +48,7 @@ export default function HeaderNav() {
           </Button>
           <Button
             variant="ghost"
-            className="text-white bg-[#3f4248] hover:bg-[#4f5258] transition-all duration-300 text-sm font-medium rounded-sm h-8"
+            className="text-white bg-orange-700 hover:bg-orange-800 transition-all duration-300 text-sm font-medium rounded-sm h-8"
             onClick={() => navigate("/chat")}
           >
             <MessagesSquare className="h-4 w-4 mr-2" />

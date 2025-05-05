@@ -17,31 +17,31 @@ const ChatMessage = ({ message, isCurrentUser }) => {
   const formattedTime = format(new Date(message.createdAt), 'h:mm a');
   
   return (
-    <div className={`flex items-end mb-4 ${isCurrentUser ? 'justify-end' : 'justify-start'}`}>
+    <div className={`flex items-end mb-3 ${isCurrentUser ? 'justify-end' : 'justify-start'}`}>
       {!isCurrentUser && (
         <div className="flex-shrink-0 mr-2 mb-1">
-          <div className="h-8 w-8 rounded-full bg-orange-100 border border-orange-200 flex items-center justify-center">
-            <User className="h-4 w-4 text-orange-600" />
+          <div className="h-7 w-7 rounded-full bg-orange-100 border border-orange-200 flex items-center justify-center">
+            <User className="h-3.5 w-3.5 text-orange-600" />
           </div>
         </div>
       )}
       
       <div className={`max-w-[70%]`}>
-        <div className={`px-4 py-2 rounded-lg ${isCurrentUser 
+        <div className={`px-3 py-1.5 rounded-lg ${isCurrentUser 
           ? 'bg-orange-600 text-white rounded-br-none shadow-sm' 
           : 'bg-orange-50 text-orange-800 rounded-bl-none border border-orange-100 shadow-sm'}`}
         >
           <p className="text-sm">{message.content}</p>
         </div>
-        <div className={`text-xs text-orange-400 mt-1 ${isCurrentUser ? 'text-right mr-2' : 'ml-2'}`}>
+        <div className={`text-xs text-orange-400 mt-0.5 ${isCurrentUser ? 'text-right mr-2' : 'ml-2'}`}>
           {formattedTime}
         </div>
       </div>
       
       {isCurrentUser && (
         <div className="flex-shrink-0 ml-2 mb-1">
-          <div className="h-8 w-8 rounded-full bg-orange-600 border border-orange-300 flex items-center justify-center">
-            <User className="h-4 w-4 text-white" />
+          <div className="h-7 w-7 rounded-full bg-orange-600 border border-orange-300 flex items-center justify-center">
+            <User className="h-3.5 w-3.5 text-white" />
           </div>
         </div>
       )}
@@ -269,39 +269,52 @@ const ChatInterface = ({ otherUser, onClose }) => {
       <div className="flex flex-col flex-grow">
         {/* Chat header */}
         <div 
-          className="px-4 py-3 border-b flex items-center justify-between bg-orange-600 text-white shadow-sm"
+          className="px-3 py-2 border-b flex items-center justify-between bg-orange-600 text-white shadow-sm"
         >
           <div className="flex items-center">
             <Button 
               variant="ghost" 
-              size="icon" 
+              size="sm" 
               onClick={onClose}
-              className="mr-2 text-white hover:bg-orange-700"
+              className="mr-2 text-white hover:bg-orange-700 h-8 w-8 p-0"
             >
-              <ArrowLeft className="h-5 w-5" />
+              <ArrowLeft className="h-4 w-4" />
             </Button>
             
             <div className="flex items-center">
               <div 
-                className="h-9 w-9 rounded-full bg-orange-100 flex items-center justify-center mr-3 border border-white"
+                className="h-8 w-8 rounded-full bg-orange-100 flex items-center justify-center mr-2 border border-white"
               >
-                <User className="h-5 w-5 text-orange-600" />
+                <User className="h-4 w-4 text-orange-600" />
               </div>
               <div>
-                <h3 className="font-semibold">{otherUser?.username || 'User'}</h3>
+                <h3 className="font-medium text-sm">{otherUser?.username || 'User'}</h3>
                 <div className="flex items-center">
                   <span 
-                    className="h-2 w-2 rounded-full bg-green-400 mr-2"
+                    className="h-1.5 w-1.5 rounded-full bg-green-400 mr-1.5"
                   ></span>
-                  <span className="text-xs">Online</span>
+                  <span className="text-xs opacity-90">Online</span>
                 </div>
               </div>
             </div>
           </div>
           
           {/* Chat actions right side of header */}
-          <div className="flex items-center">
-            {/* Additional chat actions can be added here if needed */}
+          <div className="flex items-center space-x-1">
+            <Button 
+              variant="ghost" 
+              size="sm" 
+              className="text-white hover:bg-orange-700 h-7 w-7 p-0"
+            >
+              <Phone className="h-3.5 w-3.5" />
+            </Button>
+            <Button 
+              variant="ghost" 
+              size="sm" 
+              className="text-white hover:bg-orange-700 h-7 w-7 p-0"
+            >
+              <MoreVertical className="h-3.5 w-3.5" />
+            </Button>
           </div>
         </div>
         
@@ -310,16 +323,16 @@ const ChatInterface = ({ otherUser, onClose }) => {
           {loading ? (
             <div className="flex items-center justify-center h-full">
               <div 
-                className="rounded-full h-8 w-8 border-2 border-orange-200 border-t-orange-600 animate-spin"
+                className="rounded-full h-7 w-7 border-2 border-orange-200 border-t-orange-600 animate-spin"
               ></div>
             </div>
           ) : messages.length === 0 ? (
             <div className="flex flex-col items-center justify-center h-full text-orange-500">
               <div>
-                <MessageSquare className="h-12 w-12 mb-3 text-orange-300" />
+                <MessageSquare className="h-10 w-10 mb-2 text-orange-300" />
               </div>
-              <p className="font-medium text-lg text-orange-600 mb-2">No messages yet</p>
-              <p className="text-sm text-orange-700">Send a message to start the conversation</p>
+              <p className="font-medium text-base text-orange-600 mb-1">No messages yet</p>
+              <p className="text-xs text-orange-700">Send a message to start the conversation</p>
             </div>
           ) : (
             <AnimatePresence>
@@ -344,24 +357,24 @@ const ChatInterface = ({ otherUser, onClose }) => {
         
         {/* Chat input */}
         <div 
-          className="p-3 border-t flex items-center bg-orange-50"
+          className="px-3 py-2 border-t flex items-center bg-orange-50"
         >
-          <div className="flex items-center space-x-2 mr-2">
+          <div className="flex items-center space-x-1 mr-1">
             <Button 
               variant="ghost" 
-              size="icon" 
-              className="text-orange-400 hover:text-orange-600 hover:bg-orange-100"
+              size="sm" 
+              className="text-orange-400 hover:text-orange-600 hover:bg-orange-100 h-8 w-8 p-0"
               disabled={!connected}
             >
-              <Paperclip className="h-5 w-5" />
+              <Paperclip className="h-4 w-4" />
             </Button>
             <Button 
               variant="ghost" 
-              size="icon" 
-              className="text-orange-400 hover:text-orange-600 hover:bg-orange-100"
+              size="sm" 
+              className="text-orange-400 hover:text-orange-600 hover:bg-orange-100 h-8 w-8 p-0"
               disabled={!connected}
             >
-              <Image className="h-5 w-5" />
+              <Image className="h-4 w-4" />
             </Button>
           </div>
           
@@ -370,12 +383,12 @@ const ChatInterface = ({ otherUser, onClose }) => {
             onChange={(e) => setInput(e.target.value)}
             onKeyDown={handleKeyDown}
             placeholder="Type a message..."
-            className="flex-grow rounded-md border-orange-200 focus:border-orange-500 focus:ring-orange-200 mx-2"
+            className="flex-grow rounded-md border-orange-200 focus:border-orange-500 focus:ring-orange-200 mx-2 h-9"
             disabled={!connected}
           />
           <Button 
             onClick={sendMessage} 
-            className="bg-orange-600 hover:bg-orange-700 text-white rounded-md px-4 ml-3"
+            className="bg-orange-600 hover:bg-orange-700 text-white rounded-md px-3 py-1 h-8"
             disabled={!connected || !input.trim()}
           >
             <Send className="h-4 w-4" />
@@ -390,17 +403,17 @@ const ChatInterface = ({ otherUser, onClose }) => {
           className="absolute inset-0 bg-white bg-opacity-80 flex items-center justify-center rounded-lg z-50"
         >
           <div 
-            className="text-center p-6 bg-white shadow-md rounded-md border border-orange-200"
+            className="text-center p-4 bg-white shadow-md rounded-md border border-orange-200"
           >
-            <div className="mb-4 inline-block">
-              <Badge variant="outline" className="mb-2 text-lg bg-orange-50 text-orange-700 border-orange-200 px-4 py-1">
-                <WifiOff className="mr-2 h-4 w-4" />
+            <div className="mb-3 inline-block">
+              <Badge variant="outline" className="mb-1 text-sm bg-orange-50 text-orange-700 border-orange-200 px-3 py-0.5">
+                <WifiOff className="mr-1.5 h-3.5 w-3.5" />
                 Disconnected
               </Badge>
             </div>
-            <p className="text-orange-600 mb-2">Trying to reconnect to chat service...</p>
+            <p className="text-orange-600 mb-2 text-sm">Trying to reconnect to chat service...</p>
             <div 
-              className="mx-auto h-6 w-6 rounded-full border-2 border-orange-200 border-t-orange-600 animate-spin mt-4"
+              className="mx-auto h-5 w-5 rounded-full border-2 border-orange-200 border-t-orange-600 animate-spin mt-3"
             ></div>
           </div>
         </div>
