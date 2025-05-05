@@ -432,6 +432,26 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
   
+  // Get available users for chat
+  app.get("/api/users/available", authenticateJWT, async (req: Request, res: Response) => {
+    try {
+      const userId = (req as any).user.id;
+      
+      if (!userId) {
+        return res.status(401).json({ message: "Authentication required" });
+      }
+      
+      const availableUsers = await storage.getAvailableUsersForChat(userId);
+      res.json(availableUsers);
+    } catch (error) {
+      console.error("Error fetching available users for chat:", error);
+      res.status(500).json({ 
+        message: "Failed to fetch available users", 
+        error: error instanceof Error ? error.message : String(error)
+      });
+    }
+  });
+  
   // Get user by ID for profile view
   app.get("/api/users/:userId", async (req: Request, res: Response) => {
     try {
@@ -598,6 +618,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.status(500).json({ message: "Error fetching user comments" });
     }
   });
+  
+
   
   // Get user's followers
   app.get("/api/users/:userId/followers", async (req: Request, res: Response) => {

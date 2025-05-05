@@ -54,6 +54,8 @@ export interface IStorage {
   getUserByFirebaseId(firebaseId: string): Promise<User | undefined>;
   createUser(user: InsertUser): Promise<User>;
   getUserPosts(userId: number): Promise<LearningPost[]>;
+  getAllUsers(): Promise<User[]>;
+  getAvailableUsersForChat(userId: number): Promise<User[]>;
   
   // Follow operations
   getFollowers(userId: number): Promise<User[]>;
@@ -394,6 +396,26 @@ export class DatabaseStorage implements IStorage {
     return await db.select().from(learningPosts)
       .where(eq(learningPosts.userId, userId))
       .orderBy(desc(learningPosts.createdAt));
+  }
+  
+  async getAllUsers(): Promise<User[]> {
+    return await db.select().from(users);
+  }
+  
+  async getAvailableUsersForChat(userId: number): Promise<User[]> {
+    // First, get all users who the current user is following
+    const following = await this.getFollowing(userId);
+    
+    // Then, get all users who are following the current user
+    const followers = await this.getFollowers(userId);
+    
+    // Combine the lists and filter out duplicates by user ID
+    const allContacts = [...following, ...followers];
+    const uniqueContacts = allContacts.filter((contact, index, self) => 
+      index === self.findIndex(c => c.id === contact.id)
+    );
+    
+    return uniqueContacts;
   }
   
   async getFollowers(userId: number): Promise<User[]> {

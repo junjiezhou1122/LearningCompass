@@ -78,10 +78,18 @@ export const WebSocketContextProvider = ({ children }) => {
       
       // Connection closed
       ws.current.onclose = (event) => {
-        console.log(`WebSocket closed: ${event.code}`);
+        console.log(`WebSocket closed: ${event.code} ${event.reason}`);
         setConnected(false);
         setConnectionStatus('disconnected');
         clearHeartbeat();
+        
+        // Check for abnormal closure (code 1006)
+        if (event.code === 1006) {
+          console.warn('Abnormal WebSocket closure detected (Code 1006)');
+          setError({
+            message: 'Connection lost unexpectedly. This may indicate network issues.'
+          });
+        }
         
         // Reconnect unless it was a normal closure
         if (event.code !== 1000) {
@@ -256,11 +264,24 @@ export const WebSocketContextProvider = ({ children }) => {
     }
     
     reconnectAttempts.current += 1;
-    const maxAttempts = 10;
+    const maxAttempts = 20; // Increased from 10 to 20 for better resilience
     
     if (reconnectAttempts.current <= maxAttempts) {
-      const delay = Math.min(1000 * Math.pow(2, reconnectAttempts.current - 1), 30000);
+      // Update connection status to show reconnect attempt
+      setConnectionStatus(`reconnecting:${reconnectAttempts.current}`);
+      
+      // Calculate delay with exponential backoff, but cap it at 30 seconds
+      const delay = Math.min(1000 * Math.pow(1.5, reconnectAttempts.current - 1), 30000);
       console.log(`Reconnecting in ${delay}ms (attempt ${reconnectAttempts.current}/${maxAttempts})`);
+      
+      // For first few attempts, don't show a toast to avoid UI spam
+      if (reconnectAttempts.current === 3) {
+        toast({
+          title: 'Connection Issues',
+          description: 'Trying to reconnect to chat service...',
+          variant: 'default'
+        });
+      }
       
       reconnectTimeout.current = setTimeout(() => {
         console.log(`Attempting to reconnect (${reconnectAttempts.current}/${maxAttempts})`);
@@ -269,9 +290,12 @@ export const WebSocketContextProvider = ({ children }) => {
     } else {
       console.log('Max reconnection attempts reached');
       setConnectionStatus('failed');
+      setError({
+        message: 'Could not connect to chat service after multiple attempts. Please refresh the page or try again later.'
+      });
       toast({
         title: 'Connection Failed',
-        description: 'Could not connect to chat server after multiple attempts',
+        description: 'Could not connect to chat service after multiple attempts. Please refresh the page.',
         variant: 'destructive'
       });
     }

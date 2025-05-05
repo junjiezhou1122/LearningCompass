@@ -39,8 +39,8 @@ function Router() {
     location === "/forgot-password" ||
     location === "/reset-password";
     
-  // Check if it's the chat page which needs a different layout
-  const isChatPage = location === "/chat";
+  // Check if it's a chat page which needs a different layout
+  const isChatPage = location === "/chat" || location === "/unified-chat";
 
   // Debug location and sidebar visibility
   console.log("Current location:", location);
@@ -59,6 +59,13 @@ function Router() {
         <div className="flex-grow flex flex-col h-[calc(100vh-64px)]">
           <Switch>
             <Route path="/chat">
+              <ErrorBoundary>
+                <WebSocketContextProvider>
+                  <UnifiedChatPage />
+                </WebSocketContextProvider>
+              </ErrorBoundary>
+            </Route>
+            <Route path="/unified-chat">
               <ErrorBoundary>
                 <WebSocketContextProvider>
                   <UnifiedChatPage />

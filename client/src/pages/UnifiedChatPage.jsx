@@ -46,9 +46,23 @@ const UnifiedChatPage = () => {
   useEffect(() => {
     if (wsContext) {
       const { connectionStatus } = wsContext;
+      console.log('WebSocket connection status changed:', connectionStatus);
       setWsConnectionStatus(connectionStatus || 'unknown');
     }
   }, [wsContext?.connectionStatus]);
+  
+  // Initialize WebSocket connection status
+  useEffect(() => {
+    // Check if token exists
+    const token = localStorage.getItem('token');
+    if (!token) {
+      setWsError('Authentication token not found. Please log in again.');
+      setWsConnectionStatus('auth_error');
+    }
+    
+    // Log initial connection attempt
+    console.log('Initializing chat page with WebSocket connection status:', wsConnectionStatus);
+  }, []);
   
   // Update groups and chat partners when they change
   useEffect(() => {
@@ -355,19 +369,34 @@ const UnifiedChatPage = () => {
   const loadAvailableUsers = useCallback(async () => {
     setIsLoadingUsers(true);
     try {
-      // This would usually come from the WebSocket context or a direct API call
-      const response = await fetch('/api/users/available', {
+      // Determine the base URL at runtime based on the current location
+      const baseUrl = window.location.origin;
+      console.log('Fetching available users from:', `${baseUrl}/api/users/available`);
+      
+      const token = localStorage.getItem('token');
+      if (!token) {
+        throw new Error("Authentication token not found");
+      }
+      
+      const response = await fetch(`${baseUrl}/api/users/available`, {
         headers: {
-          'Authorization': `Bearer ${localStorage.getItem('token')}`
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
+          'Accept': 'application/json'
         }
       });
       
+      console.log('Available users API response status:', response.status);
+      
       if (response.ok) {
         const users = await response.json();
+        console.log(`Successfully loaded ${users.length} available users`);
         setAvailableUsers(users);
         return users;
       } else {
-        throw new Error("Failed to load users");
+        const errorText = await response.text();
+        console.error('API error response:', errorText);
+        throw new Error(`Failed to load users: ${response.status} ${errorText}`);
       }
     } catch (error) {
       console.error("Error loading available users:", error);
@@ -389,7 +418,14 @@ const UnifiedChatPage = () => {
 
   // Handle opening create group modal
   const handleOpenCreateGroupModal = useCallback(() => {
-    loadAvailableUsers().catch(console.error);
+    console.log('Opening create group modal, loading available users...');
+    loadAvailableUsers()
+      .then(users => {
+        console.log('Successfully loaded available users:', users.length);
+      })
+      .catch(error => {
+        console.error('Error loading available users in modal:', error);
+      });
     setShowCreateGroupModal(true);
   }, [loadAvailableUsers]);
 
@@ -418,15 +454,33 @@ const UnifiedChatPage = () => {
             {wsConnectionStatus !== 'connected' ? (
               <div className="flex items-center justify-center h-full">
                 <div className="text-center p-6 max-w-md">
-                  <h2 className="text-xl font-semibold mb-2">Connecting to chat service...</h2>
-                  <p className="text-muted-foreground">
-                    Status: {wsConnectionStatus}
-                  </p>
-                  {wsError && (
-                    <div className="mt-4 p-4 bg-red-50 text-red-600 rounded-md">
-                      <p className="font-semibold">Connection Error</p>
-                      <p>{wsError}</p>
-                    </div>
+                  {wsConnectionStatus === 'auth_error' ? (
+                    <>
+                      <h2 className="text-xl font-semibold mb-2">Authentication Required</h2>
+                      <p className="text-muted-foreground mb-4">
+                        Please sign in to access the chat feature.
+                      </p>
+                      <div className="mt-4 p-4 bg-amber-50 text-amber-700 rounded-md">
+                        <p className="font-semibold">Session Expired</p>
+                        <p>Your session may have expired. Please refresh the page or sign in again.</p>
+                      </div>
+                    </>
+                  ) : (
+                    <>
+                      <h2 className="text-xl font-semibold mb-2">Connecting to chat service...</h2>
+                      <div className="flex items-center justify-center mb-4">
+                        <div className="w-6 h-6 border-2 border-blue-500 border-t-transparent rounded-full animate-spin mr-2"></div>
+                        <p className="text-muted-foreground">
+                          Status: {wsConnectionStatus}
+                        </p>
+                      </div>
+                      {wsError && (
+                        <div className="mt-4 p-4 bg-red-50 text-red-600 rounded-md">
+                          <p className="font-semibold">Connection Error</p>
+                          <p>{wsError}</p>
+                        </div>
+                      )}
+                    </>
                   )}
                 </div>
               </div>
@@ -451,15 +505,33 @@ const UnifiedChatPage = () => {
             {wsConnectionStatus !== 'connected' ? (
               <div className="flex items-center justify-center h-full">
                 <div className="text-center p-6 max-w-md">
-                  <h2 className="text-xl font-semibold mb-2">Connecting to chat service...</h2>
-                  <p className="text-muted-foreground">
-                    Status: {wsConnectionStatus}
-                  </p>
-                  {wsError && (
-                    <div className="mt-4 p-4 bg-red-50 text-red-600 rounded-md">
-                      <p className="font-semibold">Connection Error</p>
-                      <p>{wsError}</p>
-                    </div>
+                  {wsConnectionStatus === 'auth_error' ? (
+                    <>
+                      <h2 className="text-xl font-semibold mb-2">Authentication Required</h2>
+                      <p className="text-muted-foreground mb-4">
+                        Please sign in to access the chat feature.
+                      </p>
+                      <div className="mt-4 p-4 bg-amber-50 text-amber-700 rounded-md">
+                        <p className="font-semibold">Session Expired</p>
+                        <p>Your session may have expired. Please refresh the page or sign in again.</p>
+                      </div>
+                    </>
+                  ) : (
+                    <>
+                      <h2 className="text-xl font-semibold mb-2">Connecting to chat service...</h2>
+                      <div className="flex items-center justify-center mb-4">
+                        <div className="w-6 h-6 border-2 border-blue-500 border-t-transparent rounded-full animate-spin mr-2"></div>
+                        <p className="text-muted-foreground">
+                          Status: {wsConnectionStatus}
+                        </p>
+                      </div>
+                      {wsError && (
+                        <div className="mt-4 p-4 bg-red-50 text-red-600 rounded-md">
+                          <p className="font-semibold">Connection Error</p>
+                          <p>{wsError}</p>
+                        </div>
+                      )}
+                    </>
                   )}
                 </div>
               </div>
