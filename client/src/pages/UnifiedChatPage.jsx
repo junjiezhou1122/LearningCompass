@@ -40,12 +40,20 @@ const UnifiedChatPage = () => {
   const [isLoadingUsers, setIsLoadingUsers] = useState(false);
 
   // Try to access WebSocketContext with error handling
-  let wsContext = null;
-  try {
-    wsContext = useWebSocketContext();
+  const wsContext = useWebSocketContext();
+  
+  // Update connection status on mount and when it changes
+  useEffect(() => {
     if (wsContext) {
-      const { connected, connectionStatus, groupChats, chatPartners } = wsContext;
+      const { connectionStatus } = wsContext;
       setWsConnectionStatus(connectionStatus || 'unknown');
+    }
+  }, [wsContext?.connectionStatus]);
+  
+  // Update groups and chat partners when they change
+  useEffect(() => {
+    if (wsContext) {
+      const { groupChats, chatPartners } = wsContext;
       
       // If WebSocketContext provides these values, use them
       if (groupChats && groupChats.length > 0) {
@@ -58,15 +66,20 @@ const UnifiedChatPage = () => {
         setIsLoadingPartners(false);
       }
     }
-  } catch (error) {
-    console.error("Error accessing WebSocketContext:", error);
-    setWsError(error.message);
-    toast({
-      title: "WebSocket Error",
-      description: "There was an issue connecting to the chat service. Please reload the page.",
-      variant: "destructive"
-    });
-  }
+  }, [wsContext?.groupChats, wsContext?.chatPartners]);
+  
+  // Handle context errors
+  useEffect(() => {
+    if (wsContext?.error) {
+      console.error("Error in WebSocketContext:", wsContext.error);
+      setWsError(wsContext.error.message);
+      toast({
+        title: "WebSocket Error",
+        description: "There was an issue connecting to the chat service. Please reload the page.",
+        variant: "destructive"
+      });
+    }
+  }, [wsContext?.error, toast]);
   
   // Destructure needed WebSocket context methods with error handling
   const {
