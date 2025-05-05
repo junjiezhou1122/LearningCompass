@@ -1,448 +1,271 @@
-import React, { useState } from 'react';
-import { useWebSocketContext } from '@/components/chat/WebSocketContextProvider';
-import { useToast } from '@/hooks/use-toast';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { 
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from '@/components/ui/alert-dialog';
-import { cn } from '@/lib/utils';
-import { X, Settings, Users, UserX, UserPlus, LogOut, Trash2, Pencil, Shield, Check } from 'lucide-react';
+import { useState, useEffect } from "react";
+import {
+  Sheet,
+  SheetContent,
+  SheetDescription,
+  SheetHeader,
+  SheetTitle,
+} from "@/components/ui/sheet";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import { Avatar } from "@/components/ui/avatar";
+import { useToast } from "@/hooks/use-toast";
+import { useAuth } from "@/contexts/AuthContext";
+import { UserPlus, User, X, LogOut, Trash2, Pencil, Check, RotateCcw } from "lucide-react";
 
-const GroupDetailsPanel = ({ group, onClose, onAddMember, onRemoveMember, currentUserId }) => {
+const GroupDetailsPanel = ({
+  open,
+  onClose,
+  group,
+  onAddMembers,
+  onRemoveMember,
+  onLeaveGroup,
+  onDeleteGroup,
+  onEditGroupName,
+  isAdmin = false,
+  isLoading = false,
+}) => {
   const { toast } = useToast();
-  const { mutualFollowers, updateGroup, deleteGroup } = useWebSocketContext();
-  
+  const { user } = useAuth();
   const [isEditing, setIsEditing] = useState(false);
-  const [groupName, setGroupName] = useState(group?.name || '');
-  const [description, setDescription] = useState(group?.description || '');
-  const [isUpdating, setIsUpdating] = useState(false);
-  const [showConfirmLeave, setShowConfirmLeave] = useState(false);
-  const [showConfirmDelete, setShowConfirmDelete] = useState(false);
-  const [showAddMembers, setShowAddMembers] = useState(false);
-  const [searchQuery, setSearchQuery] = useState('');
-  
-  const isAdmin = group?.createdBy === currentUserId;
-  const members = group?.members || [];
-  
-  // Filter potential members based on search
-  const filteredPotentialMembers = mutualFollowers.filter(user => {
-    // Exclude users who are already members
-    if (members.some(member => member.id === user.id)) return false;
-    
-    // Filter by search query
-    if (!searchQuery.trim()) return true;
-    
-    const query = searchQuery.toLowerCase();
-    return (
-      (user.firstName && user.firstName.toLowerCase().includes(query)) ||
-      (user.lastName && user.lastName.toLowerCase().includes(query)) ||
-      (user.username && user.username.toLowerCase().includes(query))
-    );
-  });
-  
-  // Get user display name
-  const getUserDisplayName = (user) => {
-    if (user.firstName && user.lastName) {
-      return `${user.firstName} ${user.lastName}`;
+  const [newGroupName, setNewGroupName] = useState("");
+  const [searchQuery, setSearchQuery] = useState("");
+
+  // Initialize form when group changes
+  useEffect(() => {
+    if (group) {
+      setNewGroupName(group.name || "");
     }
-    if (user.firstName) {
-      return user.firstName;
-    }
-    return user.username || 'Unknown user';
-  };
-  
-  // Handle saving group details
-  const handleSaveDetails = async () => {
-    if (!groupName.trim()) {
-      toast({
-        variant: 'destructive',
-        title: 'Group name is required',
-        description: 'Please enter a name for the group',
+  }, [group]);
+
+  // Filter members based on search
+  const filteredMembers = !group || !group.members || searchQuery.trim() === ""
+    ? (group?.members || [])
+    : (group.members || []).filter(member => {
+        const usernameMatch = member.username?.toLowerCase().includes(searchQuery.toLowerCase());
+        const nameMatch = 
+          (member.firstName && member.firstName.toLowerCase().includes(searchQuery.toLowerCase())) ||
+          (member.lastName && member.lastName.toLowerCase().includes(searchQuery.toLowerCase()));
+        return usernameMatch || nameMatch;
       });
-      return;
-    }
-    
-    setIsUpdating(true);
-    
-    try {
-      await updateGroup(group.id, {
-        name: groupName.trim(),
-        description: description.trim() || undefined
-      });
-      
-      toast({
-        title: 'Group updated',
-        description: 'Group details have been updated successfully',
-      });
-      
-      setIsEditing(false);
-    } catch (error) {
-      toast({
-        variant: 'destructive',
-        title: 'Failed to update group',
-        description: error.message || 'There was an error updating the group',
-      });
-    } finally {
-      setIsUpdating(false);
+
+  const handleEditName = () => {
+    if (isEditing) {
+      // Save changes
+      if (newGroupName.trim() !== group.name && newGroupName.trim() !== "") {
+        onEditGroupName(newGroupName.trim())
+          .then(() => {
+            toast({
+              title: "Group name updated",
+              description: `The group name has been updated to "${newGroupName.trim()}".`,
+            });
+            setIsEditing(false);
+          })
+          .catch(error => {
+            toast({
+              title: "Failed to update group name",
+              description: error.message || "There was an error updating the group name.",
+              variant: "destructive",
+            });
+          });
+      } else {
+        // Reset to original if empty or unchanged
+        setNewGroupName(group.name);
+        setIsEditing(false);
+      }
+    } else {
+      // Enter editing mode
+      setIsEditing(true);
     }
   };
-  
-  // Handle leaving the group
-  const handleLeaveGroup = async () => {
-    try {
-      await onRemoveMember(currentUserId);
-      setShowConfirmLeave(false);
-      
-      toast({
-        title: 'Left group',
-        description: `You have left "${group.name}"`,
-      });
-    } catch (error) {
-      toast({
-        variant: 'destructive',
-        title: 'Failed to leave group',
-        description: error.message || 'There was an error leaving the group',
-      });
+
+  const handleCancelEdit = () => {
+    setNewGroupName(group.name);
+    setIsEditing(false);
+  };
+
+  const handleLeaveGroup = () => {
+    if (window.confirm("Are you sure you want to leave this group?")) {
+      onLeaveGroup()
+        .then(() => {
+          toast({
+            title: "Left group",
+            description: "You have successfully left the group.",
+          });
+          onClose();
+        })
+        .catch(error => {
+          toast({
+            title: "Failed to leave group",
+            description: error.message || "There was an error leaving the group.",
+            variant: "destructive",
+          });
+        });
     }
   };
-  
-  // Handle deleting the group
-  const handleDeleteGroup = async () => {
-    try {
-      await deleteGroup(group.id);
-      setShowConfirmDelete(false);
-      
-      toast({
-        title: 'Group deleted',
-        description: `"${group.name}" has been deleted`,
-      });
-    } catch (error) {
-      toast({
-        variant: 'destructive',
-        title: 'Failed to delete group',
-        description: error.message || 'There was an error deleting the group',
-      });
+
+  const handleDeleteGroup = () => {
+    if (window.confirm("Are you sure you want to delete this group? This action cannot be undone.")) {
+      onDeleteGroup()
+        .then(() => {
+          toast({
+            title: "Group deleted",
+            description: "The group has been permanently deleted.",
+          });
+          onClose();
+        })
+        .catch(error => {
+          toast({
+            title: "Failed to delete group",
+            description: error.message || "There was an error deleting the group.",
+            variant: "destructive",
+          });
+        });
     }
   };
-  
-  // Handle adding a member
-  const handleAddMember = async (userId) => {
-    try {
-      await onAddMember(userId);
-      
-      toast({
-        title: 'Member added',
-        description: 'New member has been added to the group',
-      });
-    } catch (error) {
-      toast({
-        variant: 'destructive',
-        title: 'Failed to add member',
-        description: error.message || 'There was an error adding the member',
-      });
-    }
-  };
-  
-  // Handle removing a member
-  const handleRemoveMember = async (userId) => {
-    try {
-      await onRemoveMember(userId);
-      
-      toast({
-        title: 'Member removed',
-        description: 'Member has been removed from the group',
-      });
-    } catch (error) {
-      toast({
-        variant: 'destructive',
-        title: 'Failed to remove member',
-        description: error.message || 'There was an error removing the member',
-      });
-    }
-  };
-  
+
   return (
-    <div className="flex flex-col h-full">
-      {/* Panel header */}
-      <div className="flex justify-between items-center p-4 border-b">
-        <h3 className="text-base font-medium">Group Details</h3>
-        <Button variant="ghost" size="icon" onClick={onClose}>
-          <X className="h-4 w-4" />
-        </Button>
-      </div>
-      
-      {/* Group info */}
-      <div className="p-4 border-b">
-        {isEditing ? (
-          <div className="space-y-4">
+    <Sheet open={open} onOpenChange={onClose} position="right">
+      <SheetContent className="sm:max-w-md">
+        <SheetHeader>
+          <SheetTitle>Group Details</SheetTitle>
+          <SheetDescription>
+            View and manage group information and members.
+          </SheetDescription>
+        </SheetHeader>
+
+        {group && (
+          <div className="py-6 space-y-6">
+            {/* Group name */}
             <div className="space-y-2">
-              <Label htmlFor="group-name">Group Name</Label>
-              <Input
-                id="group-name"
-                value={groupName}
-                onChange={(e) => setGroupName(e.target.value)}
-                placeholder="Enter group name"
-              />
-            </div>
-            
-            <div className="space-y-2">
-              <Label htmlFor="group-description">Description (Optional)</Label>
-              <Input
-                id="group-description"
-                value={description}
-                onChange={(e) => setDescription(e.target.value)}
-                placeholder="Enter group description"
-              />
-            </div>
-            
-            <div className="flex gap-2">
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => {
-                  setGroupName(group.name);
-                  setDescription(group.description || '');
-                  setIsEditing(false);
-                }}
-                disabled={isUpdating}
-              >
-                Cancel
-              </Button>
-              <Button
-                size="sm"
-                onClick={handleSaveDetails}
-                disabled={!groupName.trim() || isUpdating}
-              >
-                {isUpdating ? 'Saving...' : 'Save'}
-              </Button>
-            </div>
-          </div>
-        ) : (
-          <div className="space-y-3">
-            <div className="flex justify-between">
-              <h3 className="text-lg font-medium">{group.name}</h3>
-              {isAdmin && (
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  onClick={() => setIsEditing(true)}
-                  title="Edit group details"
-                >
-                  <Pencil className="h-4 w-4" />
-                </Button>
-              )}
-            </div>
-            
-            {group.description && (
-              <p className="text-muted-foreground text-sm">
-                {group.description}
-              </p>
-            )}
-            
-            <p className="text-xs text-muted-foreground">
-              {members.length} {members.length === 1 ? 'member' : 'members'}
-            </p>
-            
-            <div className="flex gap-2">
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => setShowConfirmLeave(true)}
-              >
-                <LogOut className="h-3.5 w-3.5 mr-1" />
-                Leave Group
-              </Button>
-              
-              {isAdmin && (
-                <Button
-                  variant="destructive"
-                  size="sm"
-                  onClick={() => setShowConfirmDelete(true)}
-                >
-                  <Trash2 className="h-3.5 w-3.5 mr-1" />
-                  Delete Group
-                </Button>
-              )}
-            </div>
-          </div>
-        )}
-      </div>
-      
-      {/* Members section */}
-      <div className="p-4">
-        <div className="flex justify-between items-center mb-4">
-          <h4 className="font-medium flex items-center">
-            <Users className="h-4 w-4 mr-1" /> Members
-          </h4>
-          {isAdmin && (
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => setShowAddMembers(!showAddMembers)}
-            >
-              {showAddMembers ? (
-                <Check className="h-3.5 w-3.5 mr-1" />
-              ) : (
-                <UserPlus className="h-3.5 w-3.5 mr-1" />
-              )}
-              {showAddMembers ? 'Done' : 'Add'}
-            </Button>
-          )}
-        </div>
-        
-        {showAddMembers && (
-          <div className="mb-4 space-y-3">
-            <Input
-              placeholder="Search for people to add..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="text-sm"
-            />
-            
-            <div className="border rounded-md overflow-y-auto max-h-36">
-              {filteredPotentialMembers.length > 0 ? (
-                <div className="divide-y">
-                  {filteredPotentialMembers.map(user => (
-                    <div 
-                      key={user.id} 
-                      className="flex items-center justify-between p-2 hover:bg-gray-50"
-                    >
-                      <div className="flex items-center">
-                        <Avatar className="h-6 w-6 mr-2">
-                          {user.photoURL ? (
-                            <AvatarImage src={user.photoURL} alt={getUserDisplayName(user)} />
-                          ) : (
-                            <AvatarFallback className="text-xs">
-                              {getUserDisplayName(user).substring(0, 2)}
-                            </AvatarFallback>
-                          )}
-                        </Avatar>
-                        <span className="text-sm">{getUserDisplayName(user)}</span>
-                      </div>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className="h-6 w-6"
-                        onClick={() => handleAddMember(user.id)}
-                      >
-                        <UserPlus className="h-3.5 w-3.5" />
-                      </Button>
-                    </div>
-                  ))}
-                </div>
-              ) : (
-                <div className="p-3 text-center text-sm text-muted-foreground">
-                  {searchQuery ? 'No users found matching your search' : 'No more users to add'}
-                </div>
-              )}
-            </div>
-          </div>
-        )}
-        
-        <div className="space-y-1">
-          {members.map(member => {
-            const isCurrentUser = member.id === currentUserId;
-            const isOwner = member.id === group.createdBy;
-            
-            return (
-              <div 
-                key={member.id} 
-                className="flex items-center justify-between py-2 px-1"
-              >
-                <div className="flex items-center">
-                  <Avatar className="h-6 w-6 mr-2">
-                    {member.photoURL ? (
-                      <AvatarImage src={member.photoURL} alt={member.name || member.username} />
-                    ) : (
-                      <AvatarFallback className="text-xs">
-                        {(member.name || member.username || '').substring(0, 2)}
-                      </AvatarFallback>
-                    )}
-                  </Avatar>
+              <div className="flex items-center justify-between">
+                <Label>Group Name</Label>
+                {isAdmin && (
                   <div>
-                    <span className={cn(
-                      'text-sm',
-                      isCurrentUser && 'font-medium'
-                    )}>
-                      {isCurrentUser ? 'You' : (member.name || member.username)}
-                    </span>
-                    {isOwner && (
-                      <span className="ml-2 text-xs bg-primary/10 text-primary px-1.5 py-0.5 rounded-full">
-                        Admin
-                      </span>
+                    {isEditing ? (
+                      <div className="flex space-x-1">
+                        <Button size="icon" variant="ghost" onClick={handleCancelEdit} title="Cancel">
+                          <RotateCcw size={16} />
+                        </Button>
+                        <Button size="icon" variant="ghost" onClick={handleEditName} title="Save">
+                          <Check size={16} />
+                        </Button>
+                      </div>
+                    ) : (
+                      <Button size="icon" variant="ghost" onClick={handleEditName} title="Edit name">
+                        <Pencil size={16} />
+                      </Button>
                     )}
                   </div>
-                </div>
-                
-                {isAdmin && !isOwner && !isCurrentUser && (
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    className="h-6 w-6 text-muted-foreground hover:text-destructive"
-                    onClick={() => handleRemoveMember(member.id)}
+                )}
+              </div>
+              
+              {isEditing ? (
+                <Input
+                  value={newGroupName}
+                  onChange={(e) => setNewGroupName(e.target.value)}
+                  placeholder="Enter group name"
+                />
+              ) : (
+                <div className="font-medium text-lg">{group.name}</div>
+              )}
+            </div>
+
+            {/* Members section */}
+            <div className="space-y-2">
+              <div className="flex items-center justify-between">
+                <Label>Members ({group.members?.length || 0})</Label>
+                {isAdmin && (
+                  <Button 
+                    size="sm" 
+                    variant="outline" 
+                    className="flex items-center space-x-1"
+                    onClick={onAddMembers}
                   >
-                    <UserX className="h-3.5 w-3.5" />
+                    <UserPlus size={16} />
+                    <span>Add</span>
                   </Button>
                 )}
               </div>
-            );
-          })}
-        </div>
-      </div>
-      
-      {/* Leave group confirmation */}
-      <AlertDialog open={showConfirmLeave} onOpenChange={setShowConfirmLeave}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Leave Group?</AlertDialogTitle>
-            <AlertDialogDescription>
-              Are you sure you want to leave "{group.name}"? You will stop receiving messages from this group.
-              {isAdmin && ' As the admin, leaving will not delete the group but will make someone else the admin.'}
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction 
-              onClick={handleLeaveGroup}
-              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-            >
-              Leave Group
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
-      
-      {/* Delete group confirmation */}
-      <AlertDialog open={showConfirmDelete} onOpenChange={setShowConfirmDelete}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Delete Group?</AlertDialogTitle>
-            <AlertDialogDescription>
-              Are you sure you want to delete "{group.name}"? This action cannot be undone and all messages will be permanently deleted.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction 
-              onClick={handleDeleteGroup}
-              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-            >
-              Delete Group
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
-    </div>
+
+              <Input
+                placeholder="Search members"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="mb-2"
+              />
+
+              <ScrollArea className="h-[300px] rounded-md border p-2">
+                <div className="space-y-4">
+                  {isLoading ? (
+                    <div className="text-center py-4">Loading members...</div>
+                  ) : filteredMembers.length > 0 ? (
+                    filteredMembers.map(member => (
+                      <div key={member.id} className="flex items-center justify-between">
+                        <div className="flex items-center space-x-3">
+                          <Avatar className="h-8 w-8">
+                            <div className="bg-primary text-primary-foreground w-full h-full flex items-center justify-center text-xs font-bold">
+                              {member.username?.charAt(0).toUpperCase() || "U"}
+                            </div>
+                          </Avatar>
+                          <div>
+                            <div className="font-medium">{member.username}</div>
+                            {member.isAdmin && (
+                              <div className="text-xs text-muted-foreground">Group Admin</div>
+                            )}
+                          </div>
+                        </div>
+
+                        {/* Show remove button for admins, except for themselves */}
+                        {isAdmin && member.id !== user?.id && (
+                          <Button
+                            size="icon"
+                            variant="ghost"
+                            onClick={() => onRemoveMember(member.id)}
+                            title="Remove member"
+                          >
+                            <X size={16} />
+                          </Button>
+                        )}
+                      </div>
+                    ))
+                  ) : (
+                    <div className="text-center py-4 text-muted-foreground">
+                      No members found matching your search.
+                    </div>
+                  )}
+                </div>
+              </ScrollArea>
+            </div>
+
+            {/* Actions section */}
+            <div className="pt-4 space-y-2">
+              <Button 
+                variant="outline" 
+                className="w-full flex items-center justify-center space-x-2"
+                onClick={handleLeaveGroup}
+              >
+                <LogOut size={16} />
+                <span>Leave Group</span>
+              </Button>
+
+              {isAdmin && (
+                <Button 
+                  variant="destructive" 
+                  className="w-full flex items-center justify-center space-x-2"
+                  onClick={handleDeleteGroup}
+                >
+                  <Trash2 size={16} />
+                  <span>Delete Group</span>
+                </Button>
+              )}
+            </div>
+          </div>
+        )}
+      </SheetContent>
+    </Sheet>
   );
 };
 
