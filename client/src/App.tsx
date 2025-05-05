@@ -6,6 +6,7 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { AuthProvider } from "./contexts/AuthContext";
 import { LanguageProvider } from "./contexts/LanguageContext";
 import { WebSocketProvider } from "@/components/chat/WebSocketProvider";
+import { WebSocketContextProvider } from "@/components/chat/WebSocketContextProvider";
 import NotFound from "@/pages/not-found";
 import Home from "@/pages/Home";
 import CourseDetail from "@/pages/CourseDetail";
@@ -19,6 +20,7 @@ import UserProfile from "./pages/UserProfile";
 import NotesPage from "./pages/NotesPage";
 import TokenDebugPage from "./pages/TokenDebugPage";
 import NewChatPage from "./pages/NewChatPage";
+import EnhancedChatPage from "./pages/EnhancedChatPage";
 import Header from "@/components/Header";
 import Footer from "@/components/Footer";
 import FloatingAIButton from "@/components/FloatingAIButton";
@@ -48,11 +50,13 @@ function Router() {
     return (
       <div className="min-h-screen flex flex-col">
         <Header />
-        <div className="flex-grow">
+        <div className="flex-grow flex flex-col h-[calc(100vh-64px)]">
           <Switch>
             <Route path="/chat">
               <ErrorBoundary>
-                <NewChatPage />
+                <WebSocketContextProvider>
+                  <EnhancedChatPage />
+                </WebSocketContextProvider>
               </ErrorBoundary>
             </Route>
           </Switch>
