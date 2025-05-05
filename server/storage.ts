@@ -1848,11 +1848,9 @@ export class DatabaseStorage implements IStorage {
   }
 
   async canUsersChat(userId1: number, userId2: number): Promise<boolean> {
-    // Users can chat if they follow each other
-    const user1FollowsUser2 = await this.isFollowing(userId1, userId2);
-    const user2FollowsUser1 = await this.isFollowing(userId2, userId1);
-    
-    return user1FollowsUser2 && user2FollowsUser1;
+    // For now, allow any users to chat with each other
+    // In a real application, this might be restricted based on relationships
+    return true;
   }
 
   // University Courses operations

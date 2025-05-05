@@ -3999,6 +3999,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         if (data.type === 'auth') {
           try {
             const token = data.token;
+            console.log(`WebSocket auth attempt with token: ${token ? token.substring(0, 15) + '...' : 'missing'}`);
+            
             if (!token) {
               ws.send(JSON.stringify({ type: 'error', message: 'Authentication required' }));
               return;
@@ -4007,16 +4009,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
             // Verify JWT token
             const decoded = jwt.verify(token, JWT_SECRET) as any;
             userId = decoded.id;
+            console.log(`WebSocket token decoded, user ID: ${userId}`);
             
             // Get user data
             const user = await storage.getUser(userId);
             if (!user) {
+              console.log(`WebSocket auth failed: User ${userId} not found in database`);
               ws.send(JSON.stringify({ type: 'error', message: 'User not found' }));
               return;
             }
             
             // Store this connection
             clients.set(userId, ws);
+            console.log(`WebSocket client map updated, active connections: ${clients.size}`);
             
             // Send acknowledgment with user details (excluding password)
             const { password, ...safeUser } = user;
@@ -4072,25 +4077,33 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }
         // Handle chat messages
         else if (data.type === 'chat_message') {
+          console.log(`Received chat_message: ${JSON.stringify(data)}`);
+          
           if (!userId) {
+            console.log('Chat message rejected: User not authenticated');
             ws.send(JSON.stringify({ type: 'error', message: 'Authentication required' }));
             return;
           }
           
           const { receiverId, content, tempId } = data;
+          console.log(`Processing chat message - From: ${userId}, To: ${receiverId}, TempId: ${tempId}`);
           
           // Validate message
           if (!receiverId || !content) {
+            console.log('Chat message rejected: Missing receiverId or content');
             ws.send(JSON.stringify({ type: 'error', message: 'Receiver ID and content are required' }));
             return;
           }
           
           // Check if users can chat
           const canChat = await storage.canUsersChat(userId, receiverId);
+          console.log(`Can users chat? ${userId} -> ${receiverId}: ${canChat}`);
+          
           if (!canChat) {
+            console.log(`Chat message rejected: No permission to message user ${receiverId}`);
             ws.send(JSON.stringify({ 
               type: 'error', 
-              message: 'You can only chat with users who you follow and who follow you back',
+              message: 'You do not have permission to message this user',
               tempId // Return tempId for client to handle error
             }));
             return;
@@ -4132,11 +4145,22 @@ export async function registerRoutes(app: Express): Promise<Server> {
           }
           
           // Send confirmation to sender with tempId if provided
-          ws.send(JSON.stringify({
-            type: 'message_sent',
-            message,
-            tempId // Include original tempId to allow client to update UI
-          }));
+          try {
+            ws.send(JSON.stringify({
+              type: 'message_sent',
+              message,
+              tempId // Include original tempId to allow client to update UI
+            }));
+            console.log(`Sent message confirmation for tempId: ${tempId}`);
+          } catch (sendError) {
+            console.error(`Error sending message confirmation: ${sendError.message}`);
+            // Try to queue the confirmation if websocket failed
+            queueMessageForOfflineUser(userId, {
+              type: 'message_sent',
+              message,
+              tempId
+            });
+          }
         } 
         // Handle read receipts
         else if (data.type === 'mark_read') {
@@ -4157,17 +4181,38 @@ export async function registerRoutes(app: Express): Promise<Server> {
           // Notify sender if online
           const senderWs = clients.get(senderId);
           if (senderWs && senderWs.readyState === WebSocket.OPEN) {
-            senderWs.send(JSON.stringify({
+            try {
+              senderWs.send(JSON.stringify({
+                type: 'messages_read',
+                readBy: userId
+              }));
+              console.log(`Sent read receipt to user ${senderId}`);
+            } catch (readError) {
+              console.error(`Error sending read receipt to user ${senderId}: ${readError.message}`);
+              // Queue the notification for later delivery
+              queueMessageForOfflineUser(senderId, {
+                type: 'messages_read',
+                readBy: userId
+              });
+            }
+          } else {
+            // Queue read notification for when sender connects
+            queueMessageForOfflineUser(senderId, {
               type: 'messages_read',
               readBy: userId
-            }));
+            });
+            console.log(`User ${senderId} is offline, queueing read receipt`);
           }
           
           // Send confirmation to client
-          ws.send(JSON.stringify({
-            type: 'marked_read_success',
-            senderId
-          }));
+          try {
+            ws.send(JSON.stringify({
+              type: 'marked_read_success',
+              senderId
+            }));
+          } catch (confirmError) {
+            console.error(`Error sending read confirmation to client: ${confirmError.message}`);
+          }
         }
         // Handle retrieving message history
         else if (data.type === 'get_message_history') {

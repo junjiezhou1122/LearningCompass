@@ -130,8 +130,9 @@ const ChatInput = ({ input, setInput, handleKeyDown, sendMessage, connected, act
           >
             <Button
               onClick={sendMessage}
-              disabled={!input?.trim() || !connected}
-              className="bg-gradient-to-r from-orange-500 to-orange-600 hover:from-orange-600 hover:to-orange-700 text-white rounded-full h-9 w-9 flex items-center justify-center p-0 shadow-md transition-all duration-200"
+              disabled={!input?.trim()}
+              className={`bg-gradient-to-r ${!connected ? 'from-orange-400 to-orange-500 opacity-90' : 'from-orange-500 to-orange-600 hover:from-orange-600 hover:to-orange-700'} text-white rounded-full h-9 w-9 flex items-center justify-center p-0 shadow-md transition-all duration-200`}
+              title={!connected ? 'Message will be sent when connected' : 'Send message'}
             >
               <Send className="h-4 w-4" />
             </Button>

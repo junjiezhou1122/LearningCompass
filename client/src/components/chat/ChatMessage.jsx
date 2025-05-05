@@ -1,7 +1,7 @@
 import React from 'react';
 import { format } from 'date-fns';
 import { motion } from 'framer-motion';
-import { MessageSquare, Clock, Check, CheckCheck } from 'lucide-react';
+import { MessageSquare, Clock, Check, CheckCheck, XCircle } from 'lucide-react';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import {
@@ -79,19 +79,26 @@ const ChatMessage = ({ message, isCurrentUser }) => {
           </div>
         )}
 
-        {/* Message bubble with different styling based on sender and pending status */}
+        {/* Message bubble with different styling based on sender, pending, and failure status */}
         <div
           className={`px-4 py-3 rounded-2xl shadow-sm backdrop-blur-sm ${
             isCurrentUser
-              ? message.isPending
-                  ? "bg-gradient-to-r from-orange-400 to-orange-500 text-white opacity-80"
-                  : "bg-gradient-to-r from-orange-500 to-orange-600 text-white"
+              ? message.isFailed
+                  ? "bg-gradient-to-r from-red-400 to-red-500 text-white"
+                  : message.isPending
+                      ? "bg-gradient-to-r from-orange-400 to-orange-500 text-white opacity-80"
+                      : "bg-gradient-to-r from-orange-500 to-orange-600 text-white"
               : "bg-gradient-to-tr from-orange-50 to-orange-100 text-orange-800 border border-orange-100"
           } ${isCurrentUser ? "rounded-tr-sm" : "rounded-tl-sm"}`}
         >
           <p className="text-sm whitespace-pre-wrap break-words leading-relaxed">
             {message.content}
           </p>
+          {message.isFailed && (
+            <p className="text-xs text-red-100 italic mt-1">
+              Failed to send: {message.error || "Unknown error"}
+            </p>
+          )}
         </div>
         
         {/* Time, pending, and read status for current user's messages */}
@@ -129,8 +136,31 @@ const ChatMessage = ({ message, isCurrentUser }) => {
               </motion.span>
             )}
             
+            {/* Failed message indicator with retry option */}
+            {message.isFailed && (
+              <motion.span 
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                className="ml-1.5 text-red-500 flex items-center"
+              >
+                <TooltipProvider>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <span className="flex items-center cursor-pointer" onClick={() => message.onRetry && message.onRetry(message)}>
+                        <XCircle className="h-3 w-3 mr-1" /> 
+                        <span className="group-hover:underline">Retry</span>
+                      </span>
+                    </TooltipTrigger>
+                    <TooltipContent className="bg-red-50 border-red-200 text-red-700 text-xs">
+                      <p>{message.error || "Failed to send message"}<br/>Click to retry</p>
+                    </TooltipContent>
+                  </Tooltip>
+                </TooltipProvider>
+              </motion.span>
+            )}
+            
             {/* Sent but not read indicator */}
-            {!message.isPending && !message.isRead && (
+            {!message.isPending && !message.isRead && !message.isFailed && (
               <motion.span 
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}

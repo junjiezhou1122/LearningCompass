@@ -107,21 +107,44 @@ class WebSocketManager {
 
   /**
    * Attempt to reconnect to the WebSocket server
+   * @param {boolean} immediateReconnect - Whether to reconnect immediately (bypass backoff)
    */
-  reconnect() {
+  reconnect(immediateReconnect = false) {
     this.clearTimers();
     
     // Don't try to reconnect if we've exceeded max attempts
     if (this.reconnectAttempts >= this.options.reconnectMaxAttempts) {
       this.log(`Max reconnect attempts (${this.options.reconnectMaxAttempts}) reached`);
+      // Tell the application about the connection failure
+      window.dispatchEvent(new CustomEvent('ws:connection:failed', { 
+        detail: { attempts: this.reconnectAttempts }
+      }));
       return;
     }
     
     this.reconnectAttempts++;
-    const delay = this.getReconnectDelay();
+    const delay = immediateReconnect ? 0 : this.getReconnectDelay();
     
     this.log(`Attempting to reconnect (${this.reconnectAttempts}/${this.options.reconnectMaxAttempts}) in ${delay}ms...`);
     this.reconnectTimeout = setTimeout(() => {
+      // Clear any existing socket before creating a new connection
+      if (this.socket) {
+        try {
+          this.socket.removeEventListener('open', this.handleOpen);
+          this.socket.removeEventListener('message', this.handleMessage);
+          this.socket.removeEventListener('close', this.handleClose);
+          this.socket.removeEventListener('error', this.handleError);
+          
+          if (this.socket.readyState === WebSocket.OPEN || 
+              this.socket.readyState === WebSocket.CONNECTING) {
+            this.socket.close();
+          }
+        } catch (err) {
+          this.log('Error cleaning up socket before reconnect:', err);
+        }
+        this.socket = null;
+      }
+      
       if (this.serverUrl) {
         this.connect(this.serverUrl, this.connectionParams);
       }
@@ -135,10 +158,15 @@ class WebSocketManager {
    */
   sendMessage(data) {
     let messageStr;
+    let tempId = null;
     
-    // Convert object to JSON string if needed
+    // Extract tempId if it exists and convert object to JSON string if needed
     if (typeof data === 'object') {
       try {
+        // Extract tempId before stringifying
+        if (data.tempId) {
+          tempId = data.tempId;
+        }
         messageStr = JSON.stringify(data);
       } catch (err) {
         this.log('Error serializing message:', err);
@@ -146,12 +174,21 @@ class WebSocketManager {
       }
     } else {
       messageStr = data;
+      // Try to parse string to extract tempId
+      try {
+        const parsed = JSON.parse(messageStr);
+        if (parsed.tempId) {
+          tempId = parsed.tempId;
+        }
+      } catch (e) {
+        // Not JSON or couldn't parse, that's fine
+      }
     }
     
     // If not connected, queue the message for later
     if (!this.isConnected()) {
-      this.messageQueue.add(messageStr);
-      this.log('Message queued for later delivery');
+      this.messageQueue.add(messageStr, 0, tempId);
+      this.log(`Message queued for later delivery${tempId ? ` (ID: ${tempId})` : ''}`);
       return false;
     }
     
@@ -160,30 +197,67 @@ class WebSocketManager {
       this.lastMessageTime = Date.now();
       return true;
     } catch (err) {
-      this.log('Error sending message:', err);
-      this.messageQueue.add(messageStr);
+      this.log(`Error sending message${tempId ? ` (ID: ${tempId})` : ''}:`, err);
+      this.messageQueue.add(messageStr, 0, tempId);
       return false;
     }
   }
 
   /**
-   * Process any queued messages
+   * Process any queued messages with retry tracking
+   * @returns {number} - Number of successfully processed messages
    */
   processQueue() {
-    if (!this.isConnected() || this.messageQueue.isEmpty()) return;
+    if (!this.isConnected() || this.messageQueue.isEmpty()) return 0;
     
     this.log(`Processing ${this.messageQueue.size()} queued messages`);
-    const messages = this.messageQueue.getAll();
+    // Get messages with their metadata
+    const messages = this.messageQueue.getAll(true);
     this.messageQueue.clear();
     
-    messages.forEach(msg => {
+    let successCount = 0;
+    const failedMessages = [];
+    
+    messages.forEach(item => {
+      // Check if we've exceeded max retries for this message
+      if (item.retryCount >= item.maxRetries) {
+        this.log(`Message exceeded max retries (${item.maxRetries}), dropping: ${item.tempId || 'unknown'}`);
+        // Emit a custom event for message delivery failure
+        if (item.tempId) {
+          const failureEvent = new CustomEvent('ws:message:failed', {
+            detail: { tempId: item.tempId, message: item.message }
+          });
+          window.dispatchEvent(failureEvent);
+        }
+        return; // Skip this message
+      }
+      
       try {
-        this.socket.send(msg);
+        this.socket.send(item.message);
+        successCount++;
+        this.lastMessageTime = Date.now(); // Update last message time
+        this.log('Successfully sent queued message');
       } catch (err) {
         this.log('Error sending queued message:', err);
-        this.messageQueue.add(msg);
+        // Store the failed message for re-queuing with incremented retry counter
+        failedMessages.push({
+          message: item.message,
+          retryCount: item.retryCount + 1,
+          tempId: item.tempId
+        });
       }
     });
+    
+    // Re-queue failed messages
+    if (failedMessages.length > 0) {
+      this.log(`Re-queuing ${failedMessages.length} failed messages`);
+      failedMessages.forEach(item => {
+        // Pass the tempId explicitly to maintain message tracking
+        this.messageQueue.add(item.message, item.retryCount, item.tempId);
+      });
+    }
+    
+    return successCount;
   }
 
   /**
@@ -377,9 +451,32 @@ class WebSocketManager {
       }
     });
     
+    // Special handling for code 1006 (abnormal closure)
+    // This is usually caused by network issues or server restart
+    if (event.code === 1006) {
+      this.log('Detected abnormal closure (code 1006). This may indicate network issues.');
+      // Emit a custom event that components can listen for
+      window.dispatchEvent(new CustomEvent('ws:abnormal:closure', { 
+        detail: { timestamp: Date.now() }
+      }));
+      
+      // Try to reconnect immediately for abnormal closures
+      this.reconnect(true); // Pass true to reconnect immediately
+      return;
+    }
+    
     // Some close codes should trigger automatic reconnection
-    const autoReconnectCodes = [1000, 1001, 1005, 1006, 1012, 1013, undefined];
-    if (autoReconnectCodes.includes(event.code)) {
+    // 1000: Normal closure - may be server restarting
+    // 1001: Going away - browser may be navigating away, but let's try reconnect anyway
+    // 1005: No status code - worth trying to reconnect
+    // 1011: Internal server error - server might recover, try to reconnect
+    // 1012: Service restart - definitely try to reconnect
+    // 1013: Try again later - server is telling us to reconnect later
+    // undefined: Abnormal closure without code, likely a network issue
+    const autoReconnectCodes = [1000, 1001, 1005, 1011, 1012, 1013, undefined];
+    
+    // Try to reconnect for non-permanent error codes
+    if (autoReconnectCodes.includes(event.code) || event.code >= 1000 && event.code < 4000) {
       this.reconnect();
     }
   }
@@ -494,15 +591,34 @@ class HeartbeatManager {
    * Send a ping message
    */
   sendPing() {
-    if (!this.wsManager.isConnected()) return;
+    if (!this.wsManager.isConnected()) {
+      // If we think we're disconnected but the socket thinks we're connected,
+      // force a reconnection to get back in sync
+      if (this.wsManager.socket && this.wsManager.socket.readyState === WebSocket.OPEN) {
+        this.wsManager.log('Connection state mismatch - forcing reconnect');
+        this.wsManager.socket.close(1000, 'Connection state mismatch');
+        setTimeout(() => this.wsManager.reconnect(), 1000);
+      }
+      return;
+    }
     
     // First try application-level ping
     try {
-      this.wsManager.sendMessage({
+      const pingSuccess = this.wsManager.sendMessage({
         type: 'ping',
         timestamp: Date.now()
       });
-      this.wsManager.log('Application-level ping sent');
+      
+      if (pingSuccess) {
+        this.wsManager.log('Application-level ping sent');
+      } else {
+        this.wsManager.log('Application-level ping failed to send');
+        // If we can't send a ping, the connection might be dead
+        if (this.wsManager.socket) {
+          this.wsManager.socket.close(1000, 'Failed to send ping');
+        }
+        return;
+      }
       
       // Set a timeout to detect if we don't get a response
       if (this.pingTimeout) clearTimeout(this.pingTimeout);
@@ -514,11 +630,20 @@ class HeartbeatManager {
           if (this.wsManager.socket) {
             // Force close the socket to trigger reconnection
             this.wsManager.socket.close(1000, 'No pong response');
+            // After socket closes, immediately try to reconnect
+            setTimeout(() => this.wsManager.reconnect(), 500);
           }
         }
       }, this.pingTimeoutTime);
     } catch (err) {
       this.wsManager.log('Error sending ping:', err);
+      // Try to reconnect if we encounter an error with the ping
+      setTimeout(() => {
+        if (this.wsManager.socket) {
+          this.wsManager.socket.close(1000, 'Ping error');
+          this.wsManager.reconnect();
+        }
+      }, 1000);
     }
   }
 
@@ -545,32 +670,61 @@ class HeartbeatManager {
  * Manages a queue of messages to be sent when reconnected
  */
 class MessageQueue {
-  constructor(maxSize = 100) {
+  constructor(maxSize = 100, maxRetries = 5) {
     this.queue = [];
     this.maxSize = maxSize;
+    this.maxRetries = maxRetries;
   }
 
   /**
    * Add a message to the queue
    * @param {any} message - Message to queue
+   * @param {number} retryCount - Number of retry attempts so far
+   * @param {string} explicitTempId - Optional tempId to use instead of parsing from message
    */
-  add(message) {
+  add(message, retryCount = 0, explicitTempId = null) {
     // If queue is full, remove oldest message
     if (this.queue.length >= this.maxSize) {
       this.queue.shift();
     }
+    
+    // Try to parse the message to get the tempId if it's a JSON string
+    let messageData = message;
+    let tempId = explicitTempId;
+    
+    // Only try to extract tempId from message if not explicitly provided
+    if (!tempId && typeof message === 'string') {
+      try {
+        const parsed = JSON.parse(message);
+        if (parsed.tempId) {
+          tempId = parsed.tempId;
+        }
+        messageData = message; // Keep as string for sending
+      } catch (e) {
+        // Not JSON or couldn't parse, that's fine
+      }
+    }
+    
     this.queue.push({
-      message,
-      timestamp: Date.now()
+      message: messageData,
+      tempId: tempId,
+      timestamp: Date.now(),
+      retryCount: retryCount,
+      // Add additional tracking info
+      maxRetries: this.maxRetries,
+      lastAttempt: retryCount > 0 ? Date.now() : null
     });
   }
 
   /**
-   * Get all messages in the queue
-   * @returns {Array} - All queued messages
+   * Get all messages in the queue with their metadata
+   * @param {boolean} withMetadata - Whether to include metadata
+   * @returns {Array} - All queued messages, with or without metadata
    */
-  getAll() {
-    return this.queue.map(item => item.message);
+  getAll(withMetadata = false) {
+    return withMetadata ? 
+      this.queue : 
+      this.queue.map(item => item.message);
   }
 
   /**

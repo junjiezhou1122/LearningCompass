@@ -352,6 +352,7 @@ const ChatPage = () => {
     }
     // Handle message sent confirmation
     else if (lastMessage.type === 'message_sent' && lastMessage.tempId) {
+      console.log('Message sent confirmation received:', lastMessage);
       // Update the message in the UI to show it's been delivered
       setMessages(prev => 
         prev.map(msg => {
@@ -366,6 +367,31 @@ const ChatPage = () => {
         })
       );
     }
+    // Handle error messages from server, including message sending errors
+    else if (lastMessage.type === 'error' && lastMessage.tempId) {
+      console.error('Message error received:', lastMessage);
+      // Update the UI to show the message failed to send
+      setMessages(prev => 
+        prev.map(msg => {
+          if (msg.id === lastMessage.tempId) {
+            return {
+              ...msg,
+              error: lastMessage.message,
+              isPending: false,
+              isFailed: true // Mark as failed
+            };
+          }
+          return msg;
+        })
+      );
+      
+      // Show toast with error message
+      toast({
+        title: 'Message not sent',
+        description: lastMessage.message,
+        variant: 'destructive',
+      });
+    }
     // Handle read receipts
     else if (lastMessage.type === 'messages_read' && lastMessage.readBy) {
       // Update all sent messages to the reader as read
@@ -378,23 +404,60 @@ const ChatPage = () => {
       }
     }
   }, [lastMessage, activeChat, user, sendMessage, scrollToBottom]);
+  
+  // Listen for message delivery failure events from WebSocketProvider
+  useEffect(() => {
+    const handleMessageFailed = (event) => {
+      const { tempId, error } = event.detail;
+      
+      // Mark the failed message
+      if (tempId) {
+        setMessages(prevMessages => 
+          prevMessages.map(msg => {
+            if (msg.id === tempId) {
+              return { 
+                ...msg, 
+                isPending: false, 
+                isFailed: true,
+                error: error || 'Failed to deliver after multiple attempts'
+              };
+            }
+            return msg;
+          })
+        );
+      }
+    };
+    
+    // Add event listener
+    window.addEventListener('chat:message:failed', handleMessageFailed);
+    
+    // Cleanup on unmount
+    return () => {
+      window.removeEventListener('chat:message:failed', handleMessageFailed);
+    };
+  }, []);
 
   // Send message function
-  const handleSendMessage = () => {
-    if (!input?.trim() || !activeChat || !connected) return;
+  const handleSendMessage = (messageContent = input.trim(), existingTempId = null) => {
+    if ((!messageContent && !input?.trim()) || !activeChat) return;
     
-    const tempId = `temp-${Date.now()}`; // temporary ID with 'temp-' prefix
+    // Use provided content or input field content
+    const finalContent = messageContent || input.trim();
+    
+    // Use existing tempId (for retries) or create a new one
+    const tempId = existingTempId || `temp-${Date.now()}`; // temporary ID with 'temp-' prefix
     
     // Create a temporary message with local ID
     const tempMessage = {
       id: tempId,
       senderId: user.id,
       receiverId: activeChat.id,
-      content: input.trim(),
+      content: finalContent,
       createdAt: new Date().toISOString(),
       isRead: false,
       sender: user,
-      isPending: true // Mark as pending so we can style it differently
+      isPending: true, // Mark as pending so we can style it differently
+      onRetry: (msg) => handleRetryMessage(msg) // Add retry handler
     };
     
     // Create message object to send to server
@@ -405,17 +468,39 @@ const ChatPage = () => {
       tempId // Include temporary ID so we can update the message when we get a response
     };
     
-    // Add message locally for immediate display
-    setMessages((prev) => [...prev, tempMessage]);
-    
-    // Clear input field immediately
-    setInput("");
+    // Only add to messages if it's a new message, not a retry
+    if (!existingTempId) {
+      setMessages((prev) => [...prev, tempMessage]);
+      // Clear input field immediately
+      setInput("");
+    } else {
+      // For retries, update the message to show it's pending again
+      setMessages(prev => prev.map(msg => 
+        msg.id === existingTempId 
+          ? { ...msg, isPending: true, isFailed: false, error: null }
+          : msg
+      ));
+    }
     
     // Scroll to bottom
     setTimeout(scrollToBottom, 50);
     
     // Send message via WebSocket
     sendMessage(messageToSend);
+  };
+  
+  // Handle retrying failed messages
+  const handleRetryMessage = (message) => {
+    if (!message || !activeChat) return;
+    
+    // Toast notification to inform user
+    toast({
+      title: "Retrying message",
+      description: "Attempting to resend your message..."
+    });
+    
+    // Call send function with the message content and the original tempId
+    handleSendMessage(message.content, message.id);
   };
 
   return (
@@ -463,11 +548,13 @@ const ChatPage = () => {
               <ChatMessagesList
                 messages={messages}
                 isLoading={isLoadingMore}
-                currentUser={user}
+                user={user} /* Fixed: changed from currentUser to user */
                 hasMore={hasMore}
                 partner={activeChat}
                 messagesEndRef={messagesEndRef}
                 scrollAreaRef={scrollAreaRef}
+                loadOlderMessages={loadOlderMessages}
+                page={page}
               />
 
               <ChatInput

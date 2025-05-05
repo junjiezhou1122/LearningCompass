@@ -12,7 +12,7 @@ const ChatMessagesList = ({
   hasMore, 
   loadOlderMessages, 
   messages, 
-  user, 
+  user,
   messagesEndRef 
 }) => {
   return (
