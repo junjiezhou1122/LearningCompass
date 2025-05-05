@@ -22,6 +22,10 @@ import {
   userNotes, UserNote, InsertUserNote,
   // Chat messages schemas and types
   chatMessages, ChatMessage, InsertChatMessage,
+  // Group chat schemas and types
+  chatGroups, chatGroupMembers, chatGroupMessages,
+  ChatGroup, InsertChatGroup, ChatGroupMember, InsertChatGroupMember,
+  ChatGroupMessage, InsertChatGroupMessage,
   // Learning Center - University Courses
   universityCourses, universityCourseBookmarks, universityCourseLinks,
   universityCourseComments, universityCourseResources, universityCourseCollaborations,
@@ -326,6 +330,26 @@ export interface IStorage {
   getUnreadMessagesForUser(userId: number): Promise<ChatMessage[]>;
   getChatPartners(userId: number): Promise<User[]>;
   canUsersChat(userId1: number, userId2: number): Promise<boolean>;
+
+  // Group Chat operations
+  createChatGroup(group: InsertChatGroup): Promise<ChatGroup>;
+  getChatGroup(id: number): Promise<ChatGroup | undefined>;
+  getChatGroupsByUserId(userId: number): Promise<ChatGroup[]>;
+  updateChatGroup(id: number, data: Partial<InsertChatGroup>): Promise<ChatGroup | undefined>;
+  deleteChatGroup(id: number, userId: number): Promise<boolean>;
+  
+  // Group Chat Members operations
+  addUserToGroup(groupMember: InsertChatGroupMember): Promise<ChatGroupMember>;
+  removeUserFromGroup(groupId: number, userId: number): Promise<boolean>;
+  getChatGroupMembers(groupId: number): Promise<(ChatGroupMember & { user: User })[]>;
+  updateGroupMemberRole(groupId: number, userId: number, role: string): Promise<ChatGroupMember | undefined>;
+  isGroupMember(groupId: number, userId: number): Promise<boolean>;
+  
+  // Group Chat Messages operations
+  sendGroupMessage(message: InsertChatGroupMessage): Promise<ChatGroupMessage>;
+  getGroupMessages(groupId: number, options?: { limit?: number, before?: number }): Promise<(ChatGroupMessage & { sender: User })[]>;
+  getUnreadGroupMessagesCount(userId: number): Promise<number>;
+  updateGroupMemberLastRead(groupId: number, userId: number): Promise<boolean>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -1870,6 +1894,219 @@ export class DatabaseStorage implements IStorage {
     // For now, allow any users to chat with each other
     // In a real application, this might be restricted based on relationships
     return true;
+  }
+
+  // Group Chat operations
+  async createChatGroup(group: InsertChatGroup): Promise<ChatGroup> {
+    const [result] = await db.insert(chatGroups).values(group).returning();
+    return result;
+  }
+
+  async getChatGroup(id: number): Promise<ChatGroup | undefined> {
+    const [group] = await db.select().from(chatGroups).where(eq(chatGroups.id, id));
+    return group || undefined;
+  }
+
+  async getChatGroupsByUserId(userId: number): Promise<ChatGroup[]> {
+    // Get all groups where user is a member
+    const memberGroups = await db.select({
+      groupId: chatGroupMembers.groupId
+    })
+    .from(chatGroupMembers)
+    .where(eq(chatGroupMembers.userId, userId));
+
+    if (memberGroups.length === 0) {
+      return [];
+    }
+
+    const groupIds = memberGroups.map(g => g.groupId);
+    
+    return await db.select()
+      .from(chatGroups)
+      .where(inArray(chatGroups.id, groupIds));
+  }
+
+  async updateChatGroup(id: number, data: Partial<InsertChatGroup>): Promise<ChatGroup | undefined> {
+    const [updated] = await db.update(chatGroups)
+      .set({
+        ...data,
+        updatedAt: new Date()
+      })
+      .where(eq(chatGroups.id, id))
+      .returning();
+    
+    return updated;
+  }
+
+  async deleteChatGroup(id: number, userId: number): Promise<boolean> {
+    // Only allow group creator to delete a group
+    const [group] = await db.select()
+      .from(chatGroups)
+      .where(and(
+        eq(chatGroups.id, id),
+        eq(chatGroups.creatorId, userId)
+      ));
+
+    if (!group) {
+      return false;
+    }
+
+    // Delete group members first
+    await db.delete(chatGroupMembers)
+      .where(eq(chatGroupMembers.groupId, id));
+
+    // Delete group messages
+    await db.delete(chatGroupMessages)
+      .where(eq(chatGroupMessages.groupId, id));
+
+    // Delete the group
+    const result = await db.delete(chatGroups)
+      .where(eq(chatGroups.id, id));
+
+    return result.rowCount > 0;
+  }
+
+  // Group Chat Members operations
+  async addUserToGroup(groupMember: InsertChatGroupMember): Promise<ChatGroupMember> {
+    // Check if user is already a member
+    const [existingMember] = await db.select()
+      .from(chatGroupMembers)
+      .where(and(
+        eq(chatGroupMembers.groupId, groupMember.groupId),
+        eq(chatGroupMembers.userId, groupMember.userId)
+      ));
+
+    if (existingMember) {
+      throw new Error("User is already a member of this group");
+    }
+
+    const [result] = await db.insert(chatGroupMembers)
+      .values(groupMember)
+      .returning();
+
+    return result;
+  }
+
+  async removeUserFromGroup(groupId: number, userId: number): Promise<boolean> {
+    const result = await db.delete(chatGroupMembers)
+      .where(and(
+        eq(chatGroupMembers.groupId, groupId),
+        eq(chatGroupMembers.userId, userId)
+      ));
+
+    return result.rowCount > 0;
+  }
+
+  async getChatGroupMembers(groupId: number): Promise<(ChatGroupMember & { user: User })[]> {
+    return await db.select({
+      member: chatGroupMembers,
+      user: users
+    })
+    .from(chatGroupMembers)
+    .innerJoin(users, eq(chatGroupMembers.userId, users.id))
+    .where(eq(chatGroupMembers.groupId, groupId))
+    .then(rows => rows.map(row => ({ ...row.member, user: row.user })));
+  }
+
+  async updateGroupMemberRole(groupId: number, userId: number, role: string): Promise<ChatGroupMember | undefined> {
+    const [updated] = await db.update(chatGroupMembers)
+      .set({ role })
+      .where(and(
+        eq(chatGroupMembers.groupId, groupId),
+        eq(chatGroupMembers.userId, userId)
+      ))
+      .returning();
+
+    return updated;
+  }
+
+  async isGroupMember(groupId: number, userId: number): Promise<boolean> {
+    const [member] = await db.select()
+      .from(chatGroupMembers)
+      .where(and(
+        eq(chatGroupMembers.groupId, groupId),
+        eq(chatGroupMembers.userId, userId)
+      ));
+
+    return !!member;
+  }
+
+  // Group Chat Messages operations
+  async sendGroupMessage(message: InsertChatGroupMessage): Promise<ChatGroupMessage> {
+    // Verify sender is a member of the group
+    const isMember = await this.isGroupMember(message.groupId, message.senderId);
+    if (!isMember) {
+      throw new Error("User is not a member of this group");
+    }
+
+    const [result] = await db.insert(chatGroupMessages)
+      .values(message)
+      .returning();
+
+    return result;
+  }
+
+  async getGroupMessages(groupId: number, options?: { limit?: number, before?: number }): Promise<(ChatGroupMessage & { sender: User })[]> {
+    let query = db.select({
+      message: chatGroupMessages,
+      sender: users
+    })
+    .from(chatGroupMessages)
+    .innerJoin(users, eq(chatGroupMessages.senderId, users.id))
+    .where(eq(chatGroupMessages.groupId, groupId));
+
+    // For pagination - messages before a certain ID
+    if (options?.before && options.before > 0) {
+      query = query.where(sql`${chatGroupMessages.id} < ${options.before}`);
+    }
+
+    // Apply limit
+    if (options?.limit && options.limit > 0) {
+      query = query.limit(options.limit);
+    }
+
+    // Order by created time, oldest first
+    query = query.orderBy(asc(chatGroupMessages.createdAt));
+
+    return await query.then(rows => rows.map(row => ({ ...row.message, sender: row.sender })));
+  }
+
+  async getUnreadGroupMessagesCount(userId: number): Promise<number> {
+    // Get all groups the user is a member of
+    const memberships = await db.select()
+      .from(chatGroupMembers)
+      .where(eq(chatGroupMembers.userId, userId));
+
+    let totalUnread = 0;
+
+    // For each group membership, count messages created after lastReadAt
+    for (const membership of memberships) {
+      if (!membership.lastReadAt) continue;
+
+      const result = await db.select({ count: sql`count(*)` })
+        .from(chatGroupMessages)
+        .where(and(
+          eq(chatGroupMessages.groupId, membership.groupId),
+          sql`${chatGroupMessages.createdAt} > ${membership.lastReadAt}`,
+          // Don't count the user's own messages
+          sql`${chatGroupMessages.senderId} != ${userId}`
+        ));
+
+      totalUnread += Number(result[0]?.count || 0);
+    }
+
+    return totalUnread;
+  }
+
+  async updateGroupMemberLastRead(groupId: number, userId: number): Promise<boolean> {
+    const result = await db.update(chatGroupMembers)
+      .set({ lastReadAt: new Date() })
+      .where(and(
+        eq(chatGroupMembers.groupId, groupId),
+        eq(chatGroupMembers.userId, userId)
+      ));
+
+    return result.rowCount > 0;
   }
 
   // University Courses operations

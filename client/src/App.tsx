@@ -21,6 +21,7 @@ import NotesPage from "./pages/NotesPage";
 import TokenDebugPage from "./pages/TokenDebugPage";
 import NewChatPage from "./pages/NewChatPage";
 import EnhancedChatPage from "./pages/EnhancedChatPage";
+import GroupChatPage from "./pages/GroupChatPage";
 import Header from "@/components/Header";
 import Footer from "@/components/Footer";
 import FloatingAIButton from "@/components/FloatingAIButton";
@@ -40,7 +41,7 @@ function Router() {
     location === "/reset-password";
     
   // Check if it's the chat page which needs a different layout
-  const isChatPage = location === "/chat";
+  const isChatPage = location === "/chat" || location === "/group-chat";
 
   // Debug location and sidebar visibility
   console.log("Current location:", location);
@@ -56,6 +57,13 @@ function Router() {
               <ErrorBoundary>
                 <WebSocketContextProvider>
                   <EnhancedChatPage />
+                </WebSocketContextProvider>
+              </ErrorBoundary>
+            </Route>
+            <Route path="/group-chat">
+              <ErrorBoundary>
+                <WebSocketContextProvider>
+                  <GroupChatPage />
                 </WebSocketContextProvider>
               </ErrorBoundary>
             </Route>

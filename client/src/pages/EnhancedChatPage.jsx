@@ -132,6 +132,22 @@ const EnhancedChatPage = () => {
 
     try {
       setIsLoadingMore(true);
+      console.log(`Loading messages with partner ID: ${partnerId}`);
+      
+      // First check localStorage for cached messages
+      const chatHistoryKey = `chat_history_${partnerId}`;
+      let cachedMessages = [];
+      try {
+        const cachedData = localStorage.getItem(chatHistoryKey);
+        if (cachedData) {
+          cachedMessages = JSON.parse(cachedData);
+          console.log(`Found ${cachedMessages.length} cached messages in localStorage`);
+        }
+      } catch (cacheError) {
+        console.error('Error reading from localStorage:', cacheError);
+      }
+      
+      // Fetch messages from the server
       const response = await fetch(`/api/chat/messages/${partnerId}`, {
         headers: {
           'Authorization': `Bearer ${localStorage.getItem('token')}`
@@ -140,8 +156,41 @@ const EnhancedChatPage = () => {
       
       if (response.ok) {
         const data = await response.json();
-        setMessages(data.sort((a, b) => new Date(a.createdAt) - new Date(b.createdAt)));
+        console.log(`Received ${data.length} messages from server`);
+        
+        // Merge server messages with any pending local messages
+        // Mark all server messages as persisted
+        const serverMessages = data.map(msg => ({
+          ...msg,
+          isPending: false,
+          isFromServer: true
+        }));
+        
+        // Filter out local messages that are already on the server
+        const serverIds = new Set(serverMessages.map(msg => msg.id));
+        const localOnlyMessages = cachedMessages.filter(msg => 
+          !serverIds.has(msg.id) && msg.id.toString().startsWith('temp-')
+        );
+        
+        console.log(`Found ${localOnlyMessages.length} local-only messages to merge`);
+        
+        // Combine and sort messages
+        const combinedMessages = [...serverMessages, ...localOnlyMessages]
+          .sort((a, b) => new Date(a.createdAt) - new Date(b.createdAt));
+        
+        setMessages(combinedMessages);
+        
+        // Update localStorage with the combined set
+        localStorage.setItem(chatHistoryKey, JSON.stringify(combinedMessages));
+        
         scrollToBottom(false);
+      } else {
+        console.error('Server returned error fetching messages:', await response.text());
+        // If server fetch fails, at least display cached messages
+        if (cachedMessages.length > 0) {
+          setMessages(cachedMessages.sort((a, b) => new Date(a.createdAt) - new Date(b.createdAt)));
+          scrollToBottom(false);
+        }
       }
     } catch (error) {
       console.error('Error loading messages:', error);
@@ -182,9 +231,21 @@ const EnhancedChatPage = () => {
     setMessages(prev => [...prev, newMessage]);
     setInput("");
     scrollToBottom();
+    
+    // Store message in localStorage before sending
+    try {
+      const chatHistoryKey = `chat_history_${activeChat.id}`;
+      const existingHistory = JSON.parse(localStorage.getItem(chatHistoryKey) || '[]');
+      existingHistory.push(newMessage);
+      localStorage.setItem(chatHistoryKey, JSON.stringify(existingHistory));
+      console.log(`Saved pending message to localStorage: ${tempId}`);
+    } catch (storageError) {
+      console.error('Failed to save message to localStorage:', storageError);
+    }
 
     // Send through WebSocket
     wsSendMessage(messageData);
+    console.log(`Sent message via WebSocket: ${tempId}`);
   }, [input, activeChat, connected, user, scrollToBottom, wsSendMessage]);
 
   // Handle key press
@@ -199,6 +260,7 @@ const EnhancedChatPage = () => {
   useEffect(() => {
     const handleMessage = (event) => {
       const data = event.detail;
+      console.log('WebSocket message received:', data.type);
       
       if (data.type === "chat_message") {
         const newMessage = {
@@ -207,30 +269,107 @@ const EnhancedChatPage = () => {
           receiverId: data.receiverId,
           content: data.content,
           createdAt: data.createdAt || new Date().toISOString(),
-          sender: data.sender
+          sender: data.sender,
+          isPending: false,
+          isFromServer: true
         };
+        
+        console.log(`Received chat message: from=${newMessage.senderId}, to=${newMessage.receiverId}, id=${newMessage.id}`);
 
-        // Only add the message if it's relevant to the current chat
+        // Store message in localStorage for all conversations, not just the active one
+        try {
+          const partnerId = newMessage.senderId === user.id ? newMessage.receiverId : newMessage.senderId;
+          const chatHistoryKey = `chat_history_${partnerId}`;
+          console.log(`Storing message in localStorage for partner ${partnerId}`);
+          
+          // Get existing messages
+          const existingHistory = JSON.parse(localStorage.getItem(chatHistoryKey) || '[]');
+          
+          // Avoid duplicates
+          if (!existingHistory.some(msg => msg.id === newMessage.id)) {
+            existingHistory.push(newMessage);
+            localStorage.setItem(chatHistoryKey, JSON.stringify(existingHistory));
+            console.log(`Saved message to localStorage: ${newMessage.id}`);
+          }
+        } catch (storageError) {
+          console.error('Failed to save message to localStorage:', storageError);
+        }
+
+        // Only add the message to UI if it's relevant to the current chat
         if (activeChat && 
             ((newMessage.senderId === activeChat.id && newMessage.receiverId === user.id) || 
              (newMessage.senderId === user.id && newMessage.receiverId === activeChat.id))) {
-          setMessages(prev => [...prev, newMessage]);
+          console.log(`Adding message to current chat UI: ${newMessage.id}`);
+          setMessages(prev => {
+            // Avoid duplicates in UI
+            if (prev.some(msg => msg.id === newMessage.id)) {
+              return prev;
+            }
+            return [...prev, newMessage];
+          });
           scrollToBottom();
           
           // Mark received messages as read
           if (newMessage.senderId !== user.id) {
+            console.log(`Marking message ${newMessage.id} as read`);
             wsSendMessage({
               type: 'mark_read',
               messageId: newMessage.id,
               senderId: newMessage.senderId
             });
           }
+        } else {
+          console.log('Message not relevant to current chat, stored in localStorage only');
         }
       } else if (data.type === 'message_sent' || data.type === 'message_ack') {
+        console.log('Message confirmation received:', data);
         // Update message status
-        setMessages(prev => prev.map(msg => 
-          msg.id === data.tempId ? { ...msg, id: data.messageId, isPending: false } : msg
-        ));
+        setMessages(prev => prev.map(msg => {
+          // Check if this is the message we're looking for using tempId
+          if (msg.id === data.tempId) {
+            console.log('Found pending message to update:', msg.id);
+            // For message_sent response, the message ID is in data.message.id
+            const newId = data.message?.id || data.messageId;
+            console.log(`Updating message from tempId ${msg.id} to permanent ID ${newId}`);
+            
+            // Store the updated message ID in localStorage for persistence
+            try {
+              if (newId && activeChat) {
+                // Get current chat history from localStorage or initialize empty
+                const chatHistoryKey = `chat_history_${activeChat.id}`;
+                const existingHistory = JSON.parse(localStorage.getItem(chatHistoryKey) || '[]');
+                
+                // Find and update the temp message if it exists
+                const updatedHistory = existingHistory.map(historyMsg => 
+                  historyMsg.id === msg.id ? { ...historyMsg, id: newId, isPending: false } : historyMsg
+                );
+                
+                // If not found, add it
+                if (!updatedHistory.some(historyMsg => historyMsg.id === newId || historyMsg.id === msg.id)) {
+                  updatedHistory.push({ ...msg, id: newId, isPending: false });
+                }
+                
+                // Save back to localStorage
+                localStorage.setItem(chatHistoryKey, JSON.stringify(updatedHistory));
+                console.log(`Updated chat history in localStorage for partner ${activeChat.id}`);
+              }
+            } catch (storageError) {
+              console.error('Failed to update localStorage chat history:', storageError);
+            }
+            
+            return { ...msg, id: newId, isPending: false };
+          }
+          return msg;
+        }));
+      } else if (data.type === 'messages_read') {
+        console.log('Messages read confirmation received:', data);
+        // This would be for read receipts and UI updates to show messages as read
+        setMessages(prev => prev.map(msg => {
+          if (msg.senderId === user.id && msg.receiverId === data.userId && !msg.isRead) {
+            return { ...msg, isRead: true };
+          }
+          return msg;
+        }));
       }
     };
 

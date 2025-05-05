@@ -3789,12 +3789,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Chat API routes
   app.get("/api/chat/messages/:receiverId", authenticateJWT, async (req: Request, res: Response) => {
     try {
+      console.log('Chat messages API called for conversation');
       const senderId = (req as any).user.id;
       const receiverId = parseInt(req.params.receiverId);
+      
+      console.log(`Fetching messages between sender ${senderId} and receiver ${receiverId}`);
       
       // Check if these users can chat (both following each other)
       const canChat = await storage.canUsersChat(senderId, receiverId);
       if (!canChat) {
+        console.log(`User ${senderId} cannot chat with ${receiverId} - not mutual followers`);
         return res.status(403).json({ message: "You can only chat with users who you follow and who follow you back" });
       }
       
@@ -3805,11 +3809,25 @@ export async function registerRoutes(app: Express): Promise<Server> {
       };
       
       const messages = await storage.getChatMessagesBetweenUsers(senderId, receiverId, options);
+      console.log(`Retrieved ${messages.length} messages between users ${senderId} and ${receiverId}`);
       
       // Mark messages from the receiver as read
       await storage.markChatMessagesAsRead(receiverId, senderId);
+      console.log(`Marked messages from ${receiverId} to ${senderId} as read`);
       
-      res.json(messages);
+      // Fetch user info for sender and receiver to include in response
+      const [senderInfo, receiverInfo] = await Promise.all([
+        storage.getUser(senderId),
+        storage.getUser(receiverId)
+      ]);
+      
+      // Enhance messages with user info for client display
+      const enhancedMessages = messages.map(msg => ({
+        ...msg,
+        sender: msg.senderId === senderId ? senderInfo : receiverInfo
+      }));
+      
+      res.json(enhancedMessages);
     } catch (error) {
       console.error("Error fetching chat messages:", error);
       res.status(500).json({ message: "Error fetching chat messages" });
@@ -3848,6 +3866,386 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Error checking if users can chat:", error);
       res.status(500).json({ message: "Error checking if users can chat" });
+    }
+  });
+
+  // Group Chat API Routes
+  
+  // Create a new chat group
+  app.post("/api/chat/groups", authenticateJWT, async (req: Request, res: Response) => {
+    try {
+      const userId = (req as any).user.id;
+      const { name, description } = req.body;
+      
+      if (!name) {
+        return res.status(400).json({ message: "Group name is required" });
+      }
+      
+      // Create the group
+      const newGroup = await storage.createChatGroup({
+        name,
+        description: description || "",
+        creatorId: userId,
+        createdAt: new Date(),
+        updatedAt: new Date()
+      });
+      
+      // Add the creator as first member (admin role)
+      await storage.addUserToGroup({
+        groupId: newGroup.id,
+        userId,
+        role: "admin",
+        joinedAt: new Date(),
+        lastReadAt: new Date()
+      });
+      
+      res.status(201).json(newGroup);
+    } catch (error) {
+      console.error("Error creating chat group:", error);
+      res.status(500).json({ message: "Error creating chat group" });
+    }
+  });
+  
+  // Get all chat groups for current user
+  app.get("/api/chat/groups", authenticateJWT, async (req: Request, res: Response) => {
+    try {
+      const userId = (req as any).user.id;
+      const groups = await storage.getChatGroupsByUserId(userId);
+      res.json(groups);
+    } catch (error) {
+      console.error("Error fetching chat groups:", error);
+      res.status(500).json({ message: "Error fetching chat groups" });
+    }
+  });
+  
+  // Get a specific chat group
+  app.get("/api/chat/groups/:groupId", authenticateJWT, async (req: Request, res: Response) => {
+    try {
+      const userId = (req as any).user.id;
+      const groupId = parseInt(req.params.groupId);
+      
+      // Check if user is a member of the group
+      const isMember = await storage.isGroupMember(groupId, userId);
+      if (!isMember) {
+        return res.status(403).json({ message: "You are not a member of this group" });
+      }
+      
+      const group = await storage.getChatGroup(groupId);
+      if (!group) {
+        return res.status(404).json({ message: "Group not found" });
+      }
+      
+      res.json(group);
+    } catch (error) {
+      console.error("Error fetching chat group:", error);
+      res.status(500).json({ message: "Error fetching chat group" });
+    }
+  });
+  
+  // Update a chat group
+  app.patch("/api/chat/groups/:groupId", authenticateJWT, async (req: Request, res: Response) => {
+    try {
+      const userId = (req as any).user.id;
+      const groupId = parseInt(req.params.groupId);
+      const { name, description } = req.body;
+      
+      // Check if user is a member with admin role
+      const members = await storage.getChatGroupMembers(groupId);
+      const userMember = members.find(m => m.userId === userId);
+      
+      if (!userMember) {
+        return res.status(403).json({ message: "You are not a member of this group" });
+      }
+      
+      if (userMember.role !== 'admin') {
+        return res.status(403).json({ message: "Only admins can update group details" });
+      }
+      
+      const updated = await storage.updateChatGroup(groupId, {
+        name, 
+        description,
+        updatedAt: new Date()
+      });
+      
+      res.json(updated);
+    } catch (error) {
+      console.error("Error updating chat group:", error);
+      res.status(500).json({ message: "Error updating chat group" });
+    }
+  });
+  
+  // Delete a chat group
+  app.delete("/api/chat/groups/:groupId", authenticateJWT, async (req: Request, res: Response) => {
+    try {
+      const userId = (req as any).user.id;
+      const groupId = parseInt(req.params.groupId);
+      
+      // Only the creator can delete a group
+      const group = await storage.getChatGroup(groupId);
+      if (!group) {
+        return res.status(404).json({ message: "Group not found" });
+      }
+      
+      if (group.creatorId !== userId) {
+        return res.status(403).json({ message: "Only the group creator can delete the group" });
+      }
+      
+      const success = await storage.deleteChatGroup(groupId, userId);
+      if (success) {
+        res.json({ message: "Group deleted successfully" });
+      } else {
+        res.status(404).json({ message: "Group not found or already deleted" });
+      }
+    } catch (error) {
+      console.error("Error deleting chat group:", error);
+      res.status(500).json({ message: "Error deleting chat group" });
+    }
+  });
+  
+  // Group Members API
+  
+  // Get members of a group
+  app.get("/api/chat/groups/:groupId/members", authenticateJWT, async (req: Request, res: Response) => {
+    try {
+      const userId = (req as any).user.id;
+      const groupId = parseInt(req.params.groupId);
+      
+      // Check if user is a member of the group
+      const isMember = await storage.isGroupMember(groupId, userId);
+      if (!isMember) {
+        return res.status(403).json({ message: "You are not a member of this group" });
+      }
+      
+      const members = await storage.getChatGroupMembers(groupId);
+      res.json(members);
+    } catch (error) {
+      console.error("Error fetching group members:", error);
+      res.status(500).json({ message: "Error fetching group members" });
+    }
+  });
+  
+  // Add a member to a group
+  app.post("/api/chat/groups/:groupId/members", authenticateJWT, async (req: Request, res: Response) => {
+    try {
+      const userId = (req as any).user.id;
+      const groupId = parseInt(req.params.groupId);
+      const { memberId } = req.body;
+      
+      if (!memberId) {
+        return res.status(400).json({ message: "Member ID is required" });
+      }
+      
+      // Check if the current user is a member with admin role
+      const members = await storage.getChatGroupMembers(groupId);
+      const userMember = members.find(m => m.userId === userId);
+      
+      if (!userMember) {
+        return res.status(403).json({ message: "You are not a member of this group" });
+      }
+      
+      if (userMember.role !== 'admin') {
+        return res.status(403).json({ message: "Only admins can add members" });
+      }
+      
+      // Add the new member
+      const newMember = await storage.addUserToGroup({
+        groupId,
+        userId: memberId,
+        role: "member",
+        joinedAt: new Date(),
+        lastReadAt: new Date()
+      });
+      
+      res.status(201).json(newMember);
+    } catch (error) {
+      if (error instanceof Error && error.message === "User is already a member of this group") {
+        return res.status(400).json({ message: error.message });
+      }
+      console.error("Error adding group member:", error);
+      res.status(500).json({ message: "Error adding group member" });
+    }
+  });
+  
+  // Remove a member from a group
+  app.delete("/api/chat/groups/:groupId/members/:memberId", authenticateJWT, async (req: Request, res: Response) => {
+    try {
+      const userId = (req as any).user.id;
+      const groupId = parseInt(req.params.groupId);
+      const memberId = parseInt(req.params.memberId);
+      
+      // Special case: user can remove themselves (leave group)
+      if (userId === memberId) {
+        const success = await storage.removeUserFromGroup(groupId, userId);
+        if (success) {
+          return res.json({ message: "You have left the group" });
+        } else {
+          return res.status(404).json({ message: "Group not found or you are not a member" });
+        }
+      }
+      
+      // Check if the current user is a member with admin role
+      const members = await storage.getChatGroupMembers(groupId);
+      const userMember = members.find(m => m.userId === userId);
+      
+      if (!userMember) {
+        return res.status(403).json({ message: "You are not a member of this group" });
+      }
+      
+      if (userMember.role !== 'admin') {
+        return res.status(403).json({ message: "Only admins can remove members" });
+      }
+      
+      // Get the member to be removed
+      const memberToRemove = members.find(m => m.userId === memberId);
+      if (!memberToRemove) {
+        return res.status(404).json({ message: "Member not found in this group" });
+      }
+      
+      // Don't allow removing the creator
+      const group = await storage.getChatGroup(groupId);
+      if (memberId === group?.creatorId) {
+        return res.status(403).json({ message: "Cannot remove the group creator" });
+      }
+      
+      // Remove the member
+      const success = await storage.removeUserFromGroup(groupId, memberId);
+      if (success) {
+        res.json({ message: "Member removed successfully" });
+      } else {
+        res.status(404).json({ message: "Member not found or already removed" });
+      }
+    } catch (error) {
+      console.error("Error removing group member:", error);
+      res.status(500).json({ message: "Error removing group member" });
+    }
+  });
+  
+  // Update member role
+  app.patch("/api/chat/groups/:groupId/members/:memberId", authenticateJWT, async (req: Request, res: Response) => {
+    try {
+      const userId = (req as any).user.id;
+      const groupId = parseInt(req.params.groupId);
+      const memberId = parseInt(req.params.memberId);
+      const { role } = req.body;
+      
+      if (!role || (role !== 'admin' && role !== 'member')) {
+        return res.status(400).json({ message: "Valid role (admin or member) is required" });
+      }
+      
+      // Check if the current user is a member with admin role
+      const members = await storage.getChatGroupMembers(groupId);
+      const userMember = members.find(m => m.userId === userId);
+      
+      if (!userMember) {
+        return res.status(403).json({ message: "You are not a member of this group" });
+      }
+      
+      if (userMember.role !== 'admin') {
+        return res.status(403).json({ message: "Only admins can change member roles" });
+      }
+      
+      // Get the member to update
+      const memberToUpdate = members.find(m => m.userId === memberId);
+      if (!memberToUpdate) {
+        return res.status(404).json({ message: "Member not found in this group" });
+      }
+      
+      // Update the member's role
+      const updated = await storage.updateGroupMemberRole(groupId, memberId, role);
+      res.json(updated);
+    } catch (error) {
+      console.error("Error updating member role:", error);
+      res.status(500).json({ message: "Error updating member role" });
+    }
+  });
+  
+  // Group Messages API
+  
+  // Get messages for a group
+  app.get("/api/chat/groups/:groupId/messages", authenticateJWT, async (req: Request, res: Response) => {
+    try {
+      const userId = (req as any).user.id;
+      const groupId = parseInt(req.params.groupId);
+      const limit = req.query.limit ? parseInt(req.query.limit as string) : 50;
+      const before = req.query.before ? parseInt(req.query.before as string) : undefined;
+      
+      // Check if user is a member of the group
+      const isMember = await storage.isGroupMember(groupId, userId);
+      if (!isMember) {
+        return res.status(403).json({ message: "You are not a member of this group" });
+      }
+      
+      // Get the messages
+      const messages = await storage.getGroupMessages(groupId, { limit, before });
+      
+      // Mark messages as read for this user
+      await storage.updateGroupMemberLastRead(groupId, userId);
+      
+      res.json(messages);
+    } catch (error) {
+      console.error("Error fetching group messages:", error);
+      res.status(500).json({ message: "Error fetching group messages" });
+    }
+  });
+  
+  // Send a message to a group
+  app.post("/api/chat/groups/:groupId/messages", authenticateJWT, async (req: Request, res: Response) => {
+    try {
+      const userId = (req as any).user.id;
+      const groupId = parseInt(req.params.groupId);
+      const { content } = req.body;
+      
+      if (!content || content.trim() === "") {
+        return res.status(400).json({ message: "Message content is required" });
+      }
+      
+      // Check if user is a member of the group
+      const isMember = await storage.isGroupMember(groupId, userId);
+      if (!isMember) {
+        return res.status(403).json({ message: "You are not a member of this group" });
+      }
+      
+      // Send the message
+      const message = await storage.sendGroupMessage({
+        groupId,
+        senderId: userId,
+        content,
+        createdAt: new Date(),
+        status: "sent"
+      });
+      
+      // Get the sender information to include in the response
+      const user = await storage.getUser(userId);
+      const messageWithSender = { ...message, sender: user };
+      
+      // Broadcast the message to all connected group members
+      const members = await storage.getChatGroupMembers(groupId);
+      members.forEach(member => {
+        const memberWs = clients.get(member.userId);
+        if (memberWs && memberWs.readyState === WebSocket.OPEN) {
+          memberWs.send(JSON.stringify({
+            type: 'group_chat_message',
+            message: messageWithSender
+          }));
+        }
+      });
+      
+      res.status(201).json(messageWithSender);
+    } catch (error) {
+      console.error("Error sending group message:", error);
+      res.status(500).json({ message: "Error sending group message" });
+    }
+  });
+  
+  // Get unread message count for all groups
+  app.get("/api/chat/groups/unread-count", authenticateJWT, async (req: Request, res: Response) => {
+    try {
+      const userId = (req as any).user.id;
+      const count = await storage.getUnreadGroupMessagesCount(userId);
+      res.json({ count });
+    } catch (error) {
+      console.error("Error fetching unread group messages count:", error);
+      res.status(500).json({ message: "Error fetching unread group messages count" });
     }
   });
 
@@ -4091,7 +4489,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           // Validate message
           if (!receiverId || !content) {
             console.log('Chat message rejected: Missing receiverId or content');
-            ws.send(JSON.stringify({ type: 'error', message: 'Receiver ID and content are required' }));
+            ws.send(JSON.stringify({ type: 'error', message: 'Receiver ID and content are required', tempId }));
             return;
           }
           
@@ -4110,12 +4508,25 @@ export async function registerRoutes(app: Express): Promise<Server> {
           }
           
           // Store message in database
-          const message = await storage.createChatMessage({
-            senderId: userId,
-            receiverId,
-            content,
-            isRead: false,
-          });
+          console.log(`Storing message in database from ${userId} to ${receiverId}: ${content}`);
+          let message;
+          try {
+            message = await storage.createChatMessage({
+              senderId: userId,
+              receiverId,
+              content,
+              isRead: false,
+            });
+            console.log(`Message stored successfully with ID: ${message.id}`);
+          } catch (dbError) {
+            console.error(`Database error storing message:`, dbError);
+            ws.send(JSON.stringify({ 
+              type: 'error', 
+              message: 'Failed to store message in database',
+              tempId
+            }));
+            return;
+          }
           
           // Get sender info for the message
           const sender = await storage.getUser(userId);
@@ -4131,37 +4542,202 @@ export async function registerRoutes(app: Express): Promise<Server> {
           const receiverWs = clients.get(receiverId);
           if (receiverWs && receiverWs.readyState === WebSocket.OPEN) {
             try {
-              receiverWs.send(JSON.stringify(messageWithSender));
-              console.log(`Message sent to online user ${receiverId}`);
+              // Format for better client display
+              const enhancedMessage = {
+                type: 'chat_message', // Change to match client expectations
+                id: message.id,
+                senderId: message.senderId,
+                receiverId: message.receiverId,
+                content: message.content,
+                createdAt: message.createdAt,
+                isRead: message.isRead,
+                sender // Include sender info for display
+              };
+              
+              receiverWs.send(JSON.stringify(enhancedMessage));
+              console.log(`Message sent to online user ${receiverId} with ID ${message.id}`);
             } catch (error) {
               console.error(`Error sending message to user ${receiverId}`, error);
               // Queue the message for later delivery
-              queueMessageForOfflineUser(receiverId, messageWithSender);
+              queueMessageForOfflineUser(receiverId, {
+                type: 'chat_message',
+                id: message.id,
+                senderId: message.senderId,
+                receiverId: message.receiverId,
+                content: message.content,
+                createdAt: message.createdAt,
+                isRead: message.isRead,
+                sender
+              });
             }
           } else {
             // Queue message for offline user
-            console.log(`User ${receiverId} is offline, queueing message`);
-            queueMessageForOfflineUser(receiverId, messageWithSender);
+            console.log(`User ${receiverId} is offline, queueing message with ID ${message.id}`);
+            queueMessageForOfflineUser(receiverId, {
+              type: 'chat_message',
+              id: message.id,
+              senderId: message.senderId,
+              receiverId: message.receiverId,
+              content: message.content,
+              createdAt: message.createdAt,
+              isRead: message.isRead,
+              sender
+            });
           }
           
           // Send confirmation to sender with tempId if provided
           try {
-            ws.send(JSON.stringify({
+            // Format the response to match client expectations
+            const messageResponse = {
               type: 'message_sent',
-              message,
+              messageId: message.id,
+              message: {
+                ...message,
+                sender // Include sender for consistency
+              },
               tempId // Include original tempId to allow client to update UI
-            }));
-            console.log(`Sent message confirmation for tempId: ${tempId}`);
+            };
+            ws.send(JSON.stringify(messageResponse));
+            console.log(`Sent message confirmation for tempId: ${tempId} with ID: ${message.id}`);
           } catch (sendError) {
-            console.error(`Error sending message confirmation: ${sendError.message}`);
+            console.error(`Error sending message confirmation:`, sendError);
             // Try to queue the confirmation if websocket failed
             queueMessageForOfflineUser(userId, {
               type: 'message_sent',
-              message,
+              messageId: message.id,
+              message: {
+                ...message,
+                sender
+              },
               tempId
             });
           }
         } 
+        // Handle group chat messages
+        else if (data.type === 'group_chat_message') {
+          console.log(`Received group_chat_message: ${JSON.stringify(data)}`);
+          
+          if (!userId) {
+            console.log('Group chat message rejected: User not authenticated');
+            ws.send(JSON.stringify({ type: 'error', message: 'Authentication required' }));
+            return;
+          }
+          
+          const { groupId, content, tempId } = data;
+          console.log(`Processing group chat message - From: ${userId}, To Group: ${groupId}, TempId: ${tempId}`);
+          
+          // Validate message
+          if (!groupId || !content) {
+            console.log('Group chat message rejected: Missing groupId or content');
+            ws.send(JSON.stringify({ type: 'error', message: 'Group ID and content are required', tempId }));
+            return;
+          }
+          
+          // Check if user is a member of the group
+          const isMember = await storage.isGroupMember(groupId, userId);
+          console.log(`Is user member of group? ${userId} -> ${groupId}: ${isMember}`);
+          
+          if (!isMember) {
+            console.log(`Group chat message rejected: User ${userId} is not a member of group ${groupId}`);
+            ws.send(JSON.stringify({ 
+              type: 'error', 
+              message: 'You must be a member of the group to send messages',
+              tempId
+            }));
+            return;
+          }
+          
+          try {
+            // Store the message in database
+            const message = await storage.sendGroupMessage({
+              groupId,
+              senderId: userId,
+              content,
+              createdAt: new Date(),
+              status: 'sent'
+            });
+            
+            console.log(`Group message stored in database with ID: ${message.id}`);
+            
+            // Get the sender information to include with the message
+            const sender = await storage.getUser(userId);
+            const messageWithSender = { ...message, sender };
+            
+            // Send confirmation to the sender with the tempId
+            ws.send(JSON.stringify({
+              type: 'group_message_sent',
+              tempId,
+              message: messageWithSender
+            }));
+            
+            // Get all group members
+            const members = await storage.getChatGroupMembers(groupId);
+            
+            // Send the message to all online group members (except sender)
+            for (const member of members) {
+              // Skip the sender as they already got a confirmation
+              if (member.userId === userId) continue;
+              
+              const memberWs = clients.get(member.userId);
+              if (memberWs && memberWs.readyState === WebSocket.OPEN) {
+                console.log(`Sending group message to member: ${member.userId}`);
+                
+                memberWs.send(JSON.stringify({
+                  type: 'group_chat_message',
+                  message: messageWithSender
+                }));
+              }
+            }
+          } catch (error) {
+            console.error('Error processing group chat message:', error);
+            ws.send(JSON.stringify({ 
+              type: 'error', 
+              message: 'Error saving group message',
+              tempId
+            }));
+          }
+        }
+        // Handle mark group messages as read
+        else if (data.type === 'mark_group_read') {
+          if (!userId) {
+            ws.send(JSON.stringify({ type: 'error', message: 'Authentication required' }));
+            return;
+          }
+          
+          const { groupId } = data;
+          
+          if (!groupId) {
+            ws.send(JSON.stringify({ type: 'error', message: 'Group ID is required' }));
+            return;
+          }
+          
+          try {
+            // Check if user is a member of the group
+            const isMember = await storage.isGroupMember(groupId, userId);
+            if (!isMember) {
+              ws.send(JSON.stringify({ 
+                type: 'error', 
+                message: 'You are not a member of this group'
+              }));
+              return;
+            }
+            
+            // Update the last read timestamp for this user in this group
+            await storage.updateGroupMemberLastRead(groupId, userId);
+            
+            // Confirm to the client that messages were marked as read
+            ws.send(JSON.stringify({
+              type: 'marked_group_read_success',
+              groupId
+            }));
+          } catch (error) {
+            console.error('Error marking group messages as read:', error);
+            ws.send(JSON.stringify({ 
+              type: 'error', 
+              message: 'Error marking group messages as read'
+            }));
+          }
+        }
         // Handle read receipts
         else if (data.type === 'mark_read') {
           if (!userId) {
@@ -4232,6 +4808,41 @@ export async function registerRoutes(app: Express): Promise<Server> {
           ws.send(JSON.stringify({
             type: 'message_history',
             partnerId,
+            messages
+          }));
+        }
+        // Handle retrieving group message history
+        else if (data.type === 'get_group_message_history') {
+          if (!userId) {
+            ws.send(JSON.stringify({ type: 'error', message: 'Authentication required' }));
+            return;
+          }
+          
+          const { groupId, limit, before } = data;
+          if (!groupId) {
+            ws.send(JSON.stringify({ type: 'error', message: 'Group ID is required' }));
+            return;
+          }
+          
+          // Check if user is a member of the group
+          const isMember = await storage.isGroupMember(groupId, userId);
+          if (!isMember) {
+            ws.send(JSON.stringify({ 
+              type: 'error', 
+              message: 'You are not a member of this group'
+            }));
+            return;
+          }
+          
+          // Get group message history
+          const messages = await storage.getGroupMessages(groupId, { limit: limit || 50, before });
+          
+          // Mark messages as read
+          await storage.updateGroupMemberLastRead(groupId, userId);
+          
+          ws.send(JSON.stringify({
+            type: 'group_message_history',
+            groupId,
             messages
           }));
         }

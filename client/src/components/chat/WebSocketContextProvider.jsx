@@ -12,6 +12,7 @@ const WebSocketContext = createContext(null);
 
 /**
  * Provider component for WebSocket chat functionality between mutual followers
+ * and for group chats
  */
 export const WebSocketContextProvider = ({ children }) => {
   const { toast } = useToast();
@@ -19,6 +20,11 @@ export const WebSocketContextProvider = ({ children }) => {
   const [connected, setConnected] = useState(false);
   const [connectionStatus, setConnectionStatus] = useState('disconnected');
   const [mutualFollowers, setMutualFollowers] = useState([]);
+  const [groupChats, setGroupChats] = useState([]);
+  const [activeGroupId, setActiveGroupId] = useState(null);
+  const [groupMessages, setGroupMessages] = useState({});
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
   
   // WebSocket reference
   const ws = useRef(null);
@@ -158,6 +164,34 @@ export const WebSocketContextProvider = ({ children }) => {
             // This would update a specific user's online status
             updateUserStatus(data.userId, data.status);
           }
+          // Handle group chat messages
+          else if (data.type === 'group_chat_message') {
+            // Dispatch a custom event for group chat message
+            window.dispatchEvent(new CustomEvent('ws:group_message', {
+              detail: data
+            }));
+          }
+          // Handle group message delivery confirmation
+          else if (data.type === 'group_message_sent') {
+            // Dispatch a custom event for group message acknowledgment
+            window.dispatchEvent(new CustomEvent('ws:group_message_ack', {
+              detail: data
+            }));
+          }
+          // Handle group messages marked as read confirmation
+          else if (data.type === 'marked_group_read_success') {
+            // Dispatch event for confirmation of marking group messages as read
+            window.dispatchEvent(new CustomEvent('ws:group_message_read', {
+              detail: data
+            }));
+          }
+          // Handle group message history response
+          else if (data.type === 'group_message_history') {
+            // Dispatch event for received message history
+            window.dispatchEvent(new CustomEvent('ws:group_message_history', {
+              detail: data
+            }));
+          }
           // Handle error messages
           else if (data.type === 'error') {
             console.error('WebSocket error from server:', data.message);
@@ -295,6 +329,286 @@ export const WebSocketContextProvider = ({ children }) => {
   }, []);
   
   // Connect when component mounts or token/user changes
+  // Fetch user's group chats
+  const fetchGroupChats = useCallback(async () => {
+    if (!user || !token) return;
+    
+    setLoading(true);
+    setError(null);
+    
+    try {
+      const response = await fetch('/api/groups', {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
+      
+      if (response.ok) {
+        const data = await response.json();
+        setGroupChats(data);
+      } else {
+        console.error('Failed to fetch group chats');
+        setError('Failed to fetch group chats');
+      }
+    } catch (error) {
+      console.error('Error fetching group chats:', error);
+      setError(error.message || 'Error fetching group chats');
+    } finally {
+      setLoading(false);
+    }
+  }, [user, token]);
+  
+  // Create a new group chat
+  const createGroup = useCallback(async (groupData) => {
+    if (!user || !token) {
+      throw new Error('You must be logged in to create a group');
+    }
+    
+    try {
+      const response = await fetch('/api/groups', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify(groupData)
+      });
+      
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || 'Failed to create group');
+      }
+      
+      const newGroup = await response.json();
+      setGroupChats(prev => [...prev, newGroup]);
+      return newGroup;
+    } catch (error) {
+      console.error('Error creating group:', error);
+      throw error;
+    }
+  }, [user, token]);
+  
+  // Add a member to a group
+  const addGroupMember = useCallback(async (groupId, userId) => {
+    if (!user || !token) {
+      throw new Error('You must be logged in to add a member');
+    }
+    
+    try {
+      const response = await fetch(`/api/groups/${groupId}/members`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({ userId })
+      });
+      
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || 'Failed to add member');
+      }
+      
+      // Update the group in state
+      fetchGroupChats();
+      return true;
+    } catch (error) {
+      console.error('Error adding member:', error);
+      throw error;
+    }
+  }, [user, token, fetchGroupChats]);
+  
+  // Remove a member from a group
+  const removeGroupMember = useCallback(async (groupId, userId) => {
+    if (!user || !token) {
+      throw new Error('You must be logged in to remove a member');
+    }
+    
+    try {
+      const response = await fetch(`/api/groups/${groupId}/members/${userId}`, {
+        method: 'DELETE',
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
+      
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || 'Failed to remove member');
+      }
+      
+      // If removing self (leaving group), update group list
+      if (userId === user.id) {
+        setGroupChats(prev => prev.filter(group => group.id !== groupId));
+      } else {
+        // Otherwise just refresh the group data
+        fetchGroupChats();
+      }
+      
+      return true;
+    } catch (error) {
+      console.error('Error removing member:', error);
+      throw error;
+    }
+  }, [user, token, fetchGroupChats]);
+  
+  // Update group details
+  const updateGroup = useCallback(async (groupId, groupData) => {
+    if (!user || !token) {
+      throw new Error('You must be logged in to update a group');
+    }
+    
+    try {
+      const response = await fetch(`/api/groups/${groupId}`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify(groupData)
+      });
+      
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || 'Failed to update group');
+      }
+      
+      const updatedGroup = await response.json();
+      setGroupChats(prev => prev.map(group => 
+        group.id === groupId ? updatedGroup : group
+      ));
+      return updatedGroup;
+    } catch (error) {
+      console.error('Error updating group:', error);
+      throw error;
+    }
+  }, [user, token]);
+  
+  // Delete a group
+  const deleteGroup = useCallback(async (groupId) => {
+    if (!user || !token) {
+      throw new Error('You must be logged in to delete a group');
+    }
+    
+    try {
+      const response = await fetch(`/api/groups/${groupId}`, {
+        method: 'DELETE',
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
+      
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || 'Failed to delete group');
+      }
+      
+      // Remove the group from state
+      setGroupChats(prev => prev.filter(group => group.id !== groupId));
+      if (activeGroupId === groupId) {
+        setActiveGroupId(null);
+      }
+      
+      return true;
+    } catch (error) {
+      console.error('Error deleting group:', error);
+      throw error;
+    }
+  }, [user, token, activeGroupId]);
+  
+  // Set the active group ID
+  const setActiveGroup = useCallback((groupId) => {
+    setActiveGroupId(groupId);
+    
+    // Fetch messages for this group if not already loaded
+    if (groupId && !groupMessages[groupId]) {
+      getGroupMessageHistory(groupId);
+    }
+    
+    // Mark messages as read when selecting a group
+    if (groupId) {
+      markGroupMessagesAsRead(groupId);
+    }
+  }, [groupMessages, getGroupMessageHistory, markGroupMessagesAsRead]);
+
+  // Handle WebSocket group message event
+  const handleGroupMessageEvent = useCallback((event) => {
+    const data = event.detail;
+    
+    if (data.type === 'group_chat_message' || data.type === 'group_message_sent') {
+      setGroupMessages(prev => {
+        const groupId = data.groupId;
+        const messages = prev[groupId] || [];
+        
+        // If it's a new message
+        if (!messages.some(msg => msg.id === data.id)) {
+          return {
+            ...prev,
+            [groupId]: [...messages, data]
+          };
+        }
+        
+        // If it's a message update (like a delivery confirmation)
+        return {
+          ...prev,
+          [groupId]: messages.map(msg => 
+            (msg.tempId && msg.tempId === data.tempId) || msg.id === data.id 
+              ? { ...msg, ...data } 
+              : msg
+          )
+        };
+      });
+    } else if (data.type === 'group_message_history') {
+      // Handle message history response
+      setGroupMessages(prev => ({
+        ...prev,
+        [data.groupId]: data.messages || []
+      }));
+    }
+  }, []);
+  
+  // Handle group message read status updates
+  const handleGroupMessageReadEvent = useCallback((event) => {
+    const data = event.detail;
+    
+    if (data.type === 'group_message_read') {
+      // Update read status of messages for the group
+      setGroupMessages(prev => {
+        const groupId = data.groupId;
+        const messages = prev[groupId] || [];
+        
+        return {
+          ...prev,
+          [groupId]: messages.map(msg => ({
+            ...msg,
+            readBy: data.userId ? 
+              [...(msg.readBy || []), data.userId] : 
+              msg.readBy
+          }))
+        };
+      });
+    }
+  }, []);
+  
+  // Add event listeners for WebSocket events
+  useEffect(() => {
+    // Group message events
+    window.addEventListener('ws:group_message', handleGroupMessageEvent);
+    window.addEventListener('ws:group_message_ack', handleGroupMessageEvent);
+    window.addEventListener('ws:group_message_history', handleGroupMessageEvent);
+    window.addEventListener('ws:group_message_read', handleGroupMessageReadEvent);
+    
+    return () => {
+      window.removeEventListener('ws:group_message', handleGroupMessageEvent);
+      window.removeEventListener('ws:group_message_ack', handleGroupMessageEvent);
+      window.removeEventListener('ws:group_message_history', handleGroupMessageEvent);
+      window.removeEventListener('ws:group_message_read', handleGroupMessageReadEvent);
+    };
+  }, [handleGroupMessageEvent, handleGroupMessageReadEvent]);
+  
+  // Effects
+
+  // Connect to WebSocket when component mounts or token/user changes
   useEffect(() => {
     if (token && user) {
       connect();
@@ -312,13 +626,129 @@ export const WebSocketContextProvider = ({ children }) => {
     };
   }, [token, user, connect, clearHeartbeat]);
   
+  // Fetch group chats when connected
+  useEffect(() => {
+    if (connected && user && token) {
+      fetchGroupChats();
+    }
+  }, [connected, user, token, fetchGroupChats]);
+  
+  // Local storage for persisting group messages
+  useEffect(() => {
+    // Load group messages from localStorage when mounting
+    try {
+      const savedGroupMessages = localStorage.getItem('groupMessages');
+      if (savedGroupMessages) {
+        setGroupMessages(JSON.parse(savedGroupMessages));
+      }
+    } catch (error) {
+      console.error('Error loading group messages from localStorage:', error);
+    }
+  }, []);
+  
+  // Save group messages to localStorage when changed
+  useEffect(() => {
+    try {
+      localStorage.setItem('groupMessages', JSON.stringify(groupMessages));
+    } catch (error) {
+      console.error('Error saving group messages to localStorage:', error);
+    }
+  }, [groupMessages]);
+  
+  // Send a group message through WebSocket
+  const sendGroupMessage = useCallback((message) => {
+    if (!connected || !ws.current) {
+      // Queue the message for later
+      messageQueue.current.push({
+        type: 'group_chat_message',
+        ...message
+      });
+      console.log('Group message queued for later sending');
+      return false;
+    }
+    
+    try {
+      ws.current.send(JSON.stringify({
+        type: 'group_chat_message',
+        ...message
+      }));
+      return true;
+    } catch (error) {
+      console.error('Error sending group message:', error);
+      messageQueue.current.push({
+        type: 'group_chat_message',
+        ...message
+      });
+      return false;
+    }
+  }, [connected]);
+  
+  // Request group message history
+  const getGroupMessageHistory = useCallback((groupId, options = {}) => {
+    if (!connected || !ws.current) {
+      console.log('Cannot request group message history: not connected');
+      return false;
+    }
+    
+    try {
+      ws.current.send(JSON.stringify({
+        type: 'get_group_message_history',
+        groupId,
+        ...options
+      }));
+      return true;
+    } catch (error) {
+      console.error('Error requesting group message history:', error);
+      return false;
+    }
+  }, [connected]);
+  
+  // Mark group messages as read
+  const markGroupMessagesAsRead = useCallback((groupId) => {
+    if (!connected || !ws.current) {
+      console.log('Cannot mark group messages as read: not connected');
+      return false;
+    }
+    
+    try {
+      ws.current.send(JSON.stringify({
+        type: 'mark_group_read',
+        groupId
+      }));
+      return true;
+    } catch (error) {
+      console.error('Error marking group messages as read:', error);
+      return false;
+    }
+  }, [connected]);
+  
   // The context value
   const value = {
+    // Connection state
     connected,
     connectionStatus,
+    loading,
+    error,
+    
+    // Direct message data & methods
     mutualFollowers,
     sendMessage,
-    updateUserStatus
+    updateUserStatus,
+    
+    // Group chat data & methods
+    groupChats,
+    activeGroupId,
+    groupMessages,
+    fetchGroupChats,
+    createGroup,
+    addGroupMember,
+    removeGroupMember,
+    updateGroup,
+    deleteGroup,
+    setActiveGroup,
+    sendGroupMessage,
+    getGroupMessageHistory,
+    markGroupMessagesAsRead
   };
   
   return (
