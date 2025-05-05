@@ -381,7 +381,7 @@ const ChatPage = () => {
 
   // Send message function
   const handleSendMessage = () => {
-    if (!input.trim() || !activeChat || !connected) return;
+    if (!input?.trim() || !activeChat || !connected) return;
     
     const tempId = `temp-${Date.now()}`; // temporary ID with 'temp-' prefix
     
@@ -471,11 +471,18 @@ const ChatPage = () => {
               />
 
               <ChatInput
-                value={input}
-                onChange={(e) => setInput(e.target.value)}
-                onSend={handleSendMessage}
-                disabled={!connected}
-                placeholder={connected ? "Type a message..." : "Reconnecting to chat server..."}
+                input={input}
+                setInput={setInput}
+                handleKeyDown={(e) => {
+                  if (e.key === 'Enter' && !e.shiftKey) {
+                    e.preventDefault();
+                    handleSendMessage();
+                  }
+                }}
+                sendMessage={handleSendMessage}
+                connected={connected}
+                activeChat={activeChat}
+                connectionStatus={connectionState}
               />
             </>
           ) : (
