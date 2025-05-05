@@ -1780,6 +1780,24 @@ export class DatabaseStorage implements IStorage {
   }
   
   async getChatPartners(userId: number): Promise<User[]> {
+    // Get users who follow each other
+    const mutualFollowers = await db.select({
+      user: users
+    })
+    .from(userFollowers)
+    .innerJoin(users, eq(userFollowers.followerId, users.id))
+    .where(and(
+      eq(userFollowers.userId, userId),
+      exists(
+        db.select()
+          .from(userFollowers)
+          .where(and(
+            eq(userFollowers.userId, userFollowers.followerId),
+            eq(userFollowers.followerId, userId)
+          ))
+      )
+    ));
+
     // Get all unique users that the current user has chatted with
     const sentToUsers = await db.select({
       user: users
@@ -1799,6 +1817,7 @@ export class DatabaseStorage implements IStorage {
     
     // Combine and deduplicate users
     const uniqueUsers = new Map<number, User>();
+    mutualFollowers.forEach(u => uniqueUsers.set(u.user.id, u.user));
     sentToUsers.forEach(u => uniqueUsers.set(u.user.id, u.user));
     receivedFromUsers.forEach(u => uniqueUsers.set(u.user.id, u.user));
     
