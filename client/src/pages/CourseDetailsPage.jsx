@@ -786,21 +786,23 @@ const CourseDetailsPage = () => {
                   {comments.map((comment) => (
                     <Card key={comment.id} className="border-orange-100">
                       <CardHeader className="pb-2">
-                        <div className="flex items-center gap-3">
-                          <Avatar className="h-8 w-8">
-                            <AvatarImage src={comment.user?.avatar} />
-                            <AvatarFallback className="bg-orange-100 text-orange-700">
-                              {comment.user?.username.charAt(0).toUpperCase() || 'U'}
-                            </AvatarFallback>
-                          </Avatar>
-                          <div>
-                            <div className="font-medium">{comment.user?.username || 'Anonymous'}</div>
-                            <div className="text-xs text-gray-500">
-                              {new Date(comment.createdAt).toLocaleDateString('en-US', {
-                                year: 'numeric', month: 'short', day: 'numeric'
-                              })}
+                        <div>
+                          <a href={`/users/${comment.user?.id}`} className="flex items-center gap-3">
+                            <Avatar className="h-8 w-8">
+                              <AvatarImage src={comment.user?.photoURL} />
+                              <AvatarFallback className="bg-orange-100 text-orange-700">
+                                {comment.user?.username.charAt(0).toUpperCase() || 'U'}
+                              </AvatarFallback>
+                            </Avatar>
+                            <div>
+                              <div className="font-medium hover:text-orange-700 transition-colors">{comment.user?.username || 'Anonymous'}</div>
+                              <div className="text-xs text-gray-500">
+                                {new Date(comment.createdAt).toLocaleDateString('en-US', {
+                                  year: 'numeric', month: 'short', day: 'numeric'
+                                })}
+                              </div>
                             </div>
-                          </div>
+                          </a>
                         </div>
                       </CardHeader>
                       <CardContent>
