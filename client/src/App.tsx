@@ -5,6 +5,7 @@ import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { AuthProvider } from "./contexts/AuthContext";
 import { LanguageProvider } from "./contexts/LanguageContext";
+import { WebSocketProvider } from "@/components/chat/WebSocketProvider";
 import NotFound from "@/pages/not-found";
 import Home from "@/pages/Home";
 import CourseDetail from "@/pages/CourseDetail";
@@ -17,7 +18,7 @@ import PostDetail from "@/pages/PostDetail";
 import UserProfile from "./pages/UserProfile";
 import NotesPage from "./pages/NotesPage";
 import TokenDebugPage from "./pages/TokenDebugPage";
-import ChatPage from "./pages/ChatPage";
+import NewChatPage from "./pages/NewChatPage";
 import Header from "@/components/Header";
 import Footer from "@/components/Footer";
 import FloatingAIButton from "@/components/FloatingAIButton";
@@ -51,7 +52,7 @@ function Router() {
           <Switch>
             <Route path="/chat">
               <ErrorBoundary>
-                <ChatPage />
+                <NewChatPage />
               </ErrorBoundary>
             </Route>
           </Switch>
@@ -101,13 +102,15 @@ function App() {
     <QueryClientProvider client={queryClient}>
       <LanguageProvider>
         <AuthProvider>
-          <TooltipProvider>
-            <Router />
-            <FloatingAIButton />
-            <FloatingNoteButton />
-            <TokenDebugger />
-            <Toaster />
-          </TooltipProvider>
+          <WebSocketProvider>
+            <TooltipProvider>
+              <Router />
+              <FloatingAIButton />
+              <FloatingNoteButton />
+              <TokenDebugger />
+              <Toaster />
+            </TooltipProvider>
+          </WebSocketProvider>
         </AuthProvider>
       </LanguageProvider>
     </QueryClientProvider>

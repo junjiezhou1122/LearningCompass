@@ -3977,7 +3977,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
       heartbeat();
     });
     
-    ws.on('message', async (message: string) => {
+    ws.on('message', async (message: string | Buffer) => {
+      // If the message is a binary buffer, it's likely a protocol-level frame
+      if (message instanceof Buffer || (typeof message !== 'string')) {
+        // We don't need to parse binary protocol messages as they're handled by the ws library
+        // Just update heartbeat and return
+        heartbeat();
+        return;
+      }
+      
       try {
         const data = JSON.parse(message);
         
