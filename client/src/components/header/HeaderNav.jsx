@@ -61,10 +61,10 @@ export default function HeaderNav() {
           </Button>
           <Button
             variant="ghost"
-            className={getButtonClass("/chat")}
+            className={getButtonClass("/new-chat")}
             onClick={() => {
-              console.log("Chat button clicked, navigating to /chat");
-              navigate("/chat");
+              console.log("Chat button clicked, navigating to /new-chat");
+              navigate("/new-chat");
             }}
           >
             <MessagesSquare className="h-4 w-4 mr-2" />

@@ -188,7 +188,7 @@ const UnifiedChatPage = () => {
     connectionStatus,
     sendDirectMessage: wsSendDirectMessage,
     sendGroupMessage: wsSendGroupMessage,
-    getMessageHistory: wsGetMessageHistory,
+    getDirectMessageHistory: wsGetDirectMessageHistory,
     getGroupMessageHistory: wsGetGroupMessageHistory,
     createGroup: wsCreateGroup,
     updateGroupName: wsUpdateGroupName,
@@ -196,20 +196,21 @@ const UnifiedChatPage = () => {
     removeGroupMember: wsRemoveGroupMember,
     leaveGroup: wsLeaveGroup,
     deleteGroup: wsDeleteGroup,
-    loadChatPartners: wsLoadChatPartners,
-    loadGroups: wsLoadGroups
+    chatPartners,
+    directMessages: wsDirectMessages,
+    groups,
+    refreshPartners: wsRefreshPartners
   } = wsContext || {};
 
-  // Load chat partners if they're not already loaded
+  // Use chat partners from context
   useEffect(() => {
-    if (!user) return;
-    
-    if (chatPartners.length === 0 && wsLoadChatPartners && connected) {
+    if (chatPartners && chatPartners.length > 0) {
+      setChatPartners(chatPartners);
+      setIsLoadingPartners(false);
+    } else if (connected && wsRefreshPartners) {
+      // If not available, refresh partners
       setIsLoadingPartners(true);
-      wsLoadChatPartners()
-        .then(partners => {
-          setChatPartners(partners);
-        })
+      wsRefreshPartners()
         .catch(error => {
           console.error("Error loading chat partners:", error);
           toast({
@@ -222,7 +223,7 @@ const UnifiedChatPage = () => {
           setIsLoadingPartners(false);
         });
     }
-  }, [user, connected, wsLoadChatPartners, chatPartners.length, toast]);
+  }, [user, connected, wsRefreshPartners, chatPartners, toast]);
 
   // Load groups if they're not already loaded
   useEffect(() => {
@@ -250,10 +251,10 @@ const UnifiedChatPage = () => {
 
   // Load direct messages when active chat changes
   useEffect(() => {
-    if (!activeChat || !wsGetMessageHistory || !connected) return;
+    if (!activeChat || !wsGetDirectMessageHistory || !connected) return;
     
     setIsLoadingDirectMessages(true);
-    wsGetMessageHistory(activeChat.id)
+    wsGetDirectMessageHistory(activeChat.id)
       .then(messages => {
         setDirectMessages(messages);
         setHasMoreDirectMessages(messages.length >= 50); // Assuming 50 is the page size
@@ -269,7 +270,7 @@ const UnifiedChatPage = () => {
       .finally(() => {
         setIsLoadingDirectMessages(false);
       });
-  }, [activeChat, wsGetMessageHistory, connected, toast]);
+  }, [activeChat, wsGetDirectMessageHistory, connected, toast]);
 
   // Load group messages when active group changes
   useEffect(() => {
@@ -298,20 +299,11 @@ const UnifiedChatPage = () => {
   const sendDirectMessage = useCallback(() => {
     if (!input.trim() || !activeChat || !connected || !wsSendDirectMessage) return;
 
-    const tempId = `temp-${Date.now()}`;
-    const messageData = {
-      type: "chat_message",
-      content: input.trim(),
-      receiverId: activeChat.id,
-      tempId,
-      senderId: user.id
-    };
-
     // Add message to UI immediately
     const newMessage = {
-      id: tempId,
+      id: `temp-${Date.now()}`,
       senderId: user.id,
-      receiverId: activeChat.id,
+      recipientId: activeChat.id,
       content: input.trim(),
       createdAt: new Date().toISOString(),
       isPending: true,
@@ -322,7 +314,7 @@ const UnifiedChatPage = () => {
     setInput("");
     
     // Send through WebSocket
-    wsSendDirectMessage(messageData)
+    wsSendDirectMessage(activeChat.id, input.trim())
       .catch(error => {
         console.error("Error sending message:", error);
         toast({
@@ -374,14 +366,14 @@ const UnifiedChatPage = () => {
 
   // Load more direct messages
   const loadMoreDirectMessages = useCallback(() => {
-    if (!activeChat || !wsGetMessageHistory || !connected) return;
+    if (!activeChat || !wsGetDirectMessageHistory || !connected) return;
     
     const oldestMessageDate = directMessages.length > 0 
       ? new Date(directMessages[0].createdAt) 
       : new Date();
     
     setIsLoadingDirectMessages(true);
-    wsGetMessageHistory(activeChat.id, oldestMessageDate)
+    wsGetDirectMessageHistory(activeChat.id, { before: oldestMessageDate })
       .then(olderMessages => {
         if (olderMessages.length > 0) {
           setDirectMessages(prev => [...olderMessages, ...prev]);
@@ -401,7 +393,7 @@ const UnifiedChatPage = () => {
       .finally(() => {
         setIsLoadingDirectMessages(false);
       });
-  }, [activeChat, wsGetMessageHistory, connected, directMessages, toast]);
+  }, [activeChat, wsGetDirectMessageHistory, connected, directMessages, toast]);
 
   // Load more group messages
   const loadMoreGroupMessages = useCallback(() => {

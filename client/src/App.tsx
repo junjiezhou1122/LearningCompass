@@ -5,7 +5,9 @@ import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { AuthProvider } from "@/contexts/AuthContext";
 import { LanguageProvider } from "@/contexts/LanguageContext";
-import { WebSocketProvider } from "@/components/chat/WebSocketProvider";
+import { WebSocketProvider } from "../src/contexts/WebSocketContext";
+// Legacy WebSocket providers
+import { WebSocketProvider as LegacyWebSocketProvider } from "@/components/chat/WebSocketProvider";
 import { WebSocketContextProvider } from "@/components/chat/WebSocketContextProvider";
 import NotFound from "@/pages/not-found";
 import Home from "@/pages/Home";
@@ -40,7 +42,7 @@ function Router() {
     location === "/reset-password";
     
   // Check if it's a chat page which needs a different layout
-  const isChatPage = location === "/chat" || location === "/unified-chat";
+  const isChatPage = location === "/chat" || location === "/unified-chat" || location === "/new-chat";
 
   // Debug location and sidebar visibility
   console.log("Current location:", location);
@@ -70,6 +72,11 @@ function Router() {
                 <WebSocketContextProvider>
                   <UnifiedChatPage />
                 </WebSocketContextProvider>
+              </ErrorBoundary>
+            </Route>
+            <Route path="/new-chat">
+              <ErrorBoundary>
+                <NewChatPage />
               </ErrorBoundary>
             </Route>
           </Switch>
