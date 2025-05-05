@@ -100,11 +100,30 @@ export const WebSocketContextProvider = ({ children }) => {
       // Connection error
       ws.current.onerror = (error) => {
         console.error('WebSocket error:', error);
-        toast({
-          title: 'Connection Error',
-          description: 'Could not connect to chat server',
-          variant: 'destructive'
-        });
+        
+        // Create a structured error object with more details
+        const errorObj = {
+          message: 'Connection to chat service failed',
+          originalError: error
+        };
+        
+        // Set the error in state for UI display
+        setError(errorObj);
+        
+        // Log detailed diagnostics
+        console.log('WebSocket URL:', getWebSocketUrl());
+        console.log('User authenticated:', !!token);
+        
+        // Only show toast in certain conditions to avoid spamming
+        if (reconnectAttempts.current === 0 || reconnectAttempts.current === 5) {
+          toast({
+            title: 'Connection Error',
+            description: 'Could not connect to chat server. Attempting to reconnect...',
+            variant: 'destructive'
+          });
+        }
+        
+        // The onclose handler will trigger reconnect
       };
       
       // Message received
@@ -353,6 +372,34 @@ export const WebSocketContextProvider = ({ children }) => {
   }, []);
   
   // Connect when component mounts or token/user changes
+  // Helper function to safely parse JSON
+  const safeJsonParse = useCallback(async (response) => {
+    // Check if response is valid
+    if (!response) throw new Error('Empty response received');
+    
+    // First check the content type
+    const contentType = response.headers.get('content-type');
+    if (contentType && !contentType.includes('application/json')) {
+      // Not JSON, so try to read the text
+      const text = await response.text();
+      console.error('Non-JSON response received:', text.substring(0, 100) + '...');
+      throw new Error('Expected JSON response but received HTML or other format');
+    }
+    
+    try {
+      return await response.json();
+    } catch (err) {
+      // If still error parsing, try to get the text to see what happened
+      try {
+        const text = await response.text();
+        console.error('Failed to parse JSON from response:', text.substring(0, 100) + '...');
+      } catch (textErr) {
+        console.error('Failed to parse response body at all');
+      }
+      throw new Error('Invalid JSON response received');
+    }
+  }, []);
+  
   // Fetch user's group chats
   const fetchGroupChats = useCallback(async () => {
     if (!user || !token) return;
@@ -361,6 +408,7 @@ export const WebSocketContextProvider = ({ children }) => {
     setError(null);
     
     try {
+      console.log('Fetching group chats with token:', token ? 'token-present' : 'no-token');
       const response = await fetch('/api/groups', {
         headers: {
           'Authorization': `Bearer ${token}`
@@ -368,19 +416,31 @@ export const WebSocketContextProvider = ({ children }) => {
       });
       
       if (response.ok) {
-        const data = await response.json();
+        const data = await safeJsonParse(response);
+        console.log('Group chats data:', data);
         setGroupChats(data);
       } else {
-        console.error('Failed to fetch group chats');
-        setError('Failed to fetch group chats');
+        console.error(`Failed to fetch group chats: ${response.status} ${response.statusText}`);
+        // Try to get error details if possible
+        try {
+          const errorText = await response.text();
+          console.error('Error response:', errorText.substring(0, 200));
+        } catch (e) {
+          // Ignore if we can't read the error text
+        }
+        setError(`Failed to fetch group chats: ${response.status} ${response.statusText}`);
       }
     } catch (error) {
       console.error('Error fetching group chats:', error);
       setError(error.message || 'Error fetching group chats');
+      // Add more detailed logging
+      if (error instanceof TypeError && error.message.includes('Failed to fetch')) {
+        console.log('Network error detected - check if server is running');
+      }
     } finally {
       setLoading(false);
     }
-  }, [user, token]);
+  }, [user, token, safeJsonParse]);
   
   // Create a new group chat
   const createGroup = useCallback(async (groupData) => {
@@ -399,18 +459,22 @@ export const WebSocketContextProvider = ({ children }) => {
       });
       
       if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.message || 'Failed to create group');
+        try {
+          const errorData = await safeJsonParse(response);
+          throw new Error(errorData.message || 'Failed to create group');
+        } catch (parseError) {
+          throw new Error(`Failed to create group: ${response.status} ${response.statusText}`);
+        }
       }
       
-      const newGroup = await response.json();
+      const newGroup = await safeJsonParse(response);
       setGroupChats(prev => [...prev, newGroup]);
       return newGroup;
     } catch (error) {
       console.error('Error creating group:', error);
       throw error;
     }
-  }, [user, token]);
+  }, [user, token, safeJsonParse]);
   
   // Add a member to a group
   const addGroupMember = useCallback(async (groupId, userId) => {

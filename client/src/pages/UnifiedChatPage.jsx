@@ -8,6 +8,93 @@ import GroupChatUI from "@/components/chat/GroupChatUI";
 import CreateGroupModal from "@/components/chat/CreateGroupModal";
 import GroupDetailsPanel from "@/components/chat/GroupDetailsPanel";
 
+// Connection status component to show consistent UI for different states
+const ConnectionStatusDisplay = ({ status, error }) => {
+  if (status === 'auth_error') {
+    return (
+      <>
+        <h2 className="text-xl font-semibold mb-2">Authentication Required</h2>
+        <p className="text-muted-foreground mb-4">
+          Please sign in to access the chat feature.
+        </p>
+        <div className="mt-4 p-4 bg-amber-50 text-amber-700 rounded-md">
+          <p className="font-semibold">Session Expired</p>
+          <p>Your session may have expired. Please refresh the page or sign in again.</p>
+        </div>
+      </>
+    );
+  } 
+  
+  if (status === 'failed') {
+    return (
+      <>
+        <h2 className="text-xl font-semibold mb-2">Connection Failed</h2>
+        <div className="flex items-center justify-center mb-4">
+          <p className="text-muted-foreground">
+            Could not establish a connection to the chat service.
+          </p>
+        </div>
+        <button 
+          onClick={() => window.location.reload()} 
+          className="px-4 py-2 bg-blue-500 text-white rounded-md hover:bg-blue-600 transition-colors"
+        >
+          Refresh Page
+        </button>
+        {error && (
+          <div className="mt-4 p-4 bg-red-50 text-red-600 rounded-md">
+            <p className="font-semibold">Error Details</p>
+            <p>{typeof error === 'object' ? error.message : error}</p>
+          </div>
+        )}
+      </>
+    );
+  }
+  
+  if (status && status.startsWith('reconnecting')) {
+    return (
+      <>
+        <h2 className="text-xl font-semibold mb-2">Reconnecting to chat service...</h2>
+        <div className="flex items-center justify-center mb-4">
+          <div className="w-6 h-6 border-2 border-amber-500 border-t-transparent rounded-full animate-spin mr-2"></div>
+          <p className="text-muted-foreground">
+            {status.includes(':') ? 
+              `Attempt ${status.split(':')[1]}` : 
+              'Reconnecting...'}
+          </p>
+        </div>
+        <p className="text-sm text-muted-foreground mb-4">
+          Your connection was interrupted. Attempting to reconnect...
+        </p>
+        {error && (
+          <div className="mt-4 p-4 bg-amber-50 text-amber-700 rounded-md">
+            <p className="font-semibold">Connection Issue</p>
+            <p>{typeof error === 'object' ? error.message : error}</p>
+          </div>
+        )}
+      </>
+    );
+  }
+  
+  // Default connecting state
+  return (
+    <>
+      <h2 className="text-xl font-semibold mb-2">Connecting to chat service...</h2>
+      <div className="flex items-center justify-center mb-4">
+        <div className="w-6 h-6 border-2 border-blue-500 border-t-transparent rounded-full animate-spin mr-2"></div>
+        <p className="text-muted-foreground">
+          Status: {status}
+        </p>
+      </div>
+      {error && (
+        <div className="mt-4 p-4 bg-red-50 text-red-600 rounded-md">
+          <p className="font-semibold">Connection Error</p>
+          <p>{typeof error === 'object' ? error.message : error}</p>
+        </div>
+      )}
+    </>
+  );
+};
+
 const UnifiedChatPage = () => {
   console.log("UnifiedChatPage component loaded");
   const { user } = useAuth();
