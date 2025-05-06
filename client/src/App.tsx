@@ -20,6 +20,7 @@ import NotesPage from "./pages/NotesPage";
 import TokenDebugPage from "./pages/TokenDebugPage";
 import NewChatPage from "./pages/NewChatPage";
 import LearningMethodDetail from "./pages/LearningMethodDetail";
+import LearningToolDetail from "./pages/LearningToolDetail";
 import Header from "@/components/Header";
 import Footer from "@/components/Footer";
 import FloatingAIButton from "@/components/FloatingAIButton";
@@ -76,6 +77,7 @@ function Router() {
               <Route path="/learning-center" component={LearningCenter} />
               <Route path="/learning-center/courses/:id" component={CourseDetailsPage} />
               <Route path="/learning-methods/:id" component={LearningMethodDetail} />
+              <Route path="/learning-tools/:id" component={LearningToolDetail} />
               <Route path="/bookmarks" component={Bookmarks} />
               <Route path="/share" component={Share} />
               <Route path="/post/:id" component={PostDetail} />

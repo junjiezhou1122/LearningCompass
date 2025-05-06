@@ -1,10 +1,11 @@
 import { useState, useEffect } from 'react';
 import { useParams } from 'wouter';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { useAuth } from '@/hooks/use-auth';
+import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
 import { apiRequest, throwIfResNotOk } from '@/lib/queryClient';
 import {
+  AlertCircle,
   BookmarkIcon,
   MessageSquare,
   ThumbsUp,
@@ -48,23 +49,44 @@ const LearningMethodDetail = () => {
   const [newComment, setNewComment] = useState('');
   
   // Fetch the learning method details
-  const { data: method, isLoading } = useQuery({
+  const { data: method, isLoading, error: methodError } = useQuery({
     queryKey: ['learning-method', id],
     queryFn: async () => {
-      const response = await fetch(`/api/learning-methods/${id}`);
-      if (!response.ok) throw new Error('Failed to fetch learning method');
-      return response.json();
+      try {
+        const response = await fetch(`/api/learning-methods/${id}`);
+        if (!response.ok) {
+          const errorData = await response.json().catch(() => ({}));
+          throw new Error(errorData.message || 'Failed to fetch learning method');
+        }
+        return response.json();
+      } catch (err) {
+        console.error('Error fetching learning method:', err);
+        throw err;
+      }
     },
+    retry: 1,
+    refetchOnMount: true
   });
   
   // Fetch comments for this learning method
-  const { data: comments = [], isLoading: isLoadingComments } = useQuery({
+  const { data: comments = [], isLoading: isLoadingComments, error: commentsError } = useQuery({
     queryKey: ['learning-method-comments', id],
     queryFn: async () => {
-      const response = await fetch(`/api/learning-methods/${id}/comments`);
-      if (!response.ok) throw new Error('Failed to fetch comments');
-      return response.json();
+      try {
+        const response = await fetch(`/api/learning-methods/${id}/comments`);
+        if (!response.ok) {
+          const errorData = await response.json().catch(() => ({}));
+          throw new Error(errorData.message || 'Failed to fetch comments');
+        }
+        return response.json();
+      } catch (err) {
+        console.error('Error fetching comments:', err);
+        throw err;
+      }
     },
+    retry: 1,
+    // Only fetch comments if we have the method data
+    enabled: !!method,
   });
   
   // Mutation for adding a new comment
@@ -73,7 +95,8 @@ const LearningMethodDetail = () => {
       const response = await apiRequest('POST', `/api/learning-methods/${id}/comments`, {
         content: commentText
       });
-      await throwIfResNotOk(response);
+      const clone = response.clone();
+      await throwIfResNotOk(clone);
       return response.json();
     },
     onSuccess: () => {
@@ -97,7 +120,8 @@ const LearningMethodDetail = () => {
   const upvoteMutation = useMutation({
     mutationFn: async () => {
       const response = await apiRequest('POST', `/api/learning-methods/${id}/upvote`);
-      await throwIfResNotOk(response);
+      const clone = response.clone();
+      await throwIfResNotOk(clone);
       return response.json();
     },
     onSuccess: () => {
@@ -120,7 +144,8 @@ const LearningMethodDetail = () => {
   const deleteCommentMutation = useMutation({
     mutationFn: async (commentId) => {
       const response = await apiRequest('DELETE', `/api/learning-methods/comments/${commentId}`);
-      await throwIfResNotOk(response);
+      const clone = response.clone();
+      await throwIfResNotOk(clone);
       return response.json();
     },
     onSuccess: () => {
@@ -195,6 +220,25 @@ const LearningMethodDetail = () => {
     return (
       <div className="flex justify-center items-center h-96 text-orange-500">
         <div className="animate-spin h-8 w-8 border-4 border-current border-t-transparent rounded-full"></div>
+      </div>
+    );
+  }
+  
+  if (methodError) {
+    return (
+      <div className="text-center py-12 bg-white/50 rounded-xl border border-orange-100">
+        <div className="mx-auto w-20 h-20 mb-4 flex items-center justify-center rounded-full bg-orange-100">
+          <AlertCircle className="h-10 w-10 text-red-500" />
+        </div>
+        <h3 className="text-lg font-medium text-gray-700 mb-2">Error Loading Learning Method</h3>
+        <p className="text-gray-500 mb-6">{methodError.message || 'An error occurred while loading the learning method'}</p>
+        <Button 
+          className="bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600"
+          onClick={() => window.history.back()}
+        >
+          <ChevronLeft className="h-4 w-4 mr-2" />
+          Go Back
+        </Button>
       </div>
     );
   }
@@ -384,6 +428,12 @@ const LearningMethodDetail = () => {
         {isLoadingComments ? (
           <div className="flex justify-center items-center h-24 text-orange-500">
             <div className="animate-spin h-6 w-6 border-4 border-current border-t-transparent rounded-full"></div>
+          </div>
+        ) : commentsError ? (
+          <div className="text-center py-8 bg-white/50 rounded-xl border border-orange-100">
+            <AlertCircle className="h-10 w-10 text-red-400 mx-auto mb-3" />
+            <p className="text-gray-700 font-medium">Error loading comments</p>
+            <p className="text-gray-500">{commentsError.message || 'Failed to load comments. Please try again later.'}</p>
           </div>
         ) : comments.length === 0 ? (
           <div className="text-center py-8 bg-white/50 rounded-xl border border-orange-100">

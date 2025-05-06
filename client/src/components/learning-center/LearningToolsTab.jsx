@@ -80,11 +80,17 @@ const LearningToolsTab = () => {
   const formSchema = z.object({
     name: z.string().min(2, "Name must be at least 2 characters").max(100, "Name must be less than 100 characters"),
     description: z.string().min(20, "Description must be at least 20 characters").max(500, "Description must be less than 500 characters"),
-    website: z.string().url("Please enter a valid URL"),
+    url: z.string().url("Please enter a valid URL"),
     category: z.string().min(1, "Category is required"),
     pricing: z.enum(["free", "freemium", "paid"]),
-    keyFeatures: z.string().min(10, "Key features must be at least 10 characters").max(500, "Key features must be less than 500 characters"),
-    useCases: z.string().min(10, "Use cases must be at least 10 characters").max(500, "Use cases must be less than 500 characters"),
+    pros: z.string().min(10, "Pros must be at least 10 characters")
+      .transform(text => text.split('\n').map(line => line.trim()).filter(line => line.length > 0)),
+    cons: z.string().min(10, "Cons must be at least 10 characters")
+      .transform(text => text.split('\n').map(line => line.trim()).filter(line => line.length > 0)),
+    platforms: z.string()
+      .transform(text => text.split(',').map(item => item.trim()).filter(item => item.length > 0)),
+    alternatives: z.string()
+      .transform(text => text.split(',').map(item => item.trim()).filter(item => item.length > 0)),
   });
   
   // Form for adding a new learning tool
@@ -93,11 +99,13 @@ const LearningToolsTab = () => {
     defaultValues: {
       name: "",
       description: "",
-      website: "https://",
+      url: "https://",
       category: "",
       pricing: "free",
-      keyFeatures: "",
-      useCases: "",
+      pros: "",
+      cons: "",
+      platforms: "",
+      alternatives: "",
     },
   });
   
@@ -367,41 +375,68 @@ const LearningToolsTab = () => {
                           ${tool.pricing === 'paid' ? 'bg-purple-50 text-purple-700 border-purple-200' : ''}
                         `}
                       >
-                        {tool.pricing.charAt(0).toUpperCase() + tool.pricing.slice(1)}
+                        {tool.pricing?.charAt(0).toUpperCase() + tool.pricing?.slice(1) || 'Unknown'}
                       </Badge>
                     </div>
                   </div>
                   <Badge className="mt-1 bg-amber-100 text-amber-800 hover:bg-amber-200">
                     {tool.category}
                   </Badge>
-                  <CardDescription className="text-gray-700 mt-2">
+                  <CardDescription className="text-gray-700 mt-2 line-clamp-2">
                     {tool.description}
                   </CardDescription>
                 </CardHeader>
                 
                 <CardContent className="pt-3">
                   <div className="space-y-4">
-                    <div>
-                      <h4 className="font-medium text-orange-800 mb-1">Key Features:</h4>
-                      <p className="text-gray-700 text-sm">{tool.keyFeatures}</p>
-                    </div>
-                    <div>
-                      <h4 className="font-medium text-orange-800 mb-1">Use Cases:</h4>
-                      <p className="text-gray-700 text-sm">{tool.useCases}</p>
-                    </div>
+                    {tool.keyFeatures && (
+                      <div>
+                        <h4 className="font-medium text-orange-800 mb-1">Key Features:</h4>
+                        <p className="text-gray-700 text-sm line-clamp-2">{tool.keyFeatures}</p>
+                      </div>
+                    )}
+                    {tool.pros && Array.isArray(tool.pros) && tool.pros.length > 0 && (
+                      <div>
+                        <h4 className="font-medium text-green-700 mb-1">Pros:</h4>
+                        <ul className="text-gray-700 text-sm list-disc pl-5">
+                          {tool.pros.slice(0, 2).map((pro, index) => (
+                            <li key={index}>{pro}</li>
+                          ))}
+                          {tool.pros.length > 2 && <li className="text-orange-500">+ {tool.pros.length - 2} more</li>}
+                        </ul>
+                      </div>
+                    )}
                   </div>
                 </CardContent>
                 
-                <CardFooter className="flex justify-between border-t border-orange-100 pt-3">
-                  <div className="flex items-center gap-2">
-                    <span className="text-sm text-gray-500">{tool.views} views</span>
+                <CardFooter className="flex justify-between items-center border-t border-orange-100 pt-3">
+                  <div className="flex items-center gap-3">
+                    <Badge variant="outline" className="flex gap-1 items-center">
+                      <MessageSquare className="h-3 w-3 text-orange-500" />
+                      <span className="text-xs">Reviews</span>
+                    </Badge>
+                    <span className="text-xs text-gray-500">{tool.views || 0} views</span>
                   </div>
                   
-                  <Button asChild variant="ghost" className="text-orange-600 hover:text-orange-800 hover:bg-orange-50">
-                    <a href={tool.website} target="_blank" rel="noopener noreferrer" className="flex items-center">
-                      Visit Website <ExternalLink className="h-4 w-4 ml-1" />
-                    </a>
-                  </Button>
+                  <div className="flex gap-2">
+                    {tool.url && (
+                      <Button asChild variant="ghost" size="sm" className="text-orange-600 hover:text-orange-800 hover:bg-orange-50">
+                        <a href={tool.url} target="_blank" rel="noopener noreferrer" className="flex items-center">
+                          <ExternalLink className="h-3 w-3 mr-1" /> Visit
+                        </a>
+                      </Button>
+                    )}
+                    <Button 
+                      asChild 
+                      variant="default" 
+                      size="sm" 
+                      className="bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600"
+                    >
+                      <a href={`/learning-tools/${tool.id}`} className="flex items-center gap-1">
+                        Details <ChevronRight className="h-3 w-3" />
+                      </a>
+                    </Button>
+                  </div>
                 </CardFooter>
               </Card>
             ))}
@@ -556,7 +591,7 @@ const LearningToolsTab = () => {
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <FormField
                   control={form.control}
-                  name="website"
+                  name="url"
                   render={({ field }) => (
                     <FormItem>
                       <FormLabel>Website URL</FormLabel>
@@ -654,17 +689,20 @@ const LearningToolsTab = () => {
               
               <FormField
                 control={form.control}
-                name="keyFeatures"
+                name="pros"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Key Features</FormLabel>
+                    <FormLabel>Pros</FormLabel>
                     <FormControl>
                       <Textarea 
-                        placeholder="List the main features that make this tool valuable for learning..." 
+                        placeholder="List the advantages of this tool (one per line)..." 
                         {...field} 
                         className="min-h-20 border-orange-200 focus-visible:ring-orange-400"
                       />
                     </FormControl>
+                    <FormDescription>
+                      Enter each advantage on a new line, e.g. "Easy to use", "Great for note-taking".
+                    </FormDescription>
                     <FormMessage />
                   </FormItem>
                 )}
@@ -672,21 +710,68 @@ const LearningToolsTab = () => {
               
               <FormField
                 control={form.control}
-                name="useCases"
+                name="cons"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Use Cases</FormLabel>
+                    <FormLabel>Cons</FormLabel>
                     <FormControl>
                       <Textarea 
-                        placeholder="Describe how you use this tool for learning and in what situations it's most helpful..." 
+                        placeholder="List the disadvantages of this tool (one per line)..." 
                         {...field} 
                         className="min-h-20 border-orange-200 focus-visible:ring-orange-400"
                       />
                     </FormControl>
+                    <FormDescription>
+                      Enter each disadvantage on a new line, e.g. "Limited free tier", "Steep learning curve".
+                    </FormDescription>
                     <FormMessage />
                   </FormItem>
                 )}
               />
+              
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <FormField
+                  control={form.control}
+                  name="platforms"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Platforms</FormLabel>
+                      <FormControl>
+                        <Input 
+                          placeholder="Web, iOS, Android, Windows, macOS" 
+                          {...field} 
+                          className="border-orange-200 focus-visible:ring-orange-400"
+                        />
+                      </FormControl>
+                      <FormDescription>
+                        Separate platforms with commas.
+                      </FormDescription>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                
+                <FormField
+                  control={form.control}
+                  name="alternatives"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Alternatives</FormLabel>
+                      <FormControl>
+                        <Input 
+                          placeholder="Notion, Evernote, OneNote" 
+                          {...field} 
+                          className="border-orange-200 focus-visible:ring-orange-400"
+                        />
+                      </FormControl>
+                      <FormDescription>
+                        Separate alternatives with commas.
+                      </FormDescription>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              </div>
               
               <DialogFooter className="mt-6">
                 <Button 

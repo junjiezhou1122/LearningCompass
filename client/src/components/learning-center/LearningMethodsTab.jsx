@@ -370,16 +370,18 @@ const LearningMethodsTab = () => {
                           <span className="text-sm">{method.upvotes}</span>
                         </div>
                       </Button>
-                      <Badge
-                        variant="outline"
-                        className={`
-                          ${method.difficulty === 'beginner' ? 'bg-green-50 text-green-700 border-green-200' : ''}
-                          ${method.difficulty === 'intermediate' ? 'bg-blue-50 text-blue-700 border-blue-200' : ''}
-                          ${method.difficulty === 'advanced' ? 'bg-purple-50 text-purple-700 border-purple-200' : ''}
-                        `}
-                      >
-                        {method.difficulty.charAt(0).toUpperCase() + method.difficulty.slice(1)}
-                      </Badge>
+                      {method.difficulty ? (
+                        <Badge
+                          variant="outline"
+                          className={`
+                            ${method.difficulty === 'beginner' ? 'bg-green-50 text-green-700 border-green-200' : ''}
+                            ${method.difficulty === 'intermediate' ? 'bg-blue-50 text-blue-700 border-blue-200' : ''}
+                            ${method.difficulty === 'advanced' ? 'bg-purple-50 text-purple-700 border-purple-200' : ''}
+                          `}
+                        >
+                          {method.difficulty.charAt(0).toUpperCase() + method.difficulty.slice(1)}
+                        </Badge>
+                      ) : null}
                     </div>
                   </div>
                   <div className="flex flex-wrap gap-2 mt-1">

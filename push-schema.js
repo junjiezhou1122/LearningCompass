@@ -1,59 +1,14 @@
-import { db } from './server/db.ts';
-import { migrate } from 'drizzle-orm/postgres-js/migrator';
 
-async function pushSchema() {
-  try {
-    console.log('Pushing schema changes to database...');
-    // Create tables for university course comments, resources, links, and collaborations
-    await db.execute(`
-      CREATE TABLE IF NOT EXISTS university_course_comments (
-        id SERIAL PRIMARY KEY,
-        course_id INTEGER NOT NULL REFERENCES university_courses(id),
-        user_id INTEGER NOT NULL REFERENCES users(id),
-        content TEXT NOT NULL,
-        created_at TIMESTAMP DEFAULT NOW() NOT NULL,
-        updated_at TIMESTAMP
-      );
-
-      CREATE TABLE IF NOT EXISTS university_course_resources (
-        id SERIAL PRIMARY KEY,
-        course_id INTEGER NOT NULL REFERENCES university_courses(id),
-        user_id INTEGER NOT NULL REFERENCES users(id),
-        title TEXT NOT NULL,
-        url TEXT NOT NULL,
-        description TEXT,
-        resource_type TEXT NOT NULL,
-        created_at TIMESTAMP DEFAULT NOW() NOT NULL,
-        updated_at TIMESTAMP
-      );
-
-      CREATE TABLE IF NOT EXISTS university_course_links (
-        id SERIAL PRIMARY KEY,
-        course_id INTEGER NOT NULL REFERENCES university_courses(id),
-        url TEXT NOT NULL,
-        title TEXT,
-        description TEXT,
-        created_at TIMESTAMP DEFAULT NOW() NOT NULL,
-        updated_at TIMESTAMP
-      );
-
-      CREATE TABLE IF NOT EXISTS university_course_collaborations (
-        id SERIAL PRIMARY KEY,
-        course_id INTEGER NOT NULL REFERENCES university_courses(id),
-        user_id INTEGER NOT NULL REFERENCES users(id),
-        message TEXT NOT NULL,
-        contact_method TEXT NOT NULL,
-        contact_details TEXT NOT NULL,
-        created_at TIMESTAMP DEFAULT NOW() NOT NULL,
-        updated_at TIMESTAMP
-      );
-    `);
-    console.log('Schema changes successfully pushed to database.');
-  } catch (error) {
-    console.error('Error pushing schema changes:', error);
-  } finally {
-    process.exit(0);
-  }
+import { execSync } from "child_process";
+try {
+  console.log("Pushing schema changes...");
+  // Try with different flags
+  execSync("npx drizzle-kit push --accept-data-loss", {
+    stdio: "inherit",
+  });
+  console.log("Schema successfully pushed!");
+} catch (error) {
+  console.error("Error pushing schema:", error);
+  process.exit(1);
 }
 
-pushSchema();

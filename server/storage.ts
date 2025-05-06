@@ -32,9 +32,10 @@ import {
   UniversityCourseCollaboration, InsertUniversityCourseCollaboration,
   UniversityCourseLink, InsertUniversityCourseLink,
   // Learning Center - Learning Methods and Tools
-  learningMethods, learningMethodReviews,
+  learningMethods, learningMethodReviews, learningMethodComments,
   LearningMethod, InsertLearningMethod,
   LearningMethodReview, InsertLearningMethodReview,
+  LearningMethodComment, InsertLearningMethodComment,
   learningTools, learningToolReviews,
   LearningTool, InsertLearningTool,
   LearningToolReview, InsertLearningToolReview
