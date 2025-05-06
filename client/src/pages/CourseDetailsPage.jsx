@@ -523,6 +523,39 @@ const CourseDetailsPage = () => {
       });
     },
   });
+  
+  // Delete collaboration request mutation
+  const deleteCollaborationMutation = useMutation({
+    mutationFn: async (collaborationId) => {
+      const response = await fetch(`/api/university-courses/${id}/collaborations/${collaborationId}`, {
+        method: 'DELETE',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+        },
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || 'Failed to delete collaboration request');
+      }
+
+      return true;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['course-collaborations', id] });
+      toast({
+        title: 'Collaboration Request Deleted',
+        description: 'Your collaboration request has been deleted successfully.',
+      });
+    },
+    onError: (error) => {
+      toast({
+        title: 'Error',
+        description: error.message || 'Failed to delete collaboration request',
+        variant: 'destructive',
+      });
+    },
+  });
 
   // Handle comment submission
   const onCommentSubmit = (data) => {
@@ -630,6 +663,22 @@ const CourseDetailsPage = () => {
 
     if (window.confirm('Are you sure you want to delete this resource?')) {
       deleteResourceMutation.mutate(resourceId);
+    }
+  };
+  
+  // Handle collaboration deletion
+  const onCollaborationDelete = (collaborationId) => {
+    if (!isAuthenticated) {
+      toast({
+        title: 'Authentication Required',
+        description: 'Please log in to delete collaboration requests',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    if (window.confirm('Are you sure you want to delete this collaboration request?')) {
+      deleteCollaborationMutation.mutate(collaborationId);
     }
   };
 
@@ -1556,21 +1605,35 @@ const CourseDetailsPage = () => {
                   {collaborations.map((collab) => (
                     <Card key={collab.id} className="border-orange-100">
                       <CardHeader className="pb-2">
-                        <div className="flex items-center gap-3">
-                          <Avatar className="h-10 w-10">
-                            <AvatarImage src={collab.user?.avatar} />
-                            <AvatarFallback className="bg-orange-100 text-orange-700">
-                              {collab.user?.username.charAt(0).toUpperCase() || 'U'}
-                            </AvatarFallback>
-                          </Avatar>
-                          <div>
-                            <div className="font-medium">{collab.user?.username || 'Anonymous'}</div>
-                            <div className="text-xs text-gray-500">
-                              {new Date(collab.createdAt).toLocaleDateString('en-US', {
-                                year: 'numeric', month: 'short', day: 'numeric'
-                              })}
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-3">
+                            <Avatar className="h-10 w-10">
+                              <AvatarImage src={collab.user?.avatar} />
+                              <AvatarFallback className="bg-orange-100 text-orange-700">
+                                {collab.user?.username.charAt(0).toUpperCase() || 'U'}
+                              </AvatarFallback>
+                            </Avatar>
+                            <div>
+                              <div className="font-medium">{collab.user?.username || 'Anonymous'}</div>
+                              <div className="text-xs text-gray-500">
+                                {new Date(collab.createdAt).toLocaleDateString('en-US', {
+                                  year: 'numeric', month: 'short', day: 'numeric'
+                                })}
+                              </div>
                             </div>
                           </div>
+                          
+                          {/* Delete button - only visible to owner */}
+                          {isAuthenticated && user?.id === collab.userId && (
+                            <Button 
+                              variant="ghost" 
+                              size="sm" 
+                              className="text-gray-500 hover:text-red-500 hover:bg-red-50"
+                              onClick={() => onCollaborationDelete(collab.id)}
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          )}
                         </div>
                       </CardHeader>
                       <CardContent>

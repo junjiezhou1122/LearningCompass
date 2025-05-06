@@ -3384,6 +3384,41 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
   
+  app.delete("/api/university-courses/:courseId/collaborations/:id", authenticateJWT, async (req: Request, res: Response) => {
+    try {
+      const userId = (req as any).user.id;
+      const courseId = parseInt(req.params.courseId);
+      const collaborationId = parseInt(req.params.id);
+      
+      // Check if the course exists
+      const course = await storage.getUniversityCourse(courseId);
+      if (!course) {
+        return res.status(404).json({ message: "University course not found" });
+      }
+      
+      // Check if the collaboration exists
+      const collaboration = await storage.getUniversityCourseCollaboration(collaborationId);
+      if (!collaboration) {
+        return res.status(404).json({ message: "Collaboration request not found" });
+      }
+      
+      // Check if the user is the owner of the collaboration
+      if (collaboration.userId !== userId) {
+        return res.status(403).json({ message: "You don't have permission to delete this collaboration request" });
+      }
+      
+      const success = await storage.deleteUniversityCourseCollaboration(collaborationId, userId);
+      if (!success) {
+        return res.status(500).json({ message: "Failed to delete collaboration request" });
+      }
+      
+      res.status(200).json({ message: "Collaboration request deleted successfully" });
+    } catch (error) {
+      console.error("Error deleting university course collaboration:", error);
+      res.status(500).json({ message: "Error deleting university course collaboration" });
+    }
+  });
+  
   app.delete("/api/university-course-collaborations/:id", authenticateJWT, async (req: Request, res: Response) => {
     try {
       const userId = (req as any).user.id;
