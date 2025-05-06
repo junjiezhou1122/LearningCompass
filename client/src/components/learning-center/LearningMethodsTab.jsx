@@ -132,8 +132,10 @@ const LearningMethodsTab = () => {
         variant: "default",
       });
       
-      // Invalidate query to refresh the list
-      queryClient.invalidateQueries({ queryKey: ['learning-methods'] });
+      // Invalidate query to refresh the list with the exact structure as the query key
+      queryClient.invalidateQueries({
+        queryKey: ['learning-methods', difficultyFilter, tagFilter, searchQuery, activeView, page, limit],
+      });
     },
     onError: (error) => {
       toast({
@@ -163,7 +165,9 @@ const LearningMethodsTab = () => {
     },
     onSuccess: (data, methodId) => {
       // Invalidate the specific method to update its upvote count
-      queryClient.invalidateQueries({ queryKey: ['learning-methods'] });
+      queryClient.invalidateQueries({
+        queryKey: ['learning-methods', difficultyFilter, tagFilter, searchQuery, activeView, page, limit]
+      });
       
       toast({
         title: "Upvoted!",
