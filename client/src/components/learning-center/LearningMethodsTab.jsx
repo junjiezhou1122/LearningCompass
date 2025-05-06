@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { Link } from 'wouter';
 import { useQuery, useMutation } from '@tanstack/react-query';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -81,7 +82,6 @@ const LearningMethodsTab = () => {
   const formSchema = z.object({
     title: z.string().min(3, "Title must be at least 3 characters").max(100, "Title must be less than 100 characters"),
     description: z.string().min(20, "Description must be at least 20 characters").max(1000, "Description must be less than 1000 characters"),
-    difficulty: z.enum(["beginner", "intermediate", "advanced"]),
     tags: z.string().refine(tags => tags.split(',').length > 0, {
       message: "Please provide at least one tag"
     }).refine(tags => tags.split(',').every(tag => tag.trim().length > 0), {
@@ -96,7 +96,6 @@ const LearningMethodsTab = () => {
     defaultValues: {
       title: "",
       description: "",
-      difficulty: "beginner",
       tags: "",
       steps: "",
     },
@@ -192,7 +191,14 @@ const LearningMethodsTab = () => {
       return;
     }
     
-    addMethodMutation.mutate(data);
+    // Transform tags and steps into arrays for the backend
+    const transformedData = {
+      ...data,
+      tags: data.tags.split(',').map(tag => tag.trim()).filter(tag => tag.length > 0),
+      steps: data.steps.split('\n').map(step => step.trim()).filter(step => step.length > 0)
+    };
+    
+    addMethodMutation.mutate(transformedData);
   };
   
   // Function to handle upvoting
@@ -407,102 +413,16 @@ const LearningMethodsTab = () => {
                   
                   <div className="flex items-center gap-2">
                     <span className="text-sm text-gray-500">{method.views} views</span>
-                    <Dialog>
-                      <DialogTrigger asChild>
-                        <Button 
-                          variant="outline" 
-                          size="sm" 
-                          className="border-orange-200 text-orange-700 hover:bg-orange-50 flex items-center gap-1"
-                        >
-                          <Eye className="h-4 w-4" />
-                          View Details
-                        </Button>
-                      </DialogTrigger>
-                      <DialogContent className="max-w-3xl">
-                        <DialogHeader>
-                          <DialogTitle className="text-2xl font-bold text-orange-800">{method.title}</DialogTitle>
-                          <div className="flex flex-wrap gap-2 mt-1">
-                            {method.tags && Array.isArray(method.tags) && method.tags.map((tag, index) => (
-                              <Badge key={index} variant="secondary" className="bg-amber-100 text-amber-800 hover:bg-amber-200">
-                                {tag}
-                              </Badge>
-                            ))}
-                          </div>
-                        </DialogHeader>
-                        
-                        <div className="mt-4 space-y-4">
-                          <div>
-                            <h3 className="font-medium text-orange-800 mb-2">Description:</h3>
-                            <p className="text-gray-700">{method.description}</p>
-                          </div>
-                          
-                          <div>
-                            <h3 className="font-medium text-orange-800 mb-2">Steps:</h3>
-                            {Array.isArray(method.steps) ? (
-                              <ul className="list-disc pl-5 space-y-1">
-                                {method.steps.map((step, index) => (
-                                  <li key={index} className="text-gray-700">{step}</li>
-                                ))}
-                              </ul>
-                            ) : (
-                              <p className="text-gray-700 whitespace-pre-line">{method.steps}</p>
-                            )}
-                          </div>
-                          
-                          {method.benefits && (
-                            <div>
-                              <h3 className="font-medium text-orange-800 mb-2">Benefits:</h3>
-                              {Array.isArray(method.benefits) && method.benefits.length > 0 ? (
-                                <ul className="list-disc pl-5 space-y-1">
-                                  {method.benefits.map((benefit, index) => (
-                                    <li key={index} className="text-gray-700">{benefit}</li>
-                                  ))}
-                                </ul>
-                              ) : (
-                                <p className="text-gray-700">{method.benefits}</p>
-                              )}
-                            </div>
-                          )}
-                          
-                          {method.resources && (
-                            <div>
-                              <h3 className="font-medium text-orange-800 mb-2">Resources:</h3>
-                              {Array.isArray(method.resources) && method.resources.length > 0 ? (
-                                <ul className="list-disc pl-5 space-y-1">
-                                  {method.resources.map((resource, index) => (
-                                    <li key={index} className="text-gray-700">{resource}</li>
-                                  ))}
-                                </ul>
-                              ) : (
-                                <p className="text-gray-700">{method.resources}</p>
-                              )}
-                            </div>
-                          )}
-                        </div>
-                        
-                        <div className="flex justify-between items-center mt-6 pt-4 border-t border-gray-200">
-                          <div className="flex items-center gap-2">
-                            <Avatar className="h-6 w-6 bg-orange-200">
-                              <AvatarFallback>{method.authorName?.charAt(0) || 'U'}</AvatarFallback>
-                            </Avatar>
-                            <span className="text-sm text-gray-500">{method.authorName || 'Anonymous'}</span>
-                          </div>
-                          
-                          <div className="flex items-center gap-3">
-                            <Badge variant="outline" className="flex gap-1 items-center">
-                              <ThumbsUp className="h-3.5 w-3.5" />
-                              <span>{method.upvotes}</span>
-                            </Badge>
-                            
-                            <Badge variant="outline" className="flex gap-1 items-center">
-                              <Eye className="h-3.5 w-3.5" />
-                              <span>{method.views}</span>
-                            </Badge>
-                          </div>
-                        </div>
-                        
-                      </DialogContent>
-                    </Dialog>
+                    <Link to={`/learning-methods/${method.id}`}>
+                      <Button 
+                        variant="outline" 
+                        size="sm" 
+                        className="border-orange-200 text-orange-700 hover:bg-orange-50 flex items-center gap-1"
+                      >
+                        <Eye className="h-4 w-4" />
+                        View Details
+                      </Button>
+                    </Link>
                   </div>
                 </CardFooter>
               </Card>
@@ -673,54 +593,26 @@ const LearningMethodsTab = () => {
                 )}
               />
               
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <FormField
-                  control={form.control}
-                  name="difficulty"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Difficulty Level</FormLabel>
-                      <Select 
-                        onValueChange={field.onChange} 
-                        defaultValue={field.value}
-                      >
-                        <FormControl>
-                          <SelectTrigger className="border-orange-200 focus:ring-orange-400">
-                            <SelectValue placeholder="Select difficulty" />
-                          </SelectTrigger>
-                        </FormControl>
-                        <SelectContent>
-                          <SelectItem value="beginner">Beginner</SelectItem>
-                          <SelectItem value="intermediate">Intermediate</SelectItem>
-                          <SelectItem value="advanced">Advanced</SelectItem>
-                        </SelectContent>
-                      </Select>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                
-                <FormField
-                  control={form.control}
-                  name="tags"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Tags</FormLabel>
-                      <FormControl>
-                        <Input 
-                          placeholder="memory,focus,recall (comma separated)" 
-                          {...field} 
-                          className="border-orange-200 focus-visible:ring-orange-400"
-                        />
-                      </FormControl>
-                      <FormDescription className="text-xs">
-                        Separate tags with commas
-                      </FormDescription>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-              </div>
+              <FormField
+                control={form.control}
+                name="tags"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Tags</FormLabel>
+                    <FormControl>
+                      <Input 
+                        placeholder="memory,focus,recall (comma separated)" 
+                        {...field} 
+                        className="border-orange-200 focus-visible:ring-orange-400"
+                      />
+                    </FormControl>
+                    <FormDescription className="text-xs">
+                      Separate tags with commas
+                    </FormDescription>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
               
               <FormField
                 control={form.control}

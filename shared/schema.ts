@@ -1221,3 +1221,27 @@ export type InsertLearningToolReview = typeof learningToolReviews.$inferInsert;
 
 export type UniversityCourseLink = typeof universityCourseLinks.$inferSelect;
 export type InsertUniversityCourseLink = typeof universityCourseLinks.$inferInsert;
+
+// Learning Method Comments schema
+export const learningMethodComments = pgTable("learning_method_comments", {
+  id: serial("id").primaryKey(),
+  methodId: integer("method_id")
+    .notNull()
+    .references(() => learningMethods.id),
+  userId: integer("user_id")
+    .notNull()
+    .references(() => users.id),
+  content: text("content").notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at"),
+});
+
+export const insertLearningMethodCommentSchema = createInsertSchema(learningMethodComments).pick({
+  methodId: true,
+  userId: true,
+  content: true,
+  updatedAt: true,
+});
+
+export type LearningMethodComment = typeof learningMethodComments.$inferSelect;
+export type InsertLearningMethodComment = typeof learningMethodComments.$inferInsert;

@@ -171,7 +171,7 @@ const UniversityCoursesTab = () => {
   const form = useForm({
     resolver: zodResolver(formSchema),
     defaultValues: {
-      university: universities[0] || "",
+      university: "",
       courseDept: "",
       courseNumber: "",
       courseTitle: "",
@@ -584,18 +584,12 @@ const UniversityCoursesTab = () => {
                   render={({ field }) => (
                     <FormItem>
                       <FormLabel>University</FormLabel>
-                      <Select onValueChange={field.onChange} defaultValue={field.value}>
-                        <FormControl>
-                          <SelectTrigger className="bg-white">
-                            <SelectValue placeholder="Select university" />
-                          </SelectTrigger>
-                        </FormControl>
-                        <SelectContent>
-                          {universities.map((uni) => (
-                            <SelectItem key={uni} value={uni}>{uni}</SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
+                      <FormControl>
+                        <Input placeholder="e.g. Harvard, MIT, Stanford" {...field} />
+                      </FormControl>
+                      <FormDescription>
+                        You can enter any university name, including ones not in our system yet
+                      </FormDescription>
                       <FormMessage />
                     </FormItem>
                   )}

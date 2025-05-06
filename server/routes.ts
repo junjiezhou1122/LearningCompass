@@ -23,7 +23,7 @@ import {
   insertUniversityCourseSchema, insertUniversityCourseBookmarkSchema,
   insertUniversityCourseCommentSchema, insertUniversityCourseResourceSchema, insertUniversityCourseCollaborationSchema,
   insertUniversityCourseLinkSchema,
-  insertLearningMethodSchema, insertLearningMethodReviewSchema,
+  insertLearningMethodSchema, insertLearningMethodReviewSchema, insertLearningMethodCommentSchema,
   insertLearningToolSchema, insertLearningToolReviewSchema,
   // Chat message schema
   insertChatMessageSchema
@@ -3583,6 +3583,96 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Error fetching learning method tags:", error);
       res.status(500).json({ message: "Error fetching learning method tags" });
+    }
+  });
+
+  // Learning Method Comments API Routes
+  app.get("/api/learning-methods/:id([0-9]+)/comments", async (req: Request, res: Response) => {
+    try {
+      const methodId = parseInt(req.params.id);
+      
+      // Check if method exists
+      const method = await storage.getLearningMethod(methodId);
+      if (!method) {
+        return res.status(404).json({ message: "Learning method not found" });
+      }
+      
+      const comments = await storage.getLearningMethodCommentsByMethodId(methodId);
+      res.json(comments);
+    } catch (error) {
+      console.error("Error fetching learning method comments:", error);
+      res.status(500).json({ message: "Error fetching learning method comments" });
+    }
+  });
+
+  app.post("/api/learning-methods/:id([0-9]+)/comments", authenticateJWT, async (req: Request, res: Response) => {
+    try {
+      const userId = (req as any).user.id;
+      const methodId = parseInt(req.params.id);
+      
+      // Check if method exists
+      const method = await storage.getLearningMethod(methodId);
+      if (!method) {
+        return res.status(404).json({ message: "Learning method not found" });
+      }
+      
+      const commentData = insertLearningMethodCommentSchema.parse({
+        ...req.body,
+        userId,
+        methodId,
+        createdAt: new Date().toISOString(),
+      });
+
+      const newComment = await storage.createLearningMethodComment(commentData);
+      
+      // Get the user information to include in the response
+      const user = await storage.getUser(userId);
+      if (!user) {
+        return res.status(201).json(newComment); // Still return the comment if user not found
+      }
+      
+      // Remove sensitive user data
+      const { password, ...userWithoutPassword } = user;
+      
+      res.status(201).json({
+        ...newComment,
+        user: userWithoutPassword
+      });
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ message: fromZodError(error).message });
+      }
+      console.error("Error creating learning method comment:", error);
+      res.status(500).json({ message: "Error creating learning method comment" });
+    }
+  });
+
+  app.delete("/api/learning-methods/comments/:id([0-9]+)", authenticateJWT, async (req: Request, res: Response) => {
+    try {
+      const userId = (req as any).user.id;
+      const commentId = parseInt(req.params.id);
+      
+      // Check if comment exists and belongs to the user
+      const comment = await storage.getLearningMethodComment(commentId);
+      if (!comment) {
+        return res.status(404).json({ message: "Comment not found" });
+      }
+      
+      if (comment.userId !== userId) {
+        return res.status(403).json({ message: "You can only delete your own comments" });
+      }
+      
+      // Delete the comment
+      const success = await storage.deleteLearningMethodComment(commentId, userId);
+      
+      if (success) {
+        res.status(200).json({ message: "Comment deleted successfully" });
+      } else {
+        res.status(404).json({ message: "Comment not found or already deleted" });
+      }
+    } catch (error) {
+      console.error("Error deleting learning method comment:", error);
+      res.status(500).json({ message: "Error deleting learning method comment" });
     }
   });
 

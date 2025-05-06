@@ -282,6 +282,13 @@ export interface IStorage {
   incrementLearningMethodUpvotes(id: number): Promise<void>;
   getLearningMethodTags(): Promise<string[]>;
 
+  // Learning Method Comments operations
+  getLearningMethodComment(id: number): Promise<LearningMethodComment | undefined>;
+  getLearningMethodCommentsByMethodId(methodId: number): Promise<LearningMethodComment[]>;
+  createLearningMethodComment(comment: InsertLearningMethodComment): Promise<LearningMethodComment>;
+  updateLearningMethodComment(id: number, comment: Partial<InsertLearningMethodComment>): Promise<LearningMethodComment | undefined>;
+  deleteLearningMethodComment(id: number, userId: number): Promise<boolean>;
+
   // Learning Method Reviews operations
   getLearningMethodReview(id: number): Promise<LearningMethodReview | undefined>;
   getLearningMethodReviewsByMethodId(methodId: number): Promise<LearningMethodReview[]>;
@@ -2318,6 +2325,60 @@ export class DatabaseStorage implements IStorage {
     });
     
     return Array.from(allTags).sort();
+  }
+
+  // Learning Method Comments operations
+  async getLearningMethodComment(id: number): Promise<LearningMethodComment | undefined> {
+    const [comment] = await db.select().from(learningMethodComments).where(eq(learningMethodComments.id, id));
+    return comment || undefined;
+  }
+
+  async getLearningMethodCommentsByMethodId(methodId: number): Promise<any[]> {
+    try {
+      // Get the comments
+      const comments = await db.select().from(learningMethodComments)
+        .where(eq(learningMethodComments.methodId, methodId))
+        .orderBy(desc(learningMethodComments.createdAt));
+      
+      // Fetch user information for each comment
+      const commentsWithUserData = await Promise.all(comments.map(async (comment) => {
+        const user = await this.getUser(comment.userId);
+        
+        if (!user) return { ...comment, user: null };
+        
+        // Remove sensitive user data
+        const { password, ...userWithoutPassword } = user;
+        return { ...comment, user: userWithoutPassword };
+      }));
+      
+      return commentsWithUserData;
+    } catch (error) {
+      console.error('Error in getLearningMethodCommentsByMethodId:', error);
+      return [];
+    }
+  }
+
+  async createLearningMethodComment(comment: InsertLearningMethodComment): Promise<LearningMethodComment> {
+    const [result] = await db.insert(learningMethodComments).values(comment).returning();
+    return result;
+  }
+
+  async updateLearningMethodComment(id: number, comment: Partial<InsertLearningMethodComment>): Promise<LearningMethodComment | undefined> {
+    const [result] = await db.update(learningMethodComments)
+      .set(comment)
+      .where(eq(learningMethodComments.id, id))
+      .returning();
+    return result || undefined;
+  }
+
+  async deleteLearningMethodComment(id: number, userId: number): Promise<boolean> {
+    const result = await db.delete(learningMethodComments).where(
+      and(
+        eq(learningMethodComments.id, id),
+        eq(learningMethodComments.userId, userId)
+      )
+    );
+    return result.rowCount > 0;
   }
 
   // Learning Method Reviews operations
