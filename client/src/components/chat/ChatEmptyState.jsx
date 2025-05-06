@@ -1,9 +1,12 @@
 import React from 'react';
 import { motion } from 'framer-motion';
-import { MessageSquare, PlusCircle, WifiOff } from 'lucide-react';
+import { MessageSquare, PlusCircle, WifiOff, Loader2, AlertTriangle, Wifi } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { useWebSocketContext } from './WebSocketProvider';
 
-const ChatEmptyState = ({ connected, onNewMessage }) => {
+const ChatEmptyState = ({ onNewMessage }) => {
+  // Get connection state directly from context
+  const { connected, connectionState, reconnectAttempt } = useWebSocketContext();
   return (
     <motion.div 
       initial={{ opacity: 0 }}
@@ -63,7 +66,7 @@ const ChatEmptyState = ({ connected, onNewMessage }) => {
         </motion.div>
       </div>
 
-      {!connected && (
+      {connectionState !== 'connected' && (
         <motion.div 
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
@@ -71,14 +74,27 @@ const ChatEmptyState = ({ connected, onNewMessage }) => {
           className="mt-10 p-4 bg-orange-100/70 text-orange-700 rounded-xl flex items-center shadow-md max-w-md"
         >
           <motion.div 
-            animate={{ rotate: 360 }}
-            transition={{ repeat: Infinity, duration: 2 }}
+            animate={connectionState === 'reconnecting' || connectionState === 'connecting' 
+              ? { rotate: 360 } 
+              : connectionState === 'unstable' 
+                ? { opacity: [0.4, 1, 0.4] } 
+                : {}
+            }
+            transition={{ repeat: Infinity, duration: connectionState === 'unstable' ? 1.5 : 2 }}
             className="mr-3 text-orange-600"
           >
-            <WifiOff className="h-5 w-5" />
+            {connectionState === 'connecting' && <Loader2 className="h-5 w-5" />}
+            {connectionState === 'reconnecting' && <Loader2 className="h-5 w-5" />}
+            {connectionState === 'disconnected' && <WifiOff className="h-5 w-5" />}
+            {connectionState === 'error' && <AlertTriangle className="h-5 w-5" />}
+            {connectionState === 'unstable' && <Wifi className="h-5 w-5 opacity-70" />}
           </motion.div>
           <p className="text-sm font-medium">
-            Connection to chat server lost. Trying to reconnect...
+            {connectionState === 'connecting' && "Connecting to chat server..."}
+            {connectionState === 'reconnecting' && `Reconnecting to chat server... (Attempt ${reconnectAttempt})`}
+            {connectionState === 'disconnected' && "Connection to chat server lost. We'll try to reconnect soon..."}
+            {connectionState === 'error' && "Unable to connect to chat server. Please check your network connection."}
+            {connectionState === 'unstable' && "Connection is unstable. Some messages may be delayed."}
           </p>
         </motion.div>
       )}

@@ -21,9 +21,6 @@ const ChatPage = () => {
   const scrollAreaRef = useRef(null);
 
   // State variables
-  const [connected, setConnected] = useState(false);
-  const [connectionState, setConnectionState] = useState('disconnected');
-  const [reconnectAttempt, setReconnectAttempt] = useState(0);
   const [activeChat, setActiveChat] = useState(null);
   const [messages, setMessages] = useState([]);
   const [input, setInput] = useState("");
@@ -32,8 +29,16 @@ const ChatPage = () => {
   const [page, setPage] = useState(1);
   const [hasMore, setHasMore] = useState(true);
   
-  // Get WebSocket context
-  const { sendMessage: wsSendMessage, connected: wsConnected, connectionState: wsConnectionState } = useWebSocketContext();
+  // Get WebSocket context with enhanced functionality
+  const { 
+    connected: wsConnected, 
+    connectionState: wsConnectionState,
+    reconnectAttempt: wsReconnectAttempt,
+    sendWithRetry,
+    connect: connectWebSocket,
+    disconnect: disconnectWebSocket,
+    getConnectionDetails
+  } = useWebSocketContext();
   
   // Constants
   const MESSAGES_PER_PAGE = 15; // Number of messages to load per page
@@ -779,8 +784,12 @@ const ChatPage = () => {
   // Update local connection state when WebSocketContext connection state changes
   useEffect(() => {
     setConnected(wsConnected);
-    setConnectionState(wsConnected ? 'connected' : 'disconnected');
-  }, [wsConnected]);
+    if (wsConnectionState) {
+      setConnectionState(wsConnectionState);
+    } else {
+      setConnectionState(wsConnected ? 'connected' : 'disconnected');
+    }
+  }, [wsConnected, wsConnectionState]);
 
   // Register event listeners for WebSocket events
   useEffect(() => {
@@ -920,9 +929,13 @@ const ChatPage = () => {
   const sendMessage = () => {
     if (!input.trim() || !activeChat) return;
     
-    const tempId = `temp-${Date.now()}`; // temporary ID with 'temp-' prefix
+    // Get current connection details
+    const connectionDetails = getConnectionDetails();
     
-    // Create a temporary message with local ID
+    // Use our enhanced sendWithRetry helper for better message tracking
+    const { tempId, sent } = sendWithRetry(input.trim(), activeChat.id, activeChat.conversationId);
+    
+    // Create a temporary message with local ID and status
     const tempMessage = {
       id: tempId,
       senderId: user.id,
@@ -931,15 +944,8 @@ const ChatPage = () => {
       createdAt: new Date().toISOString(),
       isRead: false,
       sender: user,
-      isPending: true // Mark as pending so we can style it differently
-    };
-    
-    // Create message object to send to server
-    const messageToSend = {
-      type: "chat_message",
-      receiverId: activeChat.id,
-      content: tempMessage.content,
-      tempId // Include temporary ID so we can update the message when we get a response
+      isPending: true, // Mark as pending so we can style it differently
+      status: sent ? 'sending' : 'queued' // Add status for better UI feedback
     };
     
     // Add message locally for immediate display
@@ -951,20 +957,17 @@ const ChatPage = () => {
     // Scroll to bottom
     setTimeout(scrollToBottom, 50);
     
-    // Send the message using our WebSocketContext
-    const success = wsSendMessage(messageToSend);
+    // Log with more details
+    console.log(`Message ${tempId} ${sent ? 'sent' : 'queued'} to ${activeChat.id}`);
+    console.log(`Connection state: ${connectionDetails.state}, attempt: ${connectionDetails.reconnectAttempt}`);
     
-    // If message couldn't be sent, show a notification
-    if (!success) {
-      console.log('Message queued for later delivery');
-      
+    // If message couldn't be sent immediately, show a notification
+    if (!sent) {
       toast({
         title: "Message queued",
         description: "We'll send your message when connection is restored",
         variant: "warning",
       });
-    } else {
-      console.log('Message sent successfully');
     }
   };
 
@@ -1079,17 +1082,12 @@ const ChatPage = () => {
                 setInput={setInput}
                 handleKeyDown={handleKeyDown}
                 sendMessage={sendMessage}
-                connected={connected}
                 activeChat={activeChat}
-                connectionStatus={connectionState}
               />
             </>
           ) : (
             /* Empty state when no chat is selected */
-            <ChatEmptyState 
-              connected={connected} 
-              onNewMessage={handleNewMessage}
-            />
+            <ChatEmptyState onNewMessage={handleNewMessage} />
           )}
         </div>
       </div>

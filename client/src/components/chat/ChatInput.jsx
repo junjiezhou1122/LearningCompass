@@ -5,16 +5,23 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 
-const ChatInput = ({ input, setInput, handleKeyDown, sendMessage, connected, activeChat, connectionStatus = 'disconnected' }) => {
-  // Connection status details
+import { useWebSocketContext } from '@/components/chat/WebSocketProvider';
+
+const ChatInput = ({ input, setInput, handleKeyDown, sendMessage, activeChat }) => {
+  // Get real-time connection state from WebSocketContext
+  const { connectionState, reconnectAttempt, connected } = useWebSocketContext();
+  
+  // Enhanced connection status details with reconnect attempts
   const statusInfo = {
     'connected': { color: 'text-green-500', message: 'Connection is stable', icon: Wifi },
     'connecting': { color: 'text-amber-500', message: 'Connecting...', icon: Wifi },
-    'disconnected': { color: 'text-red-500', message: 'Connection lost. Messages will be sent when reconnected.', icon: WifiOff },
-    'reconnecting': { color: 'text-amber-500', message: 'Attempting to reconnect...', icon: Wifi }
+    'disconnected': { color: 'text-red-500', message: 'Connection lost. Messages will be queued.', icon: WifiOff },
+    'reconnecting': { color: 'text-amber-500', message: `Reconnecting (attempt ${reconnectAttempt})...`, icon: Wifi },
+    'error': { color: 'text-red-600', message: 'Connection error. Please check your network.', icon: WifiOff },
+    'unstable': { color: 'text-amber-500', message: 'Connection unstable. Some messages may be delayed.', icon: Wifi }
   };
   
-  const status = statusInfo[connectionStatus] || statusInfo.disconnected;
+  const status = statusInfo[connectionState] || statusInfo.disconnected;
   return (
     <motion.div 
       initial={{ opacity: 0, y: 20 }}
@@ -35,8 +42,8 @@ const ChatInput = ({ input, setInput, handleKeyDown, sendMessage, connected, act
             <TooltipTrigger asChild>
               <div className="mr-2">
                 <motion.div 
-                  animate={{ scale: connectionStatus === 'connecting' || connectionStatus === 'reconnecting' ? [1, 1.2, 1] : 1 }}
-                  transition={{ repeat: connectionStatus === 'connecting' || connectionStatus === 'reconnecting' ? Infinity : 0, duration: 1.5 }}
+                  animate={{ scale: connectionState === 'connecting' || connectionState === 'reconnecting' ? [1, 1.2, 1] : 1 }}
+                  transition={{ repeat: connectionState === 'connecting' || connectionState === 'reconnecting' ? Infinity : 0, duration: 1.5 }}
                   className={`h-4 w-4 ${status.color} flex-shrink-0`}
                 >
                   <status.icon size={16} />
@@ -131,8 +138,8 @@ const ChatInput = ({ input, setInput, handleKeyDown, sendMessage, connected, act
             <Button
               onClick={sendMessage}
               disabled={!input?.trim()}
-              className={`bg-gradient-to-r ${!connected ? 'from-orange-400 to-orange-500 opacity-90' : 'from-orange-500 to-orange-600 hover:from-orange-600 hover:to-orange-700'} text-white rounded-full h-9 w-9 flex items-center justify-center p-0 shadow-md transition-all duration-200`}
-              title={!connected ? 'Message will be sent when connected' : 'Send message'}
+              className={`bg-gradient-to-r ${connectionState !== 'connected' ? 'from-orange-400 to-orange-500 opacity-80' : 'from-orange-500 to-orange-600 hover:from-orange-600 hover:to-orange-700'} text-white rounded-full h-9 w-9 flex items-center justify-center p-0 shadow-md transition-all duration-200`}
+              title={connectionState !== 'connected' ? `Message will be queued (${statusInfo[connectionState].message})` : 'Send message'}
             >
               <Send className="h-4 w-4" />
             </Button>

@@ -100,15 +100,36 @@ export const WebSocketProvider = ({ children }) => {
       } else if (data && data.type === 'message_ack') {
         // Emit a global event for message acknowledgment
         const ackEvent = new CustomEvent('chat:message:ack', {
-          detail: { tempId: data.tempId, messageId: data.messageId }
+          detail: { 
+            tempId: data.tempId, 
+            messageId: data.messageId,
+            status: data.status || 'delivered',
+            timestamp: data.timestamp || Date.now() 
+          }
         });
         window.dispatchEvent(ackEvent);
+        
+        // Log acknowledgment for debugging
+        console.log(`Message acknowledged: temp=${data.tempId}, id=${data.messageId}, status=${data.status || 'delivered'}`);
+        
+        // If the message was successfully delivered, we can remove it from the MessageQueue
+        // This is handled internally by the WebSocketService when it processes the ACK
       } else if (data && data.type === 'message_read_receipt') {
         // Emit a global event for read receipts
         const readEvent = new CustomEvent('chat:message:read', {
-          detail: { messageId: data.messageId }
+          detail: { 
+            messageId: data.messageId,
+            readerId: data.readerId,
+            readAt: data.readAt || Date.now(),
+            conversationId: data.conversationId
+          }
         });
         window.dispatchEvent(readEvent);
+        
+        // Log read receipt for debugging
+        console.log(`Message read receipt: id=${data.messageId}, reader=${data.readerId}, time=${new Date(data.readAt || Date.now()).toISOString()}`);
+        
+        // We could also show a subtle toast notification here for important messages
       } else if (data && data.type === 'unread_messages') {
         // Emit a global event for unread messages
         const unreadEvent = new CustomEvent('chat:unread:messages', {
@@ -209,27 +230,50 @@ export const WebSocketProvider = ({ children }) => {
   
   // Handler for message retry events from elsewhere in the application
   const handleMessageRetry = useCallback((event) => {
-    const { message, receiverId } = event.detail;
+    const { message, receiverId, conversationId, originalTempId } = event.detail;
     
     if (!message || !receiverId) {
       console.error('Message retry event missing required data');
       return;
     }
     
-    // Create message object for WebSocket
+    // Generate a new temporary ID for tracking this retry attempt
+    const newTempId = `retry-${Date.now()}`;
+    
+    // Create message object for WebSocket with more metadata
     const messageToSend = {
       type: 'chat_message',
       receiverId,
       content: message.content,
-      tempId: `temp-${Date.now()}`
+      tempId: newTempId,
+      originalTempId: originalTempId, // Track the original message ID if available
+      conversationId: conversationId, // Include conversation ID if available
+      isRetry: true,
+      retryTimestamp: Date.now()
     };
     
+    // Log the retry attempt for debugging
+    console.log(`Retrying message: newId=${newTempId}, originalId=${originalTempId || 'unknown'}`);
+    
+    // Emit a custom event to update UI immediately while message is being sent
+    window.dispatchEvent(new CustomEvent('chat:message:retrying', {
+      detail: {
+        originalTempId: originalTempId,
+        newTempId: newTempId,
+        status: 'sending',
+        timestamp: Date.now()
+      }
+    }));
+    
     // Send the message and show toast
-    ws.sendMessage(messageToSend);
+    const success = ws.sendMessage(messageToSend);
+    
+    // If we couldn't send it immediately (e.g., websocket disconnected),
+    // it will be queued by WebSocketService, but let's inform the user
     toast({
-      title: 'Retrying message',
-      description: 'Attempting to resend message...',
-      variant: 'default',
+      title: success ? 'Retrying message' : 'Message queued',
+      description: success ? 'Attempting to resend message...' : 'Message will be sent when connection is restored.',
+      variant: success ? 'default' : 'warning',
     });
   }, [ws, toast]);
   
@@ -242,13 +286,68 @@ export const WebSocketProvider = ({ children }) => {
     };
   }, [handleMessageRetry]);
 
+  // Method to explicitly connect to WebSocket
+  const connectToWebSocket = useCallback(() => {
+    if (ws.connected || ws.connecting) {
+      console.log('WebSocket already connected or connecting');
+      return;
+    }
+    
+    console.log('Explicitly connecting to WebSocket server...');
+    ws.connect();
+  }, [ws]);
+
+  // Method to explicitly disconnect from WebSocket
+  const disconnectFromWebSocket = useCallback((reason = 'User requested disconnect') => {
+    if (!ws.connected) {
+      console.log('WebSocket already disconnected');
+      return;
+    }
+    
+    console.log(`Explicitly disconnecting from WebSocket server: ${reason}`);
+    ws.disconnect(1000, reason);
+  }, [ws]);
+
+  // Method to get current connection state with details
+  const getConnectionDetails = useCallback(() => {
+    return {
+      state: ws.connectionState,
+      connected: ws.connected,
+      connecting: ws.connecting,
+      disconnected: ws.disconnected,
+      reconnectAttempt: ws.reconnectAttempt,
+      lastMessageTime: ws.lastMessageTime || null,
+      queuedMessageCount: 0, // Would need to expose this from WebSocketService
+    };
+  }, [ws]);
+  
   // Exposed context value
   const contextValue = {
     ...ws,
     userId,
     isAuthenticated: !!userId,
-    // updateToken is no longer needed, as we get the token from AuthContext
-    // This ensures that token management is centralized in the AuthContext
+    connect: connectToWebSocket,
+    disconnect: disconnectFromWebSocket,
+    getConnectionDetails,
+    // Additional helpers
+    sendWithRetry: (message, receiverId, conversationId) => {
+      // Generate a new temporary ID
+      const tempId = `msg-${Date.now()}`;
+      
+      // Create message object with metadata
+      const messageObj = {
+        type: 'chat_message',
+        receiverId,
+        content: message,
+        tempId,
+        conversationId,
+        timestamp: Date.now()
+      };
+      
+      // Log and send
+      console.log(`Sending message with ID ${tempId}`);
+      return { sent: ws.sendMessage(messageObj), tempId };
+    }
   };
   
   return (
