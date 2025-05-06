@@ -3996,7 +3996,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
   const wss = new WebSocketServer({ server: httpServer, path: '/ws' });
   
   // Store client connections by user ID
-  const clients = new Map<number, WebSocket>();
+  const clients = new Map<number, WebSocket & { userId?: number, lastActivity?: number }>(); 
+  
+  // Maintain a reverse mapping for quick lookup by WebSocket instance
+  const clientUserIds = new WeakMap<WebSocket, number>();
   
   // Store pending messages for offline users
   interface PendingMessage {
@@ -4007,26 +4010,63 @@ export async function registerRoutes(app: Express): Promise<Server> {
   }
   const pendingMessages = new Map<number, PendingMessage[]>();
   
-  // Ping interval to keep connections alive (every 25 seconds)
-  // Note: Client expects a server ping every 30s and sends its own pong every 20s
+  // Track failed delivery attempts for analytics
+  const deliveryStats = {
+    totalMessages: 0,
+    deliveredMessages: 0,
+    failedDeliveries: 0,
+    retriedDeliveries: 0,
+    queuedMessages: 0,
+  };
+  
+  // System-wide constants
+  const CONSTANTS = {
+    PING_INTERVAL: 25000,        // Send ping every 25 seconds
+    CLIENT_TIMEOUT: 40000,       // Consider client disconnected after 40 seconds of inactivity
+    RETRY_INTERVAL: 60000,       // Retry sending pending messages every 60 seconds
+    MAX_RETRY_ATTEMPTS: 10,      // Maximum retry attempts for pending messages
+    MAX_PENDING_MESSAGES: 100,   // Maximum number of pending messages per user
+  };
+  
+  // Ping interval to keep connections alive
+  // Client expects a server ping every 30s and sends its own pong every 20s
   const pingInterval = setInterval(() => {
+    const now = Date.now();
+    const timeoutThreshold = now - CONSTANTS.CLIENT_TIMEOUT;
+    
     wss.clients.forEach((client) => {
+      // Check if client has timed out
+      const typedClient = client as WebSocket & { lastActivity?: number };
+      if (typedClient.lastActivity && typedClient.lastActivity < timeoutThreshold) {
+        console.log('Client connection timed out - terminating');
+        client.terminate();
+        return;
+      }
+      
       if (client.readyState === WebSocket.OPEN) {
         // Send application-level ping
-        client.send(JSON.stringify({ type: 'ping' }));
-        
-        // Also try to send a protocol-level ping to support browsers with native ping/pong
         try {
+          client.send(JSON.stringify({ 
+            type: 'ping',
+            timestamp: now,
+            serverTime: new Date().toISOString()
+          }));
+          
+          // Also send protocol-level ping if supported
           if (typeof client.ping === 'function') {
-            client.ping();
-            console.log('Sent protocol-level ping frame');
+            try {
+              client.ping();
+            } catch (err) {
+              // Protocol-level ping failed - not critical as we have application-level ping
+            }
           }
-        } catch (error) {
-          console.log('Browser does not support native ping - using application ping instead');
+        } catch (err) {
+          console.error('Error sending ping, terminating connection:', err);
+          client.terminate();
         }
       }
     });
-  }, 25000);
+  }, CONSTANTS.PING_INTERVAL);
   
   // Retry sending pending messages every minute
   const retryInterval = setInterval(() => {
