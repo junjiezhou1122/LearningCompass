@@ -4,6 +4,7 @@ import { PlusCircle, Image, Paperclip, Smile, Mic, Send, Wifi, WifiOff, Loader2 
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
+import { useWebSocketContext } from './WebSocketProvider';
 
 /**
  * ChatInput component provides the input area for sending messages
@@ -22,11 +23,12 @@ const ChatInput = ({
   onChange,
   onKeyPress,
   onSend,
-  placeholder = "Type a message...",
-  disabled = false,
-  isPolling = false, 
-  connectionState = 'disconnected'
+  placeholder = "Type a message..."
 }) => {
+  // Get connection state directly from context
+  const { connectionState, isPolling } = useWebSocketContext();
+  // Determine if input should be disabled based on connection
+  const disabled = connectionState !== 'connected';
   // Enhanced connection status details
   const statusInfo = {
     'connected': { color: 'text-green-500', message: 'Connection is stable', icon: Wifi },

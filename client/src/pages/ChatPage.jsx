@@ -12,6 +12,7 @@ import ChatConversationHeader from "@/components/chat/ChatConversationHeader";
 import ChatMessagesList from "@/components/chat/ChatMessagesList";
 import ChatInput from "@/components/chat/ChatInput";
 import ChatEmptyState from "@/components/chat/ChatEmptyState";
+import ChatConnectionStatus from "@/components/chat/ChatConnectionStatus";
 
 // Custom hook for handling message operations
 import { useMessaging } from "@/hooks/use-chat-messaging";
@@ -192,36 +193,9 @@ const ChatPage = () => {
     setIsMobileSidebarOpen(prev => !prev);
   }, []);
   
-  // Render connection status indicator
+  // Import our new ChatConnectionStatus component
   const renderConnectionStatus = () => {
-    if (!isWebSocketConnected && reconnectAttempt > 0) {
-      return (
-        <div className="flex items-center text-yellow-500 text-sm animate-pulse">
-          <RefreshCw className="h-3 w-3 mr-1 animate-spin" />
-          <span>Reconnecting... ({reconnectAttempt})</span>
-        </div>
-      );
-    }
-    
-    if (!isWebSocketConnected) {
-      return (
-        <div className="flex items-center text-red-500 text-sm">
-          <WifiOff className="h-3 w-3 mr-1" />
-          <span>Offline</span>
-        </div>
-      );
-    }
-    
-    if (isPolling) {
-      return (
-        <div className="flex items-center text-blue-500 text-sm">
-          <Loader2 className="h-3 w-3 mr-1 animate-spin" />
-          <span>Polling</span>
-        </div>
-      );
-    }
-    
-    return null;
+    return <ChatConnectionStatus />;
   };
 
   // Main render function
@@ -277,9 +251,7 @@ const ChatPage = () => {
           <>
             {/* Chat Header */}
             <ChatConversationHeader
-              partner={activeChat}
-              isOnline={isWebSocketConnected}
-              connectionState={connectionState}
+              activeChat={activeChat}
               onBack={() => setIsMobileSidebarOpen(true)}
             />
             
@@ -336,10 +308,12 @@ const ChatPage = () => {
               onKeyPress={handleKeyPress}
               onSend={handleSendMessage}
               placeholder="Type a message..."
-              disabled={!isWebSocketConnected}
-              isPolling={isPolling}
-              connectionState={connectionState}
             />
+            
+            {/* Connection status indicator (only visible on desktop) */}
+            <div className="hidden md:flex justify-end p-2 border-t border-gray-100">
+              <ChatConnectionStatus />
+            </div>
           </>
         ) : (
           <ChatEmptyState />

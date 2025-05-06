@@ -1,6 +1,6 @@
 import React from 'react';
 import { motion } from 'framer-motion';
-import { Phone, Video, Info } from 'lucide-react';
+import { Phone, Video, Info, ArrowLeft, Wifi, WifiOff } from 'lucide-react';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -10,8 +10,12 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from '@/components/ui/tooltip';
+import { useWebSocketContext } from './WebSocketProvider';
 
-const ChatConversationHeader = ({ activeChat }) => {
+const ChatConversationHeader = ({ activeChat, onBack }) => {
+  // Get connection state from context
+  const { connectionState } = useWebSocketContext();
+  const isOnline = connectionState === 'connected';
   return (
     <motion.div 
       initial={{ opacity: 0, y: -10 }}
@@ -30,7 +34,7 @@ const ChatConversationHeader = ({ activeChat }) => {
             initial={{ scale: 0 }}
             animate={{ scale: 1 }}
             transition={{ delay: 0.2 }}
-            className="absolute -bottom-1 -right-1 h-3.5 w-3.5 rounded-full bg-green-500 border-2 border-white shadow-sm"
+            className={`absolute -bottom-1 -right-1 h-3.5 w-3.5 rounded-full ${isOnline ? 'bg-green-500' : 'bg-gray-400'} border-2 border-white shadow-sm`}
           ></motion.span>
         </div>
         <div>
@@ -43,15 +47,17 @@ const ChatConversationHeader = ({ activeChat }) => {
             <h2 className="text-base font-semibold text-orange-800">
               {activeChat?.username || 'User'}
             </h2>
-            <Badge className="ml-2 bg-green-100 text-green-700 text-xs py-0 px-1.5 border border-green-200">
-              Online
+            <Badge className={`ml-2 ${isOnline ? 'bg-green-100 text-green-700 border-green-200' : 'bg-gray-100 text-gray-700 border-gray-200'} text-xs py-0 px-1.5 border`}>
+              {isOnline ? 'Online' : 'Offline'}
             </Badge>
           </motion.div>
           <motion.p 
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             transition={{ delay: 0.2 }}
-            className="text-xs text-orange-500">Last active recently</motion.p>
+            className={`text-xs ${isOnline ? 'text-green-500' : 'text-orange-500'}`}>
+            {isOnline ? 'Active now' : 'Last active recently'}
+          </motion.p>
         </div>
       </div>
 

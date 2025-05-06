@@ -1,11 +1,15 @@
-import React from 'react';
+import React, { useCallback } from 'react';
 import { motion } from 'framer-motion';
-import { MessageSquare, AlertCircle, RefreshCw, Loader2 } from 'lucide-react';
+import { MessageSquare } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import ChatMessage from './ChatMessage';
+import MessageStatusIndicator from './MessageStatusIndicator';
+import { useWebSocketContext } from './WebSocketProvider';
 
 /**
  * ChatMessagesList component displays a list of chat messages
+ * with enhanced error handling and retry capabilities
+ * 
  * @param {Array} messages - Array of message objects to display
  * @param {number} currentUserId - Current user's ID to differentiate sent vs received messages
  * @param {Function} onRetryMessage - Function to retry sending a failed message
@@ -15,6 +19,28 @@ const ChatMessagesList = ({
   currentUserId,
   onRetryMessage
 }) => {
+  // Get WebSocket context for connection status checks and direct retry access
+  const wsContext = useWebSocketContext();
+  
+  // Enhanced retry handler that works with context or callback
+  const handleRetry = useCallback((messageId) => {
+    // First try the provided callback
+    if (onRetryMessage) {
+      onRetryMessage(messageId);
+    }
+    // If no callback or it fails, dispatch a custom retry event that WebSocketProvider will handle
+    else {
+      const retryEvent = new CustomEvent('chat:message:retry', { 
+        detail: { messageId }
+      });
+      window.dispatchEvent(retryEvent);
+    }
+  }, [onRetryMessage]);
+  
+  // Determine connection warning state for error messages
+  const connectionState = wsContext?.connectionState || 'unknown';
+  const isDisconnected = connectionState !== 'connected';
+  
   return (
     <div className="w-full h-full py-4">
       {/* Messages list */}
@@ -50,32 +76,44 @@ const ChatMessagesList = ({
                   isCurrentUser={message.senderId === currentUserId}
                 />
                 
-                {/* Message status indicators */}
+                {/* Enhanced message status indicators with error context */}
                 {message.senderId === currentUserId && (
                   <div className="absolute -bottom-4 right-2 flex items-center space-x-1 text-xs">
                     {message.isPending && (
-                      <span className="text-muted-foreground italic flex items-center gap-1">
-                        <motion.div
-                          animate={{ rotate: 360 }}
-                          transition={{ repeat: Infinity, duration: 1.5, ease: "linear" }}
-                        >
-                          <Loader2 className="h-3 w-3" />
-                        </motion.div>
-                        Sending...
-                      </span>
+                      <MessageStatusIndicator 
+                        status="sending" 
+                        message={message}
+                      />
+                    )}
+                    
+                    {message.isRetrying && (
+                      <MessageStatusIndicator 
+                        status="retrying" 
+                        message={message}
+                      />
                     )}
                     
                     {message.isError && (
-                      <span className="text-destructive flex items-center gap-1 cursor-pointer" 
-                            onClick={() => onRetryMessage && onRetryMessage(message.id)}>
-                        <AlertCircle className="h-3 w-3" />
-                        Failed
-                        <RefreshCw className="h-3 w-3 ml-1 hover:text-primary transition-colors" />
-                      </span>
+                      <MessageStatusIndicator 
+                        status={isDisconnected ? "network_error" : "failed"}
+                        onRetry={() => handleRetry(message.id || message.tempId)}
+                        message={message}
+                        errorMessage={message.error || (isDisconnected ? "Connection lost" : null)}
+                      />
+                    )}
+                    
+                    {message.isDelivered && !message.isRead && (
+                      <MessageStatusIndicator 
+                        status="delivered" 
+                        message={message}
+                      />
                     )}
                     
                     {message.isRead && (
-                      <span className="text-primary text-xs">Read</span>
+                      <MessageStatusIndicator 
+                        status="read" 
+                        message={message}
+                      />
                     )}
                   </div>
                 )}
