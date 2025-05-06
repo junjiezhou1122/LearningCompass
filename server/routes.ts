@@ -3352,9 +3352,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const userId = (req as any).user.id;
       const courseId = parseInt(req.params.courseId);
-      const { goals, availability, preferredContactMethod, contactInfo } = req.body;
+      const { message, contactMethod, contactDetails } = req.body;
       
-      if (!goals || !availability || !preferredContactMethod || !contactInfo) {
+      if (!message || !contactMethod || !contactDetails) {
         return res.status(400).json({ message: "All fields are required" });
       }
       
@@ -3367,9 +3367,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const collaborationData = insertUniversityCourseCollaborationSchema.parse({
         userId,
         courseId,
-        message: goals,
-        contactMethod: preferredContactMethod,
-        contactDetails: contactInfo,
+        message,
+        contactMethod,
+        contactDetails,
         updatedAt: new Date()
       });
       
