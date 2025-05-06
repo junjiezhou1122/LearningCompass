@@ -91,6 +91,30 @@ export const WebSocketProvider = ({ children }) => {
         });
       } else if (data && data.type === 'auth_success') {
         console.log('WebSocket authenticated successfully');
+      } else if (data && data.type === 'new_message') {
+        // Emit a global event for the message that ChatPage/NewChatPage can listen for
+        const newMessageEvent = new CustomEvent('chat:message:received', {
+          detail: { message: data.message }
+        });
+        window.dispatchEvent(newMessageEvent);
+      } else if (data && data.type === 'message_ack') {
+        // Emit a global event for message acknowledgment
+        const ackEvent = new CustomEvent('chat:message:ack', {
+          detail: { tempId: data.tempId, messageId: data.messageId }
+        });
+        window.dispatchEvent(ackEvent);
+      } else if (data && data.type === 'message_read_receipt') {
+        // Emit a global event for read receipts
+        const readEvent = new CustomEvent('chat:message:read', {
+          detail: { messageId: data.messageId }
+        });
+        window.dispatchEvent(readEvent);
+      } else if (data && data.type === 'unread_messages') {
+        // Emit a global event for unread messages
+        const unreadEvent = new CustomEvent('chat:unread:messages', {
+          detail: { count: data.count, messages: data.messages }
+        });
+        window.dispatchEvent(unreadEvent);
       }
     },
     onClose: (event, reason) => {
@@ -120,12 +144,22 @@ export const WebSocketProvider = ({ children }) => {
   // Handler for abnormal WebSocket closures
   const handleAbnormalClosure = useCallback((event) => {
     console.warn('Abnormal WebSocket closure detected (Code 1006)');
-    toast({
-      title: 'Connection Issues Detected',
-      description: 'Attempting to restore connection automatically...',
-      variant: 'warning',
-    });
-  }, [toast]);
+    
+    // Only show toast if we're not already reconnecting
+    if (!ws.connecting) {
+      toast({
+        title: 'Connection Issues Detected',
+        description: 'Attempting to restore connection automatically...',
+        variant: 'warning',
+      });
+    }
+    
+    // The WebSocketService will handle reconnection automatically
+    // but we can force an immediate reconnection here if needed
+    if (!ws.connected && !ws.connecting) {
+      ws.connect();
+    }
+  }, [toast, ws]);
 
   // Handler for message delivery failures
   const handleMessageFailure = useCallback((event) => {
@@ -173,6 +207,41 @@ export const WebSocketProvider = ({ children }) => {
     };
   }, [handleMessageFailure, handleAbnormalClosure, handleConnectionFailure]);
   
+  // Handler for message retry events from elsewhere in the application
+  const handleMessageRetry = useCallback((event) => {
+    const { message, receiverId } = event.detail;
+    
+    if (!message || !receiverId) {
+      console.error('Message retry event missing required data');
+      return;
+    }
+    
+    // Create message object for WebSocket
+    const messageToSend = {
+      type: 'chat_message',
+      receiverId,
+      content: message.content,
+      tempId: `temp-${Date.now()}`
+    };
+    
+    // Send the message and show toast
+    ws.sendMessage(messageToSend);
+    toast({
+      title: 'Retrying message',
+      description: 'Attempting to resend message...',
+      variant: 'default',
+    });
+  }, [ws, toast]);
+  
+  // Add message retry event listener
+  useEffect(() => {
+    window.addEventListener('chat:message:retry', handleMessageRetry);
+    
+    return () => {
+      window.removeEventListener('chat:message:retry', handleMessageRetry);
+    };
+  }, [handleMessageRetry]);
+
   // Exposed context value
   const contextValue = {
     ...ws,

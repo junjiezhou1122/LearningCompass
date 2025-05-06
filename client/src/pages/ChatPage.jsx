@@ -4,6 +4,7 @@ import { useToast } from "@/hooks/use-toast";
 import { Menu } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { motion } from "framer-motion";
+import { useWebSocketContext } from "@/components/chat/WebSocketProvider";
 
 // Import our new chat components
 import ChatHeader from "@/components/chat/ChatHeader";
@@ -20,8 +21,9 @@ const ChatPage = () => {
   const scrollAreaRef = useRef(null);
 
   // State variables
-  const [ws, setWs] = useState(null);
   const [connected, setConnected] = useState(false);
+  const [connectionState, setConnectionState] = useState('disconnected');
+  const [reconnectAttempt, setReconnectAttempt] = useState(0);
   const [activeChat, setActiveChat] = useState(null);
   const [messages, setMessages] = useState([]);
   const [input, setInput] = useState("");
@@ -29,6 +31,9 @@ const ChatPage = () => {
   const [isLoadingMore, setIsLoadingMore] = useState(false);
   const [page, setPage] = useState(1);
   const [hasMore, setHasMore] = useState(true);
+  
+  // Get WebSocket context
+  const { sendMessage: wsSendMessage, connected: wsConnected, connectionState: wsConnectionState } = useWebSocketContext();
   
   // Constants
   const MESSAGES_PER_PAGE = 15; // Number of messages to load per page
@@ -755,10 +760,162 @@ const ChatPage = () => {
   // Load messages when active chat changes
   useEffect(() => {
     if (activeChat) {
+      // Load messages through REST API
       loadMessages(activeChat.id);
+      
+      // Also request message history through WebSocket for real-time updates
+      if (connected) {
+        wsSendMessage({
+          type: 'get_message_history',
+          partnerId: activeChat.id,
+          limit: MESSAGES_PER_PAGE
+        });
+      }
     }
-  }, [activeChat, loadMessages]);
+  }, [activeChat, loadMessages, connected, wsSendMessage, MESSAGES_PER_PAGE]);
 
+  // Connection state is updated from WebSocketContext
+
+  // Update local connection state when WebSocketContext connection state changes
+  useEffect(() => {
+    setConnected(wsConnected);
+    setConnectionState(wsConnected ? 'connected' : 'disconnected');
+  }, [wsConnected]);
+
+  // Register event listeners for WebSocket events
+  useEffect(() => {
+    // Handler for received messages
+    const handleReceivedMessage = (event) => {
+      const { message } = event.detail;
+      
+      if (!message || !user) return;
+      
+      // If message is for the current chat, add it to the messages list
+      if (activeChat && ((message.senderId === user.id && message.receiverId === activeChat.id) ||
+          (message.receiverId === user.id && message.senderId === activeChat.id))) {
+        
+        // Check if we don't already have this message to avoid duplicates
+        const isDuplicate = messages.some(m => 
+          (m.id === message.id) || 
+          (m.tempId && m.tempId === message.id)
+        );
+        
+        if (!isDuplicate) {
+          // Add the message to our local state
+          setMessages(prev => [...prev, message]);
+          
+          // Scroll to bottom
+          setTimeout(scrollToBottom, 50);
+          
+          // If the message is from the partner, mark it as read
+          if (activeChat && message.senderId === activeChat.id) {
+            // Send read receipt
+            wsSendMessage({
+              type: 'mark_as_read',
+              messageId: message.id
+            });
+          }
+        }
+      } else if (message.receiverId === user.id) {
+        // Message is for us but not in the current chat
+        const senderName = message.sender?.username || 
+                           (message.sender?.firstName ? `${message.sender.firstName} ${message.sender.lastName || ''}`.trim() : 'someone');
+        
+        toast({
+          title: 'New Message',
+          description: `You have a new message from ${senderName}`,
+          variant: 'default',
+        });
+      }
+    };
+
+    // Handler for message acknowledgments
+    const handleMessageAck = (event) => {
+      const { tempId, messageId } = event.detail;
+      if (tempId && messageId) {
+        setMessages(prev => 
+          prev.map(m => 
+            m.id === tempId ? 
+            { ...m, id: messageId, isPending: false } : 
+            m
+          )
+        );
+        console.log(`Message ${tempId} acknowledged as ${messageId}`);
+      }
+    };
+
+    // Handler for message read receipts
+    const handleMessageRead = (event) => {
+      const { messageId } = event.detail;
+      if (messageId) {
+        setMessages(prev => 
+          prev.map(m => 
+            m.id === messageId ? 
+            { ...m, isRead: true } : 
+            m
+          )
+        );
+        console.log(`Message ${messageId} marked as read`);
+      }
+    };
+
+    // Handler for message delivery failures
+    const handleMessageFailed = (event) => {
+      const { tempId } = event.detail;
+      if (tempId) {
+        setMessages(prev => 
+          prev.map(m => 
+            m.id === tempId ? 
+            { ...m, deliveryFailed: true, isPending: false } : 
+            m
+          )
+        );
+
+        toast({
+          title: 'Message Failed',
+          description: 'Your message could not be delivered. Please try again.',
+          variant: 'destructive',
+        });
+        
+        console.log(`Message ${tempId} delivery failed`);
+      }
+    };
+    
+    // Handler for unread messages count
+    const handleUnreadMessages = (event) => {
+      const { count, messages: unreadMessages } = event.detail;
+      
+      // If we receive unread messages and we're not already looking at them,
+      // show a notification with the count
+      if (count > 0 && unreadMessages && unreadMessages.length > 0) {
+        const lastMessage = unreadMessages[unreadMessages.length - 1];
+        const senderName = lastMessage.sender?.username || 'someone';
+        
+        toast({
+          title: `${count} Unread Message${count > 1 ? 's' : ''}`,
+          description: `Latest from ${senderName}: ${lastMessage.content.substring(0, 30)}${lastMessage.content.length > 30 ? '...' : ''}`,
+          variant: 'default',
+        });
+      }
+    };
+
+    // Add event listeners
+    window.addEventListener('chat:message:received', handleReceivedMessage);
+    window.addEventListener('chat:message:ack', handleMessageAck);
+    window.addEventListener('chat:message:read', handleMessageRead);
+    window.addEventListener('chat:message:failed', handleMessageFailed);
+    window.addEventListener('chat:unread:messages', handleUnreadMessages);
+
+    // Clean up event listeners on unmount
+    return () => {
+      window.removeEventListener('chat:message:received', handleReceivedMessage);
+      window.removeEventListener('chat:message:ack', handleMessageAck);
+      window.removeEventListener('chat:message:read', handleMessageRead);
+      window.removeEventListener('chat:message:failed', handleMessageFailed);
+      window.removeEventListener('chat:unread:messages', handleUnreadMessages);
+    };
+  }, [user, activeChat, messages, toast, scrollToBottom, wsSendMessage]);
+  
   // Send message function
   const sendMessage = () => {
     if (!input.trim() || !activeChat) return;
@@ -794,25 +951,11 @@ const ChatPage = () => {
     // Scroll to bottom
     setTimeout(scrollToBottom, 50);
     
-    // Try to send the message if connected
-    const ws = wsRef.current;
-    let messageSent = false;
+    // Send the message using our WebSocketContext
+    const success = wsSendMessage(messageToSend);
     
-    if (connected && ws.socket && ws.socket.readyState === WebSocket.OPEN) {
-      try {
-        ws.socket.send(JSON.stringify(messageToSend));
-        messageSent = true;
-        console.log('Message sent successfully');
-      } catch (error) {
-        console.error("Error sending message via WebSocket:", error);
-        messageSent = false;
-      }
-    }
-    
-    // If message couldn't be sent, queue it for later
-    if (!messageSent) {
-      // Add to the pending messages queue
-      ws.pendingMessages.push(messageToSend);
+    // If message couldn't be sent, show a notification
+    if (!success) {
       console.log('Message queued for later delivery');
       
       toast({
@@ -820,6 +963,8 @@ const ChatPage = () => {
         description: "We'll send your message when connection is restored",
         variant: "warning",
       });
+    } else {
+      console.log('Message sent successfully');
     }
   };
 
@@ -888,7 +1033,42 @@ const ChatPage = () => {
                 page={page}
                 hasMore={hasMore}
                 loadOlderMessages={loadOlderMessages}
-                messages={messages}
+                messages={messages.map(msg => ({
+                  ...msg,
+                  onRetry: msg.deliveryFailed || msg.isFailed ? () => {
+                    // Create new message object to resend
+                    const messageToResend = {
+                      type: "chat_message",
+                      receiverId: activeChat.id,
+                      content: msg.content,
+                      tempId: `temp-${Date.now()}` // Create new tempId for tracking
+                    };
+                    
+                    // Replace the failed message with a new pending one
+                    setMessages(prev => prev.map(m => 
+                      m.id === msg.id ? 
+                      { 
+                        ...m, 
+                        id: messageToResend.tempId,
+                        isPending: true,
+                        deliveryFailed: false,
+                        isFailed: false,
+                        error: null,
+                        createdAt: new Date().toISOString()
+                      } : m
+                    ));
+                    
+                    // Send the message
+                    wsSendMessage(messageToResend);
+                    
+                    // Show toast indicating message is being retried
+                    toast({
+                      title: "Retrying message",
+                      description: "Attempting to resend message...",
+                      variant: "default",
+                    });
+                  } : undefined
+                }))}
                 user={user}
                 messagesEndRef={messagesEndRef}
               />
@@ -901,7 +1081,7 @@ const ChatPage = () => {
                 sendMessage={sendMessage}
                 connected={connected}
                 activeChat={activeChat}
-                connectionStatus={connected ? 'connected' : 'disconnected'}
+                connectionStatus={connectionState}
               />
             </>
           ) : (
