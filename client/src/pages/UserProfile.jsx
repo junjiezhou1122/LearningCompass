@@ -36,6 +36,7 @@ import {
   UserMinus,
   User,
   UserCheck,
+  Users,
   Loader2,
   Lightbulb,
   BookOpen,
@@ -826,12 +827,19 @@ export default function UserProfile() {
                         </AvatarFallback>
                       </Avatar>
                       <div>
-                        <p
-                          className="font-medium hover:text-orange-600 cursor-pointer"
-                          onClick={() => navigate(`/users/${user.id}`)}
-                        >
-                          {user.username}
-                        </p>
+                        <div className="flex items-center gap-2">
+                          <p
+                            className="font-medium hover:text-orange-600 cursor-pointer"
+                            onClick={() => navigate(`/users/${user.id}`)}
+                          >
+                            {user.username}
+                          </p>
+                          {user.isFollowingBack && (
+                            <Badge variant="outline" className="text-xs bg-green-50 text-green-700 border-green-200 px-1.5 py-0">
+                              <Users className="h-3 w-3 mr-1" /> Mutual
+                            </Badge>
+                          )}
+                        </div>
                         {user.bio && (
                           <p className="text-sm text-gray-500 line-clamp-1">
                             {user.bio}

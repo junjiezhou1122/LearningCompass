@@ -628,11 +628,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       const followers = await storage.getFollowers(user.id);
       
-      // Remove sensitive data
-      const safeFollowers = followers.map(follower => {
+      // Remove sensitive data and add mutual follow information
+      const safeFollowers = await Promise.all(followers.map(async follower => {
         const { password, ...safeData } = follower;
-        return safeData;
-      });
+        
+        // Check if the user is also following this follower (mutual)
+        const isMutual = await storage.isFollowing(user.id, follower.id);
+        
+        return {
+          ...safeData,
+          isFollowingBack: isMutual // Indicates if it's a mutual follow
+        };
+      }));
       
       res.json(safeFollowers);
     } catch (error) {
@@ -670,11 +677,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       const following = await storage.getFollowing(user.id);
       
-      // Remove sensitive data
-      const safeFollowing = following.map(followedUser => {
+      // Remove sensitive data and add mutual follow information
+      const safeFollowing = await Promise.all(following.map(async followedUser => {
         const { password, ...safeData } = followedUser;
-        return safeData;
-      });
+        
+        // Check if the followed user is also following the current user (mutual)
+        const isMutual = await storage.isFollowing(followedUser.id, user.id);
+        
+        return {
+          ...safeData,
+          isFollowingBack: isMutual // Indicates if it's a mutual follow
+        };
+      }));
       
       res.json(safeFollowing);
     } catch (error) {
