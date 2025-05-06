@@ -3,8 +3,9 @@ import { queryClient } from "./lib/queryClient";
 import { QueryClientProvider } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
-import { AuthProvider } from "@/contexts/AuthContext";
-import { LanguageProvider } from "@/contexts/LanguageContext";
+import { AuthProvider } from "./contexts/AuthContext";
+import { LanguageProvider } from "./contexts/LanguageContext";
+import { WebSocketProvider } from "@/components/chat/WebSocketProvider";
 import NotFound from "@/pages/not-found";
 import Home from "@/pages/Home";
 import CourseDetail from "@/pages/CourseDetail";
@@ -14,9 +15,10 @@ import LearningHowToLearn from "@/pages/LearningHowToLearn";
 import LearningCenter from "@/pages/LearningCenter";
 import Share from "@/pages/Share";
 import PostDetail from "@/pages/PostDetail";
-import UserProfile from "@/pages/UserProfile";
-import NotesPage from "@/pages/NotesPage";
-import TokenDebugPage from "@/pages/TokenDebugPage";
+import UserProfile from "./pages/UserProfile";
+import NotesPage from "./pages/NotesPage";
+import TokenDebugPage from "./pages/TokenDebugPage";
+import NewChatPage from "./pages/NewChatPage";
 import Header from "@/components/Header";
 import Footer from "@/components/Footer";
 import FloatingAIButton from "@/components/FloatingAIButton";
@@ -35,9 +37,29 @@ function Router() {
     location === "/forgot-password" ||
     location === "/reset-password";
     
+  // Check if it's the chat page which needs a different layout
+  const isChatPage = location === "/chat";
+
   // Debug location and sidebar visibility
   console.log("Current location:", location);
   console.log("Show sidebar:", !hideSidebar);
+
+  if (isChatPage) {
+    return (
+      <div className="min-h-screen flex flex-col">
+        <Header />
+        <div className="flex-grow">
+          <Switch>
+            <Route path="/chat">
+              <ErrorBoundary>
+                <NewChatPage />
+              </ErrorBoundary>
+            </Route>
+          </Switch>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen flex flex-col">
@@ -80,13 +102,15 @@ function App() {
     <QueryClientProvider client={queryClient}>
       <LanguageProvider>
         <AuthProvider>
-          <TooltipProvider>
-            <Router />
-            <FloatingAIButton />
-            <FloatingNoteButton />
-            <TokenDebugger />
-            <Toaster />
-          </TooltipProvider>
+          <WebSocketProvider>
+            <TooltipProvider>
+              <Router />
+              <FloatingAIButton />
+              <FloatingNoteButton />
+              <TokenDebugger />
+              <Toaster />
+            </TooltipProvider>
+          </WebSocketProvider>
         </AuthProvider>
       </LanguageProvider>
     </QueryClientProvider>

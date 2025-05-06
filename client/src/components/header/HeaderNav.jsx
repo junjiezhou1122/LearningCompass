@@ -1,7 +1,7 @@
 import { useLocation } from "wouter";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { Button } from "@/components/ui/button";
-import { BookOpen, MessageSquare, StickyNote, GraduationCap, MessagesSquare, Users } from "lucide-react";
+import { BookOpen, MessageSquare, StickyNote, GraduationCap, MessagesSquare } from "lucide-react";
 import LanguageSwitcher from "../LanguageSwitcher";
 import { useAuth } from "@/contexts/AuthContext";
 
@@ -61,11 +61,8 @@ export default function HeaderNav() {
           </Button>
           <Button
             variant="ghost"
-            className={getButtonClass("/new-chat")}
-            onClick={() => {
-              console.log("Chat button clicked, navigating to /new-chat");
-              navigate("/new-chat");
-            }}
+            className={getButtonClass("/chat")}
+            onClick={() => navigate("/chat")}
           >
             <MessagesSquare className="h-4 w-4 mr-2" />
             Chat
