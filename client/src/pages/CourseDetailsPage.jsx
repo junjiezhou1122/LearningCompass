@@ -483,6 +483,9 @@ const CourseDetailsPage = () => {
     },
   });
 
+  // State to control the collaboration form dialog
+  const [showCollaborationDialog, setShowCollaborationDialog] = useState(false);
+
   // Add collaboration request mutation
   const addCollaborationMutation = useMutation({
     mutationFn: async (data) => {
@@ -504,6 +507,8 @@ const CourseDetailsPage = () => {
     },
     onSuccess: () => {
       collaborationForm.reset();
+      // Close the dialog after successful submission
+      setShowCollaborationDialog(false);
       queryClient.invalidateQueries({ queryKey: ['course-collaborations', id] });
       toast({
         title: 'Collaboration Request Sent',
@@ -1436,46 +1441,37 @@ const CourseDetailsPage = () => {
             <div className="md:col-span-2">
               <h2 className="text-xl font-bold text-orange-800 mb-4">Find Collaborators</h2>
               
-              {/* Collaboration request form */}
+              {/* Collaboration request button and dialog */}
               {isAuthenticated && (
-                <Card className="mb-6 border-orange-100">
-                  <CardHeader className="pb-3">
-                    <CardTitle className="text-lg text-orange-700">Post Collaboration Request</CardTitle>
-                    <CardDescription>
-                      Find others to study with or work on course assignments together
-                    </CardDescription>
-                  </CardHeader>
-                  <CardContent>
-                    <Form {...collaborationForm}>
-                      <form onSubmit={collaborationForm.handleSubmit(onCollaborationSubmit)} className="space-y-4">
-                        <FormField
-                          control={collaborationForm.control}
-                          name="message"
-                          render={({ field }) => (
-                            <FormItem>
-                              <FormLabel>Your Message</FormLabel>
-                              <FormControl>
-                                <Textarea 
-                                  placeholder="Describe what you're looking for in a study partner or collaborator..."
-                                  className="min-h-[100px] resize-none border-orange-200 focus:border-orange-500"
-                                  {...field} 
-                                />
-                              </FormControl>
-                              <FormMessage />
-                            </FormItem>
-                          )}
-                        />
-                        
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="mb-6">
+                  <Dialog open={showCollaborationDialog} onOpenChange={setShowCollaborationDialog}>
+                    <DialogTrigger asChild>
+                      <Button 
+                        className="bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 mb-4"
+                      >
+                        <Users className="mr-2 h-4 w-4" /> Post Collaboration Request
+                      </Button>
+                    </DialogTrigger>
+                    <DialogContent className="sm:max-w-[550px]">
+                      <DialogHeader>
+                        <DialogTitle className="text-lg text-orange-700">Post Collaboration Request</DialogTitle>
+                        <DialogDescription>
+                          Find others to study with or work on course assignments together
+                        </DialogDescription>
+                      </DialogHeader>
+                      
+                      <Form {...collaborationForm}>
+                        <form onSubmit={collaborationForm.handleSubmit(onCollaborationSubmit)} className="space-y-4">
                           <FormField
                             control={collaborationForm.control}
-                            name="contactMethod"
+                            name="message"
                             render={({ field }) => (
                               <FormItem>
-                                <FormLabel>Contact Method</FormLabel>
+                                <FormLabel>Your Message</FormLabel>
                                 <FormControl>
-                                  <Input 
-                                    placeholder="e.g. Email, Discord, Slack"
+                                  <Textarea 
+                                    placeholder="Describe what you're looking for in a study partner or collaborator..."
+                                    className="min-h-[100px] resize-none border-orange-200 focus:border-orange-500"
                                     {...field} 
                                   />
                                 </FormControl>
@@ -1484,43 +1480,62 @@ const CourseDetailsPage = () => {
                             )}
                           />
                           
-                          <FormField
-                            control={collaborationForm.control}
-                            name="contactDetails"
-                            render={({ field }) => (
-                              <FormItem>
-                                <FormLabel>Contact Details</FormLabel>
-                                <FormControl>
-                                  <Input 
-                                    placeholder="e.g. your@email.com, username#1234"
-                                    {...field} 
-                                  />
-                                </FormControl>
-                                <FormMessage />
-                              </FormItem>
-                            )}
-                          />
-                        </div>
-                        
-                        <div className="flex justify-end">
-                          <Button 
-                            type="submit"
-                            className="bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600"
-                            disabled={addCollaborationMutation.isPending}
-                          >
-                            {addCollaborationMutation.isPending ? (
-                              <>
-                                <span className="animate-spin mr-2">⟳</span> Posting...
-                              </>
-                            ) : (
-                              <>Post Collaboration Request</>
-                            )}
-                          </Button>
-                        </div>
-                      </form>
-                    </Form>
-                  </CardContent>
-                </Card>
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <FormField
+                              control={collaborationForm.control}
+                              name="contactMethod"
+                              render={({ field }) => (
+                                <FormItem>
+                                  <FormLabel>Contact Method</FormLabel>
+                                  <FormControl>
+                                    <Input 
+                                      placeholder="e.g. Email, Discord, Slack"
+                                      {...field} 
+                                    />
+                                  </FormControl>
+                                  <FormMessage />
+                                </FormItem>
+                              )}
+                            />
+                            
+                            <FormField
+                              control={collaborationForm.control}
+                              name="contactDetails"
+                              render={({ field }) => (
+                                <FormItem>
+                                  <FormLabel>Contact Details</FormLabel>
+                                  <FormControl>
+                                    <Input 
+                                      placeholder="e.g. your@email.com, username#1234"
+                                      {...field} 
+                                    />
+                                  </FormControl>
+                                  <FormMessage />
+                                </FormItem>
+                              )}
+                            />
+                          </div>
+                          
+                          <div className="flex justify-end">
+                            <Button 
+                              type="submit"
+                              className="bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600"
+                              disabled={addCollaborationMutation.isPending}
+                            >
+                              {addCollaborationMutation.isPending ? (
+                                <>
+                                  <span className="animate-spin mr-2">⟳</span> Posting...
+                                </>
+                              ) : (
+                                <>Post Collaboration Request</>
+                              )}
+                            </Button>
+                          </div>
+                        </form>
+                      </Form>
+                    </DialogContent>
+                  </Dialog>
+                </div>
               )}
 
               {/* Collaborations list */}
