@@ -3856,6 +3856,62 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
   
+  // Send a direct message (REST API alternative to WebSocket)
+  app.post("/api/chat/messages", authenticateJWT, async (req: Request, res: Response) => {
+    try {
+      const senderId = (req as any).user.id;
+      const { recipientId, content } = req.body;
+      
+      console.log(`REST API - Send message from ${senderId} to ${recipientId}: ${content}`);
+      
+      if (!recipientId || !content) {
+        return res.status(400).json({ message: "Recipient ID and message content are required" });
+      }
+      
+      // Check if users can chat (both following each other)
+      const canChat = await storage.canUsersChat(senderId, parseInt(recipientId));
+      if (!canChat) {
+        return res.status(403).json({ 
+          message: "You can only chat with users who you follow and who follow you back" 
+        });
+      }
+      
+      // Store message in database
+      const message = await storage.createChatMessage({
+        senderId,
+        receiverId: parseInt(recipientId),
+        content,
+        isRead: false,
+        createdAt: new Date(),
+      });
+      
+      // Get sender info to return with the message
+      const sender = await storage.getUser(senderId);
+      const { password, ...senderWithoutPassword } = sender;
+      
+      // Create enhanced message response
+      const enhancedMessage = {
+        ...message,
+        sender: senderWithoutPassword
+      };
+      
+      // Return the created message to sender
+      res.status(201).json(enhancedMessage);
+      
+      // Notify recipient if they're connected via WebSocket
+      const receiverWs = clients.get(parseInt(recipientId));
+      if (receiverWs && receiverWs.readyState === WebSocket.OPEN) {
+        receiverWs.send(JSON.stringify({
+          type: 'chat_message',
+          ...enhancedMessage
+        }));
+      }
+    } catch (error) {
+      console.error("Error sending message:", error);
+      res.status(500).json({ message: "Error sending message" });
+    }
+  });
+  
   app.get("/api/chat/partners", authenticateJWT, async (req: Request, res: Response) => {
     try {
       const userId = (req as any).user.id;
@@ -4832,6 +4888,31 @@ export async function registerRoutes(app: Express): Promise<Server> {
             partnerId,
             messages
           }));
+        }
+        // Handle fetching groups for user
+        else if (data.type === 'get_groups') {
+          if (!userId) {
+            ws.send(JSON.stringify({ type: 'error', message: 'Authentication required' }));
+            return;
+          }
+          
+          try {
+            // Get user's groups from storage
+            const groups = await storage.getChatGroupsByUserId(userId);
+            
+            // Send groups back to client
+            ws.send(JSON.stringify({
+              type: 'groups_list',
+              groups
+            }));
+            console.log(`Sent groups list to user ${userId} (${groups.length} groups)`);
+          } catch (error) {
+            console.error('Error getting user groups:', error);
+            ws.send(JSON.stringify({ 
+              type: 'error', 
+              message: 'Error retrieving groups' 
+            }));
+          }
         }
         // Handle retrieving group message history
         else if (data.type === 'get_group_message_history') {

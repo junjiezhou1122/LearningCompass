@@ -1,0 +1,17 @@
+Error: useWebSocket must be used within a WebSocketProvider
+
+    at NewChatPage (https://3dfc56df-215e-420c-b5f9-7861b5a57ba9-00-2jpu9osoxeowk.picard.replit.dev/src/pages/NewChatPage.jsx?t=1746496766668:687:20)
+    at ErrorBoundary (https://3dfc56df-215e-420c-b5f9-7861b5a57ba9-00-2jpu9osoxeowk.picard.replit.dev/src/components/ErrorBoundary.jsx:8:5)
+    at Route (https://3dfc56df-215e-420c-b5f9-7861b5a57ba9-00-2jpu9osoxeowk.picard.replit.dev/@fs/home/runner/workspace/node_modules/.vite/deps/wouter.js?v=89056564:323:16)
+    at Switch (https://3dfc56df-215e-420c-b5f9-7861b5a57ba9-00-2jpu9osoxeowk.picard.replit.dev/@fs/home/runner/workspace/node_modules/.vite/deps/wouter.js?v=89056564:379:17)
+    at div
+    at div
+    at Router (https://3dfc56df-215e-420c-b5f9-7861b5a57ba9-00-2jpu9osoxeowk.picard.replit.dev/src/App.tsx?t=1746496766668&v=zhhy9WqcoX49NICeOm7b:52:22)
+    at Provider (https://3dfc56df-215e-420c-b5f9-7861b5a57ba9-00-2jpu9osoxeowk.picard.replit.dev/@fs/home/runner/workspace/node_modules/.vite/deps/chunk-E7IAXTU4.js?v=89056564:38:15)
+    at TooltipProvider (https://3dfc56df-215e-420c-b5f9-7861b5a57ba9-00-2jpu9osoxeowk.picard.replit.dev/@fs/home/runner/workspace/node_modules/.vite/deps/@radix-ui_react-tooltip.js?v=89056564:63:5)
+    at WebSocketContextProvider (https://3dfc56df-215e-420c-b5f9-7861b5a57ba9-00-2jpu9osoxeowk.picard.replit.dev/src/components/chat/WebSocketContextProvider.jsx?t=1746496766668:30:44)
+    at WebSocketProvider (https://3dfc56df-215e-420c-b5f9-7861b5a57ba9-00-2jpu9osoxeowk.picard.replit.dev/src/contexts/WebSocketContext.jsx?t=1746496766668:23:37)
+    at AuthProvider (https://3dfc56df-215e-420c-b5f9-7861b5a57ba9-00-2jpu9osoxeowk.picard.replit.dev/src/contexts/AuthContext.jsx:25:32)
+    at LanguageProvider (https://3dfc56df-215e-420c-b5f9-7861b5a57ba9-00-2jpu9osoxeowk.picard.replit.dev/src/contexts/LanguageContext.jsx:325:36)
+    at QueryClientProvider (https://3dfc56df-215e-420c-b5f9-7861b5a57ba9-00-2jpu9osoxeowk.picard.replit.dev/@fs/home/runner/workspace/node_modules/.vite/deps/@tanstack_react-query.js?v=89056564:2805:3)
+    at App

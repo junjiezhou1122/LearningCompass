@@ -38,44 +38,12 @@ const ConnectionStatusDisplay = ({ status, error }) => {
           onClick={() => window.location.reload()} 
           className="px-4 py-2 bg-blue-500 text-white rounded-md hover:bg-blue-600 transition-colors"
         >
-          Refresh Page
+          Retry Connection
         </button>
-        {error && (
-          <div className="mt-4 p-4 bg-red-50 text-red-600 rounded-md">
-            <p className="font-semibold">Error Details</p>
-            <p>{typeof error === 'object' ? error.message : error}</p>
-          </div>
-        )}
       </>
     );
   }
   
-  if (status && status.startsWith('reconnecting')) {
-    return (
-      <>
-        <h2 className="text-xl font-semibold mb-2">Reconnecting to chat service...</h2>
-        <div className="flex items-center justify-center mb-4">
-          <div className="w-6 h-6 border-2 border-amber-500 border-t-transparent rounded-full animate-spin mr-2"></div>
-          <p className="text-muted-foreground">
-            {status.includes(':') ? 
-              `Attempt ${status.split(':')[1]}` : 
-              'Reconnecting...'}
-          </p>
-        </div>
-        <p className="text-sm text-muted-foreground mb-4">
-          Your connection was interrupted. Attempting to reconnect...
-        </p>
-        {error && (
-          <div className="mt-4 p-4 bg-amber-50 text-amber-700 rounded-md">
-            <p className="font-semibold">Connection Issue</p>
-            <p>{typeof error === 'object' ? error.message : error}</p>
-          </div>
-        )}
-      </>
-    );
-  }
-  
-  // Default connecting state
   return (
     <>
       <h2 className="text-xl font-semibold mb-2">Connecting to chat service...</h2>
@@ -88,7 +56,7 @@ const ConnectionStatusDisplay = ({ status, error }) => {
       {error && (
         <div className="mt-4 p-4 bg-red-50 text-red-600 rounded-md">
           <p className="font-semibold">Connection Error</p>
-          <p>{typeof error === 'object' ? error.message : error}</p>
+          <p>{error}</p>
         </div>
       )}
     </>
@@ -96,87 +64,40 @@ const ConnectionStatusDisplay = ({ status, error }) => {
 };
 
 const UnifiedChatPage = () => {
-  console.log("UnifiedChatPage component loaded");
   const { user } = useAuth();
-  const { toast } = useToast();
-  const [wsConnectionStatus, setWsConnectionStatus] = useState('initializing');
-  const [wsError, setWsError] = useState(null);
+  const toast = useToast();
+  const wsContext = useWebSocketContext();
   
-  // Common state
-  const [activeTab, setActiveTab] = useState("directMessages");
-  const [input, setInput] = useState("");
-
-  // Direct messages state
+  // State for direct messages
+  const [chatPartners, setChatPartners] = useState([]);
   const [activeChat, setActiveChat] = useState(null);
   const [directMessages, setDirectMessages] = useState([]);
   const [isLoadingPartners, setIsLoadingPartners] = useState(true);
   const [isLoadingDirectMessages, setIsLoadingDirectMessages] = useState(false);
-  const [chatPartners, setChatPartners] = useState([]);
   const [hasMoreDirectMessages, setHasMoreDirectMessages] = useState(false);
-
-  // Group chat state
+  
+  // State for group chats
+  const [groups, setGroups] = useState([]);
   const [activeGroup, setActiveGroup] = useState(null);
   const [groupMessages, setGroupMessages] = useState([]);
-  const [groups, setGroups] = useState([]);
   const [isLoadingGroups, setIsLoadingGroups] = useState(true);
   const [isLoadingGroupMessages, setIsLoadingGroupMessages] = useState(false);
   const [hasMoreGroupMessages, setHasMoreGroupMessages] = useState(false);
+  
+  // State for UI
+  const [input, setInput] = useState("");
+  const [activeTab, setActiveTab] = useState("directMessages");
   const [showCreateGroupModal, setShowCreateGroupModal] = useState(false);
   const [showGroupDetailsPanel, setShowGroupDetailsPanel] = useState(false);
   const [availableUsers, setAvailableUsers] = useState([]);
   const [isLoadingUsers, setIsLoadingUsers] = useState(false);
-
-  // Try to access WebSocketContext with error handling
-  const wsContext = useWebSocketContext();
   
-  // Update connection status on mount and when it changes
-  useEffect(() => {
-    if (wsContext) {
-      const { connectionStatus } = wsContext;
-      console.log('WebSocket connection status changed:', connectionStatus);
-      setWsConnectionStatus(connectionStatus || 'unknown');
-    }
-  }, [wsContext?.connectionStatus]);
-  
-  // Initialize WebSocket connection status
-  useEffect(() => {
-    // Check if token exists
-    const token = localStorage.getItem('token');
-    if (!token) {
-      setWsError('Authentication token not found. Please log in again.');
-      setWsConnectionStatus('auth_error');
-    }
-    
-    // Log initial connection attempt
-    console.log('Initializing chat page with WebSocket connection status:', wsConnectionStatus);
-  }, []);
-  
-  // Update groups and chat partners when they change
-  useEffect(() => {
-    if (wsContext) {
-      const { groupChats, chatPartners } = wsContext;
-      
-      // If WebSocketContext provides these values, use them
-      if (groupChats && groupChats.length > 0) {
-        setGroups(groupChats);
-        setIsLoadingGroups(false);
-      }
-      
-      if (chatPartners && chatPartners.length > 0) {
-        setChatPartners(chatPartners);
-        setIsLoadingPartners(false);
-      }
-    }
-  }, [wsContext?.groupChats, wsContext?.chatPartners]);
-  
-  // Handle context errors
+  // Show WebSocket errors in toast notifications
   useEffect(() => {
     if (wsContext?.error) {
-      console.error("Error in WebSocketContext:", wsContext.error);
-      setWsError(wsContext.error.message);
       toast({
-        title: "WebSocket Error",
-        description: "There was an issue connecting to the chat service. Please reload the page.",
+        title: "Connection Error",
+        description: wsContext.error,
         variant: "destructive"
       });
     }
@@ -196,16 +117,16 @@ const UnifiedChatPage = () => {
     removeGroupMember: wsRemoveGroupMember,
     leaveGroup: wsLeaveGroup,
     deleteGroup: wsDeleteGroup,
-    chatPartners,
+    chatPartners: contextChatPartners,
     directMessages: wsDirectMessages,
-    groups,
+    groups: contextGroups,
     refreshPartners: wsRefreshPartners
   } = wsContext || {};
-
+  
   // Use chat partners from context
   useEffect(() => {
-    if (chatPartners && chatPartners.length > 0) {
-      setChatPartners(chatPartners);
+    if (contextChatPartners && contextChatPartners.length > 0) {
+      setChatPartners(contextChatPartners);
       setIsLoadingPartners(false);
     } else if (connected && wsRefreshPartners) {
       // If not available, refresh partners
@@ -223,32 +144,21 @@ const UnifiedChatPage = () => {
           setIsLoadingPartners(false);
         });
     }
-  }, [user, connected, wsRefreshPartners, chatPartners, toast]);
-
+  }, [user, connected, wsRefreshPartners, contextChatPartners, toast]);
+  
   // Load groups if they're not already loaded
   useEffect(() => {
     if (!user) return;
     
-    if (groups.length === 0 && wsLoadGroups && connected) {
-      setIsLoadingGroups(true);
-      wsLoadGroups()
-        .then(loadedGroups => {
-          setGroups(loadedGroups);
-        })
-        .catch(error => {
-          console.error("Error loading groups:", error);
-          toast({
-            title: "Error",
-            description: "Failed to load chat groups. Please try again.",
-            variant: "destructive"
-          });
-        })
-        .finally(() => {
-          setIsLoadingGroups(false);
-        });
+    if (contextGroups && contextGroups.length > 0) {
+      setGroups(contextGroups);
+      setIsLoadingGroups(false);
+    } else if (connected) {
+      // If no refresh function is available, at least we can set the loading state to false
+      setIsLoadingGroups(false);
     }
-  }, [user, connected, wsLoadGroups, groups.length, toast]);
-
+  }, [user, connected, contextGroups, toast]);
+  
   // Load direct messages when active chat changes
   useEffect(() => {
     if (!activeChat || !wsGetDirectMessageHistory || !connected) return;
@@ -271,7 +181,7 @@ const UnifiedChatPage = () => {
         setIsLoadingDirectMessages(false);
       });
   }, [activeChat, wsGetDirectMessageHistory, connected, toast]);
-
+  
   // Load group messages when active group changes
   useEffect(() => {
     if (!activeGroup || !wsGetGroupMessageHistory || !connected) return;
@@ -294,7 +204,7 @@ const UnifiedChatPage = () => {
         setIsLoadingGroupMessages(false);
       });
   }, [activeGroup, wsGetGroupMessageHistory, connected, toast]);
-
+  
   // Send direct message
   const sendDirectMessage = useCallback(() => {
     if (!input.trim() || !activeChat || !connected || !wsSendDirectMessage) return;
@@ -324,7 +234,7 @@ const UnifiedChatPage = () => {
         });
       });
   }, [input, activeChat, connected, user, wsSendDirectMessage, toast]);
-
+  
   // Send group message
   const sendGroupMessage = useCallback(() => {
     if (!input.trim() || !activeGroup || !connected || !wsSendGroupMessage) return;
@@ -363,7 +273,7 @@ const UnifiedChatPage = () => {
         });
       });
   }, [input, activeGroup, connected, user, wsSendGroupMessage, toast]);
-
+  
   // Load more direct messages
   const loadMoreDirectMessages = useCallback(() => {
     if (!activeChat || !wsGetDirectMessageHistory || !connected) return;
@@ -394,7 +304,7 @@ const UnifiedChatPage = () => {
         setIsLoadingDirectMessages(false);
       });
   }, [activeChat, wsGetDirectMessageHistory, connected, directMessages, toast]);
-
+  
   // Load more group messages
   const loadMoreGroupMessages = useCallback(() => {
     if (!activeGroup || !wsGetGroupMessageHistory || !connected) return;
@@ -425,7 +335,7 @@ const UnifiedChatPage = () => {
         setIsLoadingGroupMessages(false);
       });
   }, [activeGroup, wsGetGroupMessageHistory, connected, groupMessages, toast]);
-
+  
   // Handle creating new group
   const handleCreateGroup = useCallback(async (groupData) => {
     if (!wsCreateGroup || !connected) {
@@ -443,7 +353,7 @@ const UnifiedChatPage = () => {
       throw error;
     }
   }, [wsCreateGroup, connected]);
-
+  
   // Load available users for adding to groups
   const loadAvailableUsers = useCallback(async () => {
     setIsLoadingUsers(true);
@@ -489,12 +399,12 @@ const UnifiedChatPage = () => {
       setIsLoadingUsers(false);
     }
   }, [toast]);
-
+  
   // Handle tab changes to reset input
   useEffect(() => {
     setInput("");
   }, [activeTab]);
-
+  
   // Handle opening create group modal
   const handleOpenCreateGroupModal = useCallback(() => {
     console.log('Opening create group modal, loading available users...');
@@ -507,17 +417,17 @@ const UnifiedChatPage = () => {
       });
     setShowCreateGroupModal(true);
   }, [loadAvailableUsers]);
-
+  
   // Handle opening group details
   const handleOpenGroupDetails = useCallback((group) => {
     setShowGroupDetailsPanel(true);
   }, []);
-
+  
   // Check if user is admin of current group
   const isGroupAdmin = activeGroup?.members?.some(
     member => member.id === user?.id && member.isAdmin
   ) || false;
-
+  
   return (
     <div className="flex flex-col h-full bg-white">
       <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full h-full flex flex-col">
@@ -530,37 +440,10 @@ const UnifiedChatPage = () => {
       
         <div className="flex-1 overflow-hidden">
           <TabsContent value="directMessages" className="h-full">
-            {wsConnectionStatus !== 'connected' ? (
+            {connectionStatus !== 'connected' ? (
               <div className="flex items-center justify-center h-full">
                 <div className="text-center p-6 max-w-md">
-                  {wsConnectionStatus === 'auth_error' ? (
-                    <>
-                      <h2 className="text-xl font-semibold mb-2">Authentication Required</h2>
-                      <p className="text-muted-foreground mb-4">
-                        Please sign in to access the chat feature.
-                      </p>
-                      <div className="mt-4 p-4 bg-amber-50 text-amber-700 rounded-md">
-                        <p className="font-semibold">Session Expired</p>
-                        <p>Your session may have expired. Please refresh the page or sign in again.</p>
-                      </div>
-                    </>
-                  ) : (
-                    <>
-                      <h2 className="text-xl font-semibold mb-2">Connecting to chat service...</h2>
-                      <div className="flex items-center justify-center mb-4">
-                        <div className="w-6 h-6 border-2 border-blue-500 border-t-transparent rounded-full animate-spin mr-2"></div>
-                        <p className="text-muted-foreground">
-                          Status: {wsConnectionStatus}
-                        </p>
-                      </div>
-                      {wsError && (
-                        <div className="mt-4 p-4 bg-red-50 text-red-600 rounded-md">
-                          <p className="font-semibold">Connection Error</p>
-                          <p>{wsError}</p>
-                        </div>
-                      )}
-                    </>
-                  )}
+                  <ConnectionStatusDisplay status={connectionStatus} error={wsContext?.error} />
                 </div>
               </div>
             ) : (
@@ -581,37 +464,10 @@ const UnifiedChatPage = () => {
           </TabsContent>
           
           <TabsContent value="groupChats" className="h-full">
-            {wsConnectionStatus !== 'connected' ? (
+            {connectionStatus !== 'connected' ? (
               <div className="flex items-center justify-center h-full">
                 <div className="text-center p-6 max-w-md">
-                  {wsConnectionStatus === 'auth_error' ? (
-                    <>
-                      <h2 className="text-xl font-semibold mb-2">Authentication Required</h2>
-                      <p className="text-muted-foreground mb-4">
-                        Please sign in to access the chat feature.
-                      </p>
-                      <div className="mt-4 p-4 bg-amber-50 text-amber-700 rounded-md">
-                        <p className="font-semibold">Session Expired</p>
-                        <p>Your session may have expired. Please refresh the page or sign in again.</p>
-                      </div>
-                    </>
-                  ) : (
-                    <>
-                      <h2 className="text-xl font-semibold mb-2">Connecting to chat service...</h2>
-                      <div className="flex items-center justify-center mb-4">
-                        <div className="w-6 h-6 border-2 border-blue-500 border-t-transparent rounded-full animate-spin mr-2"></div>
-                        <p className="text-muted-foreground">
-                          Status: {wsConnectionStatus}
-                        </p>
-                      </div>
-                      {wsError && (
-                        <div className="mt-4 p-4 bg-red-50 text-red-600 rounded-md">
-                          <p className="font-semibold">Connection Error</p>
-                          <p>{wsError}</p>
-                        </div>
-                      )}
-                    </>
-                  )}
+                  <ConnectionStatusDisplay status={connectionStatus} error={wsContext?.error} />
                 </div>
               </div>
             ) : (
