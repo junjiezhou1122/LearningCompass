@@ -430,6 +430,57 @@ export async function registerRoutes(app: Express): Promise<Server> {
       });
     }
   });
+  
+  // University courses CSV import endpoint
+  app.post("/api/university-courses/csv/import", authenticateJWT, async (req: Request, res: Response) => {
+    try {
+      // Check if user is authenticated
+      if (!(req as any).user) {
+        return res.status(401).json({ message: "Unauthorized" });
+      }
+      
+      const { filePath, columnMapping } = req.body;
+      
+      // Validate required fields
+      if (!filePath) {
+        return res.status(400).json({ message: "File path is required" });
+      }
+      
+      if (!columnMapping || !columnMapping.title || !columnMapping.url) {
+        return res.status(400).json({ 
+          message: "Column mapping is required with at least 'title' and 'url' fields" 
+        });
+      }
+      
+      // Import university courses from the CSV file
+      const importResult = await importCoursesFromUserCSV(filePath, columnMapping, storage);
+      
+      // Return the result
+      if (!importResult.success) {
+        return res.status(400).json({
+          message: "Failed to import university courses",
+          errors: importResult.errors
+        });
+      }
+      
+      res.json({
+        message: `Successfully imported ${importResult.count} university courses`,
+        importedCount: importResult.count,
+        errors: importResult.errors.length > 0 ? importResult.errors : undefined
+      });
+      
+      // Delete the temporary file after processing
+      fs.unlink(filePath, (err) => {
+        if (err) console.error(`Failed to delete temporary file ${filePath}:`, err);
+      });
+    } catch (error) {
+      console.error("Error importing university courses from CSV:", error);
+      res.status(500).json({ 
+        message: "Error importing university courses",
+        error: error instanceof Error ? error.message : String(error)
+      });
+    }
+  });
 
   // Bookmark routes (protected)
   app.get("/api/bookmarks", authenticateJWT, async (req: Request, res: Response) => {

@@ -139,6 +139,7 @@ const CSVUploadDialog = ({ open, onOpenChange, onUploadSuccess, courseType = 'on
       formData.append('file', file);
       
       // For FormData, we need special handling to avoid Content-Type overrides
+      console.log("Uploading CSV file for analysis...");
       const response = await fetch('/api/courses/csv/analyze', {
         method: 'POST',
         headers: {
@@ -251,11 +252,21 @@ const CSVUploadDialog = ({ open, onOpenChange, onUploadSuccess, courseType = 'on
       const endpoint = courseType === 'university' 
         ? '/api/university-courses/csv/import'
         : '/api/courses/csv/import';
-        
-      const response = await apiRequest('POST', endpoint, {
-        filePath,
-        columnMapping,
-        courseType
+      
+      console.log(`Importing ${courseType} courses using endpoint: ${endpoint}`);
+      
+      // For consistent fetch handling, use fetch directly instead of apiRequest
+      const response = await fetch(endpoint, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${localStorage.getItem('token')}`
+        },
+        body: JSON.stringify({
+          filePath,
+          columnMapping,
+          courseType
+        })
       });
       
       // Check if response is OK before trying to read the body

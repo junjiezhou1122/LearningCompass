@@ -149,26 +149,17 @@ app.use((req, res, next) => {
     serveStatic(app);
   }
 
-  // Use port 3000 for Replit compatibility
-  const port = process.env.PORT || 3000;
+  // Use the port provided by Replit or default to 3000
+  const PORT = process.env.PORT || 3000;
   
-  server.listen(port, '0.0.0.0')
-    .on('error', (err: any) => {
-      console.error('Port error:', err);
-      // If port is in use, try another one
-      if (err.code === 'EADDRINUSE') {
-        const alternatePort = 8080;
-        console.log(`Port ${port} is in use, trying alternate port ${alternatePort}`);
-        server.listen(alternatePort, '0.0.0.0');
-      } else {
-        process.exit(1);
-      }
-    })
-    .on('listening', () => {
-      const serverPort = (server.address() as any).port;
-      log(`serving on port ${serverPort}`);
-      log(`You can access the application at: http://0.0.0.0:${serverPort}`);
-      log(`API endpoints are available at: http://0.0.0.0:${serverPort}/api/*`);
-      log(`Auth endpoints are available at: http://0.0.0.0:${serverPort}/api/auth/*`);
-    });
+  // Log the port we're trying to use
+  console.log(`Attempting to start server on port: ${PORT} and host: 0.0.0.0`);
+  
+  server.listen(PORT, '0.0.0.0', () => {
+    console.log(`Server is running at http://0.0.0.0:${PORT}`);
+    log(`Server running on port ${PORT}`);
+    log(`You can access the application at: http://0.0.0.0:${PORT}`);
+    log(`API endpoints are available at: http://0.0.0.0:${PORT}/api/*`);
+    log(`Auth endpoints are available at: http://0.0.0.0:${PORT}/api/auth/*`);
+  });
 })();
