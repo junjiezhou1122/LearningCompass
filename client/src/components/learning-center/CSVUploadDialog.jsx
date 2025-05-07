@@ -255,29 +255,59 @@ const CSVUploadDialog = ({ open, onOpenChange, onUploadSuccess, courseType = 'on
       
       console.log(`Importing ${courseType} courses using endpoint: ${endpoint}`);
       
-      // For consistent fetch handling, use fetch directly instead of apiRequest
-      const response = await fetch(endpoint, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${localStorage.getItem('token')}`
-        },
-        body: JSON.stringify({
-          filePath,
-          columnMapping,
-          courseType
-        })
-      });
+      // Set a controller to enable aborting the fetch if it takes too long
+      const controller = new AbortController();
+      const signal = controller.signal;
       
-      // Check if response is OK before trying to read the body
-      if (!response.ok) {
-        const errorText = await response.text();
-        throw new Error(errorText || response.statusText);
+      // Set a timeout of 2 minutes (120000ms) for large imports
+      const timeoutId = setTimeout(() => {
+        controller.abort();
+      }, 120000);
+      
+      try {
+        // For consistent fetch handling, use fetch directly instead of apiRequest
+        const response = await fetch(endpoint, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${localStorage.getItem('token')}`
+          },
+          body: JSON.stringify({
+            filePath,
+            columnMapping,
+            courseType,
+            batchSize: 25, // Set batch size for processing
+            timeoutSeconds: 90 // Set a server-side timeout
+          }),
+          signal // Add the abort signal to the fetch
+        });
+        
+        // Clear the timeout since the request completed
+        clearTimeout(timeoutId);
+        
+        // Check if response is OK before trying to read the body
+        if (!response.ok) {
+          const errorText = await response.text();
+          throw new Error(errorText || response.statusText);
+        }
+        
+        // Only try to parse as JSON if we didn't read the response body yet
+        const data = await response.json();
+        return data;
+      } catch (error) {
+        // Clear the timeout if there was an error
+        clearTimeout(timeoutId);
+        
+        if (error.name === 'AbortError') {
+          throw new Error(
+            "The import is taking too long to process. Your CSV file may be too large. " +
+            "The server is still processing your import in the background. " +
+            "Please check back later to see if your courses were imported."
+          );
+        }
+        
+        throw error;
       }
-      
-      // Only try to parse as JSON if we didn't read the response body yet
-      const data = await response.json();
-      return data;
     },
     onSuccess: (data) => {
       toast({
@@ -295,11 +325,35 @@ const CSVUploadDialog = ({ open, onOpenChange, onUploadSuccess, courseType = 'on
       }
     },
     onError: (error) => {
-      toast({
-        title: "Import Error",
-        description: error.message || "There was a problem importing your courses. Please try again.",
-        variant: "destructive",
-      });
+      console.error("CSV import error:", error);
+      
+      // Check if this is a timeout error
+      if (error.message && error.message.includes("taking too long")) {
+        toast({
+          title: "Import Processing",
+          description: error.message,
+          duration: 10000, // Show this message longer
+        });
+        
+        // Close the dialog so user can continue using the app
+        resetDialog();
+        onOpenChange(false);
+        
+        // Let the parent know we're still importing in background
+        if (onUploadSuccess) {
+          onUploadSuccess({
+            importedCount: "processing",
+            stillProcessing: true
+          });
+        }
+      } else {
+        // Standard error
+        toast({
+          title: "Import Error",
+          description: error.message || "There was a problem importing your courses. Please try again.",
+          variant: "destructive",
+        });
+      }
     }
   });
   
