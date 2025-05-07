@@ -35,7 +35,7 @@ import { fromZodError } from "zod-validation-error";
 // Import data already complete
 // import { importCoursesFromCSV } from "./utils/courseParser";
 import { authenticateJWT, generateToken } from "./utils/auth";
-import { analyzeCSVFile, importCoursesFromUserCSV } from './utils/csvCourseImporter';
+import { analyzeCSVFile, importCoursesFromUserCSV, generateColumnMapping } from './utils/csvCourseImporter';
 
 // Test the validity of a JWT token for debugging purposes
 function validateToken(token: string): {valid: boolean, payload?: any, error?: string} {
@@ -356,6 +356,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ message: "File must be a CSV document" });
       }
       
+      // Get course type from the body or query parameters (default to 'online')
+      let courseType: 'online' | 'university' = 'online';
+      if (
+        (req.body && req.body.courseType === 'university') || 
+        (req.query && req.query.courseType === 'university')
+      ) {
+        courseType = 'university';
+      }
+      
       // Analyze the CSV file
       const analysis = await analyzeCSVFile(req.file.path);
       
@@ -366,11 +375,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
         });
       }
       
+      // Generate auto-mapping based on the course type
+      const autoMapping = generateColumnMapping(analysis.headers, courseType);
+      
       res.json({
         headers: analysis.headers,
         sampleData: analysis.sampleData,
         fileName: req.file.originalname,
         filePath: req.file.path,
+        courseType: courseType,
+        autoMapping: autoMapping
       });
     } catch (error) {
       console.error("Error analyzing CSV file:", error);
@@ -402,7 +416,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       
       // Import courses from the CSV file
-      const importResult = await importCoursesFromUserCSV(filePath, columnMapping, storage);
+      const importResult = await importCoursesFromUserCSV(filePath, columnMapping, storage, 'online');
       
       // Return the result
       if (!importResult.success) {
@@ -453,7 +467,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       
       // Import university courses from the CSV file
-      const importResult = await importCoursesFromUserCSV(filePath, columnMapping, storage);
+      const importResult = await importCoursesFromUserCSV(filePath, columnMapping, storage, 'university');
       
       // Return the result
       if (!importResult.success) {
@@ -482,6 +496,54 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // University courses CSV analyze endpoint
+  app.post("/api/university-courses/csv/analyze", authenticateJWT, upload.single('file'), async (req: Request, res: Response) => {
+    try {
+      // Check if user is authenticated
+      if (!(req as any).user) {
+        return res.status(401).json({ message: "Unauthorized" });
+      }
+      
+      // Check if file was uploaded
+      if (!req.file) {
+        return res.status(400).json({ message: "No CSV file uploaded" });
+      }
+      
+      // Verify file type (should be a CSV)
+      if (req.file.mimetype !== 'text/csv' && !req.file.originalname.endsWith('.csv')) {
+        return res.status(400).json({ message: "File must be a CSV document" });
+      }
+      
+      // Analyze the CSV file
+      const analysis = await analyzeCSVFile(req.file.path);
+      
+      if (!analysis.success) {
+        return res.status(400).json({ 
+          message: "Failed to analyze CSV file", 
+          error: analysis.error 
+        });
+      }
+      
+      // Generate auto-mapping based on the university course type
+      const autoMapping = generateColumnMapping(analysis.headers, 'university');
+      
+      res.json({
+        headers: analysis.headers,
+        sampleData: analysis.sampleData,
+        fileName: req.file.originalname,
+        filePath: req.file.path,
+        courseType: 'university',
+        autoMapping: autoMapping
+      });
+    } catch (error) {
+      console.error("Error analyzing CSV file:", error);
+      res.status(500).json({ 
+        message: "Error analyzing CSV file",
+        error: error instanceof Error ? error.message : String(error)
+      });
+    }
+  });
+  
   // Bookmark routes (protected)
   app.get("/api/bookmarks", authenticateJWT, async (req: Request, res: Response) => {
     try {
