@@ -32,10 +32,13 @@ import {
 } from "@shared/schema";
 import { z, ZodError } from "zod";
 import { fromZodError } from "zod-validation-error";
+import { parse } from "csv-parse/sync";
 // Import data already complete
 // import { importCoursesFromCSV } from "./utils/courseParser";
 import { authenticateJWT, generateToken } from "./utils/auth";
-import { analyzeCSVFile, importCoursesFromUserCSV, generateColumnMapping } from './utils/csvCourseImporter';
+import { analyzeCSVFile, generateColumnMapping } from './utils/csvAnalyzer';
+import { importCoursesFromCSV } from './utils/csvCourseImporter';
+import * as progressTracker from './utils/importProgressTracker';
 
 // Test the validity of a JWT token for debugging purposes
 function validateToken(token: string): {valid: boolean, payload?: any, error?: string} {
@@ -366,13 +369,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       
       // Analyze the CSV file
-      const analysis = await analyzeCSVFile(req.file.path);
+      const analysis = analyzeCSVFile(req.file.path);
       
-      if (!analysis.success) {
-        return res.status(400).json({ 
-          message: "Failed to analyze CSV file", 
-          error: analysis.error 
-        });
+      // If analysis detected a different course type than requested, use that
+      if (analysis.detectedType !== 'unknown' && analysis.detectedType !== courseType) {
+        console.log(`CSV type auto-detected as ${analysis.detectedType}, overriding requested type ${courseType}`);
+        courseType = analysis.detectedType;
       }
       
       // Generate auto-mapping based on the course type
@@ -380,10 +382,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       res.json({
         headers: analysis.headers,
-        sampleData: analysis.sampleData,
+        firstRows: analysis.firstRows,
         fileName: req.file.originalname,
         filePath: req.file.path,
         courseType: courseType,
+        recordCount: analysis.recordCount,
         autoMapping: autoMapping
       });
     } catch (error) {
@@ -451,18 +454,37 @@ export async function registerRoutes(app: Express): Promise<Server> {
         // Start the import process in background
         console.log(`Processing large file with ${recordCount} records in background`);
         
+        // Get the user ID for progress tracking
+        const userId = (req as any).user.id;
+        
+        // Create a new import job
+        const jobId = progressTracker.createImportJob(userId, 'online', filePath, recordCount);
+        
         // Start background processing (no await)
         (async () => {
           try {
-            const importResult = await importCoursesFromUserCSV(filePath, columnMapping, storage, 'online');
+            // Update job status to processing
+            progressTracker.updateImportJobProgress(jobId, 0, 'processing');
+            
+            // Process the import
+            const importResult = await importCoursesFromCSV(
+              filePath, 
+              columnMapping, 
+              storage, 
+              'online',
+              batchSize,
+              userId,
+              jobId
+            );
+            
             console.log(`Background import completed: ${importResult.count} courses imported`);
             
-            // Delete the temporary file after processing
-            fs.unlink(filePath, (err) => {
-              if (err) console.error(`Failed to delete temporary file ${filePath}:`, err);
-            });
+            // Mark job as completed
+            progressTracker.updateImportJobProgress(jobId, importResult.count, 'completed');
           } catch (error) {
             console.error("Error in background course import:", error);
+            const errorMsg = error instanceof Error ? error.message : String(error);
+            progressTracker.setImportJobError(jobId, errorMsg);
           }
         })();
         
@@ -471,12 +493,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
           message: `Processing ${recordCount} courses in the background`,
           importedCount: 0,
           backgroundProcessing: true,
-          totalRecords: recordCount
+          totalRecords: recordCount,
+          jobId: jobId
         });
       }
       
       // For smaller files, process synchronously
-      const importResult = await importCoursesFromUserCSV(filePath, columnMapping, storage, 'online');
+      const userId = (req as any).user.id;
+      const importResult = await importCoursesFromCSV(
+        filePath, 
+        columnMapping, 
+        storage, 
+        'online',
+        batchSize,
+        userId
+      );
       
       // Check if request timed out
       if (isTimedOut) {
@@ -568,18 +599,37 @@ export async function registerRoutes(app: Express): Promise<Server> {
         // Start the import process in background
         console.log(`Processing large file with ${recordCount} records in background`);
         
+        // Get the user ID for progress tracking
+        const userId = (req as any).user.id;
+        
+        // Create a new import job
+        const jobId = progressTracker.createImportJob(userId, 'university', filePath, recordCount);
+        
         // Start background processing (no await)
         (async () => {
           try {
-            const importResult = await importCoursesFromUserCSV(filePath, columnMapping, storage, 'university');
-            console.log(`Background import completed: ${importResult.count} courses imported`);
+            // Update job status to processing
+            progressTracker.updateImportJobProgress(jobId, 0, 'processing');
             
-            // Delete the temporary file after processing
-            fs.unlink(filePath, (err) => {
-              if (err) console.error(`Failed to delete temporary file ${filePath}:`, err);
-            });
+            // Process the import
+            const importResult = await importCoursesFromCSV(
+              filePath, 
+              columnMapping, 
+              storage, 
+              'university',
+              batchSize,
+              userId,
+              jobId
+            );
+            
+            console.log(`Background import completed: ${importResult.count} university courses imported`);
+            
+            // Mark job as completed
+            progressTracker.updateImportJobProgress(jobId, importResult.count, 'completed');
           } catch (error) {
             console.error("Error in background university course import:", error);
+            const errorMsg = error instanceof Error ? error.message : String(error);
+            progressTracker.setImportJobError(jobId, errorMsg);
           }
         })();
         
@@ -588,32 +638,56 @@ export async function registerRoutes(app: Express): Promise<Server> {
           message: `Processing ${recordCount} university courses in the background`,
           importedCount: 0,
           backgroundProcessing: true,
-          totalRecords: recordCount
+          totalRecords: recordCount,
+          jobId: jobId
         });
       }
       
       // For smaller files, process synchronously
-      const importResult = await importCoursesFromUserCSV(filePath, columnMapping, storage, 'university');
-      
-      // Check if request timed out
-      if (isTimedOut) {
-        console.log("Request timed out, but import is continuing in the background");
-        return;
-      }
-      
-      // Return the result
-      if (!importResult.success) {
-        return res.status(400).json({
-          message: "Failed to import university courses",
-          errors: importResult.errors
+      const userId = (req as any).user.id;
+      try {
+        const importResult = await importCoursesFromCSV(
+          filePath, 
+          columnMapping, 
+          storage, 
+          'university',
+          batchSize,
+          userId
+        );
+        
+        // Check if request timed out
+        if (isTimedOut) {
+          console.log("Request timed out, but import is continuing in the background");
+          return;
+        }
+        
+        // Return the result
+        if (!importResult.success) {
+          return res.status(400).json({
+            message: "Failed to import university courses",
+            errors: importResult.errors,
+            importedCount: importResult.count,
+            jobId: importResult.jobId
+          });
+        }
+        
+        res.json({
+          message: `Successfully imported ${importResult.count} university courses`,
+          importedCount: importResult.count,
+          errors: importResult.errors.length > 0 ? importResult.errors : undefined,
+          jobId: importResult.jobId
         });
+      } catch (importError) {
+        console.error("Error during synchronous CSV import:", importError);
+        
+        // If request hasn't timed out yet, return error
+        if (!isTimedOut && !res.headersSent) {
+          return res.status(500).json({
+            message: "Error importing university courses",
+            error: importError instanceof Error ? importError.message : String(importError)
+          });
+        }
       }
-      
-      res.json({
-        message: `Successfully imported ${importResult.count} university courses`,
-        importedCount: importResult.count,
-        errors: importResult.errors.length > 0 ? importResult.errors : undefined
-      });
       
       // Delete the temporary file after processing
       fs.unlink(filePath, (err) => {
@@ -647,24 +721,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       
       // Analyze the CSV file
-      const analysis = await analyzeCSVFile(req.file.path);
-      
-      if (!analysis.success) {
-        return res.status(400).json({ 
-          message: "Failed to analyze CSV file", 
-          error: analysis.error 
-        });
-      }
+      const analysis = analyzeCSVFile(req.file.path);
       
       // Generate auto-mapping based on the university course type
       const autoMapping = generateColumnMapping(analysis.headers, 'university');
       
       res.json({
         headers: analysis.headers,
-        sampleData: analysis.sampleData,
+        firstRows: analysis.firstRows,
         fileName: req.file.originalname,
         filePath: req.file.path,
         courseType: 'university',
+        recordCount: analysis.recordCount,
         autoMapping: autoMapping
       });
     } catch (error) {
@@ -732,6 +800,57 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Import progress tracking endpoints
+  app.get("/api/import-progress/:jobId", authenticateJWT, async (req: Request, res: Response) => {
+    try {
+      const { jobId } = req.params;
+      const userId = (req as any).user.id;
+      
+      if (!jobId) {
+        return res.status(400).json({ message: "Job ID is required" });
+      }
+      
+      const jobStatus = progressTracker.getImportJobStatus(jobId);
+      
+      if (!jobStatus) {
+        return res.status(404).json({ message: "Import job not found" });
+      }
+      
+      // Make sure the job belongs to the authenticated user
+      if (jobStatus.userId !== userId) {
+        return res.status(403).json({ message: "Not authorized to view this import job" });
+      }
+      
+      res.json(jobStatus);
+    } catch (error) {
+      console.error("Error fetching import progress:", error);
+      res.status(500).json({ 
+        message: "Error fetching import progress", 
+        error: error instanceof Error ? error.message : String(error)
+      });
+    }
+  });
+  
+  app.get("/api/import-progress", authenticateJWT, async (req: Request, res: Response) => {
+    try {
+      const userId = (req as any).user.id;
+      const jobs = progressTracker.getUserImportJobs(userId);
+      
+      // Sort by start time, most recent first
+      const sortedJobs = [...jobs].sort((a, b) => 
+        new Date(b.startTime).getTime() - new Date(a.startTime).getTime()
+      );
+      
+      res.json(sortedJobs);
+    } catch (error) {
+      console.error("Error fetching import jobs:", error);
+      res.status(500).json({ 
+        message: "Error fetching import jobs", 
+        error: error instanceof Error ? error.message : String(error)
+      });
+    }
+  });
+  
   app.delete("/api/bookmarks/:courseId", authenticateJWT, async (req: Request, res: Response) => {
     try {
       const userId = (req as any).user.id;

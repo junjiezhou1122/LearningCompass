@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useMutation } from '@tanstack/react-query';
 import { apiRequest, throwIfResNotOk } from '@/lib/queryClient';
 import { useToast } from '@/hooks/use-toast';
@@ -33,6 +33,7 @@ import {
   UploadCloud, FilePlus, FileQuestion, AlertTriangle, Check, ChevronRight, 
   FileSpreadsheet, Info, Loader2, X, HelpCircle
 } from 'lucide-react';
+import ImportProgressDialog from './ImportProgressDialog';
 
 const CSVUploadDialog = ({ open, onOpenChange, onUploadSuccess, courseType = 'online' }) => {
   // courseType can be 'online' or 'university'
@@ -47,6 +48,16 @@ const CSVUploadDialog = ({ open, onOpenChange, onUploadSuccess, courseType = 'on
     filePath: null,
     fileName: null
   });
+  const [showProgressDialog, setShowProgressDialog] = useState(false);
+  const [importStatus, setImportStatus] = useState({
+    status: 'processing', // 'processing', 'completed', 'error', 'warning'
+    recordsProcessed: 0,
+    warnings: [],
+    error: null,
+    jobId: null
+  });
+  const [totalRecords, setTotalRecords] = useState(0);
+  const [pollingInterval, setPollingInterval] = useState(null);
   const [columnMappings, setColumnMappings] = useState({
     title: '',
     url: '',
@@ -310,18 +321,50 @@ const CSVUploadDialog = ({ open, onOpenChange, onUploadSuccess, courseType = 'on
       }
     },
     onSuccess: (data) => {
-      toast({
-        title: "Import Successful",
-        description: `${data.importedCount} courses have been imported successfully.`,
-      });
-      
-      // Reset the state
-      resetDialog();
-      
-      // Close the dialog and notify parent component
-      onOpenChange(false);
-      if (onUploadSuccess) {
-        onUploadSuccess(data);
+      if (data.jobId) {
+        // Set total records count
+        if (data.totalRecords) {
+          setTotalRecords(data.totalRecords);
+        } else {
+          // If no totalRecords provided, estimate from CSV data
+          setTotalRecords(csvPreview.sampleData.length * 10); // rough estimate
+        }
+        
+        // Initialize import status
+        setImportStatus({
+          status: 'processing',
+          recordsProcessed: 0,
+          warnings: [],
+          error: null,
+          jobId: data.jobId
+        });
+        
+        // Show the progress dialog
+        setShowProgressDialog(true);
+        
+        // Start polling for updates
+        const interval = setInterval(() => {
+          pollImportJobStatus(data.jobId);
+        }, 2000); // Poll every 2 seconds
+        
+        setPollingInterval(interval);
+        
+        // Don't close the dialog yet, we'll show progress
+      } else {
+        // If no job ID (smaller imports might complete immediately)
+        toast({
+          title: "Import Successful",
+          description: `${data.importedCount} courses have been imported successfully.`,
+        });
+        
+        // Reset the state
+        resetDialog();
+        
+        // Close the dialog and notify parent component
+        onOpenChange(false);
+        if (onUploadSuccess) {
+          onUploadSuccess(data);
+        }
       }
     },
     onError: (error) => {
@@ -329,25 +372,36 @@ const CSVUploadDialog = ({ open, onOpenChange, onUploadSuccess, courseType = 'on
       
       // Check if this is a timeout error
       if (error.message && error.message.includes("taking too long")) {
-        toast({
-          title: "Import Processing",
-          description: error.message,
-          duration: 10000, // Show this message longer
+        // Set a message in the progress dialog
+        setImportStatus({
+          status: 'warning',
+          recordsProcessed: 0,
+          warnings: ["The import is taking longer than expected. It will continue in the background."],
+          error: null,
+          jobId: null
         });
         
-        // Close the dialog so user can continue using the app
-        resetDialog();
-        onOpenChange(false);
+        // Show progress dialog
+        setShowProgressDialog(true);
         
-        // Let the parent know we're still importing in background
-        if (onUploadSuccess) {
-          onUploadSuccess({
-            importedCount: "processing",
-            stillProcessing: true
-          });
-        }
+        toast({
+          title: "Import Processing",
+          description: "The import is continuing in the background. You can close this dialog.",
+          duration: 10000, // Show this message longer
+        });
       } else {
         // Standard error
+        setImportStatus({
+          status: 'error',
+          recordsProcessed: 0,
+          warnings: [],
+          error: error.message || "There was a problem importing your courses.",
+          jobId: null
+        });
+        
+        // Show progress dialog with error
+        setShowProgressDialog(true);
+        
         toast({
           title: "Import Error",
           description: error.message || "There was a problem importing your courses. Please try again.",
@@ -461,9 +515,81 @@ const CSVUploadDialog = ({ open, onOpenChange, onUploadSuccess, courseType = 'on
     step1Form.setValue('csvFile', null);
   };
   
+  // Function to poll for import job status
+  const pollImportJobStatus = async (jobId) => {
+    try {
+      // Call the API to get current import status
+      const response = await fetch(`/api/import-progress/${jobId}`, {
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('token')}`
+        }
+      });
+      
+      if (!response.ok) {
+        throw new Error('Failed to fetch import status');
+      }
+      
+      const data = await response.json();
+      
+      // Update status in component state
+      setImportStatus({
+        status: data.status,
+        recordsProcessed: data.recordsProcessed || 0,
+        warnings: data.warnings || [],
+        error: data.error || null,
+        jobId
+      });
+      
+      // Check if we're done
+      if (data.status === 'completed' || data.status === 'error') {
+        // Clear the polling interval
+        if (pollingInterval) {
+          clearInterval(pollingInterval);
+          setPollingInterval(null);
+        }
+        
+        // If import completed successfully
+        if (data.status === 'completed') {
+          toast({
+            title: "Import Successful",
+            description: `${data.recordsProcessed} courses have been imported successfully.`,
+          });
+          
+          // Notify parent after a delay to show the completion status
+          setTimeout(() => {
+            if (onUploadSuccess) {
+              onUploadSuccess({
+                importedCount: data.recordsProcessed,
+                warnings: data.warnings || []
+              });
+            }
+          }, 2000);
+        } else if (data.status === 'error') {
+          toast({
+            title: "Import Failed",
+            description: data.error || "An error occurred during import.",
+            variant: "destructive",
+          });
+        }
+      }
+    } catch (error) {
+      console.error('Error polling for import status:', error);
+    }
+  };
+  
+  // Cleanup function for polling interval
+  useEffect(() => {
+    return () => {
+      if (pollingInterval) {
+        clearInterval(pollingInterval);
+      }
+    };
+  }, [pollingInterval]);
+  
   return (
-    <Dialog open={open} onOpenChange={handleDialogClose}>
-      <DialogContent className="sm:max-w-[700px] max-h-[90vh] overflow-y-auto">
+    <div>
+      <Dialog open={open} onOpenChange={handleDialogClose}>
+        <DialogContent className="sm:max-w-[700px] max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="text-orange-700 flex items-center">
             <FileSpreadsheet className="h-5 w-5 mr-2" />
@@ -968,6 +1094,30 @@ const CSVUploadDialog = ({ open, onOpenChange, onUploadSuccess, courseType = 'on
         )}
       </DialogContent>
     </Dialog>
+    
+    {/* Import Progress Dialog */}
+    <ImportProgressDialog
+      open={showProgressDialog}
+      onOpenChange={setShowProgressDialog}
+      status={importStatus.status}
+      recordsProcessed={importStatus.recordsProcessed}
+      totalRecords={totalRecords}
+      warnings={importStatus.warnings}
+      error={importStatus.error}
+      onClose={() => {
+        setShowProgressDialog(false);
+        onOpenChange(false);
+        
+        // Report progress to parent component
+        if (onUploadSuccess && importStatus.status === 'completed') {
+          onUploadSuccess({
+            importedCount: importStatus.recordsProcessed,
+            warnings: importStatus.warnings || []
+          });
+        }
+      }}
+    />
+  </div>
   );
 };
 

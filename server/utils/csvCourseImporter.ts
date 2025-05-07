@@ -1,427 +1,314 @@
-import fs from 'fs';
+/**
+ * CSV course importer with progress tracking and error handling
+ */
+
+import * as fs from 'fs';
 import { parse } from 'csv-parse/sync';
 import { IStorage } from '../storage';
-import { InsertCourse, InsertUniversityCourse } from '@shared/schema';
+import * as progressTracker from './importProgressTracker';
+import { ensureConnection } from '../db';
 
-interface OnlineCourseColumnMapping {
-  title: string;
-  url: string;
-  shortIntro?: string;
-  category?: string;
-  subCategory?: string;
-  courseType?: string;
-  language?: string;
-  subtitleLanguages?: string;
-  skills?: string;
-  instructors?: string;
-  rating?: string;
-  numberOfViewers?: string;
-  duration?: string;
-  site?: string;
-  imageUrl?: string;
-}
-
-interface UniversityCourseColumnMapping {
-  title: string;
-  url: string;
-  shortIntro?: string;
-  category?: string;
-  subCategory?: string;
-  courseCode?: string;
-  department?: string;
-  professor?: string;
-  credits?: string;
-  semester?: string;
-  academicYear?: string;
-  campus?: string;
-  prerequisites?: string;
-  format?: string;
-  imageUrl?: string;
-}
-
-type ColumnMapping = OnlineCourseColumnMapping | UniversityCourseColumnMapping;
+export type ImportResult = {
+  success: boolean;
+  count: number;
+  errors: string[];
+  jobId?: string;
+};
 
 /**
- * Imports courses from a CSV file based on a provided column mapping
+ * Import courses from a CSV file with progress tracking
  */
-export async function importCoursesFromUserCSV(
-  filePath: string, 
-  columnMapping: ColumnMapping,
+export async function importCoursesFromCSV(
+  filePath: string,
+  columnMapping: Record<string, string>,
   storage: IStorage,
-  courseType: 'online' | 'university' = 'online'
-): Promise<{ success: boolean; count: number; errors: string[] }> {
+  courseType: 'online' | 'university',
+  batchSize: number = 25,
+  userId: number,
+  jobId?: string
+): Promise<ImportResult> {
+  // Check if file exists
+  if (!fs.existsSync(filePath)) {
+    return { success: false, count: 0, errors: [`File not found: ${filePath}`] };
+  }
+
   try {
-    // Check if file exists
-    if (!fs.existsSync(filePath)) {
-      return { 
-        success: false, 
-        count: 0, 
-        errors: [`CSV file not found at ${filePath}`] 
-      };
-    }
-    
+    // Read the CSV file
     const fileContent = fs.readFileSync(filePath, { encoding: 'utf-8' });
-    
-    // Parse CSV
     const records = parse(fileContent, {
       columns: true,
       skip_empty_lines: true,
       relax_column_count: true,
-      cast: (value, context) => {
-        // Convert empty strings to undefined for non-required fields
-        if (value === '') return undefined;
-        return value;
-      }
+      trim: true,
+      cast: (value) => value === '' ? undefined : value
     });
-    
-    console.log(`Found ${records.length} ${courseType} courses in CSV file ready for import`);
-    
-    // Track errors
+
+    // If no records found, return error
+    if (records.length === 0) {
+      return { success: false, count: 0, errors: ['No records found in CSV file'] };
+    }
+
+    console.log(`Found ${records.length} records in CSV file`);
+
+    // Create a new import job if not provided
+    if (!jobId) {
+      jobId = progressTracker.createImportJob(userId, courseType, filePath, records.length);
+    }
+
+    // Track import progress
+    progressTracker.updateImportJobProgress(jobId, 0, 'processing');
+
+    // Process records in batches
     const errors: string[] = [];
     let importedCount = 0;
-    
-    // Use the appropriate import method based on courseType
-    if (courseType === 'university') {
-      return await importUniversityCoursesFromCSV(records, columnMapping as UniversityCourseColumnMapping, storage, errors);
-    } else {
-      return await importOnlineCoursesFromCSV(records, columnMapping as OnlineCourseColumnMapping, storage, errors);
+    const totalBatches = Math.ceil(records.length / batchSize);
+
+    // Process each batch
+    for (let batchIndex = 0; batchIndex < totalBatches; batchIndex++) {
+      const startIdx = batchIndex * batchSize;
+      const endIdx = Math.min(startIdx + batchSize, records.length);
+      const batchRecords = records.slice(startIdx, endIdx);
+      
+      console.log(`Processing batch ${batchIndex + 1}/${totalBatches} (${batchRecords.length} records)`);
+      
+      // Before processing batch, check database connection
+      const connectionOk = await ensureConnection();
+      if (!connectionOk) {
+        console.warn(`Database connection issues detected for batch ${batchIndex + 1}, waiting before retrying...`);
+        
+        // Wait before continuing
+        await new Promise(resolve => setTimeout(resolve, 3000));
+        
+        // Check connection again
+        const reconnected = await ensureConnection();
+        if (!reconnected) {
+          const errorMsg = `Batch ${batchIndex + 1}: Cannot connect to database, skipping this batch`;
+          console.error(errorMsg);
+          errors.push(errorMsg);
+          progressTracker.addImportJobWarning(jobId, errorMsg);
+          continue; // Skip this batch
+        }
+        
+        console.log(`Successfully reconnected to database, continuing import`);
+      }
+      
+      try {
+        // Process each record in the batch
+        for (let i = 0; i < batchRecords.length; i++) {
+          const record = batchRecords[i];
+          const recordIndex = startIdx + i;
+          
+          // Implement retry logic for each record
+          let retryCount = 0;
+          let success = false;
+          const MAX_RETRIES = 3;
+          
+          while (!success && retryCount < MAX_RETRIES) {
+            try {
+              // Map CSV columns to fields based on user-provided mapping
+              const mappedRecord: Record<string, any> = {};
+              
+              // Apply column mapping
+              for (const [field, column] of Object.entries(columnMapping)) {
+                if (column && record[column] !== undefined) {
+                  mappedRecord[field] = record[column];
+                }
+              }
+              
+              // Validate required fields
+              if (courseType === 'online') {
+                if (!mappedRecord.title || !mappedRecord.url) {
+                  const errorMsg = `Row ${recordIndex + 2}: Missing required fields (title or url)`;
+                  errors.push(errorMsg);
+                  progressTracker.addImportJobWarning(jobId, errorMsg);
+                  break; // Exit retry loop for this record
+                }
+                
+                // Import online course
+                await importOnlineCourse(mappedRecord, storage);
+              } else {
+                if (!mappedRecord.courseTitle && !mappedRecord.title) {
+                  const errorMsg = `Row ${recordIndex + 2}: Missing required field (title)`;
+                  errors.push(errorMsg);
+                  progressTracker.addImportJobWarning(jobId, errorMsg);
+                  break; // Exit retry loop for this record
+                }
+                
+                // Import university course
+                await importUniversityCourse(mappedRecord, storage);
+              }
+              
+              // Increment counter
+              importedCount++;
+              success = true;
+              
+              // Update progress every record to ensure real-time tracking
+              progressTracker.updateImportJobProgress(jobId, importedCount);
+            } catch (error) {
+              retryCount++;
+              
+              if (retryCount < MAX_RETRIES) {
+                console.warn(`Error on row ${recordIndex + 2}, retry attempt ${retryCount}/${MAX_RETRIES}`);
+                
+                // Check connection and try to recover if needed
+                const isConnected = await ensureConnection();
+                if (!isConnected) {
+                  console.warn(`Database connection lost during import, waiting before retrying...`);
+                  await new Promise(resolve => setTimeout(resolve, 2000));
+                } else {
+                  // Small delay between retries even if connection is OK
+                  await new Promise(resolve => setTimeout(resolve, 500));
+                }
+              } else {
+                // All retries failed
+                const errorMsg = `Row ${recordIndex + 2}: ${error instanceof Error ? error.message : String(error)}`;
+                console.error(`Error importing ${courseType} course after ${MAX_RETRIES} attempts:`, errorMsg);
+                errors.push(errorMsg);
+                progressTracker.addImportJobWarning(jobId, errorMsg);
+                success = true; // Stop retrying
+              }
+            }
+          } // End of retry loop
+        }
+        
+        // Add a small delay between batches to allow database connection recovery
+        await new Promise(resolve => setTimeout(resolve, 1000));
+        
+        console.log(`Batch ${batchIndex + 1}/${totalBatches} completed. Progress: ${importedCount}/${records.length}`);
+      } catch (batchError) {
+        console.error(`Error processing batch ${batchIndex + 1}:`, batchError);
+        const batchErrorMsg = `Batch ${batchIndex + 1}: ${batchError instanceof Error ? batchError.message : String(batchError)}`;
+        errors.push(batchErrorMsg);
+        progressTracker.addImportJobWarning(jobId, batchErrorMsg);
+        
+        // Allow the import to continue with the next batch even if a batch fails
+        console.log(`Continuing with next batch after error`);
+        
+        // Add a longer delay after a batch error to give the database connection time to recover
+        await new Promise(resolve => setTimeout(resolve, 3000));
+      }
     }
     
+    // Mark import as completed
+    progressTracker.updateImportJobProgress(jobId, importedCount, 'completed');
+    
+    // Return results
+    return {
+      success: true,
+      count: importedCount,
+      errors,
+      jobId
+    };
   } catch (error) {
-    console.error(`Error importing ${courseType} courses from CSV:`, error);
+    console.error('Error in CSV import:', error);
+    const errorMsg = error instanceof Error ? error.message : String(error);
+    
+    if (jobId) {
+      progressTracker.setImportJobError(jobId, errorMsg);
+    }
+    
     return {
       success: false,
       count: 0,
-      errors: [error instanceof Error ? error.message : String(error)]
+      errors: [errorMsg],
+      jobId
     };
-  }
-}
-
-/**
- * Imports online courses from parsed CSV records
- */
-async function importOnlineCoursesFromCSV(
-  records: Record<string, any>[],
-  columnMapping: OnlineCourseColumnMapping,
-  storage: IStorage,
-  errors: string[] = []
-): Promise<{ success: boolean; count: number; errors: string[] }> {
-  let importedCount = 0;
-  
-  // Process records in batches for better performance
-  const BATCH_SIZE = 25; // Process 25 records at a time
-  const totalBatches = Math.ceil(records.length / BATCH_SIZE);
-  
-  for (let batchIndex = 0; batchIndex < totalBatches; batchIndex++) {
-    const startIdx = batchIndex * BATCH_SIZE;
-    const endIdx = Math.min(startIdx + BATCH_SIZE, records.length);
-    const batchRecords = records.slice(startIdx, endIdx);
-    console.log(`Processing batch ${batchIndex + 1} of ${totalBatches} (${batchRecords.length} records)`);
-    
-    // Process each batch
+  } finally {
+    // Delete the temporary file after processing
     try {
-      // Prepare all the course data for this batch
-      const batchCourseData: { course: InsertCourse, index: number }[] = [];
-      
-      // Pre-process the batch to validate and prepare data
-      for (let j = 0; j < batchRecords.length; j++) {
-        const record = batchRecords[j];
-        const recordIndex = startIdx + j;
-        
-        try {
-          // For required fields, use the columnMapping to locate them in the record
-          const title = record[columnMapping.title];
-          const url = record[columnMapping.url];
-          
-          // Validate required fields
-          if (!title || !url) {
-            errors.push(`Row ${recordIndex + 2}: Missing required fields (title or url)`);
-            continue;
-          }
-          
-          // Create course data with mappings from the CSV
-          const courseData: InsertCourse = {
-            title: title,
-            url: url,
-            shortIntro: columnMapping.shortIntro ? record[columnMapping.shortIntro] : undefined,
-            category: columnMapping.category ? record[columnMapping.category] : undefined,
-            subCategory: columnMapping.subCategory ? record[columnMapping.subCategory] : undefined,
-            courseType: columnMapping.courseType ? record[columnMapping.courseType] : undefined,
-            language: columnMapping.language ? record[columnMapping.language] : undefined,
-            subtitleLanguages: columnMapping.subtitleLanguages ? record[columnMapping.subtitleLanguages] : undefined,
-            skills: columnMapping.skills ? record[columnMapping.skills] : undefined,
-            instructors: columnMapping.instructors ? record[columnMapping.instructors] : undefined,
-            rating: columnMapping.rating && record[columnMapping.rating]
-              ? parseFloat(record[columnMapping.rating].toString().replace('stars', ''))
-              : undefined,
-            numberOfViewers: columnMapping.numberOfViewers && record[columnMapping.numberOfViewers]
-              ? parseInt(record[columnMapping.numberOfViewers].toString().replace(/,/g, '').trim())
-              : undefined,
-            duration: columnMapping.duration ? record[columnMapping.duration] : undefined,
-            site: columnMapping.site ? record[columnMapping.site] : undefined,
-            imageUrl: columnMapping.imageUrl ? record[columnMapping.imageUrl] : undefined
-          };
-          
-          // Add to batch data for later processing
-          batchCourseData.push({
-            course: courseData,
-            index: recordIndex
-          });
-        } catch (error) {
-          console.error(`Error preparing online course at row ${recordIndex + 2}:`, error);
-          errors.push(`Row ${recordIndex + 2}: ${error instanceof Error ? error.message : String(error)}`);
-        }
-      }
-      
-      // Now process the batch with the database
-      for (const courseData of batchCourseData) {
-        try {
-          // Store course in database
-          await storage.createCourse(courseData.course);
-          importedCount++;
-        } catch (error) {
-          console.error(`Error importing online course at row ${courseData.index + 2}:`, error);
-          errors.push(`Row ${courseData.index + 2}: ${error instanceof Error ? error.message : String(error)}`);
-        }
-      }
-      
-      console.log(`Successfully processed batch ${batchIndex + 1}, imported ${batchCourseData.length} online courses`);
-    } catch (batchError) {
-      console.error(`Error processing batch ${batchIndex + 1}:`, batchError);
-      errors.push(`Batch ${batchIndex + 1} error: ${batchError instanceof Error ? batchError.message : String(batchError)}`);
+      fs.unlink(filePath, (err) => {
+        if (err) console.error(`Failed to delete temporary file ${filePath}:`, err);
+      });
+    } catch (err) {
+      console.error('Error deleting temporary file:', err);
     }
   }
-  
-  return {
-    success: importedCount > 0,
-    count: importedCount,
-    errors: errors
-  };
 }
 
 /**
- * Imports university courses from parsed CSV records
+ * Import an online course from a mapped record
  */
-async function importUniversityCoursesFromCSV(
-  records: Record<string, any>[],
-  columnMapping: UniversityCourseColumnMapping,
-  storage: IStorage,
-  errors: string[] = []
-): Promise<{ success: boolean; count: number; errors: string[] }> {
-  let importedCount = 0;
-  
-  // Process records in batches for better performance
-  const BATCH_SIZE = 25; // Process 25 records at a time
-  const totalBatches = Math.ceil(records.length / BATCH_SIZE);
-  
-  for (let batchIndex = 0; batchIndex < totalBatches; batchIndex++) {
-    const startIdx = batchIndex * BATCH_SIZE;
-    const endIdx = Math.min(startIdx + BATCH_SIZE, records.length);
-    const batchRecords = records.slice(startIdx, endIdx);
-    console.log(`Processing batch ${batchIndex + 1} of ${totalBatches} (${batchRecords.length} records)`);
-    
-    // Process each batch with a database transaction
-    try {
-      // Prepare all the university course data for this batch
-      const batchCourseData: { course: InsertUniversityCourse, url: string | undefined, index: number }[] = [];
-      
-      // Pre-process the batch to validate and prepare data
-      for (let j = 0; j < batchRecords.length; j++) {
-        const record = batchRecords[j];
-        const recordIndex = startIdx + j;
-        
-        try {
-          // For required fields, use the columnMapping to locate them in the record
-          const courseTitle = record[columnMapping.title];
-          
-          // Use URL field for course link 
-          const url = record[columnMapping.url];
-          
-          // Validate required fields
-          if (!courseTitle) {
-            errors.push(`Row ${recordIndex + 2}: Missing required field (title)`);
-            continue;
-          }
-          
-          // Map department and course code fields
-          const department = columnMapping.department ? record[columnMapping.department] : '';
-          const courseNumber = columnMapping.courseCode ? record[columnMapping.courseCode] : '';
-          
-          // Determine university from a field or use a default value
-          const university = record.university || "University";
-          
-          // Create university course data with mappings from the CSV
-          const universityCourseData: InsertUniversityCourse = {
-            university: university,
-            courseDept: department,
-            courseNumber: courseNumber || 'N/A',
-            courseTitle: courseTitle,
-            description: columnMapping.shortIntro ? record[columnMapping.shortIntro] : undefined,
-            professors: columnMapping.professor ? record[columnMapping.professor] : undefined,
-            recentSemesters: columnMapping.semester ? record[columnMapping.semester] : undefined,
-            credits: columnMapping.credits ? record[columnMapping.credits] : undefined
-          };
-          
-          // Add to batch data with URL for later processing
-          batchCourseData.push({
-            course: universityCourseData,
-            url: url,
-            index: recordIndex
-          });
-        } catch (error) {
-          console.error(`Error preparing university course at row ${recordIndex + 2}:`, error);
-          errors.push(`Row ${recordIndex + 2}: ${error instanceof Error ? error.message : String(error)}`);
-        }
-      }
-      
-      // Now process the batch with the database
-      for (const courseData of batchCourseData) {
-        try {
-          // Store university course in database
-          const createdCourse = await storage.createUniversityCourse(courseData.course);
-          
-          // If a URL was provided, also create a link for the course
-          if (courseData.url && createdCourse && createdCourse.id) {
-            await storage.createUniversityCourseLink({
-              courseId: createdCourse.id,
-              url: courseData.url,
-              title: "Course Link",
-              description: "Main course link"
-            });
-          }
-          
-          importedCount++;
-        } catch (error) {
-          console.error(`Error importing university course at row ${courseData.index + 2}:`, error);
-          errors.push(`Row ${courseData.index + 2}: ${error instanceof Error ? error.message : String(error)}`);
-        }
-      }
-      
-      console.log(`Successfully processed batch ${batchIndex + 1}, imported ${batchCourseData.length} courses`);
-    } catch (batchError) {
-      console.error(`Error processing batch ${batchIndex + 1}:`, batchError);
-      errors.push(`Batch ${batchIndex + 1} error: ${batchError instanceof Error ? batchError.message : String(batchError)}`);
-    }
+async function importOnlineCourse(mappedRecord: Record<string, any>, storage: IStorage): Promise<void> {
+  // Ensure database connection is active before proceeding
+  const connectionOk = await ensureConnection();
+  if (!connectionOk) {
+    throw new Error('Database connection failed, cannot import course');
   }
   
-  return {
-    success: importedCount > 0,
-    count: importedCount,
-    errors: errors
+  // Prepare the course data
+  const courseData: any = {
+    title: mappedRecord.title,
+    url: mappedRecord.url,
+    shortIntro: mappedRecord.shortIntro || mappedRecord.description,
+    category: mappedRecord.category,
+    subCategory: mappedRecord.subCategory || mappedRecord.subcategory,
+    courseType: mappedRecord.courseType,
+    language: mappedRecord.language,
+    subtitleLanguages: mappedRecord.subtitleLanguages,
+    skills: mappedRecord.skills,
+    instructors: mappedRecord.instructors || mappedRecord.instructor,
+    rating: mappedRecord.rating ? parseFloat(String(mappedRecord.rating).replace('stars', '')) : undefined,
+    numberOfViewers: mappedRecord.numberOfViewers ? parseInt(String(mappedRecord.numberOfViewers).replace(/,/g, '').trim()) : undefined,
+    duration: mappedRecord.duration,
+    site: mappedRecord.site,
+    imageUrl: mappedRecord.imageUrl
   };
-}
 
-/**
- * Analyzes a CSV file and returns its headers and a sample of the data
- */
-export async function analyzeCSVFile(
-  filePath: string
-): Promise<{ success: boolean; headers: string[]; sampleData: any[]; error?: string }> {
   try {
-    // Check if file exists
-    if (!fs.existsSync(filePath)) {
-      return { 
-        success: false, 
-        headers: [], 
-        sampleData: [],
-        error: `CSV file not found at ${filePath}`
-      };
-    }
-    
-    const fileContent = fs.readFileSync(filePath, { encoding: 'utf-8' });
-    
-    // Parse CSV
-    const records = parse(fileContent, {
-      columns: true,
-      skip_empty_lines: true,
-      relax_column_count: true
-    });
-    
-    // Get headers from the first record
-    const headers = records.length > 0 ? Object.keys(records[0]) : [];
-    
-    // Get sample data (up to 5 rows)
-    const sampleData = records.slice(0, 5);
-    
-    return {
-      success: true,
-      headers,
-      sampleData
-    };
+    // Create the course
+    await storage.createCourse(courseData);
   } catch (error) {
-    console.error('Error analyzing CSV file:', error);
-    return {
-      success: false,
-      headers: [],
-      sampleData: [],
-      error: error instanceof Error ? error.message : String(error)
-    };
+    console.error('Error importing online course:', error);
+    // Attempt to reconnect before giving up
+    await ensureConnection();
+    throw error;
   }
 }
 
 /**
- * Attempts to auto-map CSV columns to course fields based on common naming patterns
+ * Import a university course from a mapped record
  */
-export function generateColumnMapping(headers: string[], courseType: 'online' | 'university' = 'online'): ColumnMapping {
-  const mapping: ColumnMapping = {
-    title: '',
-    url: ''
-  };
+async function importUniversityCourse(mappedRecord: Record<string, any>, storage: IStorage): Promise<void> {
+  // Ensure database connection is active before proceeding
+  const connectionOk = await ensureConnection();
+  if (!connectionOk) {
+    throw new Error('Database connection failed, cannot import course');
+  }
   
-  // Common field name patterns for both course types
-  const commonPatterns = {
-    title: ['title', 'name', 'course title', 'course name', 'course'],
-    url: ['url', 'link', 'course url', 'course link', 'website', 'web address'],
-    shortIntro: ['intro', 'introduction', 'short intro', 'description', 'short description', 'overview'],
-    category: ['category', 'categories', 'course category'],
-    subCategory: ['sub-category', 'subcategory', 'sub category', 'subject', 'topic'],
-    imageUrl: ['image', 'image url', 'thumbnail', 'photo', 'picture']
-  };
+  // Prepare the course data
+  const courseTitle = mappedRecord.courseTitle || mappedRecord.title;
+  const university = mappedRecord.university || 'University';
+  const courseDept = mappedRecord.courseDept || mappedRecord.department || '';
+  const courseNumber = mappedRecord.courseNumber || mappedRecord.code || 'N/A';
   
-  // Online course specific patterns
-  const onlineCoursePatterns = {
-    courseType: ['type', 'course type', 'format'],
-    language: ['language', 'course language', 'primary language'],
-    subtitleLanguages: ['subtitle languages', 'subtitles', 'captions'],
-    skills: ['skills', 'abilities', 'competencies', 'what you will learn', 'learning outcomes'],
-    instructors: ['instructor', 'instructors', 'teacher', 'teachers', 'professor', 'professors', 'lecturer', 'lecturers'],
-    rating: ['rating', 'stars', 'score', 'course rating'],
-    numberOfViewers: ['viewers', 'views', 'students', 'enrollment', 'participants', 'number of viewers'],
-    duration: ['duration', 'length', 'time', 'hours', 'course duration', 'course length'],
-    site: ['site', 'platform', 'provider', 'source', 'website']
+  const courseData: any = {
+    university,
+    courseDept,
+    courseNumber,
+    courseTitle,
+    description: mappedRecord.description,
+    professors: mappedRecord.professors || mappedRecord.professor,
+    recentSemesters: mappedRecord.recentSemesters || mappedRecord.semester,
+    credits: mappedRecord.credits
   };
-  
-  // University course specific patterns
-  const universityCoursePatterns = {
-    courseCode: ['course code', 'code', 'number', 'course number', 'course id', 'id'],
-    department: ['department', 'dept', 'division', 'school', 'faculty'],
-    professor: ['professor', 'instructor', 'teacher', 'lecturer', 'faculty member', 'taught by'],
-    credits: ['credits', 'credit hours', 'units', 'points'],
-    semester: ['semester', 'term', 'period', 'session'],
-    academicYear: ['year', 'academic year', 'session'],
-    campus: ['campus', 'location', 'building', 'venue'],
-    prerequisites: ['prerequisites', 'prereq', 'requirements', 'prior courses', 'required courses'],
-    format: ['format', 'delivery', 'mode', 'class type', 'course format']
-  };
-  
-  // Combine the patterns based on course type
-  const patterns = {
-    ...commonPatterns,
-    ...(courseType === 'online' ? onlineCoursePatterns : universityCoursePatterns)
-  };
-  
-  // Try to match each header with the appropriate field
-  headers.forEach(header => {
-    const lowerHeader = header.toLowerCase();
+
+  try {
+    // Create the university course
+    const createdCourse = await storage.createUniversityCourse(courseData);
     
-    // Check each field pattern
-    Object.entries(patterns).forEach(([field, possibleNames]) => {
-      if (possibleNames.some(name => lowerHeader.includes(name))) {
-        // @ts-ignore - Dynamic assignment
-        mapping[field] = header;
-      }
-    });
-  });
-  
-  return mapping;
+    // If URL provided, create university course link
+    if (mappedRecord.url && createdCourse && createdCourse.id) {
+      await storage.createUniversityCourseLink({
+        courseId: createdCourse.id,
+        url: mappedRecord.url,
+        title: "Course Link",
+        description: "Main course link"
+      });
+    }
+  } catch (error) {
+    console.error('Error importing university course:', error);
+    // Attempt to reconnect before giving up
+    await ensureConnection();
+    throw error;
+  }
 }
