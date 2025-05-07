@@ -277,38 +277,7 @@ export const WebSocketProvider = ({ children }) => {
     });
   }, [ws, toast]);
   
-  // Implement message retry handler
-  const handleMessageRetry = useCallback((event) => {
-    const { messageId } = event.detail || {};
-    
-    if (!messageId) {
-      console.error('Missing messageId in retry event');
-      return;
-    }
-    
-    console.log(`Attempting to retry message with ID: ${messageId}`);
-    
-    // Locate the message in pending messages cache if available
-    // This implementation depends on how your app tracks pending messages
-    // If the tempId format is msg-timestamp, we can check the cache
-    
-    let message = null;
-    
-    // Find the message in our local storage or state management
-    // This would be implemented according to your app's message tracking
-    
-    if (message) {
-      // If we found the message, resend it
-      console.log(`Found message to retry, resending: ${message.content.substring(0, 20)}...`);
-      ws.sendMessage(message);
-    } else {
-      // Otherwise, dispatch a 'find and retry' message to the server
-      ws.sendMessage({
-        type: 'retry_message',
-        messageId: messageId
-      });
-    }
-  }, [ws]);
+  // The previous duplicate handleMessageRetry implementation has been removed
   
   // Add message retry event listener
   useEffect(() => {

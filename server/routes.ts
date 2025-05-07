@@ -26,13 +26,16 @@ import {
   insertLearningMethodSchema, insertLearningMethodReviewSchema, insertLearningMethodCommentSchema,
   insertLearningToolSchema, insertLearningToolReviewSchema,
   // Chat message schema
-  insertChatMessageSchema
+  insertChatMessageSchema,
+  // Types
+  LearningPost
 } from "@shared/schema";
 import { z, ZodError } from "zod";
 import { fromZodError } from "zod-validation-error";
 // Import data already complete
 // import { importCoursesFromCSV } from "./utils/courseParser";
 import { authenticateJWT, generateToken } from "./utils/auth";
+import { analyzeCSVFile, importCoursesFromUserCSV } from './utils/csvCourseImporter';
 
 // Test the validity of a JWT token for debugging purposes
 function validateToken(token: string): {valid: boolean, payload?: any, error?: string} {
@@ -332,6 +335,99 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.json(skills);
     } catch (error) {
       res.status(500).json({ message: "Error fetching skills" });
+    }
+  });
+  
+  // CSV Course Upload Routes
+  app.post("/api/courses/csv/analyze", authenticateJWT, upload.single('file'), async (req: Request, res: Response) => {
+    try {
+      // Check if user is authenticated
+      if (!(req as any).user) {
+        return res.status(401).json({ message: "Unauthorized" });
+      }
+      
+      // Check if file was uploaded
+      if (!req.file) {
+        return res.status(400).json({ message: "No CSV file uploaded" });
+      }
+      
+      // Verify file type (should be a CSV)
+      if (req.file.mimetype !== 'text/csv' && !req.file.originalname.endsWith('.csv')) {
+        return res.status(400).json({ message: "File must be a CSV document" });
+      }
+      
+      // Analyze the CSV file
+      const analysis = await analyzeCSVFile(req.file.path);
+      
+      if (!analysis.success) {
+        return res.status(400).json({ 
+          message: "Failed to analyze CSV file", 
+          error: analysis.error 
+        });
+      }
+      
+      res.json({
+        headers: analysis.headers,
+        sampleData: analysis.sampleData,
+        fileName: req.file.originalname,
+        filePath: req.file.path,
+      });
+    } catch (error) {
+      console.error("Error analyzing CSV file:", error);
+      res.status(500).json({ 
+        message: "Error analyzing CSV file",
+        error: error instanceof Error ? error.message : String(error)
+      });
+    }
+  });
+  
+  app.post("/api/courses/csv/import", authenticateJWT, async (req: Request, res: Response) => {
+    try {
+      // Check if user is authenticated
+      if (!(req as any).user) {
+        return res.status(401).json({ message: "Unauthorized" });
+      }
+      
+      const { filePath, columnMapping } = req.body;
+      
+      // Validate required fields
+      if (!filePath) {
+        return res.status(400).json({ message: "File path is required" });
+      }
+      
+      if (!columnMapping || !columnMapping.title || !columnMapping.url) {
+        return res.status(400).json({ 
+          message: "Column mapping is required with at least 'title' and 'url' fields" 
+        });
+      }
+      
+      // Import courses from the CSV file
+      const importResult = await importCoursesFromUserCSV(filePath, columnMapping, storage);
+      
+      // Return the result
+      if (!importResult.success) {
+        return res.status(400).json({
+          message: "Failed to import courses",
+          errors: importResult.errors
+        });
+      }
+      
+      res.json({
+        message: `Successfully imported ${importResult.count} courses`,
+        importedCount: importResult.count,
+        errors: importResult.errors.length > 0 ? importResult.errors : undefined
+      });
+      
+      // Delete the temporary file after processing
+      fs.unlink(filePath, (err) => {
+        if (err) console.error(`Failed to delete temporary file ${filePath}:`, err);
+      });
+    } catch (error) {
+      console.error("Error importing courses from CSV:", error);
+      res.status(500).json({ 
+        message: "Error importing courses",
+        error: error instanceof Error ? error.message : String(error)
+      });
     }
   });
 

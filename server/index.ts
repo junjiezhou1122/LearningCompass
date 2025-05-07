@@ -149,30 +149,26 @@ app.use((req, res, next) => {
     serveStatic(app);
   }
 
-  // Try multiple ports in sequence if the primary port is unavailable
-  const tryPorts = [5000, 3000, 4000, 8000];
-  let currentPortIndex = 0;
-
-  function tryListen() {
-    const port = process.env.PORT || tryPorts[currentPortIndex];
-    server.listen(port, '0.0.0.0')
-      .on('error', (err: any) => {
-        if (err.code === 'EADDRINUSE' && currentPortIndex < tryPorts.length - 1) {
-          currentPortIndex++;
-          server.close();
-          tryListen();
-        } else {
-          console.error('Port error:', err);
-          process.exit(1);
-        }
-      })
-      .on('listening', () => {
-        log(`serving on port ${port}`);
-        log(`You can access the application at: http://0.0.0.0:${port}`);
-        log(`API endpoints are available at: http://0.0.0.0:${port}/api/*`);
-        log(`Auth endpoints are available at: http://0.0.0.0:${port}/api/auth/*`);
-      });
-  }
-
-  tryListen();
+  // Use port 3000 for Replit compatibility
+  const port = process.env.PORT || 3000;
+  
+  server.listen(port, '0.0.0.0')
+    .on('error', (err: any) => {
+      console.error('Port error:', err);
+      // If port is in use, try another one
+      if (err.code === 'EADDRINUSE') {
+        const alternatePort = 8080;
+        console.log(`Port ${port} is in use, trying alternate port ${alternatePort}`);
+        server.listen(alternatePort, '0.0.0.0');
+      } else {
+        process.exit(1);
+      }
+    })
+    .on('listening', () => {
+      const serverPort = (server.address() as any).port;
+      log(`serving on port ${serverPort}`);
+      log(`You can access the application at: http://0.0.0.0:${serverPort}`);
+      log(`API endpoints are available at: http://0.0.0.0:${serverPort}/api/*`);
+      log(`Auth endpoints are available at: http://0.0.0.0:${serverPort}/api/auth/*`);
+    });
 })();

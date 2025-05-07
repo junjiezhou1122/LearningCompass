@@ -14,9 +14,10 @@ import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Pagination, PaginationContent, PaginationEllipsis, PaginationItem, PaginationLink, PaginationNext, PaginationPrevious } from '@/components/ui/pagination';
-import { BookOpen, School, ChevronRight, Search, BookmarkPlus, BookmarkCheck, Filter, Plus, ExternalLink } from 'lucide-react';
+import { BookOpen, School, ChevronRight, Search, BookmarkPlus, BookmarkCheck, Filter, Plus, ExternalLink, Upload, FileSpreadsheet } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { queryClient, apiRequest, throwIfResNotOk } from '@/lib/queryClient';
+import CSVUploadDialog from './CSVUploadDialog';
 
 const UniversityCoursesTab = () => {
   const { isAuthenticated } = useAuth();
@@ -27,6 +28,7 @@ const UniversityCoursesTab = () => {
   const [deptFilter, setDeptFilter] = useState('all');
   const [searchQuery, setSearchQuery] = useState('');
   const [showAddCourseDialog, setShowAddCourseDialog] = useState(false);
+  const [showCsvUploadDialog, setShowCsvUploadDialog] = useState(false);
   const limit = 9; // Number of courses per page
   
   // Fetch universities for filter dropdown
@@ -35,7 +37,10 @@ const UniversityCoursesTab = () => {
     queryFn: async () => {
       try {
         const response = await apiRequest('GET', '/api/universities');
-        await throwIfResNotOk(response);
+        if (!response.ok) {
+        const errorText = await response.text();
+        throw new Error(errorText || response.statusText);
+      }
         return await response.json();
       } catch (error) {
         console.error('Error fetching universities:', error);
@@ -53,7 +58,10 @@ const UniversityCoursesTab = () => {
           ? `/api/course-departments?university=${encodeURIComponent(universityFilter)}` 
           : '/api/course-departments';
         const response = await apiRequest('GET', url);
-        await throwIfResNotOk(response);
+        if (!response.ok) {
+        const errorText = await response.text();
+        throw new Error(errorText || response.statusText);
+      }
         return await response.json();
       } catch (error) {
         console.error('Error fetching departments:', error);
@@ -89,7 +97,10 @@ const UniversityCoursesTab = () => {
       
       try {
         const response = await apiRequest('GET', url);
-        await throwIfResNotOk(response);
+        if (!response.ok) {
+        const errorText = await response.text();
+        throw new Error(errorText || response.statusText);
+      }
         const data = await response.json();
         return data.count;
       } catch (error) {
@@ -120,7 +131,10 @@ const UniversityCoursesTab = () => {
       try {
         // Use the apiRequest which properly handles errors and response parsing
         const response = await apiRequest('GET', url);
-        await throwIfResNotOk(response);
+        if (!response.ok) {
+        const errorText = await response.text();
+        throw new Error(errorText || response.statusText);
+      }
         const courses = await response.json();
         return courses;
       } catch (error) {
@@ -138,7 +152,10 @@ const UniversityCoursesTab = () => {
       
       try {
         const response = await apiRequest('GET', '/api/university-course-bookmarks');
-        await throwIfResNotOk(response);
+        if (!response.ok) {
+        const errorText = await response.text();
+        throw new Error(errorText || response.statusText);
+      }
         return await response.json();
       } catch (error) {
         if (error.message.includes('401')) return []; // Not authenticated
@@ -186,7 +203,10 @@ const UniversityCoursesTab = () => {
   const addCourseMutation = useMutation({
     mutationFn: async (data) => {
       const response = await apiRequest('POST', '/api/university-courses', data);
-      await throwIfResNotOk(response);
+      if (!response.ok) {
+        const errorText = await response.text();
+        throw new Error(errorText || response.statusText);
+      }
       const responseData = await response.json();
       return responseData;
     },
@@ -247,11 +267,17 @@ const UniversityCoursesTab = () => {
       if (isBookmarked) {
         // Remove bookmark
         const response = await apiRequest('DELETE', `/api/university-course-bookmarks/${courseId}`);
-        await throwIfResNotOk(response);
+        if (!response.ok) {
+        const errorText = await response.text();
+        throw new Error(errorText || response.statusText);
+      }
       } else {
         // Add bookmark
         const response = await apiRequest('POST', '/api/university-course-bookmarks', { universityCourseId: courseId });
-        await throwIfResNotOk(response);
+        if (!response.ok) {
+        const errorText = await response.text();
+        throw new Error(errorText || response.statusText);
+      }
       }
       
       // Invalidate bookmarks query to refetch
@@ -283,6 +309,14 @@ const UniversityCoursesTab = () => {
             >
               <BookmarkCheck className="h-4 w-4 text-orange-500" />
               View Bookmarked Courses
+            </Button>
+            <Button 
+              variant="outline"
+              className="flex items-center gap-2 border-orange-300 hover:bg-orange-50 hover:text-orange-700"
+              onClick={() => setShowCsvUploadDialog(true)}
+            >
+              <FileSpreadsheet className="h-4 w-4 text-orange-500" />
+              Import CSV
             </Button>
             <Button 
               className="bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 flex items-center gap-2"
@@ -729,6 +763,23 @@ const UniversityCoursesTab = () => {
           </Form>
         </DialogContent>
       </Dialog>
+
+      {/* CSV Upload Dialog */}
+      <CSVUploadDialog 
+        open={showCsvUploadDialog} 
+        onOpenChange={setShowCsvUploadDialog}
+        courseType="university"
+        onUploadSuccess={(data) => {
+          // Invalidate queries to refresh the courses list
+          queryClient.invalidateQueries({ queryKey: ['university-courses'] });
+          queryClient.invalidateQueries({ queryKey: ['university-courses-count'] });
+          toast({
+            title: "Import Successful",
+            description: `${data.importedCount} university courses have been imported.`,
+            variant: "default",
+          });
+        }}
+      />
     </div>
   );
 };
