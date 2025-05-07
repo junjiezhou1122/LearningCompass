@@ -402,7 +402,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(401).json({ message: "Unauthorized" });
       }
       
-      const { filePath, columnMapping } = req.body;
+      const { filePath, columnMapping, batchSize = 25, timeoutSeconds = 90 } = req.body;
       
       // Validate required fields
       if (!filePath) {
@@ -415,8 +415,74 @@ export async function registerRoutes(app: Express): Promise<Server> {
         });
       }
       
-      // Import courses from the CSV file
+      // Start a timeout to prevent long-running requests
+      const timeoutMs = timeoutSeconds * 1000;
+      let isTimedOut = false;
+      
+      // Handle large files by processing in background
+      if (timeoutSeconds > 0) {
+        setTimeout(() => {
+          isTimedOut = true;
+        }, timeoutMs);
+      }
+      
+      // Check if file is large (try to read first and get number of records)
+      let recordCount = 0;
+      let isLargeFile = false;
+      
+      try {
+        if (fs.existsSync(filePath)) {
+          const fileContent = fs.readFileSync(filePath, { encoding: 'utf-8' });
+          const records = parse(fileContent, {
+            columns: true,
+            skip_empty_lines: true
+          });
+          recordCount = records.length;
+          
+          // If more than 50 records, consider it a large file that needs background processing
+          isLargeFile = recordCount > 50;
+        }
+      } catch (error) {
+        console.error("Error checking file size:", error);
+      }
+      
+      // For large files, process in background and return immediately
+      if (isLargeFile) {
+        // Start the import process in background
+        console.log(`Processing large file with ${recordCount} records in background`);
+        
+        // Start background processing (no await)
+        (async () => {
+          try {
+            const importResult = await importCoursesFromUserCSV(filePath, columnMapping, storage, 'online');
+            console.log(`Background import completed: ${importResult.count} courses imported`);
+            
+            // Delete the temporary file after processing
+            fs.unlink(filePath, (err) => {
+              if (err) console.error(`Failed to delete temporary file ${filePath}:`, err);
+            });
+          } catch (error) {
+            console.error("Error in background course import:", error);
+          }
+        })();
+        
+        // Return a response immediately so the client doesn't time out
+        return res.json({
+          message: `Processing ${recordCount} courses in the background`,
+          importedCount: 0,
+          backgroundProcessing: true,
+          totalRecords: recordCount
+        });
+      }
+      
+      // For smaller files, process synchronously
       const importResult = await importCoursesFromUserCSV(filePath, columnMapping, storage, 'online');
+      
+      // Check if request timed out
+      if (isTimedOut) {
+        console.log("Request timed out, but import is continuing in the background");
+        return;
+      }
       
       // Return the result
       if (!importResult.success) {
@@ -453,7 +519,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(401).json({ message: "Unauthorized" });
       }
       
-      const { filePath, columnMapping } = req.body;
+      const { filePath, columnMapping, batchSize = 25, timeoutSeconds = 90 } = req.body;
       
       // Validate required fields
       if (!filePath) {
@@ -466,8 +532,74 @@ export async function registerRoutes(app: Express): Promise<Server> {
         });
       }
       
-      // Import university courses from the CSV file
+      // Start a timeout to prevent long-running requests
+      const timeoutMs = timeoutSeconds * 1000;
+      let isTimedOut = false;
+      
+      // Handle large files by processing in background
+      if (timeoutSeconds > 0) {
+        setTimeout(() => {
+          isTimedOut = true;
+        }, timeoutMs);
+      }
+      
+      // Check if file is large (try to read first and get number of records)
+      let recordCount = 0;
+      let isLargeFile = false;
+      
+      try {
+        if (fs.existsSync(filePath)) {
+          const fileContent = fs.readFileSync(filePath, { encoding: 'utf-8' });
+          const records = parse(fileContent, {
+            columns: true,
+            skip_empty_lines: true
+          });
+          recordCount = records.length;
+          
+          // If more than 50 records, consider it a large file that needs background processing
+          isLargeFile = recordCount > 50;
+        }
+      } catch (error) {
+        console.error("Error checking file size:", error);
+      }
+      
+      // For large files, process in background and return immediately
+      if (isLargeFile) {
+        // Start the import process in background
+        console.log(`Processing large file with ${recordCount} records in background`);
+        
+        // Start background processing (no await)
+        (async () => {
+          try {
+            const importResult = await importCoursesFromUserCSV(filePath, columnMapping, storage, 'university');
+            console.log(`Background import completed: ${importResult.count} courses imported`);
+            
+            // Delete the temporary file after processing
+            fs.unlink(filePath, (err) => {
+              if (err) console.error(`Failed to delete temporary file ${filePath}:`, err);
+            });
+          } catch (error) {
+            console.error("Error in background university course import:", error);
+          }
+        })();
+        
+        // Return a response immediately so the client doesn't time out
+        return res.json({
+          message: `Processing ${recordCount} university courses in the background`,
+          importedCount: 0,
+          backgroundProcessing: true,
+          totalRecords: recordCount
+        });
+      }
+      
+      // For smaller files, process synchronously
       const importResult = await importCoursesFromUserCSV(filePath, columnMapping, storage, 'university');
+      
+      // Check if request timed out
+      if (isTimedOut) {
+        console.log("Request timed out, but import is continuing in the background");
+        return;
+      }
       
       // Return the result
       if (!importResult.success) {
