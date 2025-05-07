@@ -108,50 +108,87 @@ async function importOnlineCoursesFromCSV(
 ): Promise<{ success: boolean; count: number; errors: string[] }> {
   let importedCount = 0;
   
-  // Process and import online courses
-  for (let i = 0; i < records.length; i++) {
-    const record = records[i];
+  // Process records in batches for better performance
+  const BATCH_SIZE = 25; // Process 25 records at a time
+  const totalBatches = Math.ceil(records.length / BATCH_SIZE);
+  
+  for (let batchIndex = 0; batchIndex < totalBatches; batchIndex++) {
+    const startIdx = batchIndex * BATCH_SIZE;
+    const endIdx = Math.min(startIdx + BATCH_SIZE, records.length);
+    const batchRecords = records.slice(startIdx, endIdx);
+    console.log(`Processing batch ${batchIndex + 1} of ${totalBatches} (${batchRecords.length} records)`);
     
+    // Process each batch
     try {
-      // For required fields, use the columnMapping to locate them in the record
-      const title = record[columnMapping.title];
-      const url = record[columnMapping.url];
+      // Prepare all the course data for this batch
+      const batchCourseData: { course: InsertCourse, index: number }[] = [];
       
-      // Validate required fields
-      if (!title || !url) {
-        errors.push(`Row ${i + 2}: Missing required fields (title or url)`);
-        continue;
+      // Pre-process the batch to validate and prepare data
+      for (let j = 0; j < batchRecords.length; j++) {
+        const record = batchRecords[j];
+        const recordIndex = startIdx + j;
+        
+        try {
+          // For required fields, use the columnMapping to locate them in the record
+          const title = record[columnMapping.title];
+          const url = record[columnMapping.url];
+          
+          // Validate required fields
+          if (!title || !url) {
+            errors.push(`Row ${recordIndex + 2}: Missing required fields (title or url)`);
+            continue;
+          }
+          
+          // Create course data with mappings from the CSV
+          const courseData: InsertCourse = {
+            title: title,
+            url: url,
+            shortIntro: columnMapping.shortIntro ? record[columnMapping.shortIntro] : undefined,
+            category: columnMapping.category ? record[columnMapping.category] : undefined,
+            subCategory: columnMapping.subCategory ? record[columnMapping.subCategory] : undefined,
+            courseType: columnMapping.courseType ? record[columnMapping.courseType] : undefined,
+            language: columnMapping.language ? record[columnMapping.language] : undefined,
+            subtitleLanguages: columnMapping.subtitleLanguages ? record[columnMapping.subtitleLanguages] : undefined,
+            skills: columnMapping.skills ? record[columnMapping.skills] : undefined,
+            instructors: columnMapping.instructors ? record[columnMapping.instructors] : undefined,
+            rating: columnMapping.rating && record[columnMapping.rating]
+              ? parseFloat(record[columnMapping.rating].toString().replace('stars', ''))
+              : undefined,
+            numberOfViewers: columnMapping.numberOfViewers && record[columnMapping.numberOfViewers]
+              ? parseInt(record[columnMapping.numberOfViewers].toString().replace(/,/g, '').trim())
+              : undefined,
+            duration: columnMapping.duration ? record[columnMapping.duration] : undefined,
+            site: columnMapping.site ? record[columnMapping.site] : undefined,
+            imageUrl: columnMapping.imageUrl ? record[columnMapping.imageUrl] : undefined
+          };
+          
+          // Add to batch data for later processing
+          batchCourseData.push({
+            course: courseData,
+            index: recordIndex
+          });
+        } catch (error) {
+          console.error(`Error preparing online course at row ${recordIndex + 2}:`, error);
+          errors.push(`Row ${recordIndex + 2}: ${error instanceof Error ? error.message : String(error)}`);
+        }
       }
       
-      // Create course data with mappings from the CSV
-      const courseData: InsertCourse = {
-        title: title,
-        url: url,
-        shortIntro: columnMapping.shortIntro ? record[columnMapping.shortIntro] : undefined,
-        category: columnMapping.category ? record[columnMapping.category] : undefined,
-        subCategory: columnMapping.subCategory ? record[columnMapping.subCategory] : undefined,
-        courseType: columnMapping.courseType ? record[columnMapping.courseType] : undefined,
-        language: columnMapping.language ? record[columnMapping.language] : undefined,
-        subtitleLanguages: columnMapping.subtitleLanguages ? record[columnMapping.subtitleLanguages] : undefined,
-        skills: columnMapping.skills ? record[columnMapping.skills] : undefined,
-        instructors: columnMapping.instructors ? record[columnMapping.instructors] : undefined,
-        rating: columnMapping.rating && record[columnMapping.rating]
-          ? parseFloat(record[columnMapping.rating].toString().replace('stars', ''))
-          : undefined,
-        numberOfViewers: columnMapping.numberOfViewers && record[columnMapping.numberOfViewers]
-          ? parseInt(record[columnMapping.numberOfViewers].toString().replace(/,/g, '').trim())
-          : undefined,
-        duration: columnMapping.duration ? record[columnMapping.duration] : undefined,
-        site: columnMapping.site ? record[columnMapping.site] : undefined,
-        imageUrl: columnMapping.imageUrl ? record[columnMapping.imageUrl] : undefined
-      };
+      // Now process the batch with the database
+      for (const courseData of batchCourseData) {
+        try {
+          // Store course in database
+          await storage.createCourse(courseData.course);
+          importedCount++;
+        } catch (error) {
+          console.error(`Error importing online course at row ${courseData.index + 2}:`, error);
+          errors.push(`Row ${courseData.index + 2}: ${error instanceof Error ? error.message : String(error)}`);
+        }
+      }
       
-      // Store course in database
-      await storage.createCourse(courseData);
-      importedCount++;
-    } catch (error) {
-      console.error(`Error importing online course at row ${i + 2}:`, error);
-      errors.push(`Row ${i + 2}: ${error instanceof Error ? error.message : String(error)}`);
+      console.log(`Successfully processed batch ${batchIndex + 1}, imported ${batchCourseData.length} online courses`);
+    } catch (batchError) {
+      console.error(`Error processing batch ${batchIndex + 1}:`, batchError);
+      errors.push(`Batch ${batchIndex + 1} error: ${batchError instanceof Error ? batchError.message : String(batchError)}`);
     }
   }
   
