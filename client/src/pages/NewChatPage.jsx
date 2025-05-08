@@ -1,587 +1,797 @@
-import { useState, useEffect, useRef, useCallback } from "react";
-import { useAuth } from "../contexts/AuthContext";
-import { useToast } from "@/hooks/use-toast";
-import { Menu } from "lucide-react";
-import { Button } from "@/components/ui/button";
+import React, { useState, useEffect, useContext } from "react";
+import { useLocation, useRoute } from "wouter";
+import {
+  Search,
+  ArrowLeft,
+  Users,
+  UserPlus,
+  MessageSquare,
+  Send,
+  AlertCircle,
+  RefreshCw,
+} from "lucide-react";
 import { motion } from "framer-motion";
-
-// Import our new chat components
-import ChatHeader from "@/components/chat/ChatHeader";
-import ChatSidebar from "@/components/chat/ChatSidebar";
-import ChatConversationHeader from "@/components/chat/ChatConversationHeader";
-import ChatMessagesList from "@/components/chat/ChatMessagesList";
-import ChatInput from "@/components/chat/ChatInput";
-import ChatEmptyState from "@/components/chat/ChatEmptyState";
-
-// Import our new WebSocket hook
+import { AuthContext } from "../contexts/AuthContext";
 import { useWebSocketContext } from "@/components/chat/WebSocketProvider";
+import { useToast } from "@/hooks/use-toast";
+import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
 
-const ChatPage = () => {
-  const { user, token } = useAuth();
+const NewChatPage = () => {
+  const [, navigate] = useLocation();
+  const [matchUserChat, params] = useRoute("/chat/:userId");
+  const [matchGroupChat, groupParams] = useRoute("/chat/group/:groupId");
   const { toast } = useToast();
-  const messagesEndRef = useRef(null);
-  const scrollAreaRef = useRef(null);
+  const { user } = useContext(AuthContext);
+  const { connected, connectionState, reconnect, sendMessage, lastMessage } =
+    useWebSocketContext();
 
-  // Get WebSocket connection from context
-  const {
-    connected,
-    connectionState,
-    sendMessage,
-    lastMessage,
-    reconnectAttempt
-  } = useWebSocketContext();
+  // If we have URL parameters, use them
+  const chatUserId = matchUserChat ? params.userId : null;
+  const chatGroupId = matchGroupChat ? groupParams.groupId : null;
 
-  // State variables
-  const [activeChat, setActiveChat] = useState(null);
-  const [messages, setMessages] = useState([]);
-  const [input, setInput] = useState("");
-  const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
-  const [isLoadingMore, setIsLoadingMore] = useState(false);
-  const [page, setPage] = useState(1);
-  const [hasMore, setHasMore] = useState(true);
-  
-  // Constants
-  const MESSAGES_PER_PAGE = 15; // Number of messages to load per page
+  // State to track if we're in a chat or showing the chat list
+  const [currentChat, setCurrentChat] = useState(null);
+  const [currentGroupChat, setCurrentGroupChat] = useState(null);
+  const [isLoading, setIsLoading] = useState(false);
+  const [currentMessage, setCurrentMessage] = useState("");
+  const [chatMessages, setChatMessages] = useState([]);
+  const [chatUser, setChatUser] = useState(null);
+  const [groupInfo, setGroupInfo] = useState(null);
 
-  // Scroll to bottom when new messages arrive
-  const scrollToBottom = useCallback(
-    (smooth = true) => {
-      if (messagesEndRef.current) {
-        messagesEndRef.current.scrollIntoView({
-          behavior: smooth ? "smooth" : "auto",
-          block: "end",
-        });
-      }
-    },
-    [messagesEndRef]
-  );
+  // Log route matches and parameters for debugging
+  console.log("URL matches user chat:", matchUserChat, params);
+  console.log("URL matches group chat:", matchGroupChat, groupParams);
+  console.log("WebSocket connection state:", connectionState);
 
-  // Load chat partners from API
-  const [chatPartners, setChatPartners] = useState([]);
-  const [isPartnersLoading, setIsPartnersLoading] = useState(true);
-
-  // Fetch chat partners from API
+  // Load chat data if userId or groupId is present
   useEffect(() => {
-    if (!token) return;
-    
-    const fetchChatPartners = async () => {
-      try {
-        setIsPartnersLoading(true);
-        const response = await fetch('/api/chat/partners', {
-          headers: {
-            Authorization: `Bearer ${token}`
-          }
-        });
-        
-        if (response.ok) {
-          const data = await response.json();
-          setChatPartners(data);
-        } else {
-          console.error('Failed to fetch chat partners');
-          setChatPartners([]); // Set empty array on failure
-        }
-      } catch (error) {
-        console.error('Error fetching chat partners:', error);
-        setChatPartners([]); // Set empty array on error
-      } finally {
-        setIsPartnersLoading(false);
+    if (chatUserId) {
+      console.log(`Loading direct chat with user ID: ${chatUserId}`);
+      setCurrentChat(chatUserId);
+      fetchChatUser(chatUserId);
+      fetchChatHistory(chatUserId);
+    } else if (chatGroupId) {
+      console.log(`Loading group chat with ID: ${chatGroupId}`);
+      setCurrentGroupChat(chatGroupId);
+      fetchGroupInfo(chatGroupId);
+      fetchGroupChatHistory(chatGroupId);
+    } else {
+      setCurrentChat(null);
+      setCurrentGroupChat(null);
+      setChatUser(null);
+      setGroupInfo(null);
+      setChatMessages([]);
+    }
+  }, [chatUserId, chatGroupId]);
+
+  // Handle incoming WebSocket messages
+  useEffect(() => {
+    if (!lastMessage) return;
+
+    console.log("Received WebSocket message:", lastMessage);
+
+    // Handle new chat messages
+    if (lastMessage.type === "chat_message") {
+      // Check if it's for the current chat
+      if (
+        currentChat &&
+        (lastMessage.senderId === parseInt(currentChat) ||
+          lastMessage.receiverId === parseInt(currentChat))
+      ) {
+        setChatMessages((prev) => [...prev, lastMessage]);
       }
-    };
-    
-    fetchChatPartners();
-  }, [token]);
 
-  // Function to load older messages when user scrolls to the top of the chat
-  const loadOlderMessages = useCallback(() => {
-    if (!hasMore || isLoadingMore || !activeChat || !token) return;
+      // Or for the current group
+      if (
+        currentGroupChat &&
+        lastMessage.groupId === parseInt(currentGroupChat)
+      ) {
+        setChatMessages((prev) => [...prev, lastMessage]);
+      }
+    }
+  }, [lastMessage, currentChat, currentGroupChat]);
 
-    setIsLoadingMore(true);
+  // Fetch user details for direct chat
+  const fetchChatUser = async (userId) => {
+    setIsLoading(true);
+    try {
+      const response = await fetch(`/api/users/${userId}`, {
+        headers: {
+          Authorization: `Bearer ${localStorage.getItem("token")}`,
+        },
+      });
 
-    fetch(`/api/chat/messages/${activeChat.id}`, {
-      headers: {
-        Authorization: `Bearer ${token}`,
-      },
-    })
-      .then((response) => {
-        if (response.ok) return response.json();
-        throw new Error("Failed to load older messages");
-      })
-      .then((allData) => {
-        // Sort messages by date (oldest to newest)
-        const sortedData = [...allData].sort(
-          (a, b) => new Date(a.createdAt) - new Date(b.createdAt)
-        );
-
-        // Simulate pagination
-        const totalMessages = sortedData.length;
-        const currentPage = page + 1;
-        const startIndex = Math.max(
-          0,
-          totalMessages - currentPage * MESSAGES_PER_PAGE
-        );
-        const endIndex = totalMessages;
-        const paginatedData = sortedData.slice(startIndex, endIndex);
-
-        // Update messages
-        setMessages((prev) => [
-          ...paginatedData.filter(
-            (msg) => !prev.some((existing) => existing.id === msg.id)
-          ),
-          ...prev,
-        ]);
-
-        setPage(currentPage);
-        setHasMore(startIndex > 0);
-      })
-      .catch((error) => {
-        console.error("Error loading older messages:", error);
+      if (response.ok) {
+        const userData = await response.json();
+        setChatUser(userData);
+      } else {
         toast({
           title: "Error",
-          description: "Failed to load older messages",
+          description: "Could not load user information",
           variant: "destructive",
         });
-      })
-      .finally(() => {
-        setIsLoadingMore(false);
+      }
+    } catch (error) {
+      console.error("Error fetching chat user:", error);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  // Fetch group info
+  const fetchGroupInfo = async (groupId) => {
+    setIsLoading(true);
+    try {
+      const response = await fetch(`/api/chat/groups/${groupId}`, {
+        headers: {
+          Authorization: `Bearer ${localStorage.getItem("token")}`,
+        },
       });
-  }, [
-    hasMore,
-    isLoadingMore,
-    activeChat,
-    token,
-    page,
-    MESSAGES_PER_PAGE,
-    toast,
-  ]);
 
-  // Function to load messages for a chat conversation
-  const loadMessages = useCallback(
-    async (partnerId, isLoadingOlder = false) => {
-      if (!token) return;
+      if (response.ok) {
+        const groupData = await response.json();
+        setGroupInfo(groupData);
+      } else {
+        toast({
+          title: "Error",
+          description: "Could not load group information",
+          variant: "destructive",
+        });
+      }
+    } catch (error) {
+      console.error("Error fetching group info:", error);
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
-      try {
-        // Only clear messages when loading a new chat (not when loading older messages)
-        if (!isLoadingOlder) {
-          setMessages([]);
-          setPage(1);
-          setHasMore(true);
+  // Fetch chat history for direct messages
+  const fetchChatHistory = async (userId) => {
+    setIsLoading(true);
+    try {
+      const response = await fetch(`/api/chat/history/${userId}`, {
+        headers: {
+          Authorization: `Bearer ${localStorage.getItem("token")}`,
+        },
+      });
+
+      if (response.ok) {
+        const history = await response.json();
+        setChatMessages(history);
+      } else {
+        console.error("Failed to fetch chat history");
+      }
+    } catch (error) {
+      console.error("Error fetching chat history:", error);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  // Fetch group chat history
+  const fetchGroupChatHistory = async (groupId) => {
+    setIsLoading(true);
+    try {
+      const response = await fetch(`/api/chat/groups/${groupId}/messages`, {
+        headers: {
+          Authorization: `Bearer ${localStorage.getItem("token")}`,
+        },
+      });
+
+      if (response.ok) {
+        const history = await response.json();
+        setChatMessages(history);
+      } else {
+        console.error("Failed to fetch group chat history");
+      }
+    } catch (error) {
+      console.error("Error fetching group chat history:", error);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  // Send a message
+  const handleSendMessage = () => {
+    if (!currentMessage.trim()) return;
+
+    const tempId = Date.now().toString();
+
+    // Create message object based on chat type
+    const messageObj = currentChat
+      ? {
+          type: "chat_message",
+          content: currentMessage,
+          receiverId: parseInt(currentChat),
+          tempId,
         }
+      : {
+          type: "group_message",
+          content: currentMessage,
+          groupId: parseInt(currentGroupChat),
+          tempId,
+        };
 
-        // Show loading indicator
-        setIsLoadingMore(true);
+    // Add optimistic message to UI
+    const optimisticMessage = {
+      id: tempId,
+      content: currentMessage,
+      senderId: user?.id,
+      createdAt: new Date().toISOString(),
+      status: "sending",
+      ...(currentChat
+        ? { receiverId: parseInt(currentChat) }
+        : { groupId: parseInt(currentGroupChat) }),
+    };
 
-        const response = await fetch(`/api/chat/messages/${partnerId}`, {
+    setChatMessages((prev) => [...prev, optimisticMessage]);
+    setCurrentMessage("");
+
+    // Send via WebSocket
+    sendMessage(messageObj);
+  };
+
+  // Handle message input key press (Enter to send)
+  const handleKeyPress = (e) => {
+    if (e.key === "Enter" && !e.shiftKey) {
+      e.preventDefault();
+      handleSendMessage();
+    }
+  };
+
+  // State variables
+  const [searchQuery, setSearchQuery] = useState("");
+  const [isSearching, setIsSearching] = useState(false);
+  const [searchResults, setSearchResults] = useState([]);
+  const [recentChats, setRecentChats] = useState([]);
+  const [followers, setFollowers] = useState([]);
+  const [isLoadingFollowers, setIsLoadingFollowers] = useState(false);
+
+  // Fetch user's followers
+  useEffect(() => {
+    const fetchFollowers = async () => {
+      if (!user?.id) return;
+
+      setIsLoadingFollowers(true);
+      try {
+        // Fetch users who follow you and you follow back (mutual follows)
+        const response = await fetch(`/api/users/${user.id}/following`, {
           headers: {
-            Authorization: `Bearer ${token}`,
+            Authorization: `Bearer ${localStorage.getItem("token")}`,
           },
         });
 
         if (response.ok) {
-          const allData = await response.json();
-          // Sort messages by date (oldest to newest)
-          const sortedData = [...allData].sort(
-            (a, b) => new Date(a.createdAt) - new Date(b.createdAt)
+          const data = await response.json();
+          const mutualFollows = data.filter(
+            (follower) => follower.isFollowingBack
           );
-
-          // Simulate pagination
-          const totalMessages = sortedData.length;
-          const currentPage = isLoadingOlder ? page + 1 : 1;
-          const startIndex = Math.max(
-            0,
-            totalMessages - currentPage * MESSAGES_PER_PAGE
-          );
-          const endIndex = totalMessages;
-          const paginatedData = sortedData.slice(startIndex, endIndex);
-
-          // Update state
-          if (isLoadingOlder) {
-            // If loading older messages, prepend them to existing messages
-            setMessages((prev) => [
-              ...paginatedData.filter(
-                (msg) => !prev.some((existing) => existing.id === msg.id)
-              ),
-              ...prev,
-            ]);
-            setPage(currentPage);
-
-            // Check if there are more messages to load
-            setHasMore(startIndex > 0);
-          } else {
-            // If loading a new chat, replace all messages
-            setMessages(paginatedData);
-            setHasMore(startIndex > 0);
-
-            // After setting messages, scroll to bottom with a slight delay
-            setTimeout(() => {
-              scrollToBottom();
-            }, 100);
-          }
+          setFollowers(mutualFollows);
         } else {
-          console.error("Error fetching messages:", await response.text());
-          toast({
-            title: "Error",
-            description: "Failed to load messages",
-            variant: "destructive",
-          });
+          console.error("Failed to fetch followers:", await response.text());
         }
       } catch (error) {
-        console.error("Error fetching messages:", error);
-        toast({
-          title: "Error",
-          description: "Failed to load messages",
-          variant: "destructive",
-        });
+        console.error("Error fetching followers:", error);
       } finally {
-        setIsLoadingMore(false);
-      }
-    },
-    [token, page, MESSAGES_PER_PAGE, toast, scrollToBottom]
-  );
-
-  // Handle scroll events for detecting when to load more messages
-  const handleScroll = useCallback(
-    (event) => {
-      // Load older messages when user scrolls to the top
-      const scrollTop = event.currentTarget.scrollTop;
-      if (scrollTop < 50 && hasMore && !isLoadingMore) {
-        loadOlderMessages();
-      }
-    },
-    [hasMore, isLoadingMore, loadOlderMessages]
-  );
-
-  // Set up scroll event listener
-  useEffect(() => {
-    const scrollContainer = scrollAreaRef.current?.querySelector(
-      'div[role="presentation"]'
-    );
-    if (scrollContainer) {
-      scrollContainer.addEventListener("scroll", handleScroll);
-      return () => scrollContainer.removeEventListener("scroll", handleScroll);
-    }
-  }, [handleScroll]);
-
-  // Scroll to bottom when messages change
-  useEffect(() => {
-    if (messages.length > 0) {
-      scrollToBottom(messages.length < MESSAGES_PER_PAGE);
-    }
-  }, [messages, scrollToBottom, MESSAGES_PER_PAGE]);
-
-  // Handle viewport and container resizing
-  useEffect(() => {
-    const handleResize = () => {
-      // Force recalculation of container heights
-      const chatContainer = document.querySelector(".chat-container");
-      const messagesContainer = document.querySelector(".messages-container");
-      const sidebarScrollArea = document.querySelector(".sidebar-scroll-area");
-      const emptyStateContainer = document.querySelector(
-        ".empty-state-container"
-      );
-
-      if (chatContainer) {
-        const headerHeight = 64; // Height of the main app header
-        const viewportHeight = window.innerHeight;
-        chatContainer.style.height = `${viewportHeight - headerHeight}px`;
-      }
-
-      if (messagesContainer) {
-        // Set the messages container height by accounting for the chat input and header
-        const chatHeaderHeight = 64; // Estimated
-        const chatInputHeight = 68; // Estimated
-        const messagesContainerHeight =
-          chatContainer.offsetHeight - chatHeaderHeight - chatInputHeight;
-        messagesContainer.style.height = `${messagesContainerHeight}px`;
-      }
-
-      if (sidebarScrollArea) {
-        // Handle the sidebar scroll area height - account for search input height
-        const searchInputHeight = 72; // Estimated
-        const sidebarAreaHeight =
-          chatContainer.offsetHeight - searchInputHeight;
-        sidebarScrollArea.style.height = `${sidebarAreaHeight}px`;
-      }
-
-      if (emptyStateContainer) {
-        // Handle the empty state container height
-        emptyStateContainer.style.height = `${chatContainer.offsetHeight}px`;
+        setIsLoadingFollowers(false);
       }
     };
 
-    // Initial calculation
-    setTimeout(handleResize, 100);
+    fetchFollowers();
+  }, [user?.id]);
 
-    // Add event listener for window resize
-    window.addEventListener("resize", handleResize);
+  // Fetch recent chats
+  useEffect(() => {
+    const fetchRecentChats = async () => {
+      try {
+        const response = await fetch("/api/chat/recent", {
+          headers: {
+            Authorization: `Bearer ${localStorage.getItem("token")}`,
+          },
+        });
 
-    // Clean up on unmount
-    return () => window.removeEventListener("resize", handleResize);
+        if (response.ok) {
+          const data = await response.json();
+          setRecentChats(data);
+        } else {
+          console.error("Failed to fetch recent chats:", await response.text());
+        }
+      } catch (error) {
+        console.error("Error fetching recent chats:", error);
+      }
+    };
+
+    fetchRecentChats();
   }, []);
 
-  // Process new WebSocket messages
+  // Handle search
   useEffect(() => {
-    if (!lastMessage || !activeChat) return;
-    
-    // Handle new messages
-    if (lastMessage.type === 'new_message' && lastMessage.message) {
-      const newMessage = lastMessage.message;
-      
-      // Only add if it's from or to the active chat partner
-      if (newMessage.senderId === activeChat.id || newMessage.receiverId === activeChat.id) {
-        // Add the message if it's not already in the list
-        setMessages(prev => {
-          if (!prev.some(msg => msg.id === newMessage.id)) {
-            const updatedMessages = [...prev, newMessage];
-            // Sort messages by time
-            return updatedMessages.sort((a, b) => new Date(a.createdAt) - new Date(b.createdAt));
-          }
-          return prev;
-        });
-        
-        // Scroll to bottom when receiving a new message
-        setTimeout(scrollToBottom, 100);
-        
-        // Mark message as read if it's not from the current user
-        if (newMessage.senderId !== user.id) {
-          sendMessage({
-            type: 'mark_read',
-            senderId: newMessage.senderId
-          });
+    // Debounce search to avoid too many requests
+    const delaySearch = setTimeout(() => {
+      handleSearch();
+    }, 500);
+
+    return () => clearTimeout(delaySearch);
+  }, [searchQuery]);
+
+  const handleSearch = async () => {
+    if (!searchQuery.trim()) {
+      setSearchResults([]);
+      return;
+    }
+
+    setIsSearching(true);
+
+    try {
+      const response = await fetch(
+        `/api/users/search?q=${encodeURIComponent(searchQuery)}`,
+        {
+          headers: {
+            Authorization: `Bearer ${localStorage.getItem("token")}`,
+          },
         }
-      }
-    }
-    // Handle message sent confirmation
-    else if (lastMessage.type === 'message_sent' && lastMessage.tempId) {
-      console.log('Message sent confirmation received:', lastMessage);
-      // Update the message in the UI to show it's been delivered
-      setMessages(prev => 
-        prev.map(msg => {
-          if (msg.id === lastMessage.tempId) {
-            return {
-              ...msg,
-              id: lastMessage.message.id,
-              isPending: false
-            };
-          }
-          return msg;
-        })
       );
-    }
-    // Handle error messages from server, including message sending errors
-    else if (lastMessage.type === 'error' && lastMessage.tempId) {
-      console.error('Message error received:', lastMessage);
-      // Update the UI to show the message failed to send
-      setMessages(prev => 
-        prev.map(msg => {
-          if (msg.id === lastMessage.tempId) {
-            return {
-              ...msg,
-              error: lastMessage.message,
-              isPending: false,
-              isFailed: true // Mark as failed
-            };
-          }
-          return msg;
-        })
-      );
-      
-      // Show toast with error message
-      toast({
-        title: 'Message not sent',
-        description: lastMessage.message,
-        variant: 'destructive',
-      });
-    }
-    // Handle read receipts
-    else if (lastMessage.type === 'messages_read' && lastMessage.readBy) {
-      // Update all sent messages to the reader as read
-      if (activeChat && lastMessage.readBy === activeChat.id) {
-        setMessages(prev => prev.map(msg => 
-          msg.senderId === user.id && msg.receiverId === activeChat.id
-            ? { ...msg, isRead: true }
-            : msg
-        ));
-      }
-    }
-  }, [lastMessage, activeChat, user, sendMessage, scrollToBottom]);
-  
-  // Listen for message delivery failure events from WebSocketProvider
-  useEffect(() => {
-    const handleMessageFailed = (event) => {
-      const { tempId, error } = event.detail;
-      
-      // Mark the failed message
-      if (tempId) {
-        setMessages(prevMessages => 
-          prevMessages.map(msg => {
-            if (msg.id === tempId) {
-              return { 
-                ...msg, 
-                isPending: false, 
-                isFailed: true,
-                error: error || 'Failed to deliver after multiple attempts'
-              };
+
+      if (response.ok) {
+        const data = await response.json();
+
+        // Check if users can chat (mutual follows)
+        const resultsWithChatStatus = await Promise.all(
+          data.map(async (result) => {
+            try {
+              const canChatResponse = await fetch(
+                `/api/chat/can-chat/${result.id}`,
+                {
+                  headers: {
+                    Authorization: `Bearer ${localStorage.getItem("token")}`,
+                  },
+                }
+              );
+
+              if (canChatResponse.ok) {
+                const { canChat } = await canChatResponse.json();
+                return { ...result, canChat };
+              }
+
+              return { ...result, canChat: false };
+            } catch (error) {
+              console.error(
+                `Error checking chat status for user ${result.id}:`,
+                error
+              );
+              return { ...result, canChat: false };
             }
-            return msg;
           })
         );
-      }
-    };
-    
-    // Add event listener
-    window.addEventListener('chat:message:failed', handleMessageFailed);
-    
-    // Cleanup on unmount
-    return () => {
-      window.removeEventListener('chat:message:failed', handleMessageFailed);
-    };
-  }, []);
 
-  // Send message function
-  const handleSendMessage = (messageContent = input.trim(), existingTempId = null) => {
-    if ((!messageContent && !input?.trim()) || !activeChat) return;
-    
-    // Use provided content or input field content
-    const finalContent = messageContent || input.trim();
-    
-    // Use existing tempId (for retries) or create a new one
-    const tempId = existingTempId || `temp-${Date.now()}`; // temporary ID with 'temp-' prefix
-    
-    // Create a temporary message with local ID
-    const tempMessage = {
-      id: tempId,
-      senderId: user.id,
-      receiverId: activeChat.id,
-      content: finalContent,
-      createdAt: new Date().toISOString(),
-      isRead: false,
-      sender: user,
-      isPending: true, // Mark as pending so we can style it differently
-      onRetry: (msg) => handleRetryMessage(msg) // Add retry handler
-    };
-    
-    // Create message object to send to server
-    const messageToSend = {
-      type: "chat_message",
-      receiverId: activeChat.id,
-      content: tempMessage.content,
-      tempId // Include temporary ID so we can update the message when we get a response
-    };
-    
-    // Only add to messages if it's a new message, not a retry
-    if (!existingTempId) {
-      setMessages((prev) => [...prev, tempMessage]);
-      // Clear input field immediately
-      setInput("");
-    } else {
-      // For retries, update the message to show it's pending again
-      setMessages(prev => prev.map(msg => 
-        msg.id === existingTempId 
-          ? { ...msg, isPending: true, isFailed: false, error: null }
-          : msg
-      ));
+        setSearchResults(resultsWithChatStatus);
+      } else {
+        console.error("Failed to search users:", await response.text());
+        toast({
+          title: "Search failed",
+          description: "Could not search for users. Please try again.",
+          variant: "destructive",
+        });
+      }
+    } catch (error) {
+      console.error("Error searching users:", error);
+      toast({
+        title: "Error",
+        description: "An error occurred while searching. Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsSearching(false);
     }
-    
-    // Scroll to bottom
-    setTimeout(scrollToBottom, 50);
-    
-    // Send message via WebSocket
-    sendMessage(messageToSend);
   };
-  
-  // Handle retrying failed messages
-  const handleRetryMessage = (message) => {
-    if (!message || !activeChat) return;
-    
-    // Toast notification to inform user
-    toast({
-      title: "Retrying message",
-      description: "Attempting to resend your message..."
-    });
-    
-    // Call send function with the message content and the original tempId
-    handleSendMessage(message.content, message.id);
+
+  // Start a chat with a user
+  const startChat = (userId) => {
+    navigate(`/chat/${userId}`);
+  };
+
+  // Navigate to user profile
+  const viewProfile = (userId) => {
+    navigate(`/users/${userId}`);
+  };
+
+  // Navigate to create group page
+  const createGroup = () => {
+    navigate("/chat/create-group");
   };
 
   return (
-    <div className="flex flex-col h-full bg-gray-50 dark:bg-gray-900 chat-container">
-      {/* Mobile Menu Button - Only visible on small screens */}
-      <div className="lg:hidden absolute left-4 top-4 z-20">
-        <Button
-          variant="ghost"
-          size="icon"
-          onClick={() => setIsMobileSidebarOpen(!isMobileSidebarOpen)}
-          aria-label={isMobileSidebarOpen ? "Close sidebar" : "Open sidebar"}
-        >
-          <Menu className="h-5 w-5" />
-        </Button>
+    <div className="min-h-screen bg-orange-50">
+      {/* Header */}
+      <div className="bg-white shadow-md p-4 flex items-center justify-between">
+        <div className="flex items-center">
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={() => navigate("/chat")}
+            className="mr-2"
+          >
+            <ArrowLeft className="h-5 w-5 text-orange-600" />
+          </Button>
+          <h1 className="text-xl font-bold text-orange-800">
+            {currentChat
+              ? chatUser
+                ? chatUser.displayName || chatUser.username
+                : "Direct Message"
+              : currentGroupChat
+              ? groupInfo
+                ? groupInfo.name
+                : "Group Chat"
+              : "New Conversation"}
+          </h1>
+        </div>
+        {!currentChat && !currentGroupChat && (
+          <Button
+            onClick={createGroup}
+            className="bg-orange-100 hover:bg-orange-200 text-orange-800"
+          >
+            <Users className="h-4 w-4 mr-2" />
+            Create Group
+          </Button>
+        )}
+        {(connectionState === "disconnected" ||
+          connectionState === "failed") && (
+          <Button
+            onClick={reconnect}
+            className="bg-orange-100 hover:bg-orange-200 text-orange-800"
+          >
+            <RefreshCw className="h-4 w-4 mr-2" />
+            Reconnect
+          </Button>
+        )}
       </div>
 
-      <div className="flex flex-1 overflow-hidden">
-        {/* Chat Sidebar - Fixed on large screens, sliding on small screens */}
-        <ChatSidebar
-          isOpen={isMobileSidebarOpen}
-          setIsOpen={setIsMobileSidebarOpen}
-          chatPartners={chatPartners}
-          isLoading={isPartnersLoading}
-          activeChat={activeChat}
-          setActiveChat={(partner) => {
-            setActiveChat(partner);
-            setIsMobileSidebarOpen(false); // Close sidebar on mobile when selecting a chat
-            if (partner) {
-              loadMessages(partner.id);
-            }
-          }}
-          currentUser={user}
-        />
-
-        {/* Main Chat Area */}
-        <main className="flex-1 flex flex-col">
-          {activeChat ? (
-            <>
-              <ChatConversationHeader
-                partner={activeChat}
-                online={connected}
-                statusMessage={connectionState === 'connecting' ? 'Reconnecting...' : ''}
-              />
-
-              <ChatMessagesList
-                messages={messages}
-                isLoading={isLoadingMore}
-                user={user} /* Fixed: changed from currentUser to user */
-                hasMore={hasMore}
-                partner={activeChat}
-                messagesEndRef={messagesEndRef}
-                scrollAreaRef={scrollAreaRef}
-                loadOlderMessages={loadOlderMessages}
-                page={page}
-              />
-
-              <ChatInput
-                input={input}
-                setInput={setInput}
-                handleKeyDown={(e) => {
-                  if (e.key === 'Enter' && !e.shiftKey) {
-                    e.preventDefault();
-                    handleSendMessage();
-                  }
-                }}
-                sendMessage={handleSendMessage}
-                connected={connected}
-                activeChat={activeChat}
-                connectionStatus={connectionState}
-              />
-            </>
-          ) : (
-            <ChatEmptyState 
-              connected={connected} 
-              reconnectAttempt={reconnectAttempt} 
-            />
+      {/* Chat View */}
+      {currentChat || currentGroupChat ? (
+        <div className="max-w-3xl mx-auto p-4 h-full">
+          {/* Connection state indicator */}
+          {connectionState !== "connected" && (
+            <div
+              className={`mb-4 p-3 rounded-lg text-center ${
+                connectionState === "connecting" ||
+                connectionState === "reconnecting"
+                  ? "bg-orange-100 text-orange-800"
+                  : "bg-red-100 text-red-800"
+              }`}
+            >
+              {connectionState === "connecting" &&
+                "Connecting to chat server..."}
+              {connectionState === "reconnecting" &&
+                "Reconnecting to chat server..."}
+              {(connectionState === "disconnected" ||
+                connectionState === "failed") && (
+                <div className="flex items-center justify-center">
+                  <AlertCircle className="h-5 w-5 mr-2" />
+                  <span>
+                    Could not connect to chat. Please refresh the page or try
+                    again.
+                  </span>
+                </div>
+              )}
+            </div>
           )}
-        </main>
-      </div>
+
+          <div className="bg-white rounded-lg shadow-md h-[calc(100vh-180px)] flex flex-col">
+            {isLoading ? (
+              <div className="flex-grow flex items-center justify-center">
+                <div className="animate-spin h-8 w-8 border-4 border-orange-500 border-t-transparent rounded-full"></div>
+              </div>
+            ) : (
+              <>
+                {/* Chat messages area */}
+                <div className="flex-grow p-4 overflow-y-auto">
+                  {chatMessages.length === 0 ? (
+                    <div className="h-full flex flex-col items-center justify-center text-orange-600">
+                      <MessageSquare className="h-12 w-12 mb-4 text-orange-400" />
+                      <p className="text-lg font-medium">No messages yet</p>
+                      <p className="text-sm text-gray-500 mt-2">
+                        Send a message to start the conversation
+                      </p>
+                    </div>
+                  ) : (
+                    <div className="space-y-4">
+                      {chatMessages.map((message) => {
+                        const isCurrentUser = message.senderId === user?.id;
+                        return (
+                          <div
+                            key={message.id}
+                            className={`flex ${
+                              isCurrentUser ? "justify-end" : "justify-start"
+                            }`}
+                          >
+                            <div
+                              className={`max-w-[75%] rounded-lg p-3 ${
+                                isCurrentUser
+                                  ? "bg-gradient-to-r from-orange-500 to-orange-600 text-white"
+                                  : "bg-gray-100 text-gray-800"
+                              }`}
+                            >
+                              <p className="whitespace-pre-wrap break-words">
+                                {message.content}
+                              </p>
+                              <div
+                                className={`text-xs mt-1 ${
+                                  isCurrentUser
+                                    ? "text-orange-100"
+                                    : "text-gray-500"
+                                }`}
+                              >
+                                {new Date(message.createdAt).toLocaleTimeString(
+                                  [],
+                                  {
+                                    hour: "2-digit",
+                                    minute: "2-digit",
+                                  }
+                                )}
+                                {isCurrentUser && message.status && (
+                                  <span className="ml-2">
+                                    {message.status === "sending" &&
+                                      "• Sending..."}
+                                    {message.status === "delivered" &&
+                                      "• Delivered"}
+                                    {message.status === "read" && "• Read"}
+                                    {message.status === "failed" &&
+                                      "• Failed to send"}
+                                  </span>
+                                )}
+                              </div>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
+
+                {/* Chat input area */}
+                <div className="border-t border-orange-100 p-4">
+                  <div className="flex gap-2">
+                    <Input
+                      value={currentMessage}
+                      onChange={(e) => setCurrentMessage(e.target.value)}
+                      onKeyDown={handleKeyPress}
+                      placeholder="Type your message..."
+                      className="border-orange-200 focus:border-orange-500 focus:ring-orange-500"
+                      disabled={connectionState !== "connected"}
+                    />
+                    <Button
+                      className="bg-gradient-to-r from-orange-500 to-orange-600 hover:from-orange-600 hover:to-orange-700 text-white"
+                      onClick={handleSendMessage}
+                      disabled={
+                        connectionState !== "connected" ||
+                        !currentMessage.trim()
+                      }
+                    >
+                      <Send className="h-4 w-4" />
+                    </Button>
+                  </div>
+                  {connectionState !== "connected" && (
+                    <p className="text-sm text-orange-600 mt-2">
+                      Connect to the chat server to send messages
+                    </p>
+                  )}
+                </div>
+              </>
+            )}
+          </div>
+        </div>
+      ) : (
+        // Chat list view
+        <div className="max-w-3xl mx-auto p-4">
+          {/* Search */}
+          <div className="bg-white rounded-lg shadow-md p-4 mb-6">
+            <div className="relative">
+              <Input
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                placeholder="Search for users to chat with..."
+                className="pl-10 border-orange-200 focus:border-orange-500 focus:ring-orange-500"
+              />
+              <Search className="absolute left-3 top-3 h-5 w-5 text-orange-400" />
+              {isSearching && (
+                <div className="absolute right-3 top-3">
+                  <div className="animate-spin h-5 w-5 border-2 border-orange-500 border-t-transparent rounded-full"></div>
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* Search Results */}
+          {searchQuery && searchResults.length > 0 && (
+            <div className="bg-white rounded-lg shadow-md mb-6">
+              <h2 className="text-lg font-medium text-gray-800 p-4 border-b border-orange-100">
+                Search Results
+              </h2>
+              <motion.div
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                transition={{ duration: 0.3 }}
+                className="divide-y divide-orange-100"
+              >
+                {searchResults.map((result) => (
+                  <div
+                    key={result.id}
+                    className="p-4 flex justify-between items-center"
+                  >
+                    <div className="flex items-center">
+                      <Avatar className="h-10 w-10 mr-3">
+                        <AvatarFallback className="bg-orange-500 text-white">
+                          {result.username.substring(0, 2).toUpperCase()}
+                        </AvatarFallback>
+                      </Avatar>
+                      <div>
+                        <p className="font-medium text-gray-800">
+                          {result.displayName || result.username}
+                        </p>
+                        <p className="text-sm text-gray-500">
+                          @{result.username}
+                        </p>
+                      </div>
+                    </div>
+                    <div className="flex space-x-2">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => viewProfile(result.id)}
+                        className="border-orange-200 text-orange-600 hover:bg-orange-50"
+                      >
+                        <UserPlus className="h-4 w-4 mr-1" />
+                        View Profile
+                      </Button>
+                      {result.canChat ? (
+                        <Button
+                          size="sm"
+                          onClick={() => startChat(result.id)}
+                          className="bg-gradient-to-r from-orange-500 to-orange-600 hover:from-orange-600 hover:to-orange-700 text-white"
+                        >
+                          <MessageSquare className="h-4 w-4 mr-1" />
+                          Message
+                        </Button>
+                      ) : (
+                        <Button
+                          size="sm"
+                          disabled
+                          className="bg-gray-100 text-gray-500 cursor-not-allowed"
+                          title="You can only chat with mutual followers"
+                        >
+                          <MessageSquare className="h-4 w-4 mr-1" />
+                          Cannot Chat
+                        </Button>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </motion.div>
+            </div>
+          )}
+
+          {searchQuery && searchResults.length === 0 && !isSearching && (
+            <div className="bg-white rounded-lg shadow-md p-8 mb-6 text-center">
+              <p className="text-orange-600 mb-2">
+                No users found matching "{searchQuery}"
+              </p>
+              <p className="text-sm text-gray-600">
+                Try a different search term or check the followers list below
+              </p>
+            </div>
+          )}
+
+          {/* Recent Chats */}
+          {recentChats.length > 0 && !searchQuery && (
+            <div className="bg-white rounded-lg shadow-md mb-6">
+              <h2 className="text-lg font-medium text-gray-800 p-4 border-b border-orange-100">
+                Recent Conversations
+              </h2>
+              <motion.div
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                transition={{ duration: 0.3 }}
+                className="divide-y divide-orange-100"
+              >
+                {recentChats.map((chat) => (
+                  <div
+                    key={chat.id}
+                    className="p-4 flex items-center hover:bg-orange-50 cursor-pointer"
+                    onClick={() => startChat(chat.id)}
+                  >
+                    <Avatar className="h-10 w-10 mr-3">
+                      <AvatarFallback className="bg-orange-500 text-white">
+                        {chat.username.substring(0, 2).toUpperCase()}
+                      </AvatarFallback>
+                    </Avatar>
+                    <div>
+                      <p className="font-medium text-gray-800">
+                        {chat.displayName || chat.username}
+                      </p>
+                      <p className="text-sm text-gray-500 truncate max-w-md">
+                        {chat.lastMessage || "Start a conversation"}
+                      </p>
+                    </div>
+                  </div>
+                ))}
+              </motion.div>
+            </div>
+          )}
+
+          {/* Followers */}
+          <div className="bg-white rounded-lg shadow-md">
+            <h2 className="text-lg font-medium text-gray-800 p-4 border-b border-orange-100">
+              Chat with Followers
+              <span className="text-sm font-normal text-gray-500 ml-2">
+                (you can chat with mutual followers)
+              </span>
+            </h2>
+
+            {isLoadingFollowers ? (
+              <div className="flex justify-center py-12">
+                <div className="animate-spin h-8 w-8 border-4 border-orange-500 border-t-transparent rounded-full"></div>
+              </div>
+            ) : followers.length === 0 ? (
+              <div className="text-center py-12 px-4">
+                <p className="text-orange-600 mb-2">
+                  No mutual followers found
+                </p>
+                <p className="text-sm text-gray-600 mb-4">
+                  You need to follow users who follow you back to start a chat
+                </p>
+                <Button
+                  onClick={() => navigate("/users")}
+                  className="bg-gradient-to-r from-orange-500 to-orange-600 hover:from-orange-600 hover:to-orange-700 text-white"
+                >
+                  <UserPlus className="h-4 w-4 mr-2" />
+                  Find People to Follow
+                </Button>
+              </div>
+            ) : (
+              <motion.div
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                transition={{ duration: 0.3 }}
+                className="divide-y divide-orange-100"
+              >
+                {followers.map((follower) => (
+                  <div
+                    key={follower.id}
+                    className="p-4 flex justify-between items-center hover:bg-orange-50"
+                  >
+                    <div className="flex items-center">
+                      <Avatar className="h-10 w-10 mr-3">
+                        <AvatarFallback className="bg-orange-500 text-white">
+                          {follower.username.substring(0, 2).toUpperCase()}
+                        </AvatarFallback>
+                      </Avatar>
+                      <div>
+                        <p className="font-medium text-gray-800">
+                          {follower.displayName || follower.username}
+                        </p>
+                        <p className="text-sm text-gray-500">
+                          @{follower.username}
+                        </p>
+                      </div>
+                    </div>
+                    <Button
+                      onClick={() => startChat(follower.id)}
+                      className="bg-gradient-to-r from-orange-500 to-orange-600 hover:from-orange-600 hover:to-orange-700 text-white"
+                    >
+                      <MessageSquare className="h-4 w-4 mr-2" />
+                      Message
+                    </Button>
+                  </div>
+                ))}
+              </motion.div>
+            )}
+          </div>
+        </div>
+      )}
     </div>
   );
 };
 
-export default ChatPage;
+export default NewChatPage;

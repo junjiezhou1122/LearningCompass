@@ -28,23 +28,25 @@ import FloatingNoteButton from "@/components/notes/FloatingNoteButton";
 import RecommendationSidebar from "@/components/RecommendationSidebar";
 import TokenDebugger from "@/components/TokenDebugger";
 import ErrorBoundary from "@/components/ErrorBoundary";
+import CreateGroupPage from "./pages/CreateGroupPage";
 
 function Router() {
   const [location] = useLocation();
-  
+
   // Show sidebar on all pages except specific ones
-  const hideSidebar = 
-    location === "/login" || 
-    location === "/register" || 
+  const hideSidebar =
+    location === "/login" ||
+    location === "/register" ||
     location === "/forgot-password" ||
     location === "/reset-password";
-    
-  // Check if it's the chat page which needs a different layout
-  const isChatPage = location === "/chat";
+
+  // Check if it's any chat-related page which needs a different layout
+  const isChatPage = location.startsWith("/chat");
 
   // Debug location and sidebar visibility
   console.log("Current location:", location);
   console.log("Show sidebar:", !hideSidebar);
+  console.log("Is chat page:", isChatPage);
 
   if (isChatPage) {
     return (
@@ -52,6 +54,21 @@ function Router() {
         <Header />
         <div className="flex-grow">
           <Switch>
+            <Route path="/chat/create-group">
+              <ErrorBoundary>
+                <CreateGroupPage />
+              </ErrorBoundary>
+            </Route>
+            <Route path="/chat/group/:groupId">
+              <ErrorBoundary>
+                <NewChatPage />
+              </ErrorBoundary>
+            </Route>
+            <Route path="/chat/:userId">
+              <ErrorBoundary>
+                <NewChatPage />
+              </ErrorBoundary>
+            </Route>
             <Route path="/chat">
               <ErrorBoundary>
                 <NewChatPage />
@@ -69,15 +86,28 @@ function Router() {
       <main className="flex-grow container max-w-screen-2xl mx-auto py-4 px-4 sm:px-6">
         <div className="flex flex-col lg:flex-row gap-6">
           {/* Main content */}
-          <div className={`${!hideSidebar ? 'lg:w-3/4' : 'w-full'} order-2 lg:order-1`}>
+          <div
+            className={`${
+              !hideSidebar ? "lg:w-3/4" : "w-full"
+            } order-2 lg:order-1`}
+          >
             <Switch>
               <Route path="/" component={LearningHowToLearn} />
               <Route path="/courses" component={Home} />
               <Route path="/course/:id" component={CourseDetail} />
               <Route path="/learning-center" component={LearningCenter} />
-              <Route path="/learning-center/courses/:id" component={CourseDetailsPage} />
-              <Route path="/learning-methods/:id" component={LearningMethodDetail} />
-              <Route path="/learning-tools/:id" component={LearningToolDetail} />
+              <Route
+                path="/learning-center/courses/:id"
+                component={CourseDetailsPage}
+              />
+              <Route
+                path="/learning-methods/:id"
+                component={LearningMethodDetail}
+              />
+              <Route
+                path="/learning-tools/:id"
+                component={LearningToolDetail}
+              />
               <Route path="/bookmarks" component={Bookmarks} />
               <Route path="/share" component={Share} />
               <Route path="/post/:id" component={PostDetail} />
@@ -87,10 +117,13 @@ function Router() {
               <Route component={NotFound} />
             </Switch>
           </div>
-          
+
           {/* Sidebar */}
           {!hideSidebar && (
-            <div className="lg:w-1/4 order-1 lg:order-2" id="recommendation-sidebar">
+            <div
+              className="lg:w-1/4 order-1 lg:order-2"
+              id="recommendation-sidebar"
+            >
               <RecommendationSidebar />
             </div>
           )}

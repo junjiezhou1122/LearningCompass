@@ -1,127 +1,193 @@
-import React, { useCallback } from 'react';
-import { motion } from 'framer-motion';
-import { MessageSquare } from 'lucide-react';
-import { Button } from '@/components/ui/button';
-import ChatMessage from './ChatMessage';
-import MessageStatusIndicator from './MessageStatusIndicator';
-import { useWebSocketContext } from './WebSocketProvider';
+import React, { useRef, useEffect } from "react";
+import { motion, AnimatePresence } from "framer-motion";
+import { Loader2 } from "lucide-react";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import ChatMessage from "./ChatMessage";
 
-/**
- * ChatMessagesList component displays a list of chat messages
- * with enhanced error handling and retry capabilities
- * 
- * @param {Array} messages - Array of message objects to display
- * @param {number} currentUserId - Current user's ID to differentiate sent vs received messages
- * @param {Function} onRetryMessage - Function to retry sending a failed message
- */
-const ChatMessagesList = ({ 
-  messages, 
-  currentUserId,
-  onRetryMessage
-}) => {
-  // Get WebSocket context for connection status checks and direct retry access
-  const wsContext = useWebSocketContext();
-  
-  // Enhanced retry handler that works with context or callback
-  const handleRetry = useCallback((messageId) => {
-    // First try the provided callback
-    if (onRetryMessage) {
-      onRetryMessage(messageId);
+// Create a date divider component for messages
+const ChatDateDivider = ({ date }) => {
+  // Format date for display
+  const formatDate = () => {
+    const messageDate = new Date(date);
+    const today = new Date();
+    const yesterday = new Date(today);
+    yesterday.setDate(yesterday.getDate() - 1);
+
+    // Check if date is today or yesterday
+    if (messageDate.toDateString() === today.toDateString()) {
+      return "Today";
+    } else if (messageDate.toDateString() === yesterday.toDateString()) {
+      return "Yesterday";
+    } else {
+      // Format other dates
+      return new Intl.DateTimeFormat("en-US", {
+        weekday: "short",
+        month: "short",
+        day: "numeric",
+        year:
+          messageDate.getFullYear() !== today.getFullYear()
+            ? "numeric"
+            : undefined,
+      }).format(messageDate);
     }
-    // If no callback or it fails, dispatch a custom retry event that WebSocketProvider will handle
-    else {
-      const retryEvent = new CustomEvent('chat:message:retry', { 
-        detail: { messageId }
-      });
-      window.dispatchEvent(retryEvent);
-    }
-  }, [onRetryMessage]);
-  
-  // Determine connection warning state for error messages
-  const connectionState = wsContext?.connectionState || 'unknown';
-  const isDisconnected = connectionState !== 'connected';
-  
+  };
+
   return (
-    <div className="w-full h-full py-4">
-      {/* Messages list */}
-      <div className="space-y-2">
-        {messages.length === 0 ? (
-          <motion.div 
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ type: "spring" }}
-            className="flex flex-col items-center justify-center py-12 text-primary-foreground/70"
-          >
-            <motion.div 
-              animate={{ scale: [1, 1.05, 1], rotate: [0, 5, 0, -5, 0] }}
-              transition={{ repeat: Infinity, duration: 5 }}
-              className="mb-4"
-            >
-              <MessageSquare className="h-16 w-16 opacity-40" />
-            </motion.div>
-            <p className="text-xl font-medium mb-2">No messages yet</p>
-            <p className="text-base opacity-80">Start a conversation!</p>
-          </motion.div>
-        ) : (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            transition={{ duration: 0.3 }}
-            className="space-y-3"
-          >
-            {messages.map((message) => (
-              <div key={message.id} className="relative group">
-                <ChatMessage
-                  message={message}
-                  isCurrentUser={message.senderId === currentUserId}
-                />
-                
-                {/* Enhanced message status indicators with error context */}
-                {message.senderId === currentUserId && (
-                  <div className="absolute -bottom-4 right-2 flex items-center space-x-1 text-xs">
-                    {message.isPending && (
-                      <MessageStatusIndicator 
-                        status="sending" 
-                        message={message}
-                      />
-                    )}
-                    
-                    {message.isRetrying && (
-                      <MessageStatusIndicator 
-                        status="retrying" 
-                        message={message}
-                      />
-                    )}
-                    
-                    {message.isError && (
-                      <MessageStatusIndicator 
-                        status={isDisconnected ? "network_error" : "failed"}
-                        onRetry={() => handleRetry(message.id || message.tempId)}
-                        message={message}
-                        errorMessage={message.error || (isDisconnected ? "Connection lost" : null)}
-                      />
-                    )}
-                    
-                    {message.isDelivered && !message.isRead && (
-                      <MessageStatusIndicator 
-                        status="delivered" 
-                        message={message}
-                      />
-                    )}
-                    
-                    {message.isRead && (
-                      <MessageStatusIndicator 
-                        status="read" 
-                        message={message}
-                      />
-                    )}
-                  </div>
-                )}
-              </div>
-            ))}
-          </motion.div>
-        )}
+    <div className="flex items-center justify-center my-6">
+      <div className="bg-orange-100 text-orange-800 text-xs px-3 py-1 rounded-full">
+        {formatDate()}
       </div>
+    </div>
+  );
+};
+
+const ChatMessagesList = ({
+  messages = [],
+  isLoading = false,
+  hasMore = false,
+  loadOlderMessages,
+  messagesEndRef,
+  scrollAreaRef,
+  user,
+  partner,
+}) => {
+  const topObserverRef = useRef(null);
+
+  // Group messages by date for rendering date dividers
+  const groupMessagesByDate = () => {
+    const groups = {};
+
+    messages.forEach((message) => {
+      const date = new Date(message.createdAt).toDateString();
+      if (!groups[date]) {
+        groups[date] = [];
+      }
+      groups[date].push(message);
+    });
+
+    return Object.entries(groups).map(([date, dateMessages]) => ({
+      date,
+      messages: dateMessages,
+    }));
+  };
+
+  // Create intersection observer for infinite scrolling
+  useEffect(() => {
+    if (!hasMore || !loadOlderMessages) return;
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries[0].isIntersecting && !isLoading) {
+          loadOlderMessages();
+        }
+      },
+      { threshold: 0.1 }
+    );
+
+    if (topObserverRef.current) {
+      observer.observe(topObserverRef.current);
+    }
+
+    return () => {
+      if (topObserverRef.current) {
+        observer.unobserve(topObserverRef.current);
+      }
+    };
+  }, [hasMore, isLoading, loadOlderMessages]);
+
+  // Group messages for rendering
+  const groupedMessages = groupMessagesByDate();
+
+  return (
+    <div className="flex-1 overflow-hidden messages-container">
+      <ScrollArea
+        ref={scrollAreaRef}
+        className="h-full w-full p-4 md:p-6 pb-0 md:pb-0"
+      >
+        {/* Loading indicator for older messages */}
+        {hasMore && (
+          <div
+            ref={topObserverRef}
+            className="flex justify-center items-center py-4"
+          >
+            {isLoading ? (
+              <div className="flex items-center space-x-2 text-orange-600">
+                <Loader2 className="h-4 w-4 animate-spin" />
+                <span className="text-sm">Loading older messages...</span>
+              </div>
+            ) : (
+              <div className="text-xs text-gray-500">
+                Scroll to load more messages
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Empty state when no messages */}
+        {!isLoading && messages.length === 0 && (
+          <div className="flex items-center justify-center h-full">
+            <div className="text-center text-gray-500 p-8">
+              <p className="mb-2 text-lg font-medium">No messages yet</p>
+              <p className="text-sm">
+                Send a message to start the conversation!
+              </p>
+            </div>
+          </div>
+        )}
+
+        {/* Initial loading state */}
+        {isLoading && messages.length === 0 && (
+          <div className="flex items-center justify-center h-full">
+            <div className="text-center text-gray-500">
+              <Loader2 className="h-8 w-8 animate-spin mx-auto mb-2 text-orange-600" />
+              <p>Loading conversation...</p>
+            </div>
+          </div>
+        )}
+
+        {/* Grouped messages by date */}
+        <AnimatePresence>
+          {groupedMessages.map(({ date, messages: dateMessages }) => (
+            <motion.div
+              key={date}
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              transition={{ duration: 0.3 }}
+            >
+              <ChatDateDivider date={date} />
+
+              {dateMessages.map((message, index) => (
+                <ChatMessage
+                  key={message.id || `temp-${message.tempId}`}
+                  message={message}
+                  isCurrentUser={message.senderId === user?.id}
+                  showAvatar={
+                    index === 0 ||
+                    dateMessages[index - 1]?.senderId !== message.senderId ||
+                    // Show avatar if more than 5 minutes have passed since last message from same user
+                    (dateMessages[index - 1]?.senderId === message.senderId &&
+                      new Date(message.createdAt) -
+                        new Date(dateMessages[index - 1]?.createdAt) >
+                        5 * 60 * 1000)
+                  }
+                  isSequential={
+                    index > 0 &&
+                    dateMessages[index - 1]?.senderId === message.senderId &&
+                    new Date(message.createdAt) -
+                      new Date(dateMessages[index - 1]?.createdAt) <=
+                      5 * 60 * 1000
+                  }
+                  user={user}
+                  partner={partner}
+                />
+              ))}
+            </motion.div>
+          ))}
+        </AnimatePresence>
+
+        {/* Ref for scrolling to the most recent message */}
+        <div ref={messagesEndRef} />
+      </ScrollArea>
     </div>
   );
 };

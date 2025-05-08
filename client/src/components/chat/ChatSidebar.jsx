@@ -1,274 +1,402 @@
-import React from 'react';
-import { motion } from 'framer-motion';
-import { Search, PlusCircle, Hash } from 'lucide-react';
-import { ScrollArea } from '@/components/ui/scroll-area';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Badge } from '@/components/ui/badge';
-import { Avatar, AvatarFallback } from '@/components/ui/avatar';
+import React, { useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
+import { motion } from "framer-motion";
+import { Search, Plus, Users, User, X, MessageSquare } from "lucide-react";
+import { useWebSocketContext } from "./WebSocketProvider";
+import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Badge } from "@/components/ui/badge";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
-// Chat contact component
-const ChatContact = ({ user, isActive, isOnline, unreadCount, onClick }) => {
-  return (
-    <motion.div
-      whileHover={{ x: 3, scale: 1.02 }}
-      initial={{ opacity: 0, x: -10 }}
-      animate={{ opacity: 1, x: 0 }}
-      transition={{ type: "spring", stiffness: 300, damping: 20 }}
-      className={`flex items-center py-2.5 px-3 rounded-xl mb-2 cursor-pointer ${isActive 
-        ? "bg-gradient-to-r from-orange-500 to-orange-600 text-white shadow-md" 
-        : "text-orange-800 hover:bg-orange-100/70 hover:text-orange-900 shadow-sm"} 
-        border border-orange-100 transition-all duration-200`}
-      onClick={onClick}
-    >
-      <div className="relative mr-3">
-        <Avatar className="h-10 w-10 border border-orange-100 shadow-md">
-          <AvatarFallback
-            className={`${
-              isActive
-                ? "bg-gradient-to-r from-orange-600 to-orange-700 text-white"
-                : "bg-gradient-to-r from-orange-100 to-orange-200 text-orange-800"
-            } text-sm font-medium`}
-          >
-            {user.username?.substring(0, 2) || "U"}
-          </AvatarFallback>
-        </Avatar>
-        {isOnline ? (
-          <motion.span 
-            initial={{ scale: 0 }}
-            animate={{ scale: 1 }}
-            className="absolute bottom-0 right-0 h-3 w-3 rounded-full bg-green-500 border-2 border-white shadow-sm"
-          ></motion.span>
-        ) : (
-          <motion.span 
-            initial={{ scale: 0 }}
-            animate={{ scale: 1 }}
-            className="absolute bottom-0 right-0 h-3 w-3 rounded-full bg-gray-400 border-2 border-white shadow-sm"
-          ></motion.span>
-        )}
-      </div>
-      <div className="flex-1 min-w-0">
-        <div className="flex items-center justify-between">
-          <span className={`text-sm font-medium truncate ${isActive ? "text-white" : "text-orange-800"}`}>
-            {user.username}
-          </span>
-          {unreadCount > 0 && (
-            <motion.div
-              initial={{ scale: 0.5, opacity: 0 }}
-              animate={{ scale: 1, opacity: 1 }}
-              transition={{ type: "spring" }}
-            >
-              <Badge className="ml-2 h-5 w-5 p-0 flex items-center justify-center text-[10px] bg-orange-500 text-white border-0 shadow-md">
-                {unreadCount}
-              </Badge>
-            </motion.div>
-          )}
-        </div>
-        <p className={`text-xs truncate mt-0.5 ${isActive ? "text-orange-100" : "text-orange-500"}`}>
-          {isOnline ? "Online" : "Offline"}
-        </p>
-      </div>
-    </motion.div>
-  );
-};
-
-// Channel component
-const Channel = ({ name, isActive, unreadCount, onClick }) => {
-  return (
-    <motion.div
-      whileHover={{ x: 3, scale: 1.02 }}
-      initial={{ opacity: 0, x: -10 }}
-      animate={{ opacity: 1, x: 0 }}
-      transition={{ type: "spring", stiffness: 300, damping: 20 }}
-      className={`flex items-center py-2.5 px-3 rounded-xl mb-2 cursor-pointer shadow-sm transition-all duration-200 ${
-        isActive
-          ? "bg-gradient-to-r from-orange-500 to-orange-600 text-white"
-          : "text-orange-800 hover:bg-orange-100 hover:text-orange-900"
-      }`}
-      onClick={onClick}
-    >
-      <div className={`mr-2.5 ${isActive ? "text-white" : "text-orange-500"}`}>
-        <Hash className="h-4 w-4" />
-      </div>
-      <span className="text-sm font-medium truncate">{name}</span>
-      {unreadCount > 0 && (
-        <motion.div
-          initial={{ scale: 0.5, opacity: 0 }}
-          animate={{ scale: 1, opacity: 1 }}
-          className="ml-auto"
-        >
-          <Badge className="h-5 w-5 p-0 flex items-center justify-center text-[10px] bg-orange-500 text-white border-0 shadow-md">
-            {unreadCount}
-          </Badge>
-        </motion.div>
-      )}
-    </motion.div>
-  );
-};
-
-const ChatSidebar = ({ 
-  isMobileSidebarOpen, 
-  setActiveChat,
+const ChatSidebar = ({
+  isOpen,
+  setIsOpen,
   activeChat,
-  chatPartners,
-  isPartnersLoading
+  setActiveChat,
+  chatPartners = [],
+  isLoading = false,
 }) => {
+  const navigate = useNavigate();
+  const { connectionState } = useWebSocketContext();
+  const [searchQuery, setSearchQuery] = useState("");
+  const [activeTab, setActiveTab] = useState("direct");
+
+  // Filter chat partners based on search query
+  const filteredPartners = chatPartners.filter((partner) => {
+    if (!searchQuery.trim()) return true;
+
+    const query = searchQuery.toLowerCase();
+    return (
+      partner.username?.toLowerCase().includes(query) ||
+      partner.displayName?.toLowerCase().includes(query) ||
+      partner.lastMessage?.toLowerCase().includes(query)
+    );
+  });
+
+  // Split partners into direct and group chats
+  const directChats = filteredPartners.filter(
+    (partner) => partner.type === "direct" || !partner.type
+  );
+  const groupChats = filteredPartners.filter(
+    (partner) => partner.type === "group"
+  );
+
+  // Handle clicking outside to close on mobile
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      // Only apply this on mobile
+      if (window.innerWidth >= 1024) return;
+
+      // Check if click is outside the sidebar
+      const sidebar = document.getElementById("chat-sidebar");
+      if (isOpen && sidebar && !sidebar.contains(event.target)) {
+        setIsOpen(false);
+      }
+    };
+
+    document.addEventListener("mousedown", handleClickOutside);
+
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+    };
+  }, [isOpen, setIsOpen]);
+
+  // Create a new chat
+  const handleNewChat = () => {
+    navigate("/chat/new");
+  };
+
+  // Create a new group
+  const handleNewGroup = () => {
+    navigate("/chat/create-group");
+  };
+
   return (
-    <motion.div
-      initial={{ x: -30, opacity: 0 }}
-      animate={{ x: 0, opacity: 1 }}
-      transition={{ type: "spring", stiffness: 300, damping: 30 }}
-      className={`w-80 bg-gradient-to-b from-orange-50 to-white border-r border-orange-200 flex flex-col backdrop-blur-sm ${
-        isMobileSidebarOpen ? "block" : "hidden"
-      } lg:block overflow-hidden shadow-lg`}
-    >
-      {/* Search */}
-      <div className="p-4 border-b border-orange-200 bg-orange-100/30">
-        <motion.div 
-          initial={{ y: -10, opacity: 0 }}
-          animate={{ y: 0, opacity: 1 }}
-          transition={{ delay: 0.1 }}
-          className="relative"
-        >
-          <div className="absolute left-3.5 top-1/2 transform -translate-y-1/2 text-orange-500">
-            <motion.div
-              whileHover={{ scale: 1.1, rotate: 10 }}
-              animate={{ scale: [1, 1.05, 1] }}
-              transition={{ repeat: Infinity, repeatType: "reverse", duration: 2 }}
+    <>
+      {/* Mobile overlay */}
+      {isOpen && (
+        <div
+          className="fixed inset-0 bg-black/30 z-40 lg:hidden"
+          onClick={() => setIsOpen(false)}
+        />
+      )}
+
+      {/* Sidebar */}
+      <motion.div
+        id="chat-sidebar"
+        className={`fixed lg:relative inset-y-0 left-0 z-50 w-80 bg-white border-r border-orange-100 
+                   flex flex-col h-full transform transition-transform duration-300 ease-in-out
+                   ${
+                     isOpen
+                       ? "translate-x-0"
+                       : "-translate-x-full lg:translate-x-0"
+                   }`}
+        initial={false}
+      >
+        {/* Header */}
+        <div className="p-4 border-b border-orange-100 flex items-center justify-between bg-orange-50">
+          <h2 className="text-lg font-semibold text-orange-800">Messages</h2>
+
+          <div className="flex gap-2">
+            <Button
+              variant="outline"
+              size="icon"
+              onClick={handleNewChat}
+              className="rounded-full h-8 w-8"
             >
-              <Search className="h-4 w-4" />
-            </motion.div>
+              <MessageSquare className="h-4 w-4 text-orange-600" />
+            </Button>
+
+            <Button
+              variant="outline"
+              size="icon"
+              onClick={handleNewGroup}
+              className="rounded-full h-8 w-8"
+            >
+              <Users className="h-4 w-4 text-orange-600" />
+            </Button>
+
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={() => setIsOpen(false)}
+              className="lg:hidden rounded-full h-8 w-8"
+            >
+              <X className="h-4 w-4" />
+            </Button>
           </div>
-          <Input
-            placeholder="Search messages or people"
-            className="pl-10 py-2 h-11 bg-white/90 border-orange-200 text-sm rounded-full placeholder:text-orange-300 focus-visible:ring-orange-500 shadow-sm hover:shadow-md transition-shadow duration-200 pr-3" 
-          />
-        </motion.div>
-      </div>
+        </div>
 
-      <ScrollArea className="flex-1 sidebar-scroll-area">
+        {/* Search */}
         <div className="p-4">
-          {/* Direct Messages section */}
-          <div className="mb-6">
-            <motion.div 
-              initial={{ opacity: 0, y: 5 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.2 }}
-              className="flex items-center justify-between mb-3 px-1"
-            >
-              <h3 className="text-sm font-semibold text-orange-700 tracking-wide">
-                Direct Messages
-              </h3>
-              <motion.div 
-                whileHover={{ rotate: 90 }} 
-                whileTap={{ scale: 0.9 }}
-              >
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="h-7 w-7 text-orange-500 hover:text-orange-700 hover:bg-orange-100 rounded-full transition-all duration-200"
-                >
-                  <PlusCircle className="h-4 w-4" />
-                </Button>
-              </motion.div>
-            </motion.div>
-            
-            <motion.div 
-              initial={{ opacity: 0, y: 10 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.3 }}
-              className="h-px bg-gradient-to-r from-orange-200 via-orange-300 to-orange-200 mb-3"
-            ></motion.div>
+          <div className="relative">
+            <Search className="absolute left-3 top-2.5 h-4 w-4 text-orange-400" />
+            <Input
+              type="text"
+              placeholder="Search conversations..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="pl-9 bg-orange-50 border-orange-200 focus:border-orange-400 focus:ring-orange-400"
+            />
+          </div>
+        </div>
 
-            {isPartnersLoading ? (
-              <div className="flex justify-center py-4">
-                <motion.div 
-                  animate={{ rotate: 360 }}
-                  transition={{ repeat: Infinity, duration: 1, ease: "linear" }}
-                  className="h-6 w-6 border-2 border-orange-500 border-t-transparent rounded-full"
-                ></motion.div>
+        {/* Tabs */}
+        <Tabs
+          value={activeTab}
+          onValueChange={setActiveTab}
+          className="flex-1 flex flex-col overflow-hidden"
+        >
+          <TabsList className="grid grid-cols-2 px-4">
+            <TabsTrigger
+              value="direct"
+              className="data-[state=active]:bg-orange-100 data-[state=active]:text-orange-800"
+            >
+              <User className="h-4 w-4 mr-2" /> Direct
+            </TabsTrigger>
+            <TabsTrigger
+              value="groups"
+              className="data-[state=active]:bg-orange-100 data-[state=active]:text-orange-800"
+            >
+              <Users className="h-4 w-4 mr-2" /> Groups
+            </TabsTrigger>
+          </TabsList>
+
+          {/* Direct Chats Tab */}
+          <TabsContent
+            value="direct"
+            className="flex-1 overflow-auto px-2 py-2"
+          >
+            {isLoading ? (
+              <div className="flex items-center justify-center h-32">
+                <div className="animate-spin h-6 w-6 border-2 border-orange-500 border-t-transparent rounded-full" />
               </div>
-            ) : chatPartners.length === 0 ? (
-              <div className="text-center py-4 text-sm text-orange-600 bg-orange-50/50 rounded-lg shadow-inner px-3">
-                No conversations yet
+            ) : directChats.length === 0 ? (
+              <div className="text-center py-8 px-4">
+                <p className="text-gray-500 mb-4">No conversations yet</p>
+                <Button
+                  onClick={handleNewChat}
+                  className="bg-orange-500 hover:bg-orange-600 text-white"
+                >
+                  <Plus className="h-4 w-4 mr-2" />
+                  Start a Chat
+                </Button>
               </div>
             ) : (
-              <div className="space-y-2">
-                {chatPartners.map((partner) => (
-                  <ChatContact
+              <div className="space-y-1">
+                {directChats.map((partner) => (
+                  <div
                     key={partner.id}
-                    user={partner}
-                    isActive={activeChat?.id === partner.id}
-                    isOnline={partner.online}
-                    unreadCount={partner.unreadCount || 0}
+                    className={`flex items-center p-2 rounded-lg cursor-pointer
+                              ${
+                                activeChat?.id === partner.id
+                                  ? "bg-orange-100 text-orange-900"
+                                  : "hover:bg-orange-50 text-gray-700"
+                              }`}
                     onClick={() => setActiveChat(partner)}
-                  />
+                  >
+                    <div className="relative">
+                      <Avatar className="h-10 w-10">
+                        {partner.profileImage ? (
+                          <img
+                            src={partner.profileImage}
+                            alt={partner.displayName || partner.username}
+                          />
+                        ) : (
+                          <AvatarFallback className="bg-orange-600 text-white">
+                            {(partner.displayName || partner.username)
+                              ?.substring(0, 2)
+                              .toUpperCase()}
+                          </AvatarFallback>
+                        )}
+                      </Avatar>
+
+                      {/* Online status indicator */}
+                      {partner.status === "online" && (
+                        <span className="absolute bottom-0 right-0 h-3 w-3 rounded-full bg-green-500 border-2 border-white" />
+                      )}
+                    </div>
+
+                    <div className="ml-3 overflow-hidden flex-1">
+                      <div className="flex justify-between items-center">
+                        <p className="font-medium truncate">
+                          {partner.displayName || partner.username}
+                        </p>
+
+                        {/* Timestamp for last message */}
+                        {partner.lastMessageTime && (
+                          <p className="text-xs text-gray-500">
+                            {formatMessageTime(partner.lastMessageTime)}
+                          </p>
+                        )}
+                      </div>
+
+                      <div className="flex items-center">
+                        <p className="text-sm truncate text-gray-500 flex-1">
+                          {partner.lastMessage || "No messages yet"}
+                        </p>
+
+                        {/* Unread count badge */}
+                        {partner.unreadCount > 0 && (
+                          <Badge className="ml-2 bg-orange-500">
+                            {partner.unreadCount}
+                          </Badge>
+                        )}
+                      </div>
+                    </div>
+                  </div>
                 ))}
               </div>
             )}
-          </div>
+          </TabsContent>
 
-          {/* Channels Section - Optional, can be removed */}
-          <div className="mb-6">
-            <motion.div 
-              initial={{ opacity: 0, y: 5 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.4 }}
-              className="flex items-center justify-between mb-3 px-1"
-            >
-              <h3 className="text-sm font-semibold text-orange-700 tracking-wide">
-                Channels
-              </h3>
-              <motion.div 
-                whileHover={{ rotate: 90 }} 
-                whileTap={{ scale: 0.9 }}
-              >
+          {/* Group Chats Tab */}
+          <TabsContent
+            value="groups"
+            className="flex-1 overflow-auto px-2 py-2"
+          >
+            {isLoading ? (
+              <div className="flex items-center justify-center h-32">
+                <div className="animate-spin h-6 w-6 border-2 border-orange-500 border-t-transparent rounded-full" />
+              </div>
+            ) : groupChats.length === 0 ? (
+              <div className="text-center py-8 px-4">
+                <p className="text-gray-500 mb-4">No group chats yet</p>
                 <Button
-                  variant="ghost"
-                  size="icon"
-                  className="h-7 w-7 text-orange-500 hover:text-orange-700 hover:bg-orange-100 rounded-full transition-all duration-200"
+                  onClick={handleNewGroup}
+                  className="bg-orange-500 hover:bg-orange-600 text-white"
                 >
-                  <PlusCircle className="h-4 w-4" />
+                  <Plus className="h-4 w-4 mr-2" />
+                  Create a Group
                 </Button>
-              </motion.div>
-            </motion.div>
-            
-            <motion.div 
-              initial={{ opacity: 0, y: 10 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.5 }}
-              className="h-px bg-gradient-to-r from-orange-200 via-orange-300 to-orange-200 mb-3"
-            ></motion.div>
+              </div>
+            ) : (
+              <div className="space-y-1">
+                {groupChats.map((group) => (
+                  <div
+                    key={group.id}
+                    className={`flex items-center p-2 rounded-lg cursor-pointer
+                              ${
+                                activeChat?.id === group.id
+                                  ? "bg-orange-100 text-orange-900"
+                                  : "hover:bg-orange-50 text-gray-700"
+                              }`}
+                    onClick={() => setActiveChat(group)}
+                  >
+                    <Avatar className="h-10 w-10">
+                      <AvatarFallback className="bg-blue-600 text-white">
+                        {group.name?.substring(0, 2).toUpperCase()}
+                      </AvatarFallback>
+                    </Avatar>
 
-            <motion.div 
-              initial={{ opacity: 0, y: 10 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.6 }}
-            >
-              <Channel
-                name="general"
-                isActive={false}
-                unreadCount={0}
-                onClick={() => {}}
-              />
-              <Channel
-                name="support"
-                isActive={false}
-                unreadCount={2}
-                onClick={() => {}}
-              />
-              <Channel
-                name="announcements"
-                isActive={false}
-                unreadCount={0}
-                onClick={() => {}}
-              />
-            </motion.div>
+                    <div className="ml-3 overflow-hidden flex-1">
+                      <div className="flex justify-between items-center">
+                        <p className="font-medium truncate">{group.name}</p>
+
+                        {/* Timestamp for last message */}
+                        {group.lastMessageTime && (
+                          <p className="text-xs text-gray-500">
+                            {formatMessageTime(group.lastMessageTime)}
+                          </p>
+                        )}
+                      </div>
+
+                      <div className="flex items-center">
+                        <p className="text-sm truncate text-gray-500 flex-1">
+                          {group.lastMessage || "No messages yet"}
+                        </p>
+
+                        {/* Member count */}
+                        {group.memberCount && (
+                          <span className="ml-2 text-xs text-gray-500">
+                            {group.memberCount} members
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </TabsContent>
+        </Tabs>
+
+        {/* Connection status */}
+        <div className="px-4 py-2 border-t border-orange-100 bg-orange-50">
+          <div className="flex items-center">
+            <div
+              className={`h-2 w-2 rounded-full mr-2 ${getConnectionStatusColor(
+                connectionState
+              )}`}
+            />
+            <p className="text-xs text-gray-600">
+              {getConnectionStatusText(connectionState)}
+            </p>
           </div>
         </div>
-      </ScrollArea>
-    </motion.div>
+      </motion.div>
+    </>
   );
 };
+
+// Helper function to format message time
+function formatMessageTime(timestamp) {
+  const date = new Date(timestamp);
+  const now = new Date();
+  const diffMs = now - date;
+  const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
+
+  if (diffDays === 0) {
+    // Today - show time
+    return date.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+  } else if (diffDays === 1) {
+    // Yesterday
+    return "Yesterday";
+  } else if (diffDays < 7) {
+    // This week - show day name
+    return date.toLocaleDateString([], { weekday: "short" });
+  } else {
+    // Older - show date
+    return date.toLocaleDateString([], { month: "short", day: "numeric" });
+  }
+}
+
+// Helper function to get connection status color
+function getConnectionStatusColor(connectionState) {
+  switch (connectionState) {
+    case "connected":
+      return "bg-green-500";
+    case "connecting":
+    case "reconnecting":
+      return "bg-yellow-500";
+    case "disconnected":
+    case "failed":
+    case "error":
+      return "bg-red-500";
+    default:
+      return "bg-gray-500";
+  }
+}
+
+// Helper function to get connection status text
+function getConnectionStatusText(connectionState) {
+  switch (connectionState) {
+    case "connected":
+      return "Connected";
+    case "connecting":
+      return "Connecting...";
+    case "reconnecting":
+      return "Reconnecting...";
+    case "disconnected":
+      return "Disconnected";
+    case "failed":
+      return "Connection Failed";
+    case "error":
+      return "Connection Error";
+    default:
+      return "Unknown Status";
+  }
+}
 
 export default ChatSidebar;

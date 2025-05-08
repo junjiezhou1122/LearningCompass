@@ -1,14 +1,35 @@
-import React from 'react';
-import { motion } from 'framer-motion';
-import { PlusCircle, Image, Paperclip, Smile, Mic, Send, Wifi, WifiOff, Loader2 } from 'lucide-react';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
-import { useWebSocketContext } from './WebSocketProvider';
+import React, { useState, useRef, useEffect } from "react";
+import { motion } from "framer-motion";
+import {
+  PlusCircle,
+  Image,
+  Paperclip,
+  Smile,
+  Mic,
+  Send,
+  Wifi,
+  WifiOff,
+  Loader2,
+} from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Input, Textarea } from "@/components/ui/input";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
+import { useWebSocketContext } from "./WebSocketProvider";
+import EmojiPicker from "emoji-picker-react";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
 
 /**
  * ChatInput component provides the input area for sending messages
- * 
+ *
  * @param {string} value Current input value
  * @param {function} onChange Function to handle input changes
  * @param {function} onKeyPress Function to handle key press events
@@ -23,163 +44,195 @@ const ChatInput = ({
   onChange,
   onKeyPress,
   onSend,
-  placeholder = "Type a message..."
+  placeholder = "Type a message...",
+  disabled = false,
+  connectionStatus = "connected",
+  isGroupChat = false,
 }) => {
-  // Get connection state directly from context
-  const { connectionState, isPolling } = useWebSocketContext();
-  // Determine if input should be disabled based on connection
-  const disabled = connectionState !== 'connected';
-  // Enhanced connection status details
-  const statusInfo = {
-    'connected': { color: 'text-green-500', message: 'Connection is stable', icon: Wifi },
-    'connecting': { color: 'text-amber-500', message: 'Connecting...', icon: Loader2 },
-    'disconnected': { color: 'text-red-500', message: 'Connection lost. Messages will be queued.', icon: WifiOff },
-    'reconnecting': { color: 'text-amber-500', message: 'Reconnecting...', icon: Loader2 },
-    'error': { color: 'text-red-600', message: 'Connection error. Please check your network.', icon: WifiOff },
-    'polling': { color: 'text-blue-500', message: 'Using polling fallback', icon: Loader2 }
+  const [message, setMessage] = useState("");
+  const [showEmojiPicker, setShowEmojiPicker] = useState(false);
+  const [isSending, setIsSending] = useState(false);
+  const textareaRef = useRef(null);
+
+  // Auto-grow textarea as user types
+  useEffect(() => {
+    const textarea = textareaRef.current;
+    if (!textarea) return;
+
+    const adjustHeight = () => {
+      textarea.style.height = "auto";
+      const newHeight = Math.min(textarea.scrollHeight, 150); // Max height of 150px
+      textarea.style.height = `${newHeight}px`;
+    };
+
+    adjustHeight();
+
+    // Add event listener
+    textarea.addEventListener("input", adjustHeight);
+
+    // Cleanup
+    return () => textarea.removeEventListener("input", adjustHeight);
+  }, [message]);
+
+  // Handle keyboard shortcuts (Enter to send)
+  const handleKeyDown = (e) => {
+    // Send message on Enter (without Shift)
+    if (e.key === "Enter" && !e.shiftKey) {
+      e.preventDefault();
+      handleSendMessage();
+    }
   };
-  
-  // If we're polling, show polling status instead
-  const effectiveState = isPolling ? 'polling' : connectionState;
-  const status = statusInfo[effectiveState] || statusInfo.disconnected;
+
+  // Handle sending message
+  const handleSendMessage = async () => {
+    const trimmedMessage = message.trim();
+    if (!trimmedMessage || disabled || connectionStatus === "failed") return;
+
+    try {
+      setIsSending(true);
+      await onSend(trimmedMessage);
+      setMessage("");
+      // Focus back on textarea after sending
+      if (textareaRef.current) {
+        textareaRef.current.focus();
+      }
+    } catch (error) {
+      console.error("Error sending message:", error);
+    } finally {
+      setIsSending(false);
+    }
+  };
+
+  // Handle emoji selection
+  const handleEmojiSelect = (emojiData) => {
+    setMessage((prev) => prev + emojiData.emoji);
+    if (textareaRef.current) {
+      textareaRef.current.focus();
+    }
+  };
+
+  // Get connection status info
+  const getConnectionInfo = () => {
+    switch (connectionStatus) {
+      case "connected":
+        return null;
+      case "connecting":
+      case "reconnecting":
+        return {
+          icon: <Loader2 className="h-4 w-4 animate-spin text-orange-500" />,
+          text: "Connecting...",
+          class: "text-orange-500 bg-orange-50",
+        };
+      case "failed":
+        return {
+          icon: <WifiOff className="h-4 w-4 text-red-500" />,
+          text: "Connection failed",
+          class: "text-red-500 bg-red-50",
+        };
+      case "offline":
+        return {
+          icon: <WifiOff className="h-4 w-4 text-gray-500" />,
+          text: "You are offline",
+          class: "text-gray-500 bg-gray-50",
+        };
+      default:
+        return null;
+    }
+  };
+
+  const connectionInfo = getConnectionInfo();
+
   return (
-    <motion.div 
-      initial={{ opacity: 0, y: 20 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ type: "spring" }}
-      className="px-4 py-3 bg-gradient-to-r from-orange-50 via-orange-100/50 to-orange-50 border-t border-orange-200"
-    >
-      <motion.div 
-        whileHover={{ 
-          y: -2, 
-          boxShadow: "0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06)" 
-        }}
-        className="flex items-end bg-white rounded-2xl px-3 py-2.5 border border-orange-200 shadow-sm transition-all duration-200"
-      >
-        {/* Connection status indicator */}
-        <TooltipProvider>
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <div className="mr-2">
-                <motion.div 
-                  animate={{ 
-                    scale: effectiveState === 'connecting' || effectiveState === 'reconnecting' || effectiveState === 'polling' 
-                      ? [1, 1.2, 1] : 1,
-                    rotate: effectiveState === 'polling' ? [0, 360] : 0
-                  }}
-                  transition={{ 
-                    repeat: effectiveState === 'connecting' || effectiveState === 'reconnecting' || effectiveState === 'polling' 
-                      ? Infinity : 0, 
-                    duration: 1.5 
-                  }}
-                  className={`h-4 w-4 ${status.color} flex-shrink-0`}
-                >
-                  <status.icon size={16} />
-                </motion.div>
-              </div>
-            </TooltipTrigger>
-            <TooltipContent side="top" className="bg-white border border-orange-200 text-gray-800 text-xs">
-              <p>{status.message}</p>
-            </TooltipContent>
-          </Tooltip>
-        </TooltipProvider>
-          
-        {/* Left action buttons */}
-        <div className="flex space-x-2 mr-2">
-          <motion.div 
-            whileHover={{ rotate: 15 }} 
-            whileTap={{ scale: 0.9 }}
-          >
+    <div className="p-3 border-t border-orange-100 bg-orange-50">
+      {/* Connection status bar */}
+      {connectionInfo && (
+        <motion.div
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          className={`flex items-center justify-center text-sm p-2 mb-2 rounded-md ${connectionInfo.class}`}
+        >
+          {connectionInfo.icon}
+          <span className="ml-2">{connectionInfo.text}</span>
+        </motion.div>
+      )}
+
+      <div className="flex items-end gap-2">
+        {/* Emoji picker */}
+        <Popover open={showEmojiPicker} onOpenChange={setShowEmojiPicker}>
+          <PopoverTrigger asChild>
             <Button
               variant="ghost"
               size="icon"
-              className="h-8 w-8 text-orange-500 hover:bg-orange-100/70 rounded-full p-0 transition-colors duration-200"
+              className="rounded-full h-9 w-9 flex-shrink-0 text-orange-600 hover:bg-orange-100"
+              title="Add emoji"
             >
-              <PlusCircle className="h-4 w-4" />
+              <Smile className="h-5 w-5" />
             </Button>
-          </motion.div>
-          <motion.div 
-            whileHover={{ rotate: 15 }} 
-            whileTap={{ scale: 0.9 }}
-          >
-            <Button
-              variant="ghost"
-              size="icon"
-              className="h-8 w-8 text-orange-500 hover:bg-orange-100/70 rounded-full p-0 transition-colors duration-200"
-              disabled={disabled}
-            >
-              <Image className="h-4 w-4" />
-            </Button>
-          </motion.div>
-          <motion.div 
-            whileHover={{ rotate: 15 }} 
-            whileTap={{ scale: 0.9 }}
-          >
-            <Button
-              variant="ghost"
-              size="icon"
-              className="h-8 w-8 text-orange-500 hover:bg-orange-100/70 rounded-full p-0 transition-colors duration-200"
-              disabled={disabled}
-            >
-              <Paperclip className="h-4 w-4" />
-            </Button>
-          </motion.div>
-        </div>
-        
-        {/* Text input */}
-        <Input
-          value={value}
-          onChange={onChange}
-          onKeyDown={onKeyPress}
-          placeholder={placeholder}
-          disabled={disabled}
-          className="flex-1 border-0 bg-transparent text-gray-800 focus-visible:ring-0 focus-visible:ring-offset-0 px-0 placeholder:text-orange-300 text-sm"
+          </PopoverTrigger>
+          <PopoverContent className="w-auto p-0 border-orange-200" side="top">
+            <EmojiPicker
+              onEmojiClick={handleEmojiSelect}
+              searchDisabled
+              width={300}
+              height={400}
+            />
+          </PopoverContent>
+        </Popover>
+
+        {/* Attachments button - disabled for now */}
+        <Button
+          variant="ghost"
+          size="icon"
+          disabled
+          className="rounded-full h-9 w-9 flex-shrink-0 text-orange-600 hover:bg-orange-100"
+          title="Attach file (coming soon)"
+        >
+          <Paperclip className="h-5 w-5" />
+        </Button>
+
+        {/* Message input */}
+        <Textarea
+          ref={textareaRef}
+          value={message}
+          onChange={(e) => setMessage(e.target.value)}
+          onKeyDown={handleKeyDown}
+          placeholder={
+            disabled
+              ? "Can't send messages right now"
+              : connectionStatus === "offline"
+              ? "You are offline. Messages will be sent when you reconnect."
+              : isGroupChat
+              ? "Message group..."
+              : placeholder
+          }
+          disabled={disabled || connectionStatus === "failed"}
+          className="min-h-[40px] max-h-[150px] resize-none bg-white border-orange-200 focus:border-orange-500 rounded-lg py-2 px-3 flex-grow"
         />
-        
-        {/* Right action buttons */}
-        <div className="flex space-x-2 ml-2">
-          <motion.div 
-            whileHover={{ rotate: 15 }} 
-            whileTap={{ scale: 0.9 }}
-          >
-            <Button
-              variant="ghost"
-              size="icon"
-              className="h-8 w-8 text-orange-500 hover:bg-orange-100/70 rounded-full p-0 transition-colors duration-200"
-              disabled={disabled}
-            >
-              <Smile className="h-4 w-4" />
-            </Button>
-          </motion.div>
-          <motion.div 
-            whileHover={{ rotate: 15 }} 
-            whileTap={{ scale: 0.9 }}
-          >
-            <Button
-              variant="ghost"
-              size="icon"
-              className="h-8 w-8 text-orange-500 hover:bg-orange-100/70 rounded-full p-0 transition-colors duration-200"
-              disabled={disabled}
-            >
-              <Mic className="h-4 w-4" />
-            </Button>
-          </motion.div>
-          <motion.div 
-            whileHover={{ scale: 1.1 }}
-            whileTap={{ scale: 0.9 }}
-          >
-            <Button
-              onClick={onSend}
-              disabled={!value?.trim() || disabled}
-              className={`bg-gradient-to-r ${effectiveState !== 'connected' ? 'from-orange-400 to-orange-500 opacity-80' : 'from-orange-500 to-orange-600 hover:from-orange-600 hover:to-orange-700'} text-white rounded-full h-9 w-9 flex items-center justify-center p-0 shadow-md transition-all duration-200`}
-              title={effectiveState !== 'connected' ? `Message will be queued (${status.message})` : 'Send message'}
-            >
-              <Send className="h-4 w-4" />
-            </Button>
-          </motion.div>
-        </div>
-      </motion.div>
-    </motion.div>
+
+        {/* Send button */}
+        <Button
+          onClick={handleSendMessage}
+          disabled={
+            !message.trim() ||
+            disabled ||
+            connectionStatus === "failed" ||
+            isSending
+          }
+          className={`rounded-full h-10 w-10 flex-shrink-0 p-0 ${
+            message.trim() && !disabled
+              ? "bg-orange-600 hover:bg-orange-700 focus:bg-orange-700"
+              : "bg-orange-300"
+          }`}
+          title="Send message"
+        >
+          {isSending ? (
+            <Loader2 className="h-5 w-5 animate-spin" />
+          ) : (
+            <Send className="h-5 w-5" />
+          )}
+        </Button>
+      </div>
+    </div>
   );
 };
 
