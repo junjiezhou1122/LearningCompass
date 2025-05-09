@@ -608,6 +608,9 @@ export interface IStorage {
     failedRecords: Array<{ record: any; error: string }>;
     totalRecords: number;
   }>;
+
+  // In the interface definition add:
+  getRecentChatPartners(userId: number): Promise<number[]>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -4124,6 +4127,36 @@ export class DatabaseStorage implements IStorage {
     );
 
     return { importedCount, warnings, failedRecords, totalRecords };
+  }
+
+  // In the implementation add this function:
+  async getRecentChatPartners(userId: number): Promise<number[]> {
+    try {
+      // Find all users who have exchanged messages with this user
+      const result = await this.db.query.chatMessages.findMany({
+        where: or(
+          eq(chatMessages.senderId, userId),
+          eq(chatMessages.receiverId, userId)
+        ),
+        orderBy: desc(chatMessages.createdAt),
+      });
+
+      // Extract unique partner IDs
+      const partnerIds = new Set<number>();
+
+      for (const message of result) {
+        if (message.senderId === userId) {
+          partnerIds.add(message.receiverId);
+        } else {
+          partnerIds.add(message.senderId);
+        }
+      }
+
+      return Array.from(partnerIds);
+    } catch (error) {
+      console.error("Error getting recent chat partners:", error);
+      return [];
+    }
   }
 }
 

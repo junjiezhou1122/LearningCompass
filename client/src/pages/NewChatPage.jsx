@@ -12,7 +12,7 @@ import {
 } from "lucide-react";
 import { motion } from "framer-motion";
 import { AuthContext } from "../contexts/AuthContext";
-import { useWebSocketContext } from "@/components/chat/WebSocketProvider";
+import { useSocketIO } from "@/components/chat/SocketIOProvider";
 import { useToast } from "@/hooks/use-toast";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Input } from "@/components/ui/input";
@@ -25,7 +25,7 @@ const NewChatPage = () => {
   const { toast } = useToast();
   const { user } = useContext(AuthContext);
   const { connected, connectionState, reconnect, sendMessage, lastMessage } =
-    useWebSocketContext();
+    useSocketIO();
 
   // If we have URL parameters, use them
   const chatUserId = matchUserChat ? params.userId : null;
@@ -70,7 +70,7 @@ const NewChatPage = () => {
   useEffect(() => {
     if (!lastMessage) return;
 
-    console.log("Received WebSocket message:", lastMessage);
+    console.log("Received Socket.IO message:", lastMessage);
 
     // Handle new chat messages
     if (lastMessage.type === "chat_message") {
@@ -80,7 +80,36 @@ const NewChatPage = () => {
         (lastMessage.senderId === parseInt(currentChat) ||
           lastMessage.receiverId === parseInt(currentChat))
       ) {
-        setChatMessages((prev) => [...prev, lastMessage]);
+        // Check if we already have this message (to avoid duplicates)
+        const isDuplicate = chatMessages.some(
+          (msg) => msg.id === lastMessage.id || msg.id === lastMessage.tempId
+        );
+
+        if (!isDuplicate) {
+          setChatMessages((prev) => [
+            ...prev,
+            {
+              ...lastMessage,
+              createdAt:
+                lastMessage.timestamp ||
+                lastMessage.createdAt ||
+                new Date().toISOString(),
+            },
+          ]);
+        } else {
+          // Update status of existing message
+          setChatMessages((prev) =>
+            prev.map((msg) =>
+              msg.id === lastMessage.tempId
+                ? {
+                    ...msg,
+                    id: lastMessage.id,
+                    status: lastMessage.status || "delivered",
+                  }
+                : msg
+            )
+          );
+        }
       }
 
       // Or for the current group
@@ -88,10 +117,39 @@ const NewChatPage = () => {
         currentGroupChat &&
         lastMessage.groupId === parseInt(currentGroupChat)
       ) {
-        setChatMessages((prev) => [...prev, lastMessage]);
+        // Check if we already have this message
+        const isDuplicate = chatMessages.some(
+          (msg) => msg.id === lastMessage.id || msg.id === lastMessage.tempId
+        );
+
+        if (!isDuplicate) {
+          setChatMessages((prev) => [
+            ...prev,
+            {
+              ...lastMessage,
+              createdAt:
+                lastMessage.timestamp ||
+                lastMessage.createdAt ||
+                new Date().toISOString(),
+            },
+          ]);
+        } else {
+          // Update status of existing message
+          setChatMessages((prev) =>
+            prev.map((msg) =>
+              msg.id === lastMessage.tempId
+                ? {
+                    ...msg,
+                    id: lastMessage.id,
+                    status: lastMessage.status || "delivered",
+                  }
+                : msg
+            )
+          );
+        }
       }
     }
-  }, [lastMessage, currentChat, currentGroupChat]);
+  }, [lastMessage, currentChat, currentGroupChat, chatMessages]);
 
   // Fetch user details for direct chat
   const fetchChatUser = async (userId) => {
@@ -151,6 +209,8 @@ const NewChatPage = () => {
   const fetchChatHistory = async (userId) => {
     setIsLoading(true);
     try {
+      console.log(`Fetching chat history with user ID: ${userId}`);
+
       const response = await fetch(`/api/chat/history/${userId}`, {
         headers: {
           Authorization: `Bearer ${localStorage.getItem("token")}`,
@@ -159,12 +219,28 @@ const NewChatPage = () => {
 
       if (response.ok) {
         const history = await response.json();
+        console.log(`Chat history loaded: ${history.length} messages`, history);
         setChatMessages(history);
       } else {
-        console.error("Failed to fetch chat history");
+        const errorText = await response.text();
+        console.error(
+          `Failed to fetch chat history: ${response.status} ${errorText}`
+        );
+        toast({
+          title: "Error loading chat history",
+          description:
+            "Could not load the conversation history. Please try again.",
+          variant: "destructive",
+        });
       }
     } catch (error) {
       console.error("Error fetching chat history:", error);
+      toast({
+        title: "Connection Error",
+        description:
+          "Could not connect to the server. Please check your internet connection.",
+        variant: "destructive",
+      });
     } finally {
       setIsLoading(false);
     }
@@ -229,7 +305,7 @@ const NewChatPage = () => {
     setChatMessages((prev) => [...prev, optimisticMessage]);
     setCurrentMessage("");
 
-    // Send via WebSocket
+    // Send via Socket.IO
     sendMessage(messageObj);
   };
 

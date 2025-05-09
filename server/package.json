@@ -1,0 +1,14 @@
+{
+  "name": "learning-compass-server",
+  "version": "1.0.0",
+  "description": "Server for Learning Compass application",
+  "main": "index.ts",
+  "type": "module",
+  "scripts": {
+    "start": "node --loader ts-node/esm index.ts",
+    "dev": "nodemon --loader ts-node/esm index.ts"
+  },
+  "dependencies": {
+    "ws": "^8.14.2"
+  }
+}

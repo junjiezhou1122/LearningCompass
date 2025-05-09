@@ -5,7 +5,7 @@ import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { AuthProvider } from "./contexts/AuthContext";
 import { LanguageProvider } from "./contexts/LanguageContext";
-import { WebSocketProvider } from "@/components/chat/WebSocketProvider";
+import { SocketIOProvider } from "@/components/chat/SocketIOProvider";
 import NotFound from "@/pages/not-found";
 import Home from "@/pages/Home";
 import CourseDetail from "@/pages/CourseDetail";
@@ -29,6 +29,7 @@ import RecommendationSidebar from "@/components/RecommendationSidebar";
 import TokenDebugger from "@/components/TokenDebugger";
 import ErrorBoundary from "@/components/ErrorBoundary";
 import CreateGroupPage from "./pages/CreateGroupPage";
+import ChatTestPage from "./pages/ChatTestPage";
 
 function Router() {
   const [location] = useLocation();
@@ -41,7 +42,7 @@ function Router() {
     location === "/reset-password";
 
   // Check if it's any chat-related page which needs a different layout
-  const isChatPage = location.startsWith("/chat");
+  const isChatPage = location.startsWith("/chat") || location === "/chat-test";
 
   // Debug location and sidebar visibility
   console.log("Current location:", location);
@@ -72,6 +73,11 @@ function Router() {
             <Route path="/chat">
               <ErrorBoundary>
                 <NewChatPage />
+              </ErrorBoundary>
+            </Route>
+            <Route path="/chat-test">
+              <ErrorBoundary>
+                <ChatTestPage />
               </ErrorBoundary>
             </Route>
           </Switch>
@@ -139,7 +145,7 @@ function App() {
     <QueryClientProvider client={queryClient}>
       <LanguageProvider>
         <AuthProvider>
-          <WebSocketProvider>
+          <SocketIOProvider>
             <TooltipProvider>
               <Router />
               <FloatingAIButton />
@@ -147,7 +153,7 @@ function App() {
               <TokenDebugger />
               <Toaster />
             </TooltipProvider>
-          </WebSocketProvider>
+          </SocketIOProvider>
         </AuthProvider>
       </LanguageProvider>
     </QueryClientProvider>

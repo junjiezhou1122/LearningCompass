@@ -21,44 +21,49 @@ app.use(express.json());
 app.use(express.urlencoded({ extended: false }));
 
 // Configure CORS with specific options to fix the error
-app.use(cors({
-  origin: function(origin, callback) {
-    const allowedOrigins = [
-      'http://localhost:5000',
-      'http://localhost:3000',
-      'https://localhost:5000',
-      'https://localhost:3000',
-    ];
-    
-    // Add the Replit domain to allowed origins
-    if (process.env.REPLIT_DOMAIN) {
-      allowedOrigins.push(`https://${process.env.REPLIT_DOMAIN}`);
-    }
-    
-    // Check if domain appears to be a Replit domain
-    if (origin && (origin.includes('.replit.dev') || origin.includes('.repl.co'))) {
-      allowedOrigins.push(origin);
-    }
-    
-    // Allow requests with no origin (like mobile apps, curl, or Postman)
-    if (!origin) return callback(null, true);
-    
-    if (allowedOrigins.indexOf(origin) !== -1) {
-      callback(null, true);
-    } else {
-      console.log('CORS issue with origin:', origin);
-      // Allow all origins in development for easier debugging
-      if (process.env.NODE_ENV === 'development') {
+app.use(
+  cors({
+    origin: function (origin, callback) {
+      const allowedOrigins = [
+        "http://localhost:5000",
+        "http://localhost:3000",
+        "https://localhost:5000",
+        "https://localhost:3000",
+      ];
+
+      // Add the Replit domain to allowed origins
+      if (process.env.REPLIT_DOMAIN) {
+        allowedOrigins.push(`https://${process.env.REPLIT_DOMAIN}`);
+      }
+
+      // Check if domain appears to be a Replit domain
+      if (
+        origin &&
+        (origin.includes(".replit.dev") || origin.includes(".repl.co"))
+      ) {
+        allowedOrigins.push(origin);
+      }
+
+      // Allow requests with no origin (like mobile apps, curl, or Postman)
+      if (!origin) return callback(null, true);
+
+      if (allowedOrigins.indexOf(origin) !== -1) {
         callback(null, true);
       } else {
-        callback(null, true); // Change to false in production when needed
+        console.log("CORS issue with origin:", origin);
+        // Allow all origins in development for easier debugging
+        if (process.env.NODE_ENV === "development") {
+          callback(null, true);
+        } else {
+          callback(null, true); // Change to false in production when needed
+        }
       }
-    }
-  },
-  credentials: true,
-  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With']
-}));
+    },
+    credentials: true,
+    methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+    allowedHeaders: ["Content-Type", "Authorization", "X-Requested-With"],
+  })
+);
 
 // Set up the auth routes
 app.use("/api/auth", authRoutes);
@@ -118,7 +123,7 @@ app.use((req, res, next) => {
 (async () => {
   // We'll skip importing courses for now since you already have many courses in the database
   console.log("Starting server without course import");
-  
+
   // Run database migrations
   try {
     await addNotesFeatures();
@@ -151,11 +156,11 @@ app.use((req, res, next) => {
 
   // Use the port provided by Replit or default to 3000
   const PORT = process.env.PORT || 3000;
-  
+
   // Log the port we're trying to use
   console.log(`Attempting to start server on port: ${PORT} and host: 0.0.0.0`);
-  
-  server.listen(PORT, '0.0.0.0', () => {
+
+  server.listen(PORT, "0.0.0.0", () => {
     console.log(`Server is running at http://0.0.0.0:${PORT}`);
     log(`Server running on port ${PORT}`);
     log(`You can access the application at: http://0.0.0.0:${PORT}`);

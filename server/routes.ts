@@ -1,6 +1,7 @@
 import type { Express, Request, Response, NextFunction } from "express";
 import { createServer, type Server } from "http";
 import { WebSocketServer, WebSocket } from "ws";
+import { initializeSocketIO } from "./utils/socketio"; // Import the Socket.IO initialization function
 import { storage } from "./storage";
 import jwt from "jsonwebtoken";
 import bcrypt from "bcrypt";
@@ -5667,559 +5668,146 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   );
 
-  const httpServer = createServer(app);
+  // Create HTTP server
+  const server = createServer(app);
 
-  // Set up WebSocket server for real-time chat
-  const wss = new WebSocketServer({ server: httpServer, path: "/ws" });
+  // Initialize Socket.IO server
+  const io = initializeSocketIO(server);
 
-  // Store client connections by user ID
-  const clients = new Map<
-    number,
-    WebSocket & { userId?: number; lastActivity?: number }
-  >();
+  // No longer need the old WebSocket server initialization
+  // The rest of the server setup remains the same
 
-  // Maintain a reverse mapping for quick lookup by WebSocket instance
-  const clientUserIds = new WeakMap<WebSocket, number>();
+  // ... rest of the original routes remain ...
 
-  // Store pending messages for offline users
-  interface PendingMessage {
-    receiverId: number;
-    message: any;
-    attempts: number;
-    lastAttempt: Date;
-  }
-  const pendingMessages = new Map<number, PendingMessage[]>();
-
-  // Track failed delivery attempts for analytics
-  const deliveryStats = {
-    totalMessages: 0,
-    deliveredMessages: 0,
-    failedDeliveries: 0,
-    retriedDeliveries: 0,
-    queuedMessages: 0,
-  };
-
-  // System-wide constants
-  const CONSTANTS = {
-    PING_INTERVAL: 25000, // Send ping every 25 seconds
-    CLIENT_TIMEOUT: 40000, // Consider client disconnected after 40 seconds of inactivity
-    RETRY_INTERVAL: 60000, // Retry sending pending messages every 60 seconds
-    MAX_RETRY_ATTEMPTS: 10, // Maximum retry attempts for pending messages
-    MAX_PENDING_MESSAGES: 100, // Maximum number of pending messages per user
-  };
-
-  // Ping interval to keep connections alive
-  // Client expects a server ping every 30s and sends its own pong every 20s
-  const pingInterval = setInterval(() => {
-    const now = Date.now();
-    const timeoutThreshold = now - CONSTANTS.CLIENT_TIMEOUT;
-
-    wss.clients.forEach((client) => {
-      // Check if client has timed out
-      const typedClient = client as WebSocket & { lastActivity?: number };
-      if (
-        typedClient.lastActivity &&
-        typedClient.lastActivity < timeoutThreshold
-      ) {
-        console.log("Client connection timed out - terminating");
-        client.terminate();
-        return;
-      }
-
-      if (client.readyState === WebSocket.OPEN) {
-        // Send application-level ping
-        try {
-          client.send(
-            JSON.stringify({
-              type: "ping",
-              timestamp: now,
-              serverTime: new Date().toISOString(),
-            })
-          );
-
-          // Also send protocol-level ping if supported
-          if (typeof client.ping === "function") {
-            try {
-              client.ping();
-            } catch (err) {
-              // Protocol-level ping failed - not critical as we have application-level ping
-            }
-          }
-        } catch (err) {
-          console.error("Error sending ping, terminating connection:", err);
-          client.terminate();
-        }
-      }
-    });
-  }, CONSTANTS.PING_INTERVAL);
-
-  // Retry sending pending messages every minute
-  const retryInterval = setInterval(() => {
-    pendingMessages.forEach((messages, userId) => {
-      const ws = clients.get(userId);
-      if (ws && ws.readyState === WebSocket.OPEN) {
-        // User is online, try to deliver pending messages
-        const delivered: number[] = [];
-
-        messages.forEach((pendingMsg, index) => {
-          try {
-            ws.send(JSON.stringify(pendingMsg.message));
-            delivered.push(index);
-            console.log(`Delivered pending message to user ${userId}`);
-          } catch (error) {
-            // Increment attempt counter
-            pendingMsg.attempts++;
-            pendingMsg.lastAttempt = new Date();
-
-            // If we've tried too many times (10), give up
-            if (pendingMsg.attempts > 10) {
-              delivered.push(index);
-              console.log(
-                `Giving up on message delivery to user ${userId} after 10 attempts`
-              );
-            }
-          }
-        });
-
-        // Remove delivered messages
-        delivered
-          .sort((a, b) => b - a)
-          .forEach((index) => {
-            messages.splice(index, 1);
-          });
-
-        // If no more pending messages, remove the user entry
-        if (messages.length === 0) {
-          pendingMessages.delete(userId);
-        }
-      }
-    });
-  }, 60000);
-
-  // Handle graceful shutdown
-  process.on("SIGINT", () => {
-    clearInterval(pingInterval);
-    clearInterval(retryInterval);
-    wss.close();
-    process.exit(0);
-  });
-
-  // Helper function to queue a message for offline user
-  const queueMessageForOfflineUser = (userId: number, message: any) => {
-    if (!pendingMessages.has(userId)) {
-      pendingMessages.set(userId, []);
-    }
-
-    pendingMessages.get(userId)?.push({
-      receiverId: userId,
-      message,
-      attempts: 0,
-      lastAttempt: new Date(),
-    });
-
-    console.log(`Queued message for offline user ${userId}`);
-  };
-
-  wss.on("connection", (ws: WebSocket) => {
-    console.log("WebSocket client connected");
-    let userId: number | null = null;
-
-    // Set a ping timeout - if client doesn't respond within 40 seconds, close connection
-    let pingTimeout: NodeJS.Timeout;
-    const heartbeat = () => {
-      clearTimeout(pingTimeout);
-      pingTimeout = setTimeout(() => {
-        if (ws.readyState === WebSocket.OPEN) {
-          console.log("Client connection timed out - terminating connection");
-          ws.terminate();
-        }
-      }, 40000);
-    };
-
-    // Initial heartbeat
-    heartbeat();
-
-    // Handle protocol-level pong frame
-    ws.on("pong", () => {
-      console.log("Received WebSocket protocol-level pong frame");
-      heartbeat();
-    });
-
-    ws.on("message", async (message: string | Buffer) => {
-      // If the message is a binary buffer, it's likely a protocol-level frame
-      if (message instanceof Buffer || typeof message !== "string") {
-        // We don't need to parse binary protocol messages as they're handled by the ws library
-        // Just update heartbeat and return
-        heartbeat();
-        return;
-      }
-
+  // Chat API routes
+  // Add this new API endpoint for chat history that frontend is calling
+  app.get(
+    "/api/chat/history/:userId",
+    authenticateJWT,
+    async (req: Request, res: Response) => {
       try {
-        const data = JSON.parse(message);
+        const currentUserId = (req as any).user.id;
+        const otherUserId = parseInt(req.params.userId);
 
-        // Respond to ping with pong
-        if (data.type === "pong") {
-          heartbeat();
-          return;
+        console.log(
+          `Fetching chat history between users ${currentUserId} and ${otherUserId}`
+        );
+
+        // Validate the user ID
+        if (isNaN(otherUserId)) {
+          return res.status(400).json({ message: "Invalid user ID" });
         }
 
-        // Handle authentication
-        if (data.type === "auth") {
-          try {
-            const token = data.token;
-            console.log(
-              `WebSocket auth attempt with token: ${
-                token ? token.substring(0, 15) + "..." : "missing"
-              }`
-            );
+        // Check if users can chat (both following each other)
+        const canChat = await storage.canUsersChat(currentUserId, otherUserId);
 
-            if (!token) {
-              ws.send(
-                JSON.stringify({
-                  type: "error",
-                  message: "Authentication required",
-                })
-              );
-              return;
-            }
-
-            // Verify JWT token
-            const decoded = jwt.verify(token, JWT_SECRET) as any;
-            userId = decoded.id;
-            console.log(`WebSocket token decoded, user ID: ${userId}`);
-
-            // Get user data
-            const user = await storage.getUser(userId);
-            if (!user) {
-              console.log(
-                `WebSocket auth failed: User ${userId} not found in database`
-              );
-              ws.send(
-                JSON.stringify({ type: "error", message: "User not found" })
-              );
-              return;
-            }
-
-            // Store this connection
-            clients.set(userId, ws);
-            console.log(
-              `WebSocket client map updated, active connections: ${clients.size}`
-            );
-
-            // Send acknowledgment with user details (excluding password)
-            const { password, ...safeUser } = user;
-            ws.send(
-              JSON.stringify({
-                type: "auth_success",
-                userId,
-                user: safeUser,
-              })
-            );
-            console.log(`User ${userId} authenticated via WebSocket`);
-
-            // Check for any unread messages
-            const unreadMessages = await storage.getUnreadMessagesForUser(
-              userId
-            );
-            if (unreadMessages && unreadMessages.length > 0) {
-              ws.send(
-                JSON.stringify({
-                  type: "unread_messages",
-                  count: unreadMessages.length,
-                  messages: unreadMessages,
-                })
-              );
-            }
-
-            // Deliver any pending messages
-            if (pendingMessages.has(userId)) {
-              const messages = pendingMessages.get(userId) || [];
-              console.log(
-                `Found ${messages.length} pending messages for user ${userId}`
-              );
-
-              const delivered: number[] = [];
-              messages.forEach((pendingMsg, index) => {
-                try {
-                  ws.send(JSON.stringify(pendingMsg.message));
-                  delivered.push(index);
-                  console.log(
-                    `Delivered pending message to user ${userId} on login`
-                  );
-                } catch (error) {
-                  console.error(
-                    `Failed to deliver pending message on login for user ${userId}`,
-                    error
-                  );
-                  // Increment attempt counter
-                  pendingMsg.attempts++;
-                  pendingMsg.lastAttempt = new Date();
-                }
-              });
-
-              // Remove delivered messages
-              delivered
-                .sort((a, b) => b - a)
-                .forEach((index) => {
-                  messages.splice(index, 1);
-                });
-
-              // If no more pending messages, remove the user entry
-              if (messages.length === 0) {
-                pendingMessages.delete(userId);
-              }
-            }
-          } catch (error) {
-            ws.send(
-              JSON.stringify({
-                type: "error",
-                message: "Invalid authentication",
-              })
-            );
-          }
-        }
-        // Handle chat messages
-        else if (data.type === "chat_message") {
-          console.log(`Received chat_message: ${JSON.stringify(data)}`);
-
-          if (!userId) {
-            console.log("Chat message rejected: User not authenticated");
-            ws.send(
-              JSON.stringify({
-                type: "error",
-                message: "Authentication required",
-              })
-            );
-            return;
-          }
-
-          const { receiverId, content, tempId } = data;
+        if (!canChat) {
           console.log(
-            `Processing chat message - From: ${userId}, To: ${receiverId}, TempId: ${tempId}`
+            `Users ${currentUserId} and ${otherUserId} cannot chat - not mutual followers`
           );
+          // Return empty array instead of error for better UX
+          return res.json([]);
+        }
 
-          // Validate message
-          if (!receiverId || !content) {
-            console.log("Chat message rejected: Missing receiverId or content");
-            ws.send(
-              JSON.stringify({
-                type: "error",
-                message: "Receiver ID and content are required",
-              })
+        // Get messages between the two users
+        const messages = await storage.getChatMessagesBetweenUsers(
+          currentUserId,
+          otherUserId,
+          { limit: 100, offset: 0 }
+        );
+
+        console.log(
+          `Found ${messages.length} messages between users ${currentUserId} and ${otherUserId}`
+        );
+
+        // Mark messages as read
+        await storage.markChatMessagesAsRead(otherUserId, currentUserId);
+
+        // Return the messages in chronological order
+        res.json(messages);
+      } catch (error) {
+        console.error("Error fetching chat history:", error);
+        res.status(500).json({ message: "Error fetching chat history" });
+      }
+    }
+  );
+
+  // Add API endpoint for getting recent chat partners/conversations
+  app.get(
+    "/api/chat/recent",
+    authenticateJWT,
+    async (req: Request, res: Response) => {
+      try {
+        const userId = (req as any).user.id;
+
+        console.log(`Fetching recent chats for user ${userId}`);
+
+        // Get the user's recent chat partners (people they've exchanged messages with)
+        const recentChats = await storage.getRecentChatPartners(userId);
+
+        console.log(
+          `Found ${recentChats.length} recent chat partners for user ${userId}`
+        );
+
+        // For each chat partner, get the last message and basic user info
+        const chatsWithLastMessages = await Promise.all(
+          recentChats.map(async (partnerId) => {
+            try {
+              // Get partner user info
+              const partner = await storage.getUser(partnerId);
+              if (!partner) return null;
+
+              // Get last message between users
+              const messages = await storage.getChatMessagesBetweenUsers(
+                userId,
+                partnerId,
+                { limit: 1, offset: 0 }
+              );
+
+              const lastMessage =
+                messages.length > 0 ? messages[0].content : null;
+
+              // Exclude password and other sensitive info
+              const { password, ...safePartnerData } = partner;
+
+              return {
+                id: partnerId,
+                username: safePartnerData.username,
+                displayName:
+                  safePartnerData.displayName || safePartnerData.username,
+                lastMessage,
+                lastMessageTime:
+                  messages.length > 0 ? messages[0].createdAt : null,
+              };
+            } catch (err) {
+              console.error(
+                `Error getting info for chat partner ${partnerId}:`,
+                err
+              );
+              return null;
+            }
+          })
+        );
+
+        // Filter out nulls and sort by most recent message
+        const validChats = chatsWithLastMessages
+          .filter(Boolean)
+          .sort((a, b) => {
+            if (!a.lastMessageTime) return 1;
+            if (!b.lastMessageTime) return -1;
+            return (
+              new Date(b.lastMessageTime).getTime() -
+              new Date(a.lastMessageTime).getTime()
             );
-            return;
-          }
-
-          // Check if users can chat
-          const canChat = await storage.canUsersChat(userId, receiverId);
-          console.log(`Can users chat? ${userId} -> ${receiverId}: ${canChat}`);
-
-          if (!canChat) {
-            console.log(
-              `Chat message rejected: No permission to message user ${receiverId}`
-            );
-            ws.send(
-              JSON.stringify({
-                type: "error",
-                message: "You do not have permission to message this user",
-                tempId, // Return tempId for client to handle error
-              })
-            );
-            return;
-          }
-
-          // Store message in database
-          const message = await storage.createChatMessage({
-            senderId: userId,
-            receiverId,
-            content,
-            isRead: false,
           });
 
-          // Get sender info for the message
-          const sender = await storage.getUser(userId);
-          const messageWithSender = {
-            type: "new_message",
-            message: {
-              ...message,
-              sender, // Include sender info for convenience
-            },
-          };
-
-          // Send message to receiver if online
-          const receiverWs = clients.get(receiverId);
-          if (receiverWs && receiverWs.readyState === WebSocket.OPEN) {
-            try {
-              receiverWs.send(JSON.stringify(messageWithSender));
-              console.log(`Message sent to online user ${receiverId}`);
-            } catch (error) {
-              console.error(
-                `Error sending message to user ${receiverId}`,
-                error
-              );
-              // Queue the message for later delivery
-              queueMessageForOfflineUser(receiverId, messageWithSender);
-            }
-          } else {
-            // Queue message for offline user
-            console.log(`User ${receiverId} is offline, queueing message`);
-            queueMessageForOfflineUser(receiverId, messageWithSender);
-          }
-
-          // Send confirmation to sender with tempId if provided
-          try {
-            ws.send(
-              JSON.stringify({
-                type: "message_sent",
-                message,
-                tempId, // Include original tempId to allow client to update UI
-              })
-            );
-            console.log(`Sent message confirmation for tempId: ${tempId}`);
-          } catch (sendError) {
-            console.error(
-              `Error sending message confirmation: ${sendError.message}`
-            );
-            // Try to queue the confirmation if websocket failed
-            queueMessageForOfflineUser(userId, {
-              type: "message_sent",
-              message,
-              tempId,
-            });
-          }
-        }
-        // Handle read receipts
-        else if (data.type === "mark_read") {
-          if (!userId) {
-            ws.send(
-              JSON.stringify({
-                type: "error",
-                message: "Authentication required",
-              })
-            );
-            return;
-          }
-
-          const { senderId } = data;
-          if (!senderId) {
-            ws.send(
-              JSON.stringify({
-                type: "error",
-                message: "Sender ID is required",
-              })
-            );
-            return;
-          }
-
-          // Mark messages as read
-          await storage.markChatMessagesAsRead(senderId, userId);
-
-          // Notify sender if online
-          const senderWs = clients.get(senderId);
-          if (senderWs && senderWs.readyState === WebSocket.OPEN) {
-            try {
-              senderWs.send(
-                JSON.stringify({
-                  type: "messages_read",
-                  readBy: userId,
-                })
-              );
-              console.log(`Sent read receipt to user ${senderId}`);
-            } catch (readError) {
-              console.error(
-                `Error sending read receipt to user ${senderId}: ${readError.message}`
-              );
-              // Queue the notification for later delivery
-              queueMessageForOfflineUser(senderId, {
-                type: "messages_read",
-                readBy: userId,
-              });
-            }
-          } else {
-            // Queue read notification for when sender connects
-            queueMessageForOfflineUser(senderId, {
-              type: "messages_read",
-              readBy: userId,
-            });
-            console.log(`User ${senderId} is offline, queueing read receipt`);
-          }
-
-          // Send confirmation to client
-          try {
-            ws.send(
-              JSON.stringify({
-                type: "marked_read_success",
-                senderId,
-              })
-            );
-          } catch (confirmError) {
-            console.error(
-              `Error sending read confirmation to client: ${confirmError.message}`
-            );
-          }
-        }
-        // Handle retrieving message history
-        else if (data.type === "get_message_history") {
-          if (!userId) {
-            ws.send(
-              JSON.stringify({
-                type: "error",
-                message: "Authentication required",
-              })
-            );
-            return;
-          }
-
-          const { partnerId, limit, before } = data;
-          if (!partnerId) {
-            ws.send(
-              JSON.stringify({
-                type: "error",
-                message: "Partner ID is required",
-              })
-            );
-            return;
-          }
-
-          // Get message history
-          const messages = await storage.getChatHistory(
-            userId,
-            partnerId,
-            limit || 50,
-            before
-          );
-          ws.send(
-            JSON.stringify({
-              type: "message_history",
-              partnerId,
-              messages,
-            })
-          );
-        }
+        res.json(validChats);
       } catch (error) {
-        console.error("Error handling WebSocket message:", error);
-        ws.send(
-          JSON.stringify({ type: "error", message: "Internal server error" })
-        );
+        console.error("Error fetching recent chats:", error);
+        res.status(500).json({ message: "Error fetching recent chats" });
       }
-    });
+    }
+  );
 
-    ws.on("close", () => {
-      clearTimeout(pingTimeout);
-      if (userId) {
-        clients.delete(userId);
-        console.log(`User ${userId} disconnected from WebSocket`);
-      }
-    });
-
-    ws.on("error", (error) => {
-      console.error("WebSocket error:", error);
-      clearTimeout(pingTimeout);
-      if (userId) {
-        clients.delete(userId);
-      }
-    });
-  });
-
-  return httpServer;
+  return server;
 }
