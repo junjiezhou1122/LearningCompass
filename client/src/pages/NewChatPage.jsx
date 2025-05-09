@@ -94,10 +94,14 @@ const NewChatPage = () => {
 
     console.log("Received Socket.IO message:", lastMessage);
 
-    // Handle new chat messages
-    if (lastMessage.type === "chat_message") {
-      // Check if it's for the current chat
+    // Handle new chat messages (direct or group)
+    if (
+      lastMessage.type === "chat_message" ||
+      lastMessage.type === "group_message"
+    ) {
+      // For direct chat
       if (
+        lastMessage.type === "chat_message" &&
         currentChat &&
         (lastMessage.senderId === parseInt(currentChat) ||
           lastMessage.receiverId === parseInt(currentChat))
@@ -134,8 +138,9 @@ const NewChatPage = () => {
         }
       }
 
-      // Or for the current group
+      // For group chat
       if (
+        lastMessage.type === "group_message" &&
         currentGroupChat &&
         lastMessage.groupId === parseInt(currentGroupChat)
       ) {
