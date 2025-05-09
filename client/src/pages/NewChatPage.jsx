@@ -602,6 +602,7 @@ const NewChatPage = () => {
   const lastMessageRef = useRef(null);
   const [isAtBottom, setIsAtBottom] = useState(true);
   const [showScrollToBottom, setShowScrollToBottom] = useState(false);
+  const isAtBottomRef = useRef(true); // Track if user was at bottom before update
 
   // Helper: check if user is at the bottom
   const checkIsAtBottom = () => {
@@ -620,21 +621,17 @@ const NewChatPage = () => {
     const handleScroll = () => {
       const atBottom = checkIsAtBottom();
       setIsAtBottom(atBottom);
+      isAtBottomRef.current = atBottom; // <-- update the ref
       setShowScrollToBottom(!atBottom);
     };
     container.addEventListener("scroll", handleScroll);
     return () => container.removeEventListener("scroll", handleScroll);
   }, [chatContainerRef]);
 
-  // Scroll to bottom when entering chat or sending a message
+  // Scroll to bottom only if user was at bottom before the new message
   useEffect(() => {
     if (!chatContainerRef.current) return;
-    // If just loaded chat or just sent a message, scroll to bottom
-    if (
-      isAtBottom ||
-      (chatMessages.length > 0 &&
-        chatMessages[chatMessages.length - 1]?.senderId === user?.id)
-    ) {
+    if (isAtBottomRef.current) {
       if (lastMessageRef.current) {
         lastMessageRef.current.scrollIntoView({
           behavior: "smooth",
@@ -645,6 +642,8 @@ const NewChatPage = () => {
           chatContainerRef.current.scrollHeight;
       }
     }
+    // Do NOT scroll if user was not at bottom
+    // eslint-disable-next-line
   }, [chatMessages, currentChat, currentGroupChat]);
 
   // Handler for scroll-to-bottom button
@@ -874,21 +873,79 @@ const NewChatPage = () => {
                                   { hour: "2-digit", minute: "2-digit" }
                                 )}
                                 {isCurrentUser && message.status && (
-                                  <span>
+                                  <motion.span
+                                    key={message.status}
+                                    initial={{ opacity: 0, scale: 0.8 }}
+                                    animate={{ opacity: 1, scale: 1 }}
+                                    transition={{ duration: 0.2 }}
+                                    className="inline-flex items-center gap-1"
+                                  >
                                     {message.status === "sending" && (
-                                      <span className="animate-pulse">
-                                        • Sending...
-                                      </span>
+                                      <>
+                                        <svg
+                                          className="animate-spin h-3 w-3 text-orange-200"
+                                          viewBox="0 0 24 24"
+                                        >
+                                          <circle
+                                            className="opacity-25"
+                                            cx="12"
+                                            cy="12"
+                                            r="10"
+                                            stroke="currentColor"
+                                            strokeWidth="4"
+                                            fill="none"
+                                          />
+                                          <path
+                                            className="opacity-75"
+                                            fill="currentColor"
+                                            d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"
+                                          />
+                                        </svg>
+                                        Sending...
+                                      </>
                                     )}
-                                    {message.status === "delivered" &&
-                                      "• Delivered"}
-                                    {message.status === "read" && "• Read"}
+                                    {message.status === "delivered" && (
+                                      <>
+                                        <svg
+                                          className="h-3 w-3 text-green-200"
+                                          fill="none"
+                                          viewBox="0 0 24 24"
+                                          stroke="currentColor"
+                                        >
+                                          <path
+                                            strokeLinecap="round"
+                                            strokeLinejoin="round"
+                                            strokeWidth={3}
+                                            d="M5 13l4 4L19 7"
+                                          />
+                                        </svg>
+                                        Delivered
+                                      </>
+                                    )}
+                                    {message.status === "read" && (
+                                      <>
+                                        <svg
+                                          className="h-3 w-3 text-blue-200"
+                                          fill="none"
+                                          viewBox="0 0 24 24"
+                                          stroke="currentColor"
+                                        >
+                                          <path
+                                            strokeLinecap="round"
+                                            strokeLinejoin="round"
+                                            strokeWidth={3}
+                                            d="M5 13l4 4L19 7"
+                                          />
+                                        </svg>
+                                        Read
+                                      </>
+                                    )}
                                     {message.status === "failed" && (
                                       <span className="text-red-200">
                                         • Failed to send
                                       </span>
                                     )}
-                                  </span>
+                                  </motion.span>
                                 )}
                               </div>
                             </motion.div>
