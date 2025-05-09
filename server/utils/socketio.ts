@@ -154,6 +154,12 @@ export function initializeSocketIO(server: HTTPServer): SocketIOServer {
           ...completeMessage,
           status: "sent",
         });
+
+        // Log success for debugging
+        console.log(
+          `Successfully processed and stored message from ${userId} to ${message.receiverId}:`,
+          completeMessage
+        );
       } catch (error) {
         console.error("Error handling chat message:", error);
         socket.emit("error", {

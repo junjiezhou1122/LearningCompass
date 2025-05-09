@@ -66,6 +66,11 @@ const NewChatPage = () => {
     }
   }, [chatUserId, chatGroupId]);
 
+  // Debug the incoming chat data
+  useEffect(() => {
+    console.log("Current chat messages state:", chatMessages);
+  }, [chatMessages]);
+
   // Handle incoming WebSocket messages
   useEffect(() => {
     if (!lastMessage) return;

@@ -5695,7 +5695,24 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
         // Validate the user ID
         if (isNaN(otherUserId)) {
+          console.error("Invalid user ID provided:", req.params.userId);
           return res.status(400).json({ message: "Invalid user ID" });
+        }
+
+        // Make sure the users exist
+        const currentUser = await storage.getUser(currentUserId);
+        const otherUser = await storage.getUser(otherUserId);
+
+        if (!currentUser) {
+          console.error(
+            `Current user ID ${currentUserId} not found in database`
+          );
+          return res.status(404).json({ message: "Current user not found" });
+        }
+
+        if (!otherUser) {
+          console.error(`Other user ID ${otherUserId} not found in database`);
+          return res.status(404).json({ message: "User not found" });
         }
 
         // Check if users can chat (both following each other)
@@ -5717,7 +5734,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         );
 
         console.log(
-          `Found ${messages.length} messages between users ${currentUserId} and ${otherUserId}`
+          `Found ${messages.length} messages between users ${currentUserId} and ${otherUserId}`,
+          messages
         );
 
         // Mark messages as read
@@ -5727,7 +5745,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
         res.json(messages);
       } catch (error) {
         console.error("Error fetching chat history:", error);
-        res.status(500).json({ message: "Error fetching chat history" });
+        res.status(500).json({
+          message: "Error fetching chat history",
+          error: error instanceof Error ? error.message : String(error),
+        });
       }
     }
   );

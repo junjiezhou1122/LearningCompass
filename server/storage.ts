@@ -4132,6 +4132,7 @@ export class DatabaseStorage implements IStorage {
   // In the implementation add this function:
   async getRecentChatPartners(userId: number): Promise<number[]> {
     try {
+      console.log(`Finding chat partners for user ${userId}`);
       // Find all users who have exchanged messages with this user
       const result = await this.db.query.chatMessages.findMany({
         where: or(
@@ -4140,6 +4141,8 @@ export class DatabaseStorage implements IStorage {
         ),
         orderBy: desc(chatMessages.createdAt),
       });
+
+      console.log(`Found ${result.length} chat messages for user ${userId}`);
 
       // Extract unique partner IDs
       const partnerIds = new Set<number>();
@@ -4152,7 +4155,11 @@ export class DatabaseStorage implements IStorage {
         }
       }
 
-      return Array.from(partnerIds);
+      const partners = Array.from(partnerIds);
+      console.log(
+        `Extracted ${partners.length} unique chat partners for user ${userId}`
+      );
+      return partners;
     } catch (error) {
       console.error("Error getting recent chat partners:", error);
       return [];
