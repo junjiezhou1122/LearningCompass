@@ -393,7 +393,6 @@ const NewChatPage = () => {
       setIsLoadingGroups(true);
       try {
         console.log("Fetching group chats...");
-        console.log("API base URL:", getApiBaseUrl());
         const fullUrl = `${getApiBaseUrl()}/api/chat/groups/user`;
         console.log("Full request URL:", fullUrl);
 

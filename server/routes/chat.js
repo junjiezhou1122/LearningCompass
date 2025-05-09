@@ -200,95 +200,154 @@ router.get("/recent", authenticate, async (req, res) => {
   }
 });
 
-// Create a new group chat
-router.post("/groups", authenticate, async (req, res) => {
+// Get all user's group chats
+router.get("/groups/user", authenticate, async (req, res) => {
   try {
-    console.log("Incoming group creation request:", req.body);
-    const { name, memberIds } = req.body;
-    const creatorId = parseInt(req.user.id);
-    console.log("Parsed creatorId:", creatorId);
-    if (isNaN(creatorId)) {
-      console.error("Invalid creatorId:", req.user.id);
-      return res.status(400).json({ error: "Invalid creatorId" });
+    // Ensure we have valid user information
+    if (!req.user || !req.user.id) {
+      console.error("Missing user information in request");
+      return res.status(401).json({ error: "Authentication required" });
     }
 
-    if (
-      !name ||
-      !memberIds ||
-      !Array.isArray(memberIds) ||
-      memberIds.length === 0
-    ) {
-      return res
-        .status(400)
-        .json({ error: "Invalid group data. Name and members are required." });
+    const userId = req.user.id;
+    console.log("GET /groups/user called by user:", userId);
+
+    // Parse userId to integer
+    const userIdNum = parseInt(userId);
+    if (isNaN(userIdNum)) {
+      console.error("Invalid userId format:", userId);
+      return res.status(400).json({ error: "Invalid user ID format" });
     }
 
-    // Verify all members can chat with the creator (they follow each other)
-    for (const memberIdRaw of memberIds) {
-      const memberId = parseInt(memberIdRaw);
-      console.log("Parsed memberId:", memberId, "from raw:", memberIdRaw);
-      if (isNaN(memberId)) {
-        console.error("Invalid memberId:", memberIdRaw);
-        return res
-          .status(400)
-          .json({ error: `Invalid memberId: ${memberIdRaw}` });
-      }
-      const canChat = await checkIfUsersCanChat(creatorId, memberId);
-      if (!canChat) {
-        // Use SQL directly to get username
-        const memberResult = await sql`
-          SELECT username FROM users WHERE id = ${memberId} LIMIT 1
-        `;
-        const memberUsername =
-          memberResult.length > 0 ? memberResult[0].username : memberId;
-
-        return res.status(403).json({
-          error: `Cannot add user ${memberUsername} to group. You must follow each other to add them.`,
-        });
-      }
+    // Get all groups the user is a member of using try/catch for error handling
+    let userGroupsResult;
+    try {
+      userGroupsResult = await sql`
+        SELECT g.id, g.name, g.description, g.image_url as "imageUrl", 
+               g.created_at as "createdAt", gm.is_admin as "isAdmin"
+        FROM chat_groups g
+        JOIN group_members gm ON g.id = gm.group_id
+        WHERE gm.user_id = ${userIdNum}
+        ORDER BY g.created_at DESC
+      `;
+      console.log(
+        `Found ${userGroupsResult.length} groups for user ${userIdNum}`
+      );
+    } catch (sqlError) {
+      console.error("SQL error in fetching user groups:", sqlError);
+      return res.status(500).json({
+        error: "Database error when fetching groups",
+        message: sqlError.message,
+      });
     }
 
-    // Create group chat using raw SQL
-    console.log("Creating new group with name:", name);
-    const now = new Date().toISOString();
-    const newGroupResult = await sql`
-      INSERT INTO chat_groups (name, creator_id, created_at, updated_at)
-      VALUES (${name}, ${creatorId}, ${now}, ${now})
-      RETURNING id, name, creator_id, created_at, updated_at
-    `;
-
-    if (!newGroupResult || newGroupResult.length === 0) {
-      return res.status(500).json({ error: "Failed to create group" });
+    if (!userGroupsResult || userGroupsResult.length === 0) {
+      console.log(`No groups found for user ${userIdNum}`);
+      return res.json([]);
     }
 
-    const newGroup = newGroupResult[0];
-    console.log("Group created:", newGroup);
+    try {
+      // Diagnostic: log the raw userGroupsResult
+      console.log("Raw userGroupsResult:", JSON.stringify(userGroupsResult));
+      // For each group, get the last message and member count
+      const groupsWithDetails = await Promise.all(
+        userGroupsResult.map(async (group) => {
+          // Diagnostic: log each group object before parsing groupId
+          console.log("Processing group object:", JSON.stringify(group));
+          // Ensure group ID is a number
+          const groupId = parseInt(group.id);
+          if (isNaN(groupId) || groupId <= 0) {
+            console.warn(
+              "Skipping invalid group ID in group_members:",
+              group.id
+            );
+            return null;
+          }
 
-    // Add creator as admin
-    await sql`
-      INSERT INTO group_members (group_id, user_id, is_admin, joined_at)
-      VALUES (${newGroup.id}, ${creatorId}, true, ${now})
-    `;
+          // Get last message
+          let lastMessage = null;
+          let lastMessageTime = null;
+          try {
+            const lastMessageResult = await sql`
+              SELECT gm.content, gm.created_at as "createdAt", 
+                     u.id as "senderId", u.username as "senderUsername", 
+                     u.first_name as "senderFirstName", u.last_name as "senderLastName"
+              FROM group_messages gm
+              JOIN users u ON gm.sender_id = u.id
+              WHERE gm.group_id = ${groupId}
+              ORDER BY gm.created_at DESC
+              LIMIT 1
+            `;
 
-    // Add other members
-    for (const memberIdRaw of memberIds) {
-      const memberId = parseInt(memberIdRaw);
-      if (memberId !== creatorId) {
-        // Don't add creator twice
-        await sql`
-          INSERT INTO group_members (group_id, user_id, is_admin, joined_at)
-          VALUES (${newGroup.id}, ${memberId}, false, ${now})
-        `;
-      }
+            if (lastMessageResult && lastMessageResult.length > 0) {
+              const msg = lastMessageResult[0];
+              const senderDisplayName =
+                `${msg.senderFirstName || ""} ${
+                  msg.senderLastName || ""
+                }`.trim() || msg.senderUsername;
+              lastMessage = `${senderDisplayName}: ${msg.content}`;
+              lastMessageTime = msg.createdAt;
+            }
+          } catch (msgError) {
+            console.error(
+              `Error fetching last message for group ${groupId}:`,
+              msgError
+            );
+            // Continue with null last message
+          }
+
+          // Get member count
+          let memberCount = 0;
+          try {
+            const memberCountResult = await sql`
+              SELECT COUNT(*) as "memberCount"
+              FROM group_members
+              WHERE group_id = ${groupId}
+            `;
+            memberCount = parseInt(memberCountResult[0]?.memberCount) || 0;
+          } catch (countError) {
+            console.error(
+              `Error fetching member count for group ${groupId}:`,
+              countError
+            );
+            // Continue with 0 member count
+          }
+
+          // Return the complete group info
+          return {
+            id: groupId,
+            name: group.name,
+            description: group.description,
+            imageUrl: group.imageUrl,
+            createdAt: group.createdAt,
+            isAdmin: group.isAdmin,
+            lastMessage: lastMessage || "No messages yet",
+            lastMessageTime: lastMessageTime || group.createdAt,
+            memberCount: memberCount,
+            type: "group",
+          };
+        })
+      );
+
+      // Filter out any null entries (from errors)
+      const validGroups = groupsWithDetails.filter((group) => group !== null);
+      console.log(`Returning ${validGroups.length} valid groups`);
+
+      return res.json(validGroups);
+    } catch (detailsError) {
+      console.error("Error processing group details:", detailsError);
+      return res.status(500).json({
+        error: "Error processing group details",
+        message: detailsError.message,
+      });
     }
-
-    // Get complete group data with members
-    const group = await getGroupWithMembers(newGroup.id);
-
-    return res.status(201).json(group);
   } catch (error) {
-    console.error("Error creating group chat:", error);
-    return res.status(500).json({ error: "Failed to create group chat" });
+    console.error("Error fetching user's group chats:", error);
+    console.error("Stack trace:", error.stack);
+    return res.status(500).json({
+      error: "Failed to fetch group chats",
+      message: error.message,
+    });
   }
 });
 
@@ -496,147 +555,95 @@ router.post("/groups/:groupId/messages", authenticate, async (req, res) => {
   }
 });
 
-// Get all user's group chats
-router.get("/groups/user", authenticate, async (req, res) => {
+// Create a new group chat
+router.post("/groups", authenticate, async (req, res) => {
   try {
-    // Ensure we have valid user information
-    if (!req.user || !req.user.id) {
-      console.error("Missing user information in request");
-      return res.status(401).json({ error: "Authentication required" });
+    console.log("Incoming group creation request:", req.body);
+    const { name, memberIds } = req.body;
+    const creatorId = parseInt(req.user.id);
+    console.log("Parsed creatorId:", creatorId);
+    if (isNaN(creatorId)) {
+      console.error("Invalid creatorId:", req.user.id);
+      return res.status(400).json({ error: "Invalid creatorId" });
     }
 
-    const userId = req.user.id;
-    console.log("GET /groups/user called by user:", userId);
-
-    // Parse userId to integer
-    const userIdNum = parseInt(userId);
-    if (isNaN(userIdNum)) {
-      console.error("Invalid userId format:", userId);
-      return res.status(400).json({ error: "Invalid user ID format" });
+    if (
+      !name ||
+      !memberIds ||
+      !Array.isArray(memberIds) ||
+      memberIds.length === 0
+    ) {
+      return res
+        .status(400)
+        .json({ error: "Invalid group data. Name and members are required." });
     }
 
-    // Get all groups the user is a member of using try/catch for error handling
-    let userGroupsResult;
-    try {
-      userGroupsResult = await sql`
-        SELECT g.id, g.name, g.description, g.image_url as "imageUrl", 
-               g.created_at as "createdAt", gm.is_admin as "isAdmin"
-        FROM chat_groups g
-        JOIN group_members gm ON g.id = gm.group_id
-        WHERE gm.user_id = ${userIdNum}
-        ORDER BY g.created_at DESC
-      `;
-      console.log(
-        `Found ${userGroupsResult.length} groups for user ${userIdNum}`
-      );
-    } catch (sqlError) {
-      console.error("SQL error in fetching user groups:", sqlError);
-      return res.status(500).json({
-        error: "Database error when fetching groups",
-        message: sqlError.message,
-      });
+    // Verify all members can chat with the creator (they follow each other)
+    for (const memberIdRaw of memberIds) {
+      const memberId = parseInt(memberIdRaw);
+      console.log("Parsed memberId:", memberId, "from raw:", memberIdRaw);
+      if (isNaN(memberId)) {
+        console.error("Invalid memberId:", memberIdRaw);
+        return res
+          .status(400)
+          .json({ error: `Invalid memberId: ${memberIdRaw}` });
+      }
+      const canChat = await checkIfUsersCanChat(creatorId, memberId);
+      if (!canChat) {
+        // Use SQL directly to get username
+        const memberResult = await sql`
+          SELECT username FROM users WHERE id = ${memberId} LIMIT 1
+        `;
+        const memberUsername =
+          memberResult.length > 0 ? memberResult[0].username : memberId;
+
+        return res.status(403).json({
+          error: `Cannot add user ${memberUsername} to group. You must follow each other to add them.`,
+        });
+      }
     }
 
-    if (!userGroupsResult || userGroupsResult.length === 0) {
-      console.log(`No groups found for user ${userIdNum}`);
-      return res.json([]);
+    // Create group chat using raw SQL
+    console.log("Creating new group with name:", name);
+    const now = new Date().toISOString();
+    const newGroupResult = await sql`
+      INSERT INTO chat_groups (name, creator_id, created_at, updated_at)
+      VALUES (${name}, ${creatorId}, ${now}, ${now})
+      RETURNING id, name, creator_id, created_at, updated_at
+    `;
+
+    if (!newGroupResult || newGroupResult.length === 0) {
+      return res.status(500).json({ error: "Failed to create group" });
     }
 
-    try {
-      // For each group, get the last message and member count
-      const groupsWithDetails = await Promise.all(
-        userGroupsResult.map(async (group) => {
-          // Ensure group ID is a number
-          const groupId = parseInt(group.id);
-          if (isNaN(groupId)) {
-            console.error("Invalid group ID:", group.id);
-            return null;
-          }
+    const newGroup = newGroupResult[0];
+    console.log("Group created:", newGroup);
 
-          // Get last message
-          let lastMessage = null;
-          let lastMessageTime = null;
-          try {
-            const lastMessageResult = await sql`
-              SELECT gm.content, gm.created_at as "createdAt", 
-                     u.id as "senderId", u.username as "senderUsername", 
-                     u.first_name as "senderFirstName", u.last_name as "senderLastName"
-              FROM group_messages gm
-              JOIN users u ON gm.sender_id = u.id
-              WHERE gm.group_id = ${groupId}
-              ORDER BY gm.created_at DESC
-              LIMIT 1
-            `;
+    // Add creator as admin
+    await sql`
+      INSERT INTO group_members (group_id, user_id, is_admin, joined_at)
+      VALUES (${newGroup.id}, ${creatorId}, true, ${now})
+    `;
 
-            if (lastMessageResult && lastMessageResult.length > 0) {
-              const msg = lastMessageResult[0];
-              const senderDisplayName =
-                `${msg.senderFirstName || ""} ${
-                  msg.senderLastName || ""
-                }`.trim() || msg.senderUsername;
-              lastMessage = `${senderDisplayName}: ${msg.content}`;
-              lastMessageTime = msg.createdAt;
-            }
-          } catch (msgError) {
-            console.error(
-              `Error fetching last message for group ${groupId}:`,
-              msgError
-            );
-            // Continue with null last message
-          }
-
-          // Get member count
-          let memberCount = 0;
-          try {
-            const memberCountResult = await sql`
-              SELECT COUNT(*) as "memberCount"
-              FROM group_members
-              WHERE group_id = ${groupId}
-            `;
-            memberCount = parseInt(memberCountResult[0]?.memberCount) || 0;
-          } catch (countError) {
-            console.error(
-              `Error fetching member count for group ${groupId}:`,
-              countError
-            );
-            // Continue with 0 member count
-          }
-
-          // Return the complete group info
-          return {
-            id: groupId,
-            name: group.name,
-            description: group.description,
-            imageUrl: group.imageUrl,
-            createdAt: group.createdAt,
-            isAdmin: group.isAdmin,
-            lastMessage: lastMessage || "No messages yet",
-            lastMessageTime: lastMessageTime || group.createdAt,
-            memberCount: memberCount,
-            type: "group",
-          };
-        })
-      );
-
-      // Filter out any null entries (from errors)
-      const validGroups = groupsWithDetails.filter((group) => group !== null);
-      console.log(`Returning ${validGroups.length} valid groups`);
-
-      return res.json(validGroups);
-    } catch (detailsError) {
-      console.error("Error processing group details:", detailsError);
-      return res.status(500).json({
-        error: "Error processing group details",
-        message: detailsError.message,
-      });
+    // Add other members
+    for (const memberIdRaw of memberIds) {
+      const memberId = parseInt(memberIdRaw);
+      if (memberId !== creatorId) {
+        // Don't add creator twice
+        await sql`
+          INSERT INTO group_members (group_id, user_id, is_admin, joined_at)
+          VALUES (${newGroup.id}, ${memberId}, false, ${now})
+        `;
+      }
     }
+
+    // Get complete group data with members
+    const group = await getGroupWithMembers(newGroup.id);
+
+    return res.status(201).json(group);
   } catch (error) {
-    console.error("Error fetching user's group chats:", error);
-    console.error("Stack trace:", error.stack);
-    return res.status(500).json({
-      error: "Failed to fetch group chats",
-      message: error.message,
-    });
+    console.error("Error creating group chat:", error);
+    return res.status(500).json({ error: "Failed to create group chat" });
   }
 });
 
