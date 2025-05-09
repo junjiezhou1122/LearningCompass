@@ -106,26 +106,17 @@ export function initializeSocketIO(server: HTTPServer): SocketIOServer {
 
         // Add server timestamp and sender info
         const timestamp = new Date().toISOString();
-        const completeMessage = {
-          ...message,
+        // Only include allowed properties for DB insert
+        const dbMessage = {
           senderId: userId,
-          timestamp,
-          status: "delivered",
+          receiverId: message.receiverId,
+          content: message.content,
         };
 
         // Store message in database
+        let storedMessage;
         try {
-          // Store the message in the database
-          const storedMessage = await storage.createChatMessage({
-            senderId: userId,
-            receiverId: message.receiverId,
-            content: message.content,
-            createdAt: new Date(timestamp),
-            status: "delivered",
-          });
-
-          // Set the database ID to the message
-          completeMessage.id = storedMessage.id;
+          storedMessage = await storage.createChatMessage(dbMessage);
           console.log(
             `Message stored in database with ID: ${storedMessage.id}`
           );
@@ -139,11 +130,18 @@ export function initializeSocketIO(server: HTTPServer): SocketIOServer {
           return;
         }
 
+        // Compose the message to emit (merge DB and runtime-only fields)
+        const completeMessage = {
+          ...storedMessage,
+          tempId: message.tempId,
+          status: "delivered",
+          type: message.type,
+          timestamp,
+        };
+
         // Send message to recipient if online
         if (activeConnections.has(message.receiverId)) {
           const recipientSockets = activeConnections.get(message.receiverId)!;
-
-          // Emit to all recipient's connected devices
           recipientSockets.forEach((socketId) => {
             io.to(socketId).emit("chat_message", completeMessage);
           });
@@ -173,7 +171,10 @@ export function initializeSocketIO(server: HTTPServer): SocketIOServer {
     // Handle group chat messages
     socket.on("group_message", async (message: ChatMessage) => {
       try {
-        console.log(`Received group message from user ${userId}:`, message);
+        console.log(
+          `Received group message from user ${userId} (socket ${socket.id}) to group ${message.groupId}:`,
+          message
+        );
 
         // Validate message
         if (!message.content || !message.groupId) {
@@ -187,26 +188,18 @@ export function initializeSocketIO(server: HTTPServer): SocketIOServer {
 
         // Add server timestamp and sender info
         const timestamp = new Date().toISOString();
-        const completeMessage = {
-          ...message,
+        // Only include allowed properties for DB insert
+        const dbGroupMessage = {
           senderId: userId,
-          timestamp,
-          status: "delivered",
+          groupId: message.groupId,
+          content: message.content,
+          createdAt: new Date(timestamp),
         };
 
         // Store message in database
+        let storedMessage;
         try {
-          // Store the group message in the database
-          const storedMessage = await storage.createGroupChatMessage({
-            senderId: userId,
-            groupId: message.groupId,
-            content: message.content,
-            createdAt: new Date(timestamp),
-            status: "delivered",
-          });
-
-          // Set the database ID to the message
-          completeMessage.id = storedMessage.id;
+          storedMessage = await storage.createGroupChatMessage(dbGroupMessage);
           console.log(
             `Group message stored in database with ID: ${storedMessage.id}`
           );
@@ -220,7 +213,19 @@ export function initializeSocketIO(server: HTTPServer): SocketIOServer {
           return;
         }
 
+        // Compose the message to emit (merge DB and runtime-only fields)
+        const completeMessage = {
+          ...storedMessage,
+          tempId: message.tempId,
+          status: "delivered",
+          type: message.type,
+          timestamp,
+        };
+
         // Broadcast to everyone in the room
+        console.log(
+          `Broadcasting group message from user ${userId} (socket ${socket.id}) to room group:${message.groupId}`
+        );
         socket
           .to(`group:${message.groupId}`)
           .emit("group_message", completeMessage);
@@ -243,13 +248,17 @@ export function initializeSocketIO(server: HTTPServer): SocketIOServer {
     // Join a group chat room
     socket.on("join_group", (groupId: number) => {
       socket.join(`group:${groupId}`);
-      console.log(`User ${userId} joined group chat ${groupId}`);
+      console.log(
+        `User ${userId} (socket ${socket.id}) joined group chat ${groupId}`
+      );
     });
 
     // Leave a group chat room
     socket.on("leave_group", (groupId: number) => {
       socket.leave(`group:${groupId}`);
-      console.log(`User ${userId} left group chat ${groupId}`);
+      console.log(
+        `User ${userId} (socket ${socket.id}) left group chat ${groupId}`
+      );
     });
 
     // Handle ping/pong for heartbeat

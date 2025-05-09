@@ -331,11 +331,38 @@ export const SocketIOProvider = ({ children }) => {
     };
   }, [user?.id, token, connect, forcedDisconnect]);
 
+  // Add joinGroup and leaveGroup methods for group chat room management
+  const joinGroup = useCallback((groupId) => {
+    console.log(
+      "Attempting to join group",
+      groupId,
+      "socket connected:",
+      !!(socketRef.current && socketRef.current.connected)
+    );
+    if (socketRef.current && socketRef.current.connected) {
+      socketRef.current.emit("join_group", groupId);
+      console.log("Emitted join_group event for group:", groupId);
+    } else {
+      console.warn("Socket not connected: cannot join group", groupId);
+    }
+  }, []);
+
+  const leaveGroup = useCallback((groupId) => {
+    if (socketRef.current && socketRef.current.connected) {
+      socketRef.current.emit("leave_group", groupId);
+      console.log("Emitted leave_group event for group:", groupId);
+    } else {
+      console.warn("Socket not connected: cannot leave group", groupId);
+    }
+  }, []);
+
   // Expose the context value
   const contextValue = {
     connected,
     connectionState,
     sendMessage,
+    joinGroup,
+    leaveGroup,
     reconnect,
     disconnect,
     lastMessage,

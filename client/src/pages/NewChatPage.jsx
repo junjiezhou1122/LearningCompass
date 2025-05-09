@@ -33,8 +33,15 @@ const NewChatPage = () => {
   const [matchGroupChat, groupParams] = useRoute("/chat/group/:groupId");
   const { toast } = useToast();
   const { user } = useContext(AuthContext);
-  const { connected, connectionState, reconnect, sendMessage, lastMessage } =
-    useSocketIO();
+  const {
+    connected,
+    connectionState,
+    reconnect,
+    sendMessage,
+    lastMessage,
+    joinGroup,
+    leaveGroup,
+  } = useSocketIO();
 
   // If we have URL parameters, use them
   const chatUserId = matchUserChat ? params.userId : null;
@@ -664,36 +671,26 @@ const NewChatPage = () => {
 
   // Join/leave group chat room via Socket.IO
   useEffect(() => {
-    // Only run for group chats
-    if (currentGroupChat) {
-      // Join the group room
-      sendMessage({ type: "join_group", groupId: parseInt(currentGroupChat) });
+    if (currentGroupChat && connectionState === "connected") {
+      console.log("Calling joinGroup for group", currentGroupChat);
+      joinGroup(parseInt(currentGroupChat));
     }
-    // If switching groups, leave the previous group
     if (
       prevGroupChatRef.current &&
-      prevGroupChatRef.current !== currentGroupChat
+      prevGroupChatRef.current !== currentGroupChat &&
+      connectionState === "connected"
     ) {
-      sendMessage({
-        type: "leave_group",
-        groupId: parseInt(prevGroupChatRef.current),
-      });
+      leaveGroup(parseInt(prevGroupChatRef.current));
     }
-    // Update ref
     prevGroupChatRef.current = currentGroupChat;
 
-    // On unmount, leave the group room if in a group chat
     return () => {
-      if (currentGroupChat) {
-        sendMessage({
-          type: "leave_group",
-          groupId: parseInt(currentGroupChat),
-        });
+      if (currentGroupChat && connectionState === "connected") {
+        leaveGroup(parseInt(currentGroupChat));
       }
     };
-    // Only rerun when currentGroupChat changes
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [currentGroupChat]);
+  }, [currentGroupChat, connectionState, joinGroup, leaveGroup]);
 
   const apiBaseUrl = getApiBaseUrl();
 
