@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useContext } from "react";
+import React, { useState, useEffect, useContext, useRef } from "react";
 import { useLocation, useRoute } from "wouter";
 import {
   Search,
@@ -483,10 +483,77 @@ const NewChatPage = () => {
     navigate("/chat/create-group");
   };
 
+  const chatContainerRef = useRef(null);
+  const lastMessageRef = useRef(null);
+  const [isAtBottom, setIsAtBottom] = useState(true);
+  const [showScrollToBottom, setShowScrollToBottom] = useState(false);
+
+  // Helper: check if user is at the bottom
+  const checkIsAtBottom = () => {
+    const container = chatContainerRef.current;
+    if (!container) return true;
+    // Allow a small threshold for floating point errors
+    return (
+      container.scrollHeight - container.scrollTop - container.clientHeight < 40
+    );
+  };
+
+  // On scroll, update isAtBottom
+  useEffect(() => {
+    const container = chatContainerRef.current;
+    if (!container) return;
+    const handleScroll = () => {
+      const atBottom = checkIsAtBottom();
+      setIsAtBottom(atBottom);
+      setShowScrollToBottom(!atBottom);
+    };
+    container.addEventListener("scroll", handleScroll);
+    return () => container.removeEventListener("scroll", handleScroll);
+  }, [chatContainerRef]);
+
+  // Scroll to bottom when entering chat or sending a message
+  useEffect(() => {
+    if (!chatContainerRef.current) return;
+    // If just loaded chat or just sent a message, scroll to bottom
+    if (
+      isAtBottom ||
+      (chatMessages.length > 0 &&
+        chatMessages[chatMessages.length - 1]?.senderId === user?.id)
+    ) {
+      if (lastMessageRef.current) {
+        lastMessageRef.current.scrollIntoView({
+          behavior: "smooth",
+          block: "end",
+        });
+      } else {
+        chatContainerRef.current.scrollTop =
+          chatContainerRef.current.scrollHeight;
+      }
+    }
+  }, [chatMessages, currentChat, currentGroupChat]);
+
+  // Handler for scroll-to-bottom button
+  const handleScrollToBottom = () => {
+    if (lastMessageRef.current) {
+      lastMessageRef.current.scrollIntoView({
+        behavior: "smooth",
+        block: "end",
+      });
+    } else if (chatContainerRef.current) {
+      chatContainerRef.current.scrollTop =
+        chatContainerRef.current.scrollHeight;
+    }
+  };
+
   return (
-    <div className="min-h-screen bg-orange-50">
+    <div className="min-h-screen bg-gradient-to-br from-orange-50 to-orange-100 animate-fadein">
       {/* Header */}
-      <div className="bg-white shadow-md p-4 flex items-center justify-between">
+      <motion.div
+        initial={{ y: -40, opacity: 0 }}
+        animate={{ y: 0, opacity: 1 }}
+        transition={{ duration: 0.5 }}
+        className="bg-white shadow-md p-4 flex items-center justify-between sticky top-0 z-10 rounded-b-xl"
+      >
         <div className="flex items-center">
           <Button
             variant="ghost"
@@ -527,11 +594,16 @@ const NewChatPage = () => {
             Reconnect
           </Button>
         )}
-      </div>
+      </motion.div>
 
       {/* Chat View */}
       {currentChat || currentGroupChat ? (
-        <div className="max-w-3xl mx-auto p-4 h-full">
+        <motion.div
+          initial={{ opacity: 0, y: 30 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.4 }}
+          className="max-w-3xl mx-auto p-4 h-full"
+        >
           {/* Connection state indicator */}
           {connectionState !== "connected" && (
             <div
@@ -559,7 +631,7 @@ const NewChatPage = () => {
             </div>
           )}
 
-          <div className="bg-white rounded-lg shadow-md h-[calc(100vh-180px)] flex flex-col">
+          <div className="bg-white rounded-2xl shadow-lg h-[calc(100vh-180px)] flex flex-col border border-orange-100 animate-fadein">
             {isLoading ? (
               <div className="flex-grow flex items-center justify-center">
                 <div className="animate-spin h-8 w-8 border-4 border-orange-500 border-t-transparent rounded-full"></div>
@@ -567,38 +639,78 @@ const NewChatPage = () => {
             ) : (
               <>
                 {/* Chat messages area */}
-                <div className="flex-grow p-4 overflow-y-auto">
+                <div
+                  ref={chatContainerRef}
+                  className="flex-grow p-4 overflow-y-auto custom-scrollbar bg-gradient-to-b from-orange-50 to-white transition-colors duration-300 relative"
+                >
+                  {/* Scroll to bottom button */}
+                  {showScrollToBottom && (
+                    <button
+                      onClick={handleScrollToBottom}
+                      className="fixed bottom-28 right-8 z-20 bg-orange-500 hover:bg-orange-600 text-white rounded-full shadow-lg p-2 transition-all animate-bounce"
+                      title="Scroll to latest message"
+                    >
+                      <svg
+                        xmlns="http://www.w3.org/2000/svg"
+                        className="h-6 w-6"
+                        fill="none"
+                        viewBox="0 0 24 24"
+                        stroke="currentColor"
+                      >
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth={2}
+                          d="M19 9l-7 7-7-7"
+                        />
+                      </svg>
+                    </button>
+                  )}
                   {chatMessages.length === 0 ? (
-                    <div className="h-full flex flex-col items-center justify-center text-orange-600">
-                      <MessageSquare className="h-12 w-12 mb-4 text-orange-400" />
+                    <motion.div
+                      initial={{ opacity: 0 }}
+                      animate={{ opacity: 1 }}
+                      transition={{ duration: 0.5 }}
+                      className="h-full flex flex-col items-center justify-center text-orange-600"
+                    >
+                      <MessageSquare className="h-12 w-12 mb-4 text-orange-400 animate-bounce" />
                       <p className="text-lg font-medium">No messages yet</p>
                       <p className="text-sm text-gray-500 mt-2">
                         Send a message to start the conversation
                       </p>
-                    </div>
+                    </motion.div>
                   ) : (
                     <div className="space-y-4">
-                      {chatMessages.map((message) => {
+                      {chatMessages.map((message, idx) => {
                         const isCurrentUser = message.senderId === user?.id;
+                        const isLast = idx === chatMessages.length - 1;
                         return (
-                          <div
+                          <motion.div
                             key={message.id}
+                            initial={{ opacity: 0, y: 20 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            transition={{ duration: 0.25, delay: idx * 0.03 }}
                             className={`flex ${
                               isCurrentUser ? "justify-end" : "justify-start"
                             }`}
+                            ref={isLast ? lastMessageRef : null}
                           >
-                            <div
-                              className={`max-w-[75%] rounded-lg p-3 ${
-                                isCurrentUser
-                                  ? "bg-gradient-to-r from-orange-500 to-orange-600 text-white"
-                                  : "bg-gray-100 text-gray-800"
-                              }`}
+                            <motion.div
+                              whileHover={{ scale: 1.03 }}
+                              whileTap={{ scale: 0.98 }}
+                              className={`max-w-[75%] rounded-2xl p-3 shadow-md transition-all duration-200 border
+                                ${
+                                  isCurrentUser
+                                    ? "bg-gradient-to-r from-orange-500 to-orange-600 text-white border-orange-200"
+                                    : "bg-white text-gray-800 border-orange-100"
+                                }
+                                animate-popin`}
                             >
-                              <p className="whitespace-pre-wrap break-words">
+                              <p className="whitespace-pre-wrap break-words text-base leading-relaxed">
                                 {message.content}
                               </p>
                               <div
-                                className={`text-xs mt-1 ${
+                                className={`text-xs mt-1 flex items-center gap-2 ${
                                   isCurrentUser
                                     ? "text-orange-100"
                                     : "text-gray-500"
@@ -606,25 +718,28 @@ const NewChatPage = () => {
                               >
                                 {new Date(message.createdAt).toLocaleTimeString(
                                   [],
-                                  {
-                                    hour: "2-digit",
-                                    minute: "2-digit",
-                                  }
+                                  { hour: "2-digit", minute: "2-digit" }
                                 )}
                                 {isCurrentUser && message.status && (
-                                  <span className="ml-2">
-                                    {message.status === "sending" &&
-                                      "• Sending..."}
+                                  <span>
+                                    {message.status === "sending" && (
+                                      <span className="animate-pulse">
+                                        • Sending...
+                                      </span>
+                                    )}
                                     {message.status === "delivered" &&
                                       "• Delivered"}
                                     {message.status === "read" && "• Read"}
-                                    {message.status === "failed" &&
-                                      "• Failed to send"}
+                                    {message.status === "failed" && (
+                                      <span className="text-red-200">
+                                        • Failed to send
+                                      </span>
+                                    )}
                                   </span>
                                 )}
                               </div>
-                            </div>
-                          </div>
+                            </motion.div>
+                          </motion.div>
                         );
                       })}
                     </div>
@@ -632,18 +747,23 @@ const NewChatPage = () => {
                 </div>
 
                 {/* Chat input area */}
-                <div className="border-t border-orange-100 p-4">
+                <motion.div
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ duration: 0.3 }}
+                  className="border-t border-orange-100 p-4 bg-white rounded-b-2xl"
+                >
                   <div className="flex gap-2">
                     <Input
                       value={currentMessage}
                       onChange={(e) => setCurrentMessage(e.target.value)}
                       onKeyDown={handleKeyPress}
                       placeholder="Type your message..."
-                      className="border-orange-200 focus:border-orange-500 focus:ring-orange-500"
+                      className="border-orange-200 focus:border-orange-500 focus:ring-orange-500 shadow-sm"
                       disabled={connectionState !== "connected"}
                     />
                     <Button
-                      className="bg-gradient-to-r from-orange-500 to-orange-600 hover:from-orange-600 hover:to-orange-700 text-white"
+                      className="bg-gradient-to-r from-orange-500 to-orange-600 hover:from-orange-600 hover:to-orange-700 text-white shadow-lg"
                       onClick={handleSendMessage}
                       disabled={
                         connectionState !== "connected" ||
@@ -658,14 +778,19 @@ const NewChatPage = () => {
                       Connect to the chat server to send messages
                     </p>
                   )}
-                </div>
+                </motion.div>
               </>
             )}
           </div>
-        </div>
+        </motion.div>
       ) : (
         // Chat list view
-        <div className="max-w-3xl mx-auto p-4">
+        <motion.div
+          initial={{ opacity: 0, y: 30 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.4 }}
+          className="max-w-3xl mx-auto p-4"
+        >
           {/* Search */}
           <div className="bg-white rounded-lg shadow-md p-4 mb-6">
             <div className="relative">
@@ -869,7 +994,7 @@ const NewChatPage = () => {
               </motion.div>
             )}
           </div>
-        </div>
+        </motion.div>
       )}
     </div>
   );
