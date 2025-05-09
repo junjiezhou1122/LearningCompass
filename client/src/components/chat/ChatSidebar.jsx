@@ -2,7 +2,7 @@ import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
 import { Search, Plus, Users, User, X, MessageSquare } from "lucide-react";
-import { useWebSocketContext } from "./WebSocketProvider";
+import { useSocketIO } from "./SocketIOProvider";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -18,7 +18,7 @@ const ChatSidebar = ({
   isLoading = false,
 }) => {
   const navigate = useNavigate();
-  const { connectionState } = useWebSocketContext();
+  const { connectionState } = useSocketIO();
   const [searchQuery, setSearchQuery] = useState("");
   const [activeTab, setActiveTab] = useState("direct");
 
@@ -268,55 +268,73 @@ const ChatSidebar = ({
                   className="bg-orange-500 hover:bg-orange-600 text-white"
                 >
                   <Plus className="h-4 w-4 mr-2" />
-                  Create a Group
+                  Create Group Chat
                 </Button>
               </div>
             ) : (
               <div className="space-y-1">
-                {groupChats.map((group) => (
-                  <div
-                    key={group.id}
-                    className={`flex items-center p-2 rounded-lg cursor-pointer
-                              ${
-                                activeChat?.id === group.id
-                                  ? "bg-orange-100 text-orange-900"
-                                  : "hover:bg-orange-50 text-gray-700"
-                              }`}
-                    onClick={() => setActiveChat(group)}
-                  >
-                    <Avatar className="h-10 w-10">
-                      <AvatarFallback className="bg-blue-600 text-white">
-                        {group.name?.substring(0, 2).toUpperCase()}
-                      </AvatarFallback>
-                    </Avatar>
+                {groupChats.map((group) => {
+                  // Ensure group has an id to prevent rendering errors
+                  if (!group || !group.id) return null;
 
-                    <div className="ml-3 overflow-hidden flex-1">
-                      <div className="flex justify-between items-center">
-                        <p className="font-medium truncate">{group.name}</p>
-
-                        {/* Timestamp for last message */}
-                        {group.lastMessageTime && (
-                          <p className="text-xs text-gray-500">
-                            {formatMessageTime(group.lastMessageTime)}
-                          </p>
+                  return (
+                    <div
+                      key={group.id}
+                      className={`flex items-center p-2 rounded-lg cursor-pointer
+                                ${
+                                  activeChat?.id === group.id
+                                    ? "bg-orange-100 text-orange-900"
+                                    : "hover:bg-orange-50 text-gray-700"
+                                }`}
+                      onClick={() => setActiveChat(group)}
+                    >
+                      <div className="h-10 w-10 rounded-full bg-orange-200 flex items-center justify-center overflow-hidden">
+                        {group.imageUrl ? (
+                          <img
+                            src={group.imageUrl}
+                            alt={group.name}
+                            className="h-full w-full object-cover"
+                          />
+                        ) : (
+                          <Users className="h-5 w-5 text-orange-600" />
                         )}
                       </div>
 
-                      <div className="flex items-center">
-                        <p className="text-sm truncate text-gray-500 flex-1">
-                          {group.lastMessage || "No messages yet"}
-                        </p>
+                      <div className="ml-3 overflow-hidden flex-1">
+                        <div className="flex justify-between items-center">
+                          <p className="font-medium truncate">
+                            {group.name || "Unnamed Group"}
+                          </p>
 
-                        {/* Member count */}
-                        {group.memberCount && (
+                          {/* Timestamp for last message */}
+                          {group.lastMessageTime && (
+                            <p className="text-xs text-gray-500">
+                              {formatMessageTime(group.lastMessageTime)}
+                            </p>
+                          )}
+                        </div>
+
+                        <div className="flex items-center">
+                          <p className="text-sm truncate text-gray-500 flex-1">
+                            {group.lastMessage || "No messages yet"}
+                          </p>
+
+                          {/* Member count */}
                           <span className="ml-2 text-xs text-gray-500">
-                            {group.memberCount} members
+                            {group.memberCount || 0} members
                           </span>
-                        )}
+
+                          {/* Admin badge */}
+                          {group.isAdmin && (
+                            <Badge className="ml-1 bg-orange-500 text-white text-xs">
+                              Admin
+                            </Badge>
+                          )}
+                        </div>
                       </div>
                     </div>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             )}
           </TabsContent>

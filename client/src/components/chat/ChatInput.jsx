@@ -19,7 +19,7 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
-import { useWebSocketContext } from "./WebSocketProvider";
+import { useSocketIO } from "./SocketIOProvider";
 import EmojiPicker from "emoji-picker-react";
 import {
   Popover,

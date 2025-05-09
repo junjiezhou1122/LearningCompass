@@ -21,6 +21,9 @@ console.log(
 // Create a SQL client
 const sql = neon(databaseUrl);
 
+// Export SQL client directly
+export { sql };
+
 // Create a Drizzle client
 export const db = drizzle(sql);
 

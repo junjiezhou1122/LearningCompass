@@ -220,11 +220,7 @@ export function initializeSocketIO(server: HTTPServer): SocketIOServer {
           return;
         }
 
-        // TODO: Get group members from database and broadcast to all members
-        // const groupMembers = await db.getGroupMembers(message.groupId);
-
-        // For now, broadcast to everyone in the room
-        // Join room based on groupId when a user enters the group chat page
+        // Broadcast to everyone in the room
         socket
           .to(`group:${message.groupId}`)
           .emit("group_message", completeMessage);

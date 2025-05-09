@@ -42,24 +42,17 @@ export const messages = pgTable("messages", {
   is_read: boolean("is_read").default(false),
 });
 
-// User followers table (to determine who can chat with whom)
-export const user_followers = pgTable(
-  "user_followers",
-  {
-    follower_id: integer("follower_id")
-      .references(() => users.id)
-      .notNull(),
-    followed_id: integer("followed_id")
-      .references(() => users.id)
-      .notNull(),
-    created_at: timestamp("created_at").defaultNow().notNull(),
-  },
-  (table) => {
-    return {
-      pk: primaryKey(table.follower_id, table.followed_id),
-    };
-  }
-);
+// User follows table (to determine who can chat with whom)
+export const user_follows = pgTable("user_follows", {
+  id: serial("id").primaryKey(),
+  follower_id: integer("follower_id")
+    .references(() => users.id)
+    .notNull(),
+  following_id: integer("following_id")
+    .references(() => users.id)
+    .notNull(),
+  created_at: timestamp("created_at").defaultNow().notNull(),
+});
 
 // Chat groups table
 export const chat_groups = pgTable("chat_groups", {

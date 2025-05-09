@@ -7,17 +7,24 @@ export function cn(...inputs: ClassValue[]) {
 
 // Get the base API URL dynamically based on the current environment
 export function getApiBaseUrl() {
+  // Check if we're running in the browser
+  const isBrowser = typeof window !== "undefined";
+
+  if (!isBrowser) {
+    return "http://localhost:5000";
+  }
+
   // Get the current origin (base URL)
   const currentUrl = window.location.origin;
-  
+
   // If we're on Replit or production (not localhost), use the same origin for API
-  if (!currentUrl.includes('localhost')) {
+  if (!currentUrl.includes("localhost")) {
     return currentUrl;
   }
-  
+
   // For local development with different frontend/backend ports
-  const port = 5000;
-  return port ? `${window.location.protocol}//${window.location.hostname}:${port}` : currentUrl;
+  // Force port 5000 for backend API in development
+  return `${window.location.protocol}//${window.location.hostname}:5000`;
 }
 
 // Format number of viewers to a readable format

@@ -1,5 +1,5 @@
 import React, { useState, useContext, useEffect } from "react";
-import { useLocation } from "wouter";
+import { useLocation, useRoute } from "wouter";
 import { motion } from "framer-motion";
 import { Users, X, Plus, Search, Check, ArrowLeft } from "lucide-react";
 import { AuthContext } from "../contexts/AuthContext";
@@ -7,11 +7,12 @@ import { useToast } from "@/hooks/use-toast";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
+import { getApiBaseUrl } from "@/lib/utils";
 
 const CreateGroupPage = () => {
   const [, navigate] = useLocation();
   const { toast } = useToast();
-  const { user } = useContext(AuthContext);
+  const { user, token } = useContext(AuthContext);
 
   // State variables
   const [groupName, setGroupName] = useState("");
@@ -22,27 +23,65 @@ const CreateGroupPage = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [isCreating, setIsCreating] = useState(false);
 
+  const apiBaseUrl = getApiBaseUrl();
+
+  // Check if user is authenticated
+  useEffect(() => {
+    if (!user || !token) {
+      toast({
+        title: "Authentication Required",
+        description: "You need to be logged in to create group chats.",
+        variant: "destructive",
+      });
+      navigate("/login");
+    }
+  }, [user, token, navigate, toast]);
+
   // Load user's followers
   useEffect(() => {
     const fetchFollowers = async () => {
+      if (!user?.id || !token) {
+        console.error("No user ID or token available");
+        return;
+      }
+
       setIsLoading(true);
       try {
+        console.log("Fetching followers for user:", user.id);
+        console.log("Using API base URL:", apiBaseUrl);
+
         // Fetch users who follow you and you follow back
-        const response = await fetch(`/api/users/${user.id}/following`, {
-          headers: {
-            Authorization: `Bearer ${localStorage.getItem("token")}`,
-          },
-        });
+        const response = await fetch(
+          `${apiBaseUrl}/api/users/${user.id}/following`,
+          {
+            headers: {
+              Authorization: `Bearer ${token}`,
+            },
+          }
+        );
+
+        console.log("Followers response status:", response.status);
 
         if (response.ok) {
           const data = await response.json();
+          console.log("Followers data:", data);
+
           // Only include users who follow you back (mutual follows)
           const mutualFollows = data.filter(
             (follower) => follower.isFollowingBack
           );
+          console.log("Mutual follows:", mutualFollows.length);
+
           setFollowers(mutualFollows);
           setFilteredFollowers(mutualFollows);
         } else {
+          const errorText = await response.text();
+          console.error(
+            "Failed to fetch followers:",
+            response.status,
+            errorText
+          );
+
           toast({
             title: "Error fetching followers",
             description: "Could not load your followers. Please try again.",
@@ -62,10 +101,10 @@ const CreateGroupPage = () => {
       }
     };
 
-    if (user?.id) {
+    if (user?.id && token) {
       fetchFollowers();
     }
-  }, [user?.id, toast]);
+  }, [user?.id, token, toast, apiBaseUrl]);
 
   // Filter followers based on search query
   useEffect(() => {
@@ -97,6 +136,17 @@ const CreateGroupPage = () => {
 
   // Handle creating the group
   const handleCreateGroup = async () => {
+    if (!token) {
+      console.error("No authentication token available");
+      toast({
+        title: "Authentication Error",
+        description: "You must be logged in to create a group chat.",
+        variant: "destructive",
+      });
+      navigate("/login");
+      return;
+    }
+
     if (!groupName.trim()) {
       toast({
         title: "Group name required",
@@ -118,33 +168,76 @@ const CreateGroupPage = () => {
     setIsCreating(true);
 
     try {
-      const response = await fetch("/api/chat/groups", {
+      console.log("Creating group with name:", groupName);
+      console.log("Selected members:", selectedMembers.length);
+      console.log("Current user ID:", user.id);
+
+      // Parse member IDs to ensure they're numbers
+      const memberIds = selectedMembers.map((member) => parseInt(member.id));
+      console.log("Member IDs:", memberIds);
+
+      const requestData = {
+        name: groupName,
+        memberIds: memberIds,
+      };
+
+      console.log("Request data:", JSON.stringify(requestData));
+      console.log("API base URL:", apiBaseUrl);
+      const fullUrl = `${apiBaseUrl}/api/chat/groups`;
+      console.log("Full URL:", fullUrl);
+
+      // Ensure we're using the correct content type and authorization header
+      const response = await fetch(fullUrl, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          Authorization: `Bearer ${localStorage.getItem("token")}`,
+          Authorization: `Bearer ${token}`,
         },
-        body: JSON.stringify({
-          name: groupName,
-          memberIds: selectedMembers.map((member) => member.id),
-        }),
+        body: JSON.stringify(requestData),
       });
 
+      console.log("Response status:", response.status);
+
+      let responseData;
+      try {
+        const responseText = await response.text();
+        console.log("Raw response:", responseText);
+        responseData = responseText ? JSON.parse(responseText) : {};
+      } catch (parseError) {
+        console.error("Error parsing response:", parseError);
+        throw new Error("Invalid response format from server");
+      }
+
       if (response.ok) {
-        const newGroup = await response.json();
+        console.log("New group created:", responseData);
+
         toast({
           title: "Group created",
           description: `${groupName} has been created successfully!`,
         });
 
         // Navigate to the new group chat
-        navigate(`/chat/group/${newGroup.id}`);
+        navigate(`/chat/group/${responseData.id}`);
       } else {
-        const errorData = await response.json();
+        let errorMessage = "An error occurred while creating the group.";
+
+        if (responseData && (responseData.error || responseData.message)) {
+          errorMessage = responseData.error || responseData.message;
+        }
+
+        // Handle specific error codes
+        if (response.status === 403) {
+          errorMessage =
+            "You don't have permission to create this group. Please check member selection.";
+        } else if (response.status === 401) {
+          errorMessage = "Your session has expired. Please log in again.";
+          // Clear token and redirect to login
+          navigate("/login");
+        }
+
         toast({
           title: "Failed to create group",
-          description:
-            errorData.message || "An error occurred while creating the group.",
+          description: errorMessage,
           variant: "destructive",
         });
       }
@@ -159,6 +252,27 @@ const CreateGroupPage = () => {
       setIsCreating(false);
     }
   };
+
+  if (!user || !token) {
+    return (
+      <div className="min-h-screen bg-orange-50 flex items-center justify-center">
+        <div className="bg-white p-8 rounded-lg shadow-md max-w-md w-full">
+          <h1 className="text-2xl font-bold text-orange-800 mb-4">
+            Authentication Required
+          </h1>
+          <p className="text-gray-600 mb-6">
+            You need to be logged in to create group chats.
+          </p>
+          <Button
+            onClick={() => navigate("/login")}
+            className="w-full bg-gradient-to-r from-orange-500 to-orange-600"
+          >
+            Go to Login
+          </Button>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-orange-50">

@@ -611,6 +611,15 @@ export interface IStorage {
 
   // In the interface definition add:
   getRecentChatPartners(userId: number): Promise<number[]>;
+
+  // Group Chat Messages operations
+  createGroupChatMessage(message: {
+    senderId: number;
+    groupId: number;
+    content: string;
+    createdAt: Date;
+    status?: string;
+  }): Promise<any>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -4163,6 +4172,50 @@ export class DatabaseStorage implements IStorage {
     } catch (error) {
       console.error("Error getting recent chat partners:", error);
       return [];
+    }
+  }
+
+  // Add the implementation for group chat messages
+  async createGroupChatMessage(message: {
+    senderId: number;
+    groupId: number;
+    content: string;
+    createdAt: Date;
+    status?: string;
+  }): Promise<any> {
+    try {
+      const client = await this.getClient();
+
+      // Insert into group_messages table
+      const result = await sql`
+        INSERT INTO group_messages (
+          sender_id, 
+          group_id, 
+          content, 
+          created_at
+        ) 
+        VALUES (
+          ${message.senderId}, 
+          ${message.groupId}, 
+          ${message.content}, 
+          ${message.createdAt}
+        )
+        RETURNING 
+          id, 
+          sender_id as "senderId", 
+          group_id as "groupId", 
+          content, 
+          created_at as "createdAt"
+      `;
+
+      if (result.length > 0) {
+        return result[0];
+      }
+
+      throw new Error("Failed to create group chat message");
+    } catch (error) {
+      console.error("Error creating group chat message:", error);
+      throw error;
     }
   }
 }

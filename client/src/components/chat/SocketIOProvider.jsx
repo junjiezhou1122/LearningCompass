@@ -139,6 +139,18 @@ export const SocketIOProvider = ({ children }) => {
         });
       });
 
+      // Group join confirmation handler
+      socketRef.current.on("group_join_confirm", (data) => {
+        console.log("Joined group confirmation:", data);
+        // You could update UI or state based on this confirmation
+      });
+
+      // Group leave confirmation handler
+      socketRef.current.on("group_leave_confirm", (data) => {
+        console.log("Left group confirmation:", data);
+        // You could update UI or state based on this confirmation
+      });
+
       // Connection closed handler
       socketRef.current.on("disconnect", (reason) => {
         console.log("Socket.IO disconnected", reason);
@@ -202,6 +214,8 @@ export const SocketIOProvider = ({ children }) => {
       // Queue message (for tracking sent messages)
       messageQueueRef.current.push(msgWithUser);
 
+      console.log("Sending message:", message.type, msgWithUser);
+
       // If socket is connected, send immediately
       if (socketRef.current && socketRef.current.connected) {
         // Use the specific event channel based on message type
@@ -210,6 +224,10 @@ export const SocketIOProvider = ({ children }) => {
             ? "chat_message"
             : message.type === "group_message"
             ? "group_message"
+            : message.type === "join_group"
+            ? "join_group"
+            : message.type === "leave_group"
+            ? "leave_group"
             : "message";
 
         socketRef.current.emit(eventType, msgWithUser);

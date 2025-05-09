@@ -2,24 +2,33 @@ import React, { useState, useEffect, useContext, useRef } from "react";
 import { useLocation, useRoute } from "wouter";
 import {
   Search,
-  ArrowLeft,
-  Users,
-  UserPlus,
   MessageSquare,
-  Send,
+  ArrowLeft,
+  ArrowRight,
+  SendHorizontal,
+  X,
+  UserPlus,
+  Users,
   AlertCircle,
   RefreshCw,
 } from "lucide-react";
 import { motion } from "framer-motion";
 import { AuthContext } from "../contexts/AuthContext";
-import { useSocketIO } from "@/components/chat/SocketIOProvider";
-import { useToast } from "@/hooks/use-toast";
+import { useSocketIO } from "../components/chat/SocketIOProvider";
+import { getApiBaseUrl } from "@/lib/utils";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
+import { useToast } from "@/hooks/use-toast";
 
 const NewChatPage = () => {
-  const [, navigate] = useLocation();
+  const [location, setLocation] = useLocation();
   const [matchUserChat, params] = useRoute("/chat/:userId");
   const [matchGroupChat, groupParams] = useRoute("/chat/group/:groupId");
   const { toast } = useToast();
@@ -34,11 +43,19 @@ const NewChatPage = () => {
   // State to track if we're in a chat or showing the chat list
   const [currentChat, setCurrentChat] = useState(null);
   const [currentGroupChat, setCurrentGroupChat] = useState(null);
-  const [isLoading, setIsLoading] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
   const [currentMessage, setCurrentMessage] = useState("");
   const [chatMessages, setChatMessages] = useState([]);
   const [chatUser, setChatUser] = useState(null);
   const [groupInfo, setGroupInfo] = useState(null);
+  const [isLoadingFollowers, setIsLoadingFollowers] = useState(true);
+  const [followers, setFollowers] = useState([]);
+  const [groups, setGroups] = useState([]);
+  const [isLoadingGroups, setIsLoadingGroups] = useState(true);
+  const [recentChats, setRecentChats] = useState([]);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [searchResults, setSearchResults] = useState([]);
+  const [isSearching, setIsSearching] = useState(false);
 
   // Log route matches and parameters for debugging
   console.log("URL matches user chat:", matchUserChat, params);
@@ -160,7 +177,7 @@ const NewChatPage = () => {
   const fetchChatUser = async (userId) => {
     setIsLoading(true);
     try {
-      const response = await fetch(`/api/users/${userId}`, {
+      const response = await fetch(`${getApiBaseUrl()}/api/users/${userId}`, {
         headers: {
           Authorization: `Bearer ${localStorage.getItem("token")}`,
         },
@@ -187,11 +204,14 @@ const NewChatPage = () => {
   const fetchGroupInfo = async (groupId) => {
     setIsLoading(true);
     try {
-      const response = await fetch(`/api/chat/groups/${groupId}`, {
-        headers: {
-          Authorization: `Bearer ${localStorage.getItem("token")}`,
-        },
-      });
+      const response = await fetch(
+        `${getApiBaseUrl()}/api/chat/groups/${groupId}`,
+        {
+          headers: {
+            Authorization: `Bearer ${localStorage.getItem("token")}`,
+          },
+        }
+      );
 
       if (response.ok) {
         const groupData = await response.json();
@@ -216,11 +236,14 @@ const NewChatPage = () => {
     try {
       console.log(`Fetching chat history with user ID: ${userId}`);
 
-      const response = await fetch(`/api/chat/history/${userId}`, {
-        headers: {
-          Authorization: `Bearer ${localStorage.getItem("token")}`,
-        },
-      });
+      const response = await fetch(
+        `${getApiBaseUrl()}/api/chat/history/${userId}`,
+        {
+          headers: {
+            Authorization: `Bearer ${localStorage.getItem("token")}`,
+          },
+        }
+      );
 
       if (response.ok) {
         const history = await response.json();
@@ -255,11 +278,14 @@ const NewChatPage = () => {
   const fetchGroupChatHistory = async (groupId) => {
     setIsLoading(true);
     try {
-      const response = await fetch(`/api/chat/groups/${groupId}/messages`, {
-        headers: {
-          Authorization: `Bearer ${localStorage.getItem("token")}`,
-        },
-      });
+      const response = await fetch(
+        `${getApiBaseUrl()}/api/chat/groups/${groupId}/messages`,
+        {
+          headers: {
+            Authorization: `Bearer ${localStorage.getItem("token")}`,
+          },
+        }
+      );
 
       if (response.ok) {
         const history = await response.json();
@@ -322,14 +348,6 @@ const NewChatPage = () => {
     }
   };
 
-  // State variables
-  const [searchQuery, setSearchQuery] = useState("");
-  const [isSearching, setIsSearching] = useState(false);
-  const [searchResults, setSearchResults] = useState([]);
-  const [recentChats, setRecentChats] = useState([]);
-  const [followers, setFollowers] = useState([]);
-  const [isLoadingFollowers, setIsLoadingFollowers] = useState(false);
-
   // Fetch user's followers
   useEffect(() => {
     const fetchFollowers = async () => {
@@ -338,11 +356,14 @@ const NewChatPage = () => {
       setIsLoadingFollowers(true);
       try {
         // Fetch users who follow you and you follow back (mutual follows)
-        const response = await fetch(`/api/users/${user.id}/following`, {
-          headers: {
-            Authorization: `Bearer ${localStorage.getItem("token")}`,
-          },
-        });
+        const response = await fetch(
+          `${getApiBaseUrl()}/api/users/${user.id}/following`,
+          {
+            headers: {
+              Authorization: `Bearer ${localStorage.getItem("token")}`,
+            },
+          }
+        );
 
         if (response.ok) {
           const data = await response.json();
@@ -357,17 +378,85 @@ const NewChatPage = () => {
         console.error("Error fetching followers:", error);
       } finally {
         setIsLoadingFollowers(false);
+        setIsLoading(false);
+      }
+    };
+
+    // Fetch group chats
+    const fetchGroups = async () => {
+      if (!user?.id) {
+        console.error("Cannot fetch groups: No user ID available");
+        setIsLoadingGroups(false);
+        return;
+      }
+
+      setIsLoadingGroups(true);
+      try {
+        console.log("Fetching group chats...");
+        console.log("API base URL:", getApiBaseUrl());
+        const fullUrl = `${getApiBaseUrl()}/api/chat/groups/user`;
+        console.log("Full request URL:", fullUrl);
+
+        const response = await fetch(fullUrl, {
+          headers: {
+            Authorization: `Bearer ${localStorage.getItem("token")}`,
+          },
+        });
+
+        console.log("Group chats response status:", response.status);
+
+        if (response.ok) {
+          const data = await response.json();
+          console.log("Groups data received:", data);
+
+          // Check if data is an array before setting state
+          if (Array.isArray(data)) {
+            setGroups(data);
+          } else {
+            console.error("Groups data is not an array:", data);
+            setGroups([]);
+            toast({
+              title: "Error",
+              description: "Invalid group data format received",
+              variant: "destructive",
+            });
+          }
+        } else {
+          const errorText = await response.text();
+          console.error(
+            "Failed to fetch group conversations:",
+            response.status,
+            errorText
+          );
+          toast({
+            title: "Error",
+            description: "Failed to load group chats",
+            variant: "destructive",
+          });
+          setGroups([]);
+        }
+      } catch (error) {
+        console.error("Error fetching group conversations:", error);
+        setGroups([]);
+        toast({
+          title: "Error",
+          description: "Could not connect to group chat service",
+          variant: "destructive",
+        });
+      } finally {
+        setIsLoadingGroups(false);
       }
     };
 
     fetchFollowers();
+    fetchGroups();
   }, [user?.id]);
 
   // Fetch recent chats
   useEffect(() => {
     const fetchRecentChats = async () => {
       try {
-        const response = await fetch("/api/chat/recent", {
+        const response = await fetch(`${getApiBaseUrl()}/api/chat/recent`, {
           headers: {
             Authorization: `Bearer ${localStorage.getItem("token")}`,
           },
@@ -407,7 +496,9 @@ const NewChatPage = () => {
 
     try {
       const response = await fetch(
-        `/api/users/search?q=${encodeURIComponent(searchQuery)}`,
+        `${getApiBaseUrl()}/api/users/search?q=${encodeURIComponent(
+          searchQuery
+        )}`,
         {
           headers: {
             Authorization: `Bearer ${localStorage.getItem("token")}`,
@@ -423,7 +514,7 @@ const NewChatPage = () => {
           data.map(async (result) => {
             try {
               const canChatResponse = await fetch(
-                `/api/chat/can-chat/${result.id}`,
+                `${getApiBaseUrl()}/api/chat/can-chat/${result.id}`,
                 {
                   headers: {
                     Authorization: `Bearer ${localStorage.getItem("token")}`,
@@ -470,17 +561,34 @@ const NewChatPage = () => {
 
   // Start a chat with a user
   const startChat = (userId) => {
-    navigate(`/chat/${userId}`);
+    setLocation(`/chat/${userId}`);
   };
 
   // Navigate to user profile
   const viewProfile = (userId) => {
-    navigate(`/users/${userId}`);
+    setLocation(`/users/${userId}`);
   };
 
   // Navigate to create group page
   const createGroup = () => {
-    navigate("/chat/create-group");
+    setLocation("/chat/create-group");
+  };
+
+  // Navigate to a group chat
+  const openGroupChat = (groupId) => {
+    console.log(`Opening group chat: ${groupId}`);
+    if (!groupId) {
+      console.error("Attempted to open group chat with null/undefined ID");
+      toast({
+        title: "Error",
+        description: "Invalid group chat ID",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    // Ensure we're using the setLocation function for navigation
+    setLocation(`/chat/group/${groupId}`);
   };
 
   const chatContainerRef = useRef(null);
@@ -545,6 +653,44 @@ const NewChatPage = () => {
     }
   };
 
+  // Add after useSocketIO and state declarations
+  const prevGroupChatRef = useRef(null);
+
+  // Join/leave group chat room via Socket.IO
+  useEffect(() => {
+    // Only run for group chats
+    if (currentGroupChat) {
+      // Join the group room
+      sendMessage({ type: "join_group", groupId: parseInt(currentGroupChat) });
+    }
+    // If switching groups, leave the previous group
+    if (
+      prevGroupChatRef.current &&
+      prevGroupChatRef.current !== currentGroupChat
+    ) {
+      sendMessage({
+        type: "leave_group",
+        groupId: parseInt(prevGroupChatRef.current),
+      });
+    }
+    // Update ref
+    prevGroupChatRef.current = currentGroupChat;
+
+    // On unmount, leave the group room if in a group chat
+    return () => {
+      if (currentGroupChat) {
+        sendMessage({
+          type: "leave_group",
+          groupId: parseInt(currentGroupChat),
+        });
+      }
+    };
+    // Only rerun when currentGroupChat changes
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [currentGroupChat]);
+
+  const apiBaseUrl = getApiBaseUrl();
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-orange-50 to-orange-100 animate-fadein">
       {/* Header */}
@@ -558,7 +704,7 @@ const NewChatPage = () => {
           <Button
             variant="ghost"
             size="icon"
-            onClick={() => navigate("/chat")}
+            onClick={() => setLocation("/chat")}
             className="mr-2"
           >
             <ArrowLeft className="h-5 w-5 text-orange-600" />
@@ -770,7 +916,7 @@ const NewChatPage = () => {
                         !currentMessage.trim()
                       }
                     >
-                      <Send className="h-4 w-4" />
+                      <SendHorizontal className="h-4 w-4" />
                     </Button>
                   </div>
                   {connectionState !== "connected" && (
@@ -948,7 +1094,7 @@ const NewChatPage = () => {
                   You need to follow users who follow you back to start a chat
                 </p>
                 <Button
-                  onClick={() => navigate("/users")}
+                  onClick={() => setLocation("/users")}
                   className="bg-gradient-to-r from-orange-500 to-orange-600 hover:from-orange-600 hover:to-orange-700 text-white"
                 >
                   <UserPlus className="h-4 w-4 mr-2" />
@@ -993,6 +1139,91 @@ const NewChatPage = () => {
                 ))}
               </motion.div>
             )}
+          </div>
+
+          {/* Group Chats Section */}
+          <div className="bg-white rounded-lg shadow-md mt-6">
+            <h2 className="text-lg font-medium text-gray-800 p-4 border-b border-orange-100 flex justify-between items-center">
+              <span>Group Chats</span>
+              <Button
+                onClick={() => setLocation("/chat/create-group")}
+                className="bg-orange-100 hover:bg-orange-200 text-orange-800 px-3 py-1 h-8"
+                size="sm"
+              >
+                <Users className="h-4 w-4 mr-2" />
+                Create Group
+              </Button>
+            </h2>
+
+            {/* Load group chats here */}
+            <div>
+              {/* Fetch and display group chats */}
+              {isLoadingGroups ? (
+                <div className="flex justify-center py-12">
+                  <div className="animate-spin h-8 w-8 border-4 border-orange-500 border-t-transparent rounded-full"></div>
+                </div>
+              ) : (
+                <motion.div
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  transition={{ duration: 0.3 }}
+                  className="divide-y divide-orange-100"
+                >
+                  {groups && groups.length > 0 ? (
+                    groups.map((group) => (
+                      <div
+                        key={group.id}
+                        className="p-4 flex justify-between items-center hover:bg-orange-50 cursor-pointer"
+                        onClick={() => openGroupChat(group.id)}
+                      >
+                        <div className="flex items-center">
+                          <Avatar className="h-10 w-10 mr-3 bg-orange-600">
+                            <AvatarFallback className="bg-orange-600 text-white">
+                              {group.name?.substring(0, 2)?.toUpperCase() ||
+                                "GC"}
+                            </AvatarFallback>
+                          </Avatar>
+                          <div>
+                            <p className="font-medium text-gray-800">
+                              {group.name || "Unnamed Group"}
+                            </p>
+                            <p className="text-sm text-gray-500">
+                              {group.memberCount
+                                ? `${group.memberCount} members`
+                                : "Group chat"}
+                              {group.isAdmin && (
+                                <span className="ml-2 text-orange-600 text-xs">
+                                  (Admin)
+                                </span>
+                              )}
+                            </p>
+                          </div>
+                        </div>
+                        <Button className="bg-gradient-to-r from-orange-500 to-orange-600 hover:from-orange-600 hover:to-orange-700 text-white">
+                          <MessageSquare className="h-4 w-4 mr-2" />
+                          Open
+                        </Button>
+                      </div>
+                    ))
+                  ) : (
+                    <div className="text-center py-10 px-4">
+                      <p className="text-orange-600 mb-2">No group chats yet</p>
+                      <p className="text-sm text-gray-600 mb-4">
+                        Create a group chat to start messaging with multiple
+                        people
+                      </p>
+                      <Button
+                        onClick={() => setLocation("/chat/create-group")}
+                        className="bg-gradient-to-r from-orange-500 to-orange-600 hover:from-orange-600 hover:to-orange-700 text-white"
+                      >
+                        <Users className="h-4 w-4 mr-2" />
+                        Create Group Chat
+                      </Button>
+                    </div>
+                  )}
+                </motion.div>
+              )}
+            </div>
           </div>
         </motion.div>
       )}

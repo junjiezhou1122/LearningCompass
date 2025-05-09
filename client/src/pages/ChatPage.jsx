@@ -11,7 +11,7 @@ import {
 import { motion, AnimatePresence } from "framer-motion";
 import { Tab } from "@headlessui/react";
 import { AuthContext } from "../contexts/AuthContext";
-import { useWebSocketContext } from "../components/chat/WebSocketProvider";
+import { useSocketIO } from "../components/chat/SocketIOProvider";
 import { useToast } from "@/hooks/use-toast";
 
 // Import chat components
@@ -30,8 +30,8 @@ const ChatPage = () => {
   const { userId: targetUserIdParam } = useParams();
   const navigate = useNavigate();
   const { toast } = useToast();
-  const { user } = useContext(AuthContext);
-  const { sendMessage, connectionState } = useWebSocketContext();
+  const { user, token } = useContext(AuthContext);
+  const { sendMessage, connectionState } = useSocketIO();
 
   // Main states
   const [activeTab, setActiveTab] = useState(0); // 0 = Direct Messages, 1 = Group Chats
@@ -60,10 +60,15 @@ const ChatPage = () => {
   // Load direct conversations on mount
   useEffect(() => {
     const fetchConversations = async () => {
+      if (!user || !token) {
+        console.log("No user or token available, skipping fetch conversations");
+        return;
+      }
+
       try {
         const response = await fetch("/api/chat/partners", {
           headers: {
-            Authorization: `Bearer ${localStorage.getItem("token")}`,
+            Authorization: `Bearer ${token}`,
           },
         });
 
@@ -81,35 +86,59 @@ const ChatPage = () => {
       }
     };
 
-    fetchConversations();
-  }, [user?.id]);
+    if (user?.id && token) {
+      fetchConversations();
+    }
+  }, [user?.id, token]);
 
   // Load group conversations
   useEffect(() => {
     const fetchGroups = async () => {
+      if (!user || !token) {
+        console.log("No user or token available, skipping fetch groups");
+        return;
+      }
+
       try {
-        const response = await fetch("/api/chat/groups", {
+        console.log(
+          "Fetching groups with token:",
+          token.substring(0, 10) + "..."
+        );
+        const response = await fetch("/api/chat/groups/user", {
           headers: {
-            Authorization: `Bearer ${localStorage.getItem("token")}`,
+            Authorization: `Bearer ${token}`,
           },
         });
 
         if (response.ok) {
           const data = await response.json();
+          console.log("Fetched groups:", data);
           setGroups(data);
         } else {
+          const errorText = await response.text();
           console.error(
             "Failed to fetch group conversations:",
-            await response.text()
+            response.status,
+            errorText
           );
+
+          try {
+            const errorData = JSON.parse(errorText);
+            console.error("Error data:", errorData);
+          } catch (e) {
+            // If not JSON, just log the text
+            console.error("Response is not JSON:", errorText);
+          }
         }
       } catch (error) {
         console.error("Error fetching group conversations:", error);
       }
     };
 
-    fetchGroups();
-  }, [user?.id]);
+    if (user?.id && token) {
+      fetchGroups();
+    }
+  }, [user?.id, token]);
 
   // Handle incoming messages via WebSocket
   useEffect(() => {
@@ -264,68 +293,108 @@ const ChatPage = () => {
     }
   }, [targetUserIdParam, conversations]);
 
-  // Load messages for active chat
+  // Load chat messages for a specific chat
   const loadChatMessages = async (chatId, type) => {
-    if (!chatId) return;
-
-    setIsLoadingMessages(true);
+    if (!user || !token) {
+      console.error("No user or token available");
+      setIsLoadingMessages(false);
+      toast({
+        title: "Authentication required",
+        description: "Please log in to view chat messages",
+        variant: "destructive",
+      });
+      navigate("/login");
+      return;
+    }
 
     try {
+      setIsLoadingMessages(true);
+      console.log(`Loading messages for ${type} chat with ID:`, chatId);
+
       let endpoint;
       if (type === "direct") {
         endpoint = `/api/chat/messages/${chatId}`;
-      } else {
+      } else if (type === "group") {
         endpoint = `/api/chat/groups/${chatId}/messages`;
+      } else {
+        console.error("Invalid chat type:", type);
+        throw new Error("Invalid chat type");
       }
 
       const response = await fetch(endpoint, {
         headers: {
-          Authorization: `Bearer ${localStorage.getItem("token")}`,
+          Authorization: `Bearer ${token}`,
         },
       });
 
-      if (response.ok) {
-        const messages = await response.json();
-        setActiveChatMessages(messages);
+      // Handle errors
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error(
+          `Failed to load messages (${response.status}):`,
+          errorText
+        );
 
-        // Mark received messages as read
-        if (type === "direct") {
-          markAllMessagesAsRead(chatId);
-        } else {
-          markGroupMessagesAsRead(chatId);
+        let errorMessage = "Could not load messages.";
+        try {
+          const errorData = JSON.parse(errorText);
+          errorMessage = errorData.error || errorData.message || errorMessage;
+        } catch (e) {
+          // Not JSON, use text as is
+          if (errorText) errorMessage = errorText;
         }
 
-        // Update unread count in conversation list
-        if (type === "direct") {
-          setConversations((prev) =>
-            prev.map((conv) =>
-              conv.id === chatId ? { ...conv, unreadCount: 0 } : conv
-            )
-          );
-        } else {
-          setGroups((prev) =>
-            prev.map((group) =>
-              group.id === chatId ? { ...group, unreadCount: 0 } : group
-            )
-          );
+        // Handle specific error codes
+        if (response.status === 401) {
+          errorMessage = "Your session has expired. Please log in again.";
+          navigate("/login");
+        } else if (response.status === 403) {
+          errorMessage = "You don't have permission to view this chat.";
+        } else if (response.status === 404) {
+          errorMessage = "This chat could not be found.";
         }
-      } else {
-        console.error("Failed to fetch messages:", await response.text());
+
         toast({
           title: "Error loading messages",
-          description: "Could not load chat messages. Please try again.",
+          description: errorMessage,
           variant: "destructive",
         });
+
+        setActiveChatMessages([]);
+        return;
+      }
+
+      const data = await response.json();
+      console.log(`Loaded ${data.length} messages for ${type} chat`);
+      setActiveChatMessages(data);
+
+      // Mark messages as read
+      if (type === "direct") {
+        markAllMessagesAsRead(chatId);
+      } else if (type === "group") {
+        markGroupMessagesAsRead(chatId);
+      }
+
+      // Update conversation list to remove unread count
+      if (type === "direct") {
+        setConversations((prev) =>
+          prev.map((c) => (c.id === chatId ? { ...c, unreadCount: 0 } : c))
+        );
+      } else if (type === "group") {
+        setGroups((prev) =>
+          prev.map((g) => (g.id === chatId ? { ...g, unreadCount: 0 } : g))
+        );
       }
     } catch (error) {
-      console.error("Error loading messages:", error);
+      console.error("Error loading chat messages:", error);
       toast({
-        title: "Connection Error",
-        description: "Failed to load messages. Please check your connection.",
+        title: "Error loading messages",
+        description: "An unexpected error occurred. Please try again.",
         variant: "destructive",
       });
     } finally {
       setIsLoadingMessages(false);
+      setMobileMenuOpen(false);
     }
   };
 
@@ -456,23 +525,49 @@ const ChatPage = () => {
     }
   };
 
-  // Handle chat selection
+  // Handle selecting a chat from the sidebar
   const handleChatSelect = (chatId, type) => {
-    setActiveChatId(chatId);
-    setActiveChatType(type);
-
-    if (type === "direct") {
-      const conversation = conversations.find((c) => c.id === chatId);
-      setActiveChatInfo(conversation);
-      navigate(`/chat/${chatId}`);
-    } else {
-      const group = groups.find((g) => g.id === chatId);
-      setActiveChatInfo(group);
-      navigate(`/chat/group/${chatId}`);
+    if (!user || !token) {
+      console.error("No user or token available");
+      toast({
+        title: "Authentication required",
+        description: "Please log in to view this chat",
+        variant: "destructive",
+      });
+      navigate("/login");
+      return;
     }
 
+    console.log(`Selecting ${type} chat with ID:`, chatId);
+
+    setActiveChatId(chatId);
+    setActiveChatType(type);
+    setActiveChatMessages([]);
+    setIsLoadingMessages(true);
+
+    // Update URL without triggering a full navigation
+    if (type === "direct") {
+      // Direct chat
+      navigate(`/chat/${chatId}`);
+
+      // Find the conversation for the selected user
+      const selectedConversation = conversations.find((c) => c.id === chatId);
+      if (selectedConversation) {
+        setActiveChatInfo(selectedConversation);
+      }
+    } else if (type === "group") {
+      // Group chat
+      navigate(`/chat/group/${chatId}`);
+
+      // Find the group for the selected group ID
+      const selectedGroup = groups.find((g) => g.id === chatId);
+      if (selectedGroup) {
+        setActiveChatInfo(selectedGroup);
+      }
+    }
+
+    // Load chat messages
     loadChatMessages(chatId, type);
-    setMobileMenuOpen(false);
   };
 
   // Create new message

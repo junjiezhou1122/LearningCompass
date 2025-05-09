@@ -15,6 +15,7 @@ import { createRequire } from "module";
 const require = createRequire(import.meta.url);
 // Import auth routes using the created require function
 const authRoutes = require("./routes/auth.js");
+const chatRoutes = require("./routes/chat.js");
 
 const app = express();
 app.use(express.json());
@@ -67,6 +68,7 @@ app.use(
 
 // Set up the auth routes
 app.use("/api/auth", authRoutes);
+app.use("/api/chat", chatRoutes);
 
 app.use((req, res, next) => {
   const start = Date.now();
