@@ -4183,39 +4183,47 @@ export class DatabaseStorage implements IStorage {
     createdAt: Date;
     status?: string;
   }): Promise<any> {
+    let client;
     try {
-      const client = await this.getClient();
-
-      // Insert into group_messages table
-      const result = await sql`
+      client = await this.getClient();
+      // Insert into group_messages table using parameterized query
+      const insertQuery = `
         INSERT INTO group_messages (
           sender_id, 
           group_id, 
           content, 
           created_at
         ) 
-        VALUES (
-          ${message.senderId}, 
-          ${message.groupId}, 
-          ${message.content}, 
-          ${message.createdAt}
-        )
-        RETURNING 
-          id, 
-          sender_id as "senderId", 
-          group_id as "groupId", 
-          content, 
-          created_at as "createdAt"
+        VALUES ($1, $2, $3, $4)
+        RETURNING id, sender_id as "senderId", group_id as "groupId", content, created_at as "createdAt";
       `;
-
-      if (result.length > 0) {
-        return result[0];
+      const insertParams = [
+        message.senderId,
+        message.groupId,
+        message.content,
+        message.createdAt,
+      ];
+      const result = await client.query(insertQuery, insertParams);
+      console.log("Group message insert result:", result);
+      if (!result || !result.rows || result.rows.length === 0) {
+        console.error("Group message insert result (no rows):", result);
+        throw new Error("Failed to create group chat message");
       }
-
-      throw new Error("Failed to create group chat message");
+      return result.rows[0];
     } catch (error) {
       console.error("Error creating group chat message:", error);
       throw error;
+    } finally {
+      if (client) {
+        try {
+          client.release();
+        } catch (releaseError) {
+          console.error(
+            "Error releasing database client after group message insert:",
+            releaseError
+          );
+        }
+      }
     }
   }
 }

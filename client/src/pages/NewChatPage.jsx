@@ -278,12 +278,15 @@ const NewChatPage = () => {
   const fetchGroupChatHistory = async (groupId) => {
     setIsLoading(true);
     try {
+      // Only send Authorization header, do NOT send Content-Type for GET
+      const headers = {
+        Authorization: `Bearer ${localStorage.getItem("token")}`,
+        // Do NOT add 'Content-Type' here! It breaks Neon/Postgres GET requests.
+      };
       const response = await fetch(
         `${getApiBaseUrl()}/api/chat/groups/${groupId}/messages`,
         {
-          headers: {
-            Authorization: `Bearer ${localStorage.getItem("token")}`,
-          },
+          headers,
         }
       );
 

@@ -17,7 +17,14 @@ initializeWebSocket(server);
 
 // Middleware
 app.use(cors());
-app.use(express.json());
+// Only parse JSON for requests that might have a body
+app.use((req, res, next) => {
+  if (["POST", "PUT", "PATCH"].includes(req.method)) {
+    express.json()(req, res, next);
+  } else {
+    next();
+  }
+});
 
 // Routes
 app.use("/api/auth", authRoutes);

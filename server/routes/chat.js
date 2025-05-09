@@ -360,19 +360,17 @@ router.get("/groups/:groupId", authenticate, async (req, res) => {
       return res.status(401).json({ error: "Authentication required" });
     }
 
-    const groupId = req.params.groupId;
+    // Parse groupId to integer
+    const groupId = parseInt(req.params.groupId, 10);
+    if (isNaN(groupId)) {
+      console.error("Invalid groupId format:", req.params.groupId);
+      return res.status(400).json({ error: "Invalid group ID format" });
+    }
     const userId = req.user.id;
 
     console.log(
       `Fetching group details for groupId:${groupId}, userId:${userId}`
     );
-
-    // Parse groupId to integer
-    const groupIdNum = parseInt(groupId);
-    if (isNaN(groupIdNum)) {
-      console.error("Invalid groupId format:", groupId);
-      return res.status(400).json({ error: "Invalid group ID format" });
-    }
 
     // Parse userId to integer
     const userIdNum = parseInt(userId);
@@ -381,47 +379,41 @@ router.get("/groups/:groupId", authenticate, async (req, res) => {
       return res.status(400).json({ error: "Invalid user ID format" });
     }
 
-    // Check if user is a member of the group
-    console.log("Checking if user is a member of the group");
+    // Check if user is a member of the group using raw SQL to avoid NeonDbError
+    let isMember = null;
     try {
-      const isMember = await db
-        .select()
-        .from(group_members)
-        .where(
-          and(
-            eq(group_members.group_id, groupIdNum),
-            eq(group_members.user_id, userIdNum)
-          )
-        )
-        .then((rows) => rows[0]);
-
-      if (!isMember) {
-        console.log(`User ${userIdNum} is not a member of group ${groupIdNum}`);
-        return res
-          .status(403)
-          .json({ error: "You are not a member of this group" });
-      }
-
-      console.log(
-        `User ${userIdNum} is a member of group ${groupIdNum}, fetching details`
-      );
-    } catch (membershipError) {
-      console.error("Error checking group membership:", membershipError);
+      const memberResult = await sql`
+        SELECT * FROM group_members WHERE group_id = ${groupId} AND user_id = ${userId} LIMIT 1
+      `;
+      isMember = memberResult[0];
+    } catch (sqlError) {
+      console.error("SQL error in group membership check:", sqlError);
       return res.status(500).json({
-        error: "Failed to verify group membership",
-        message: membershipError.message,
+        error: "Database error when checking group membership",
+        message: sqlError.message,
       });
     }
 
+    if (!isMember) {
+      console.log(`User ${userIdNum} is not a member of group ${groupId}`);
+      return res
+        .status(403)
+        .json({ error: "You are not a member of this group" });
+    }
+
+    console.log(
+      `User ${userIdNum} is a member of group ${groupId}, fetching details`
+    );
+
     // Get group data with members
-    const group = await getGroupWithMembers(groupIdNum);
+    const group = await getGroupWithMembers(groupId);
 
     if (!group) {
-      console.log(`Group ${groupIdNum} not found`);
+      console.log(`Group ${groupId} not found`);
       return res.status(404).json({ error: "Group not found" });
     }
 
-    console.log(`Successfully retrieved group ${groupIdNum} details`);
+    console.log(`Successfully retrieved group ${groupId} details`);
     return res.json(group);
   } catch (error) {
     console.error("Error fetching group chat details:", error);
@@ -435,21 +427,46 @@ router.get("/groups/:groupId", authenticate, async (req, res) => {
 
 // Get group chat messages
 router.get("/groups/:groupId/messages", authenticate, async (req, res) => {
+  // Diagnostic: log request method and headers
+  console.log("Request method:", req.method, "Headers:", req.headers);
   try {
-    const groupId = req.params.groupId;
-    const userId = req.user.id;
+    // Parse groupId to integer
+    const groupId = parseInt(req.params.groupId, 10);
+    if (isNaN(groupId)) {
+      console.error("Invalid groupId format:", req.params.groupId);
+      return res.status(400).json({ error: "Invalid group ID format" });
+    }
+    // Parse userId to integer
+    const userId = parseInt(req.user.id, 10);
+    if (isNaN(userId)) {
+      console.error("Invalid userId format:", req.user.id);
+      return res.status(400).json({ error: "Invalid user ID format" });
+    }
 
-    // Check if user is a member of the group
-    const isMember = await db
-      .select()
-      .from(group_members)
-      .where(
-        and(
-          eq(group_members.group_id, groupId),
-          eq(group_members.user_id, userId)
-        )
-      )
-      .then((rows) => rows[0]);
+    // Diagnostic: log groupId and userId values and types
+    console.log(
+      "Fetching group messages with groupId:",
+      groupId,
+      typeof groupId,
+      "userId:",
+      userId,
+      typeof userId
+    );
+
+    // Check if user is a member of the group using raw SQL to avoid NeonDbError
+    let isMember = null;
+    try {
+      const memberResult = await sql`
+        SELECT * FROM group_members WHERE group_id = ${groupId} AND user_id = ${userId} LIMIT 1
+      `;
+      isMember = memberResult[0];
+    } catch (sqlError) {
+      console.error("SQL error in group membership check:", sqlError);
+      return res.status(500).json({
+        error: "Database error when checking group membership",
+        message: sqlError.message,
+      });
+    }
 
     if (!isMember) {
       return res
@@ -457,33 +474,52 @@ router.get("/groups/:groupId/messages", authenticate, async (req, res) => {
         .json({ error: "You are not a member of this group" });
     }
 
-    // Get messages from the group
-    const groupMessages = await db
-      .select({
-        id: group_messages.id,
-        content: group_messages.content,
-        createdAt: group_messages.created_at,
-        updatedAt: group_messages.updated_at,
-        senderId: group_messages.sender_id,
-        groupId: group_messages.group_id,
+    // Get messages from the group using raw SQL to avoid NeonDbError
+    let groupMessages = [];
+    try {
+      groupMessages = await sql`
+        SELECT 
+          gm.id, gm.content, gm.created_at as "createdAt", gm.updated_at as "updatedAt",
+          gm.sender_id as "senderId", gm.group_id as "groupId",
+          u.id as "userId", u.username
+        FROM group_messages gm
+        LEFT JOIN users u ON gm.sender_id = u.id
+        WHERE gm.group_id = ${groupId}
+        ORDER BY gm.created_at ASC
+      `;
+      // Map sender info into a nested object for frontend compatibility
+      groupMessages = groupMessages.map((msg) => ({
+        id: msg.id,
+        content: msg.content,
+        createdAt: msg.createdAt,
+        updatedAt: msg.updatedAt,
+        senderId: msg.senderId,
+        groupId: msg.groupId,
         sender: {
-          id: users.id,
-          username: users.username,
-          displayName: users.display_name,
-          profileImage: users.profile_image,
+          id: msg.userId,
+          username: msg.username,
+          displayName: msg.username, // fallback to username
+          profileImage: null, // fallback to null
         },
-      })
-      .from(group_messages)
-      .leftJoin(users, eq(group_messages.sender_id, users.id))
-      .where(eq(group_messages.group_id, groupId))
-      .orderBy(asc(group_messages.created_at));
+      }));
+    } catch (sqlError) {
+      console.error("SQL error in group messages fetch:", sqlError);
+      return res.status(500).json({
+        error: "Database error when fetching group messages",
+        message: sqlError.message,
+      });
+    }
 
     return res.json(groupMessages);
   } catch (error) {
     console.error("Error fetching group chat messages:", error);
-    return res
-      .status(500)
-      .json({ error: "Failed to fetch group chat messages" });
+    if (error && error.stack) {
+      console.error("Stack trace:", error.stack);
+    }
+    return res.status(500).json({
+      error: "Failed to fetch group chat messages",
+      message: error && error.message,
+    });
   }
 });
 
