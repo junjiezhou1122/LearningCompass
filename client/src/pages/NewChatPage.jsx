@@ -1,4 +1,12 @@
-import React, { useState, useEffect, useContext, useRef } from "react";
+import React, {
+  useState,
+  useEffect,
+  useContext,
+  useRef,
+  useCallback,
+  memo,
+  useMemo,
+} from "react";
 import { useLocation, useRoute } from "wouter";
 import {
   Search,
@@ -12,7 +20,7 @@ import {
   AlertCircle,
   RefreshCw,
 } from "lucide-react";
-import { motion } from "framer-motion";
+import { motion, AnimatePresence } from "framer-motion";
 import { AuthContext } from "../contexts/AuthContext";
 import { useSocketIO } from "../components/chat/SocketIOProvider";
 import { getApiBaseUrl } from "@/lib/utils";
@@ -26,6 +34,7 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { useToast } from "@/hooks/use-toast";
+import GroupSidebar from "../components/chat/GroupSidebar";
 
 const NewChatPage = () => {
   const [location, setLocation] = useLocation();
@@ -63,6 +72,7 @@ const NewChatPage = () => {
   const [searchQuery, setSearchQuery] = useState("");
   const [searchResults, setSearchResults] = useState([]);
   const [isSearching, setIsSearching] = useState(false);
+  const [sidebarOpen, setSidebarOpen] = useState(false);
 
   // Log route matches and parameters for debugging
   console.log("URL matches user chat:", matchUserChat, params);
@@ -694,6 +704,36 @@ const NewChatPage = () => {
 
   const apiBaseUrl = getApiBaseUrl();
 
+  // Helper: assign a unique color to each user (except current user)
+  const userColors = [
+    "#FFB347", // orange 1
+    "#FF7F50", // orange 2
+    "#FFA500", // orange 3
+    "#FF8C00", // orange 4
+    "#FF7043", // orange 5
+    "#FF9800", // orange 6
+    "#FF5722", // orange 7
+  ];
+  function getUserColor(userId, currentUserId) {
+    if (userId === currentUserId) return "#FF6F00"; // main orange for self
+    // Hash userId to pick a color
+    const idx = Math.abs(userId) % userColors.length;
+    return userColors[idx];
+  }
+
+  // Memoize sidebar props to prevent unnecessary re-renders
+  const sidebarGroupInfo = useMemo(() => groupInfo, [groupInfo]);
+  const sidebarMembers = useMemo(() => groupInfo?.members || [], [groupInfo]);
+  // Stable sidebar close handler
+  const handleSidebarClose = useCallback(() => setSidebarOpen(false), []);
+
+  if (currentGroupChat && groupInfo) {
+    console.log("[DEBUG] Rendering desktop sidebar", {
+      groupInfo,
+      members: groupInfo?.members,
+    });
+  }
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-orange-50 to-orange-100 animate-fadein">
       {/* Header */}
@@ -745,251 +785,293 @@ const NewChatPage = () => {
         )}
       </motion.div>
 
-      {/* Chat View */}
+      {/* Main flex row for chat and sidebar */}
       {currentChat || currentGroupChat ? (
-        <motion.div
-          initial={{ opacity: 0, y: 30 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.4 }}
-          className="max-w-3xl mx-auto p-4 h-full"
-        >
-          {/* Connection state indicator */}
-          {connectionState !== "connected" && (
+        <div className="flex w-full h-[calc(100vh-80px)]">
+          {/* Chat area */}
+          <div className="flex flex-col flex-grow h-full bg-gradient-to-b from-orange-50 to-white relative rounded-2xl shadow-lg m-4">
+            {/* Connection state indicator */}
+            {connectionState !== "connected" && (
+              <div
+                className={`mb-4 p-3 rounded-lg text-center mx-6 mt-4 ${
+                  connectionState === "connecting" ||
+                  connectionState === "reconnecting"
+                    ? "bg-orange-100 text-orange-800"
+                    : "bg-red-100 text-red-800"
+                }`}
+              >
+                {connectionState === "connecting" &&
+                  "Connecting to chat server..."}
+                {connectionState === "reconnecting" &&
+                  "Reconnecting to chat server..."}
+                {(connectionState === "disconnected" ||
+                  connectionState === "failed") && (
+                  <div className="flex items-center justify-center">
+                    <AlertCircle className="h-5 w-5 mr-2" />
+                    <span>
+                      Could not connect to chat. Please refresh the page or try
+                      again.
+                    </span>
+                  </div>
+                )}
+              </div>
+            )}
+            {/* Chat messages area */}
             <div
-              className={`mb-4 p-3 rounded-lg text-center ${
-                connectionState === "connecting" ||
-                connectionState === "reconnecting"
-                  ? "bg-orange-100 text-orange-800"
-                  : "bg-red-100 text-red-800"
-              }`}
+              ref={chatContainerRef}
+              className="flex-grow p-6 overflow-y-auto custom-scrollbar transition-colors duration-300 relative"
             >
-              {connectionState === "connecting" &&
-                "Connecting to chat server..."}
-              {connectionState === "reconnecting" &&
-                "Reconnecting to chat server..."}
-              {(connectionState === "disconnected" ||
-                connectionState === "failed") && (
-                <div className="flex items-center justify-center">
-                  <AlertCircle className="h-5 w-5 mr-2" />
-                  <span>
-                    Could not connect to chat. Please refresh the page or try
-                    again.
-                  </span>
+              {/* Scroll to bottom button */}
+              {showScrollToBottom && (
+                <button
+                  onClick={handleScrollToBottom}
+                  className="fixed bottom-28 right-8 z-20 bg-orange-500 hover:bg-orange-600 text-white rounded-full shadow-lg p-2 transition-all animate-bounce"
+                  title="Scroll to latest message"
+                >
+                  <svg
+                    xmlns="http://www.w3.org/2000/svg"
+                    className="h-6 w-6"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                    stroke="currentColor"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M19 9l-7 7-7-7"
+                    />
+                  </svg>
+                </button>
+              )}
+              {chatMessages.length === 0 ? (
+                <motion.div
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  transition={{ duration: 0.5 }}
+                  className="h-full flex flex-col items-center justify-center text-orange-600"
+                >
+                  <MessageSquare className="h-12 w-12 mb-4 text-orange-400 animate-bounce" />
+                  <p className="text-lg font-medium">No messages yet</p>
+                  <p className="text-sm text-gray-500 mt-2">
+                    Send a message to start the conversation
+                  </p>
+                </motion.div>
+              ) : (
+                <div className="space-y-2">
+                  {chatMessages.map((message, idx) => {
+                    const isCurrentUser = message.senderId === user?.id;
+                    const isFirstOfGroup =
+                      idx === 0 ||
+                      chatMessages[idx - 1].senderId !== message.senderId;
+                    const isLast = idx === chatMessages.length - 1;
+                    const userColor = getUserColor(message.senderId, user?.id);
+                    return (
+                      <motion.div
+                        key={message.id}
+                        initial={{ opacity: 0, y: 20 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ duration: 0.25, delay: idx * 0.02 }}
+                        className={`flex ${
+                          isCurrentUser ? "justify-end" : "justify-start"
+                        }`}
+                        ref={isLast ? lastMessageRef : null}
+                      >
+                        {/* Avatar and name for others, only at start of group */}
+                        {!isCurrentUser && isFirstOfGroup && (
+                          <div className="flex flex-col items-center mr-2">
+                            <Avatar className="h-8 w-8 mb-1">
+                              <AvatarFallback
+                                style={{ background: userColor, color: "#fff" }}
+                              >
+                                {groupInfo?.members
+                                  ?.find((m) => m.id === message.senderId)
+                                  ?.displayName?.[0]?.toUpperCase() ||
+                                  groupInfo?.members
+                                    ?.find((m) => m.id === message.senderId)
+                                    ?.username?.[0]?.toUpperCase() ||
+                                  "U"}
+                              </AvatarFallback>
+                            </Avatar>
+                            <span className="text-xs text-orange-600 font-semibold">
+                              {groupInfo?.members?.find(
+                                (m) => m.id === message.senderId
+                              )?.displayName ||
+                                groupInfo?.members?.find(
+                                  (m) => m.id === message.senderId
+                                )?.username ||
+                                "User"}
+                            </span>
+                          </div>
+                        )}
+                        <motion.div
+                          whileHover={{ scale: 1.03 }}
+                          whileTap={{ scale: 0.98 }}
+                          className={`max-w-[65%] rounded-2xl p-3 shadow-md transition-all duration-200 border animate-popin
+                            ${
+                              isCurrentUser
+                                ? "bg-gradient-to-r from-orange-500 to-orange-600 text-white border-orange-200"
+                                : "bg-white text-gray-800 border-orange-100"
+                            }
+                          `}
+                          style={
+                            !isCurrentUser
+                              ? { borderLeft: `4px solid ${userColor}` }
+                              : {}
+                          }
+                        >
+                          <p className="whitespace-pre-wrap break-words text-base leading-relaxed">
+                            {message.content}
+                          </p>
+                          <div
+                            className={`text-xs mt-1 flex items-center gap-2 ${
+                              isCurrentUser
+                                ? "text-orange-100"
+                                : "text-gray-400"
+                            }`}
+                          >
+                            {new Date(message.createdAt).toLocaleTimeString(
+                              [],
+                              { hour: "2-digit", minute: "2-digit" }
+                            )}
+                            {isCurrentUser && message.status && (
+                              <motion.span
+                                key={message.status}
+                                initial={{ opacity: 0, scale: 0.8 }}
+                                animate={{ opacity: 1, scale: 1 }}
+                                transition={{ duration: 0.2 }}
+                                className="inline-flex items-center gap-1"
+                              >
+                                {message.status === "sending" && (
+                                  <>
+                                    <svg
+                                      className="animate-spin h-3 w-3 text-orange-200"
+                                      viewBox="0 0 24 24"
+                                    >
+                                      <circle
+                                        className="opacity-25"
+                                        cx="12"
+                                        cy="12"
+                                        r="10"
+                                        stroke="currentColor"
+                                        strokeWidth="4"
+                                        fill="none"
+                                      />
+                                      <path
+                                        className="opacity-75"
+                                        fill="currentColor"
+                                        d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"
+                                      />
+                                    </svg>
+                                    Sending...
+                                  </>
+                                )}
+                                {message.status === "delivered" && (
+                                  <>
+                                    <svg
+                                      className="h-3 w-3 text-green-200"
+                                      fill="none"
+                                      viewBox="0 0 24 24"
+                                      stroke="currentColor"
+                                    >
+                                      <path
+                                        strokeLinecap="round"
+                                        strokeLinejoin="round"
+                                        strokeWidth={3}
+                                        d="M5 13l4 4L19 7"
+                                      />
+                                    </svg>
+                                    Delivered
+                                  </>
+                                )}
+                                {message.status === "read" && (
+                                  <>
+                                    <svg
+                                      className="h-3 w-3 text-blue-200"
+                                      fill="none"
+                                      viewBox="0 0 24 24"
+                                      stroke="currentColor"
+                                    >
+                                      <path
+                                        strokeLinecap="round"
+                                        strokeLinejoin="round"
+                                        strokeWidth={3}
+                                        d="M5 13l4 4L19 7"
+                                      />
+                                    </svg>
+                                    Read
+                                  </>
+                                )}
+                                {message.status === "failed" && (
+                                  <span className="text-red-200">
+                                    • Failed to send
+                                  </span>
+                                )}
+                              </motion.span>
+                            )}
+                          </div>
+                        </motion.div>
+                      </motion.div>
+                    );
+                  })}
                 </div>
               )}
             </div>
-          )}
-
-          <div className="bg-white rounded-2xl shadow-lg h-[calc(100vh-180px)] flex flex-col border border-orange-100 animate-fadein">
-            {isLoading ? (
-              <div className="flex-grow flex items-center justify-center">
-                <div className="animate-spin h-8 w-8 border-4 border-orange-500 border-t-transparent rounded-full"></div>
+            {/* Chat input area */}
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.3 }}
+              className="border-t border-orange-100 p-4 bg-white rounded-b-2xl"
+            >
+              <div className="flex gap-2">
+                <Input
+                  value={currentMessage}
+                  onChange={(e) => setCurrentMessage(e.target.value)}
+                  onKeyDown={handleKeyPress}
+                  placeholder="Type your message..."
+                  className="border-orange-200 focus:border-orange-500 focus:ring-orange-500 shadow-sm"
+                  disabled={connectionState !== "connected"}
+                />
+                <Button
+                  className="bg-gradient-to-r from-orange-500 to-orange-600 hover:from-orange-600 hover:to-orange-700 text-white shadow-lg"
+                  onClick={handleSendMessage}
+                  disabled={
+                    connectionState !== "connected" || !currentMessage.trim()
+                  }
+                >
+                  <SendHorizontal className="h-4 w-4" />
+                </Button>
               </div>
-            ) : (
-              <>
-                {/* Chat messages area */}
-                <div
-                  ref={chatContainerRef}
-                  className="flex-grow p-4 overflow-y-auto custom-scrollbar bg-gradient-to-b from-orange-50 to-white transition-colors duration-300 relative"
-                >
-                  {/* Scroll to bottom button */}
-                  {showScrollToBottom && (
-                    <button
-                      onClick={handleScrollToBottom}
-                      className="fixed bottom-28 right-8 z-20 bg-orange-500 hover:bg-orange-600 text-white rounded-full shadow-lg p-2 transition-all animate-bounce"
-                      title="Scroll to latest message"
-                    >
-                      <svg
-                        xmlns="http://www.w3.org/2000/svg"
-                        className="h-6 w-6"
-                        fill="none"
-                        viewBox="0 0 24 24"
-                        stroke="currentColor"
-                      >
-                        <path
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                          strokeWidth={2}
-                          d="M19 9l-7 7-7-7"
-                        />
-                      </svg>
-                    </button>
-                  )}
-                  {chatMessages.length === 0 ? (
-                    <motion.div
-                      initial={{ opacity: 0 }}
-                      animate={{ opacity: 1 }}
-                      transition={{ duration: 0.5 }}
-                      className="h-full flex flex-col items-center justify-center text-orange-600"
-                    >
-                      <MessageSquare className="h-12 w-12 mb-4 text-orange-400 animate-bounce" />
-                      <p className="text-lg font-medium">No messages yet</p>
-                      <p className="text-sm text-gray-500 mt-2">
-                        Send a message to start the conversation
-                      </p>
-                    </motion.div>
-                  ) : (
-                    <div className="space-y-4">
-                      {chatMessages.map((message, idx) => {
-                        const isCurrentUser = message.senderId === user?.id;
-                        const isLast = idx === chatMessages.length - 1;
-                        return (
-                          <motion.div
-                            key={message.id}
-                            initial={{ opacity: 0, y: 20 }}
-                            animate={{ opacity: 1, y: 0 }}
-                            transition={{ duration: 0.25, delay: idx * 0.03 }}
-                            className={`flex ${
-                              isCurrentUser ? "justify-end" : "justify-start"
-                            }`}
-                            ref={isLast ? lastMessageRef : null}
-                          >
-                            <motion.div
-                              whileHover={{ scale: 1.03 }}
-                              whileTap={{ scale: 0.98 }}
-                              className={`max-w-[75%] rounded-2xl p-3 shadow-md transition-all duration-200 border
-                                ${
-                                  isCurrentUser
-                                    ? "bg-gradient-to-r from-orange-500 to-orange-600 text-white border-orange-200"
-                                    : "bg-white text-gray-800 border-orange-100"
-                                }
-                                animate-popin`}
-                            >
-                              <p className="whitespace-pre-wrap break-words text-base leading-relaxed">
-                                {message.content}
-                              </p>
-                              <div
-                                className={`text-xs mt-1 flex items-center gap-2 ${
-                                  isCurrentUser
-                                    ? "text-orange-100"
-                                    : "text-gray-500"
-                                }`}
-                              >
-                                {new Date(message.createdAt).toLocaleTimeString(
-                                  [],
-                                  { hour: "2-digit", minute: "2-digit" }
-                                )}
-                                {isCurrentUser && message.status && (
-                                  <motion.span
-                                    key={message.status}
-                                    initial={{ opacity: 0, scale: 0.8 }}
-                                    animate={{ opacity: 1, scale: 1 }}
-                                    transition={{ duration: 0.2 }}
-                                    className="inline-flex items-center gap-1"
-                                  >
-                                    {message.status === "sending" && (
-                                      <>
-                                        <svg
-                                          className="animate-spin h-3 w-3 text-orange-200"
-                                          viewBox="0 0 24 24"
-                                        >
-                                          <circle
-                                            className="opacity-25"
-                                            cx="12"
-                                            cy="12"
-                                            r="10"
-                                            stroke="currentColor"
-                                            strokeWidth="4"
-                                            fill="none"
-                                          />
-                                          <path
-                                            className="opacity-75"
-                                            fill="currentColor"
-                                            d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"
-                                          />
-                                        </svg>
-                                        Sending...
-                                      </>
-                                    )}
-                                    {message.status === "delivered" && (
-                                      <>
-                                        <svg
-                                          className="h-3 w-3 text-green-200"
-                                          fill="none"
-                                          viewBox="0 0 24 24"
-                                          stroke="currentColor"
-                                        >
-                                          <path
-                                            strokeLinecap="round"
-                                            strokeLinejoin="round"
-                                            strokeWidth={3}
-                                            d="M5 13l4 4L19 7"
-                                          />
-                                        </svg>
-                                        Delivered
-                                      </>
-                                    )}
-                                    {message.status === "read" && (
-                                      <>
-                                        <svg
-                                          className="h-3 w-3 text-blue-200"
-                                          fill="none"
-                                          viewBox="0 0 24 24"
-                                          stroke="currentColor"
-                                        >
-                                          <path
-                                            strokeLinecap="round"
-                                            strokeLinejoin="round"
-                                            strokeWidth={3}
-                                            d="M5 13l4 4L19 7"
-                                          />
-                                        </svg>
-                                        Read
-                                      </>
-                                    )}
-                                    {message.status === "failed" && (
-                                      <span className="text-red-200">
-                                        • Failed to send
-                                      </span>
-                                    )}
-                                  </motion.span>
-                                )}
-                              </div>
-                            </motion.div>
-                          </motion.div>
-                        );
-                      })}
-                    </div>
-                  )}
-                </div>
-
-                {/* Chat input area */}
-                <motion.div
-                  initial={{ opacity: 0, y: 20 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ duration: 0.3 }}
-                  className="border-t border-orange-100 p-4 bg-white rounded-b-2xl"
-                >
-                  <div className="flex gap-2">
-                    <Input
-                      value={currentMessage}
-                      onChange={(e) => setCurrentMessage(e.target.value)}
-                      onKeyDown={handleKeyPress}
-                      placeholder="Type your message..."
-                      className="border-orange-200 focus:border-orange-500 focus:ring-orange-500 shadow-sm"
-                      disabled={connectionState !== "connected"}
-                    />
-                    <Button
-                      className="bg-gradient-to-r from-orange-500 to-orange-600 hover:from-orange-600 hover:to-orange-700 text-white shadow-lg"
-                      onClick={handleSendMessage}
-                      disabled={
-                        connectionState !== "connected" ||
-                        !currentMessage.trim()
-                      }
-                    >
-                      <SendHorizontal className="h-4 w-4" />
-                    </Button>
-                  </div>
-                  {connectionState !== "connected" && (
-                    <p className="text-sm text-orange-600 mt-2">
-                      Connect to the chat server to send messages
-                    </p>
-                  )}
-                </motion.div>
-              </>
-            )}
+              {connectionState !== "connected" && (
+                <p className="text-sm text-orange-600 mt-2">
+                  Connect to the chat server to send messages
+                </p>
+              )}
+            </motion.div>
           </div>
-        </motion.div>
+          {/* Sidebar as sibling, not child */}
+          {currentGroupChat && (
+            <>
+              {/* Desktop sidebar */}
+              <div className="hidden md:flex flex-col h-full w-72 shadow-xl rounded-r-2xl m-4 ml-0">
+                <GroupSidebar
+                  groupInfo={sidebarGroupInfo}
+                  members={sidebarMembers}
+                  open={true}
+                  onClose={handleSidebarClose}
+                />
+              </div>
+              {/* Mobile sidebar overlay (remains overlay for mobile) */}
+              <GroupSidebar
+                groupInfo={sidebarGroupInfo}
+                members={sidebarMembers}
+                open={sidebarOpen}
+                onClose={handleSidebarClose}
+              />
+            </>
+          )}
+        </div>
       ) : (
         // Chat list view
         <motion.div
