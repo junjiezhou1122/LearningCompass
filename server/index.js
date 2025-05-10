@@ -6,6 +6,7 @@ const authRoutes = require("./routes/auth");
 const bookmarkRoutes = require("./routes/bookmarks");
 const commentRoutes = require("./routes/comments");
 const chatRoutes = require("./routes/chat");
+const recommendationsRoutes = require("./routes/recommendations");
 
 const app = express();
 
@@ -31,6 +32,7 @@ app.use("/api/auth", authRoutes);
 app.use("/api", bookmarkRoutes);
 app.use("/api", commentRoutes);
 app.use("/api/chat", chatRoutes);
+app.use("/api", recommendationsRoutes);
 
 // Simple posts route for testing
 app.get("/api/learning-posts/:id", (req, res) => {

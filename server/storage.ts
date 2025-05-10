@@ -1897,108 +1897,196 @@ export class DatabaseStorage implements IStorage {
   async generateRecommendations(
     userId: number
   ): Promise<(UserRecommendation & { course: Course })[]> {
-    // First check for existing recommendations
-    const existing = await this.getUserRecommendations(userId);
-    if (existing.length > 0) {
-      return existing;
+    // PATCH: Always generate fresh recommendations for each request (disable caching for testing)
+    // In production, restore the following lines to enable caching:
+    // const existing = await this.getUserRecommendations(userId);
+    // if (existing.length > 0) {
+    //   return existing;
+    // }
+
+    // Aggregate user interactions
+    const [bookmarks, posts, comments, likes, searchHistory, aiConvos] =
+      await Promise.all([
+        this.getBookmarksByUserId(userId),
+        this.getLearningPosts({ userId }),
+        this.getLearningPostCommentsByUserId(userId),
+        this.getLearningPostLikesByUserId(userId),
+        this.getSearchHistoryByUserId(userId),
+        this.getAiConversationsByUserId(userId),
+      ]);
+
+    // Collect all course IDs the user has interacted with
+    const interactedCourseIds = new Set<number>();
+    // Bookmarks reference courseId directly
+    bookmarks.forEach((b) => interactedCourseIds.add(b.courseId));
+    // Posts reference courseId directly (if present)
+    posts.forEach((p) => {
+      if ((p as any).courseId) interactedCourseIds.add((p as any).courseId);
+    });
+    // Comments and likes reference postId; resolve to courseId
+    const postIdSet = new Set<number>();
+    comments.forEach((c) => {
+      if (c.postId) postIdSet.add(c.postId);
+    });
+    likes.forEach((l) => {
+      if (l.postId) postIdSet.add(l.postId);
+    });
+    // Fetch posts for these postIds
+    const postIdArr = Array.from(postIdSet);
+    let relatedPosts: any[] = [];
+    if (postIdArr.length > 0) {
+      relatedPosts = await Promise.all(
+        postIdArr.map((id) => this.getLearningPost(id))
+      );
+      relatedPosts.forEach((p) => {
+        if (p && (p as any).courseId)
+          interactedCourseIds.add((p as any).courseId);
+      });
     }
 
-    // If no recommendations exist, generate some based on:
-    // 1. User's bookmarks
-    // 2. User's search history
-    // 3. Popular courses in general
-
-    // Get user's bookmarks
-    const bookmarks = await this.getBookmarksByUserId(userId);
-    const bookmarkedCourseIds = bookmarks.map((b) => b.courseId);
-
-    // Get courses from bookmarks for category analysis
-    const bookmarkedCourses = await this.getCoursesByIds(bookmarkedCourseIds);
-
-    // Extract categories and skills from bookmarked courses
+    // Collect metadata from interacted courses
+    const allCourseIds = Array.from(interactedCourseIds).filter(Boolean);
+    const interactedCourses =
+      allCourseIds.length > 0 ? await this.getCoursesByIds(allCourseIds) : [];
     const categories = new Set<string>();
     const subCategories = new Set<string>();
     const skills = new Set<string>();
-
-    bookmarkedCourses.forEach((course) => {
+    interactedCourses.forEach((course) => {
       if (course.category) categories.add(course.category);
       if (course.subCategory) subCategories.add(course.subCategory);
-      if (course.skills) {
-        course.skills.split(",").forEach((skill) => {
-          skills.add(skill.trim());
+      if (course.skills)
+        course.skills.split(",").forEach((skill) => skills.add(skill.trim()));
+    });
+
+    // Extract keywords from search history and AI chat
+    const keywords = new Set<string>();
+    searchHistory.forEach((s) => {
+      if ((s as any).searchQuery)
+        (s as any).searchQuery
+          .split(/\s+/)
+          .forEach((word) => keywords.add(word.toLowerCase()));
+    });
+    aiConvos.forEach((c) => {
+      if (Array.isArray((c as any).messages)) {
+        (c as any).messages.forEach((m: any) => {
+          if (m.content)
+            m.content
+              .split(/\s+/)
+              .forEach((word: string) => keywords.add(word.toLowerCase()));
         });
       }
     });
 
-    // Get recommended courses based on user interests
-    let recommendedCourses: Course[] = [];
-
-    if (categories.size > 0) {
-      // Get courses in same categories
-      const categoryCourses = await this.getCourses({
-        category: Array.from(categories)[0], // Use first category
-        limit: 10,
-        sortBy: "rating_high",
-      });
-
-      recommendedCourses = [...recommendedCourses, ...categoryCourses];
-    }
-
-    if (recommendedCourses.length < 5) {
-      // Get popular courses as fallback
-      const popularCourses = await this.getCourses({
-        limit: 10,
-        sortBy: "popular",
-      });
-
-      recommendedCourses = [...recommendedCourses, ...popularCourses];
-    }
-
-    // Filter out duplicates and already bookmarked courses
-    const uniqueCourses = recommendedCourses
-      .filter(
-        (course, index, self) =>
-          index === self.findIndex((c) => c.id === course.id)
-      )
-      .filter((course) => !bookmarkedCourseIds.includes(course.id))
-      .slice(0, 5); // Limit to 5 recommendations
-
-    // Create recommendation records
-    const recommendations: (UserRecommendation & { course: Course })[] = [];
-
-    for (const course of uniqueCourses) {
-      // Generate reason based on course attributes
-      let reason = "Based on your interests";
-      if (categories.has(course.category)) {
-        reason = `Similar to courses you've bookmarked in ${course.category}`;
-      } else if (course.rating && course.rating > 4.5) {
-        reason = "Highly rated course you might enjoy";
-      } else if (course.numberOfViewers && course.numberOfViewers > 10000) {
-        reason = "Popular with many learners";
+    // NEW: Extract keywords from authored posts
+    posts.forEach((p) => {
+      if (p.content) {
+        p.content
+          .split(/\s+/)
+          .forEach((word: string) => keywords.add(word.toLowerCase()));
       }
+    });
 
-      // Calculate score (simple algorithm)
-      let score = 0.5; // base score
+    // NEW: Extract keywords from authored comments
+    comments.forEach((c) => {
+      if (c.content) {
+        c.content
+          .split(/\s+/)
+          .forEach((word: string) => keywords.add(word.toLowerCase()));
+      }
+    });
 
-      if (categories.has(course.category)) score += 0.2;
-      if (subCategories.has(course.subCategory)) score += 0.1;
-      if (course.rating) score += course.rating / 10; // Up to 0.5 for a 5.0 rating
+    // NEW: Extract keywords from liked posts
+    if (likes.length > 0) {
+      const likedPosts = await Promise.all(
+        likes.map((l) => this.getLearningPost(l.postId))
+      );
+      likedPosts.forEach((p) => {
+        if (p && p.content) {
+          p.content
+            .split(/\s+/)
+            .forEach((word: string) => keywords.add(word.toLowerCase()));
+        }
+      });
+      // (Optional) Extract keywords from comments on liked posts
+      for (const p of likedPosts) {
+        if (p) {
+          const postComments = await this.getLearningPostCommentsByPostId(p.id);
+          postComments.forEach((c) => {
+            if (c.content) {
+              c.content
+                .split(/\s+/)
+                .forEach((word: string) => keywords.add(word.toLowerCase()));
+            }
+          });
+        }
+      }
+    }
 
-      // Create recommendation
-      const recommendation = await this.createUserRecommendation({
+    // Build user profile vector
+    const userProfile = {
+      categories,
+      subCategories,
+      skills,
+      keywords,
+    };
+
+    // Fetch candidate courses (not already interacted)
+    const candidateCourses = await this.getCourses({ limit: 100 });
+    const filteredCandidates = candidateCourses.filter(
+      (c) => c.id && !interactedCourseIds.has(c.id)
+    );
+
+    // Score candidates by content similarity
+    function scoreCourse(course: Course): number {
+      let score = 0;
+      if (course.category && userProfile.categories.has(course.category))
+        score += 2;
+      if (
+        course.subCategory &&
+        userProfile.subCategories.has(course.subCategory)
+      )
+        score += 1.5;
+      if (course.skills)
+        course.skills.split(",").forEach((skill) => {
+          if (userProfile.skills.has(skill.trim())) score += 1;
+        });
+      // Keyword match in title/description
+      const text = `${course.title} ${course.shortIntro || ""}`.toLowerCase();
+      userProfile.keywords.forEach((kw) => {
+        if (text.includes(kw)) score += 0.2;
+      });
+      // Bonus for highly rated or trending
+      if (course.rating && course.rating > 4.5) score += 0.5;
+      if (course.numberOfViewers && course.numberOfViewers > 10000)
+        score += 0.3;
+      return score;
+    }
+    const scored = filteredCandidates.map((course) => ({
+      course,
+      score: scoreCourse(course),
+    }));
+    scored.sort((a, b) => b.score - a.score);
+    const top = scored.slice(0, 5);
+
+    // Create recommendations
+    const recommendations: (UserRecommendation & { course: Course })[] = [];
+    for (const { course, score } of top) {
+      let reason = "Based on your learning activity";
+      if (course.category && userProfile.categories.has(course.category))
+        reason = `Similar to your interests in ${course.category}`;
+      else if (course.rating && course.rating > 4.5)
+        reason = "Highly rated course you might enjoy";
+      else if (course.numberOfViewers && course.numberOfViewers > 10000)
+        reason = "Popular with many learners";
+      const rec = await this.createUserRecommendation({
         userId,
         courseId: course.id,
         score,
         reason,
-        trending: course.numberOfViewers > 50000,
+        trending: !!course.numberOfViewers && course.numberOfViewers > 50000,
       });
-
-      recommendations.push({
-        ...recommendation,
-        course,
-      });
+      recommendations.push({ ...rec, course });
     }
-
     return recommendations;
   }
 
