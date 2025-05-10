@@ -7,7 +7,6 @@ import React, {
   memo,
   useMemo,
 } from "react";
-import { useLocation, useRoute } from "wouter";
 import {
   Search,
   MessageSquare,
@@ -35,11 +34,10 @@ import {
 } from "@/components/ui/tooltip";
 import { useToast } from "@/hooks/use-toast";
 import GroupSidebar from "../components/chat/GroupSidebar";
+import { Dialog, DialogContent, DialogOverlay } from "@/components/ui/dialog";
+import CreateGroupPage from "./CreateGroupPage";
 
 const NewChatPage = () => {
-  const [location, setLocation] = useLocation();
-  const [matchUserChat, params] = useRoute("/chat/:userId");
-  const [matchGroupChat, groupParams] = useRoute("/chat/group/:groupId");
   const { toast } = useToast();
   const { user } = useContext(AuthContext);
   const {
@@ -51,10 +49,6 @@ const NewChatPage = () => {
     joinGroup,
     leaveGroup,
   } = useSocketIO();
-
-  // If we have URL parameters, use them
-  const chatUserId = matchUserChat ? params.userId : null;
-  const chatGroupId = matchGroupChat ? groupParams.groupId : null;
 
   // State to track if we're in a chat or showing the chat list
   const [currentChat, setCurrentChat] = useState(null);
@@ -73,24 +67,28 @@ const NewChatPage = () => {
   const [searchResults, setSearchResults] = useState([]);
   const [isSearching, setIsSearching] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [showChatTypeModal, setShowChatTypeModal] = useState(false);
+  const [selectedTab, setSelectedTab] = useState("recent");
+  const [activeChat, setActiveChat] = useState(null);
+  const [showCreateGroup, setShowCreateGroup] = useState(false);
 
   // Log route matches and parameters for debugging
-  console.log("URL matches user chat:", matchUserChat, params);
-  console.log("URL matches group chat:", matchGroupChat, groupParams);
   console.log("WebSocket connection state:", connectionState);
 
   // Load chat data if userId or groupId is present
   useEffect(() => {
-    if (chatUserId) {
-      console.log(`Loading direct chat with user ID: ${chatUserId}`);
-      setCurrentChat(chatUserId);
-      fetchChatUser(chatUserId);
-      fetchChatHistory(chatUserId);
-    } else if (chatGroupId) {
-      console.log(`Loading group chat with ID: ${chatGroupId}`);
-      setCurrentGroupChat(chatGroupId);
-      fetchGroupInfo(chatGroupId);
-      fetchGroupChatHistory(chatGroupId);
+    if (activeChat) {
+      if (activeChat.type === "user") {
+        setCurrentChat(activeChat.id);
+        setCurrentGroupChat(null);
+        fetchChatUser(activeChat.id);
+        fetchChatHistory(activeChat.id);
+      } else if (activeChat.type === "group") {
+        setCurrentGroupChat(activeChat.id);
+        setCurrentChat(null);
+        fetchGroupInfo(activeChat.id);
+        fetchGroupChatHistory(activeChat.id);
+      }
     } else {
       setCurrentChat(null);
       setCurrentGroupChat(null);
@@ -98,7 +96,7 @@ const NewChatPage = () => {
       setGroupInfo(null);
       setChatMessages([]);
     }
-  }, [chatUserId, chatGroupId]);
+  }, [activeChat]);
 
   // Debug the incoming chat data
   useEffect(() => {
@@ -583,38 +581,6 @@ const NewChatPage = () => {
     }
   };
 
-  // Start a chat with a user
-  const startChat = (userId) => {
-    setLocation(`/chat/${userId}`);
-  };
-
-  // Navigate to user profile
-  const viewProfile = (userId) => {
-    setLocation(`/users/${userId}`);
-  };
-
-  // Navigate to create group page
-  const createGroup = () => {
-    setLocation("/chat/create-group");
-  };
-
-  // Navigate to a group chat
-  const openGroupChat = (groupId) => {
-    console.log(`Opening group chat: ${groupId}`);
-    if (!groupId) {
-      console.error("Attempted to open group chat with null/undefined ID");
-      toast({
-        title: "Error",
-        description: "Invalid group chat ID",
-        variant: "destructive",
-      });
-      return;
-    }
-
-    // Ensure we're using the setLocation function for navigation
-    setLocation(`/chat/group/${groupId}`);
-  };
-
   const chatContainerRef = useRef(null);
   const lastMessageRef = useRef(null);
   const [isAtBottom, setIsAtBottom] = useState(true);
@@ -735,641 +701,516 @@ const NewChatPage = () => {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-orange-50 to-orange-100 animate-fadein">
-      {/* Header */}
-      <motion.div
-        initial={{ y: -40, opacity: 0 }}
-        animate={{ y: 0, opacity: 1 }}
-        transition={{ duration: 0.5 }}
-        className="bg-white shadow-md p-4 flex items-center justify-between sticky top-0 z-10 rounded-b-xl"
-      >
-        <div className="flex items-center">
-          <Button
-            variant="ghost"
-            size="icon"
-            onClick={() => setLocation("/chat")}
-            className="mr-2"
-          >
-            <ArrowLeft className="h-5 w-5 text-orange-600" />
-          </Button>
-          <h1 className="text-xl font-bold text-orange-800">
-            {currentChat
-              ? chatUser
-                ? chatUser.displayName || chatUser.username
-                : "Direct Message"
-              : currentGroupChat
-              ? groupInfo
-                ? groupInfo.name
-                : "Group Chat"
-              : "New Conversation"}
-          </h1>
+    <div className="h-screen flex flex-col md:flex-row">
+      {/* Sidebar */}
+      <aside className="w-full md:w-80 bg-white shadow-md border-r border-gray-100 flex-shrink-0 flex flex-col h-full">
+        <div className="px-6 py-5 border-b border-gray-100 flex items-center gap-2">
+          <MessageSquare className="h-6 w-6 text-blue-600" />
+          <span className="text-lg font-bold text-gray-900">Chats</span>
         </div>
-        {!currentChat && !currentGroupChat && (
-          <Button
-            onClick={createGroup}
-            className="bg-orange-100 hover:bg-orange-200 text-orange-800"
-          >
-            <Users className="h-4 w-4 mr-2" />
-            Create Group
-          </Button>
-        )}
-        {(connectionState === "disconnected" ||
-          connectionState === "failed") && (
-          <Button
-            onClick={reconnect}
-            className="bg-orange-100 hover:bg-orange-200 text-orange-800"
-          >
-            <RefreshCw className="h-4 w-4 mr-2" />
-            Reconnect
-          </Button>
-        )}
-      </motion.div>
-
-      {/* Main flex row for chat and sidebar */}
-      {currentChat || currentGroupChat ? (
-        <div className="flex w-full h-[calc(100vh-80px)]">
-          {/* Chat area */}
-          <div className="flex flex-col flex-grow h-full bg-gradient-to-b from-orange-50 to-white relative rounded-2xl shadow-lg m-4">
-            {/* Connection state indicator */}
-            {connectionState !== "connected" && (
-              <div
-                className={`mb-4 p-3 rounded-lg text-center mx-6 mt-4 ${
-                  connectionState === "connecting" ||
-                  connectionState === "reconnecting"
-                    ? "bg-orange-100 text-orange-800"
-                    : "bg-red-100 text-red-800"
+        {/* Tabs */}
+        <nav className="flex md:flex-col flex-row md:gap-2 gap-2 md:mt-8 mt-2 px-2 md:px-4">
+          {[
+            { key: "recent", label: "Recent", icon: MessageSquare },
+            { key: "followers", label: "Followers", icon: UserPlus },
+            { key: "groups", label: "Groups", icon: Users },
+          ].map((tab) => (
+            <button
+              key={tab.key}
+              className={`flex items-center gap-2 px-6 py-2 rounded-full text-base transition-all duration-200 mb-0 font-medium
+                ${
+                  selectedTab === tab.key
+                    ? "bg-blue-100 text-blue-700 font-bold shadow-sm"
+                    : "text-gray-700 hover:bg-gray-100"
                 }`}
+              onClick={() => setSelectedTab(tab.key)}
+            >
+              <tab.icon
+                className={`h-5 w-5 ${
+                  selectedTab === tab.key ? "text-blue-600" : "text-gray-400"
+                } transition-colors`}
+              />
+              {tab.label}
+            </button>
+          ))}
+        </nav>
+        <div className="border-b border-gray-100 my-4 mx-2 md:mx-4" />
+        {/* Sidebar List for selected tab */}
+        <div className="flex-1 overflow-y-auto px-2 md:px-4 pb-4 max-h-[calc(100vh-160px)]">
+          {selectedTab === "recent" &&
+            (recentChats.length === 0 ? (
+              <div className="flex flex-col items-center justify-center py-12">
+                <MessageSquare className="h-10 w-10 text-blue-200 mb-2" />
+                <p className="font-medium text-gray-400 mb-2">
+                  No recent conversations
+                </p>
+              </div>
+            ) : (
+              <AnimatePresence initial={false}>
+                {recentChats.map((chat, idx) => (
+                  <motion.div
+                    key={chat.id}
+                    initial={{ opacity: 0, x: 30 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    exit={{ opacity: 0, x: 30 }}
+                    transition={{ delay: idx * 0.03, duration: 0.3 }}
+                    className={`flex items-center gap-3 px-4 py-3 rounded-lg transition cursor-pointer group mb-1
+                      ${
+                        activeChat &&
+                        activeChat.type === "user" &&
+                        activeChat.id === chat.id
+                          ? "bg-blue-100 font-bold text-blue-700 border-l-4 border-blue-500"
+                          : "hover:bg-blue-50/80"
+                      }`}
+                    onClick={() => setActiveChat({ type: "user", id: chat.id })}
+                  >
+                    <Avatar className="h-10 w-10">
+                      <AvatarFallback className="bg-gray-200 text-gray-700">
+                        {chat.username?.substring(0, 2).toUpperCase()}
+                      </AvatarFallback>
+                    </Avatar>
+                    <div className="flex-1 min-w-0">
+                      <div className="font-semibold truncate">
+                        {chat.displayName || chat.username}
+                      </div>
+                      <div className="text-xs text-gray-500 truncate">
+                        {chat.lastMessage || "Start a conversation"}
+                      </div>
+                    </div>
+                    {chat.lastMessageTime && (
+                      <div className="text-xs text-gray-400 ml-2 whitespace-nowrap">
+                        {chat.lastMessageTime}
+                      </div>
+                    )}
+                  </motion.div>
+                ))}
+              </AnimatePresence>
+            ))}
+          {selectedTab === "followers" &&
+            (isLoadingFollowers ? (
+              <div className="flex justify-center py-12">
+                <div className="animate-spin h-8 w-8 border-4 border-blue-500 border-t-transparent rounded-full"></div>
+              </div>
+            ) : followers.length === 0 ? (
+              <div className="flex flex-col items-center justify-center py-12">
+                <UserPlus className="h-10 w-10 text-blue-200 mb-2" />
+                <p className="font-medium text-gray-400 mb-2">
+                  No mutual followers
+                </p>
+              </div>
+            ) : (
+              <AnimatePresence initial={false}>
+                {followers.map((follower, idx) => (
+                  <motion.div
+                    key={follower.id}
+                    initial={{ opacity: 0, x: 30 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    exit={{ opacity: 0, x: 30 }}
+                    transition={{ delay: idx * 0.03, duration: 0.3 }}
+                    className={`flex items-center gap-3 px-4 py-3 rounded-lg transition cursor-pointer group mb-1
+                      ${
+                        activeChat &&
+                        activeChat.type === "user" &&
+                        activeChat.id === follower.id
+                          ? "bg-blue-100 font-bold text-blue-700 border-l-4 border-blue-500"
+                          : "hover:bg-blue-50/80"
+                      }`}
+                    onClick={() =>
+                      setActiveChat({ type: "user", id: follower.id })
+                    }
+                  >
+                    <Avatar className="h-10 w-10">
+                      <AvatarFallback className="bg-gray-200 text-gray-700">
+                        {follower.username?.substring(0, 2).toUpperCase()}
+                      </AvatarFallback>
+                    </Avatar>
+                    <div className="flex-1 min-w-0">
+                      <div className="font-semibold truncate">
+                        {follower.displayName || follower.username}
+                      </div>
+                      <div className="text-xs text-gray-500 truncate">
+                        @{follower.username}
+                      </div>
+                    </div>
+                  </motion.div>
+                ))}
+              </AnimatePresence>
+            ))}
+          {selectedTab === "groups" && (
+            <div className="mb-4 flex justify-center">
+              <Button
+                variant="outline"
+                className="w-full flex items-center gap-2 justify-center text-blue-700 border-blue-200 hover:bg-blue-50"
+                onClick={() => setShowCreateGroup(true)}
               >
-                {connectionState === "connecting" &&
-                  "Connecting to chat server..."}
-                {connectionState === "reconnecting" &&
-                  "Reconnecting to chat server..."}
-                {(connectionState === "disconnected" ||
-                  connectionState === "failed") && (
-                  <div className="flex items-center justify-center">
-                    <AlertCircle className="h-5 w-5 mr-2" />
-                    <span>
-                      Could not connect to chat. Please refresh the page or try
-                      again.
-                    </span>
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  className="h-5 w-5"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  stroke="currentColor"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M12 4v16m8-8H4"
+                  />
+                </svg>
+                Create Group
+              </Button>
+            </div>
+          )}
+          {selectedTab === "groups" &&
+            (isLoadingGroups ? (
+              <div className="flex justify-center py-12">
+                <div className="animate-spin h-8 w-8 border-4 border-blue-500 border-t-transparent rounded-full"></div>
+              </div>
+            ) : groups.length === 0 ? (
+              <div className="flex flex-col items-center justify-center py-12">
+                <Users className="h-10 w-10 text-blue-200 mb-2" />
+                <p className="font-medium text-gray-400 mb-2">No group chats</p>
+              </div>
+            ) : (
+              <AnimatePresence initial={false}>
+                {groups.map((group, idx) => (
+                  <motion.div
+                    key={group.id}
+                    initial={{ opacity: 0, x: 30 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    exit={{ opacity: 0, x: 30 }}
+                    transition={{ delay: idx * 0.03, duration: 0.3 }}
+                    className={`flex items-center gap-3 px-4 py-3 rounded-lg transition cursor-pointer group mb-1
+                      ${
+                        activeChat &&
+                        activeChat.type === "group" &&
+                        activeChat.id === group.id
+                          ? "bg-blue-100 font-bold text-blue-700 border-l-4 border-blue-500"
+                          : "hover:bg-blue-50/80"
+                      }`}
+                    onClick={() =>
+                      setActiveChat({ type: "group", id: group.id })
+                    }
+                  >
+                    <Avatar className="h-10 w-10">
+                      <AvatarFallback className="bg-gray-200 text-gray-700">
+                        {group.name?.substring(0, 2)?.toUpperCase() || "GC"}
+                      </AvatarFallback>
+                    </Avatar>
+                    <div className="flex-1 min-w-0">
+                      <div className="font-semibold truncate">
+                        {group.name || "Unnamed Group"}
+                      </div>
+                      <div className="text-xs text-gray-500 truncate">
+                        {group.memberCount
+                          ? `${group.memberCount} members`
+                          : "Group chat"}
+                      </div>
+                    </div>
+                  </motion.div>
+                ))}
+              </AnimatePresence>
+            ))}
+        </div>
+      </aside>
+
+      {/* Main Content: Chat area for activeChat */}
+      <main className="flex-1 flex flex-col h-full items-stretch">
+        {showCreateGroup ? (
+          <CreateGroupPage onClose={() => setShowCreateGroup(false)} />
+        ) : activeChat ? (
+          <div className="flex flex-col h-full min-h-0">
+            {/* Chat Header */}
+            <div className="flex items-center gap-4 px-6 py-4 bg-white rounded-xl shadow-sm">
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={() => setActiveChat(null)}
+                className="mr-2"
+              >
+                <ArrowLeft className="h-5 w-5 text-blue-600" />
+              </Button>
+              {activeChat.type === "user" && chatUser && (
+                <>
+                  <Avatar className="h-10 w-10">
+                    <AvatarFallback className="bg-blue-200 text-blue-700">
+                      {chatUser.displayName?.[0]?.toUpperCase() ||
+                        chatUser.username?.[0]?.toUpperCase() ||
+                        "U"}
+                    </AvatarFallback>
+                  </Avatar>
+                  <div>
+                    <div className="text-lg font-bold text-gray-900">
+                      {chatUser.displayName || chatUser.username}
+                    </div>
+                    <div className="text-xs text-gray-500">
+                      @{chatUser.username}
+                    </div>
+                  </div>
+                </>
+              )}
+              {activeChat.type === "group" && groupInfo && (
+                <>
+                  <Avatar className="h-10 w-10">
+                    <AvatarFallback className="bg-blue-200 text-blue-700">
+                      {groupInfo.name?.[0]?.toUpperCase() || "G"}
+                    </AvatarFallback>
+                  </Avatar>
+                  <div>
+                    <div className="text-lg font-bold text-gray-900">
+                      {groupInfo.name}
+                    </div>
+                    <div className="text-xs text-gray-500">
+                      {groupInfo.memberCount} members
+                    </div>
+                  </div>
+                </>
+              )}
+            </div>
+            {/* Chat Messages and Input (fixed height, scrollable messages) */}
+            <div className="flex flex-col flex-1 min-h-0">
+              <div
+                ref={chatContainerRef}
+                className="flex-1 min-h-0 overflow-y-auto p-6 custom-scrollbar transition-colors duration-300 relative bg-transparent"
+              >
+                {chatMessages.length === 0 ? (
+                  <motion.div
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    transition={{ duration: 0.5 }}
+                    className="h-full flex flex-col items-center justify-center text-blue-600"
+                  >
+                    <MessageSquare className="h-12 w-12 mb-4 text-blue-400 animate-bounce" />
+                    <p className="text-lg font-medium">No messages yet</p>
+                    <p className="text-sm text-gray-500 mt-2">
+                      Send a message to start the conversation
+                    </p>
+                  </motion.div>
+                ) : (
+                  <div className="space-y-2">
+                    <AnimatePresence initial={false}>
+                      {chatMessages.map((message, idx) => {
+                        const isCurrentUser = message.senderId === user?.id;
+                        const isFirstOfGroup =
+                          idx === 0 ||
+                          chatMessages[idx - 1].senderId !== message.senderId;
+                        const isLast = idx === chatMessages.length - 1;
+                        const userColor = getUserColor(
+                          message.senderId,
+                          user?.id
+                        );
+                        // For sent messages, use your avatar/name
+                        const myAvatar = user?.avatarUrl || undefined;
+                        const myName =
+                          user?.displayName || user?.username || "Me";
+                        // For received, get sender info from groupInfo if available
+                        const sender = groupInfo?.members?.find(
+                          (m) => m.id === message.senderId
+                        );
+                        return (
+                          <motion.div
+                            key={message.id}
+                            initial={{
+                              opacity: 0,
+                              x: isCurrentUser ? 40 : -40,
+                            }}
+                            animate={{ opacity: 1, x: 0 }}
+                            exit={{ opacity: 0, x: isCurrentUser ? 40 : -40 }}
+                            transition={{
+                              type: "spring",
+                              stiffness: 400,
+                              damping: 30,
+                              delay: idx * 0.02,
+                            }}
+                            className={`flex w-full mb-4 ${
+                              isCurrentUser ? "justify-end" : "justify-start"
+                            }`}
+                            ref={isLast ? lastMessageRef : null}
+                          >
+                            {/* Received: avatar/name left, bubble right */}
+                            {!isCurrentUser && (
+                              <>
+                                {isFirstOfGroup && (
+                                  <div className="flex flex-col items-center mr-2">
+                                    <Avatar className="h-8 w-8 mb-1">
+                                      <AvatarFallback
+                                        style={{
+                                          background: userColor,
+                                          color: "#fff",
+                                        }}
+                                      >
+                                        {sender?.displayName?.[0]?.toUpperCase() ||
+                                          sender?.username?.[0]?.toUpperCase() ||
+                                          "U"}
+                                      </AvatarFallback>
+                                    </Avatar>
+                                    <span className="text-xs text-gray-500 font-semibold">
+                                      {sender?.displayName ||
+                                        sender?.username ||
+                                        "User"}
+                                    </span>
+                                  </div>
+                                )}
+                                <motion.div
+                                  whileHover={{ scale: 1.03 }}
+                                  whileTap={{ scale: 0.97 }}
+                                  className="rounded-2xl px-4 py-2 bg-gray-100 text-gray-900 max-w-[65%] min-w-[60px]"
+                                >
+                                  <p className="whitespace-pre-wrap break-words text-base leading-relaxed font-normal">
+                                    {message.content}
+                                  </p>
+                                  <div className="text-xs text-gray-400 mt-1 text-left">
+                                    {new Date(
+                                      message.createdAt
+                                    ).toLocaleTimeString([], {
+                                      hour: "2-digit",
+                                      minute: "2-digit",
+                                    })}
+                                  </div>
+                                </motion.div>
+                              </>
+                            )}
+                            {/* Sent: bubble left, avatar/name right */}
+                            {isCurrentUser && (
+                              <>
+                                <motion.div
+                                  whileHover={{ scale: 1.03 }}
+                                  whileTap={{ scale: 0.97 }}
+                                  className="rounded-2xl px-4 py-2 bg-blue-100 text-blue-900 max-w-[65%] min-w-[60px] text-right"
+                                >
+                                  <p className="whitespace-pre-wrap break-words text-base leading-relaxed font-medium">
+                                    {message.content}
+                                  </p>
+                                  <div className="text-xs text-blue-400 mt-1 text-right">
+                                    {new Date(
+                                      message.createdAt
+                                    ).toLocaleTimeString([], {
+                                      hour: "2-digit",
+                                      minute: "2-digit",
+                                    })}
+                                    {message.status && (
+                                      <span className="ml-2">
+                                        {message.status === "sending" && "..."}
+                                        {message.status === "delivered" && "✓"}
+                                        {message.status === "read" && "✓✓"}
+                                        {message.status === "failed" && (
+                                          <span className="text-red-400">
+                                            • Failed
+                                          </span>
+                                        )}
+                                      </span>
+                                    )}
+                                  </div>
+                                </motion.div>
+                                <div className="flex flex-col items-center ml-2">
+                                  <Avatar className="h-8 w-8 mb-1">
+                                    {myAvatar ? (
+                                      <img
+                                        src={myAvatar}
+                                        alt={myName}
+                                        className="rounded-full"
+                                      />
+                                    ) : (
+                                      <AvatarFallback
+                                        style={{
+                                          background: "#2563eb",
+                                          color: "#fff",
+                                        }}
+                                      >
+                                        {myName[0]?.toUpperCase() || "M"}
+                                      </AvatarFallback>
+                                    )}
+                                  </Avatar>
+                                  <span className="text-xs text-blue-700 font-semibold">
+                                    {myName}
+                                  </span>
+                                </div>
+                              </>
+                            )}
+                          </motion.div>
+                        );
+                      })}
+                    </AnimatePresence>
                   </div>
                 )}
               </div>
-            )}
-            {/* Chat messages area */}
-            <div
-              ref={chatContainerRef}
-              className="flex-grow p-6 overflow-y-auto custom-scrollbar transition-colors duration-300 relative"
-            >
-              {/* Scroll to bottom button */}
-              {showScrollToBottom && (
-                <button
-                  onClick={handleScrollToBottom}
-                  className="fixed bottom-28 right-8 z-20 bg-orange-500 hover:bg-orange-600 text-white rounded-full shadow-lg p-2 transition-all animate-bounce"
-                  title="Scroll to latest message"
-                >
-                  <svg
-                    xmlns="http://www.w3.org/2000/svg"
-                    className="h-6 w-6"
-                    fill="none"
-                    viewBox="0 0 24 24"
-                    stroke="currentColor"
+              <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.3 }}
+                className="border-t border-blue-100 p-4 bg-white rounded-b-2xl shadow-md mb-16"
+              >
+                <div className="flex gap-2">
+                  <Input
+                    value={currentMessage}
+                    onChange={(e) => setCurrentMessage(e.target.value)}
+                    onKeyDown={handleKeyPress}
+                    placeholder="Type your message..."
+                    className="border-blue-200 focus:border-blue-500 focus:ring-blue-500 shadow-sm"
+                    disabled={connectionState !== "connected"}
+                  />
+                  <Button
+                    className="bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white shadow-lg"
+                    onClick={handleSendMessage}
+                    disabled={
+                      connectionState !== "connected" || !currentMessage.trim()
+                    }
                   >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth={2}
-                      d="M19 9l-7 7-7-7"
-                    />
-                  </svg>
-                </button>
-              )}
-              {chatMessages.length === 0 ? (
-                <motion.div
-                  initial={{ opacity: 0 }}
-                  animate={{ opacity: 1 }}
-                  transition={{ duration: 0.5 }}
-                  className="h-full flex flex-col items-center justify-center text-orange-600"
-                >
-                  <MessageSquare className="h-12 w-12 mb-4 text-orange-400 animate-bounce" />
-                  <p className="text-lg font-medium">No messages yet</p>
-                  <p className="text-sm text-gray-500 mt-2">
-                    Send a message to start the conversation
+                    <SendHorizontal className="h-4 w-4" />
+                  </Button>
+                </div>
+                {connectionState !== "connected" && (
+                  <p className="text-sm text-blue-600 mt-2">
+                    Connect to the chat server to send messages
                   </p>
-                </motion.div>
-              ) : (
-                <div className="space-y-2">
-                  {chatMessages.map((message, idx) => {
-                    const isCurrentUser = message.senderId === user?.id;
-                    const isFirstOfGroup =
-                      idx === 0 ||
-                      chatMessages[idx - 1].senderId !== message.senderId;
-                    const isLast = idx === chatMessages.length - 1;
-                    const userColor = getUserColor(message.senderId, user?.id);
-                    return (
-                      <motion.div
-                        key={message.id}
-                        initial={{ opacity: 0, y: 20 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        transition={{ duration: 0.25, delay: idx * 0.02 }}
-                        className={`flex ${
-                          isCurrentUser ? "justify-end" : "justify-start"
-                        }`}
-                        ref={isLast ? lastMessageRef : null}
-                      >
-                        {/* Avatar and name for others, only at start of group */}
-                        {!isCurrentUser && isFirstOfGroup && (
-                          <div className="flex flex-col items-center mr-2">
-                            <Avatar className="h-8 w-8 mb-1">
-                              <AvatarFallback
-                                style={{ background: userColor, color: "#fff" }}
-                              >
-                                {groupInfo?.members
-                                  ?.find((m) => m.id === message.senderId)
-                                  ?.displayName?.[0]?.toUpperCase() ||
-                                  groupInfo?.members
-                                    ?.find((m) => m.id === message.senderId)
-                                    ?.username?.[0]?.toUpperCase() ||
-                                  "U"}
-                              </AvatarFallback>
-                            </Avatar>
-                            <span className="text-xs text-orange-600 font-semibold">
-                              {groupInfo?.members?.find(
-                                (m) => m.id === message.senderId
-                              )?.displayName ||
-                                groupInfo?.members?.find(
-                                  (m) => m.id === message.senderId
-                                )?.username ||
-                                "User"}
-                            </span>
-                          </div>
-                        )}
-                        <motion.div
-                          whileHover={{ scale: 1.03 }}
-                          whileTap={{ scale: 0.98 }}
-                          className={`max-w-[65%] rounded-2xl p-3 shadow-md transition-all duration-200 border animate-popin
-                            ${
-                              isCurrentUser
-                                ? "bg-gradient-to-r from-orange-500 to-orange-600 text-white border-orange-200"
-                                : "bg-white text-gray-800 border-orange-100"
-                            }
-                          `}
-                          style={
-                            !isCurrentUser
-                              ? { borderLeft: `4px solid ${userColor}` }
-                              : {}
-                          }
-                        >
-                          <p className="whitespace-pre-wrap break-words text-base leading-relaxed">
-                            {message.content}
-                          </p>
-                          <div
-                            className={`text-xs mt-1 flex items-center gap-2 ${
-                              isCurrentUser
-                                ? "text-orange-100"
-                                : "text-gray-400"
-                            }`}
-                          >
-                            {new Date(message.createdAt).toLocaleTimeString(
-                              [],
-                              { hour: "2-digit", minute: "2-digit" }
-                            )}
-                            {isCurrentUser && message.status && (
-                              <motion.span
-                                key={message.status}
-                                initial={{ opacity: 0, scale: 0.8 }}
-                                animate={{ opacity: 1, scale: 1 }}
-                                transition={{ duration: 0.2 }}
-                                className="inline-flex items-center gap-1"
-                              >
-                                {message.status === "sending" && (
-                                  <>
-                                    <svg
-                                      className="animate-spin h-3 w-3 text-orange-200"
-                                      viewBox="0 0 24 24"
-                                    >
-                                      <circle
-                                        className="opacity-25"
-                                        cx="12"
-                                        cy="12"
-                                        r="10"
-                                        stroke="currentColor"
-                                        strokeWidth="4"
-                                        fill="none"
-                                      />
-                                      <path
-                                        className="opacity-75"
-                                        fill="currentColor"
-                                        d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"
-                                      />
-                                    </svg>
-                                    Sending...
-                                  </>
-                                )}
-                                {message.status === "delivered" && (
-                                  <>
-                                    <svg
-                                      className="h-3 w-3 text-green-200"
-                                      fill="none"
-                                      viewBox="0 0 24 24"
-                                      stroke="currentColor"
-                                    >
-                                      <path
-                                        strokeLinecap="round"
-                                        strokeLinejoin="round"
-                                        strokeWidth={3}
-                                        d="M5 13l4 4L19 7"
-                                      />
-                                    </svg>
-                                    Delivered
-                                  </>
-                                )}
-                                {message.status === "read" && (
-                                  <>
-                                    <svg
-                                      className="h-3 w-3 text-blue-200"
-                                      fill="none"
-                                      viewBox="0 0 24 24"
-                                      stroke="currentColor"
-                                    >
-                                      <path
-                                        strokeLinecap="round"
-                                        strokeLinejoin="round"
-                                        strokeWidth={3}
-                                        d="M5 13l4 4L19 7"
-                                      />
-                                    </svg>
-                                    Read
-                                  </>
-                                )}
-                                {message.status === "failed" && (
-                                  <span className="text-red-200">
-                                    • Failed to send
-                                  </span>
-                                )}
-                              </motion.span>
-                            )}
-                          </div>
-                        </motion.div>
-                      </motion.div>
-                    );
-                  })}
-                </div>
-              )}
+                )}
+              </motion.div>
             </div>
-            {/* Chat input area */}
-            <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.3 }}
-              className="border-t border-orange-100 p-4 bg-white rounded-b-2xl"
+          </div>
+        ) : (
+          <div className="flex flex-col items-center justify-center h-full text-gray-400">
+            <MessageSquare className="h-16 w-16 mb-4" />
+            <div className="text-lg font-medium">
+              Select a chat to start messaging
+            </div>
+          </div>
+        )}
+      </main>
+
+      <Dialog open={showChatTypeModal} onOpenChange={setShowChatTypeModal}>
+        <DialogOverlay className="fixed inset-0 bg-black/40 z-50" />
+        <DialogContent className="max-w-md mx-auto bg-white rounded-2xl shadow-2xl p-8 flex flex-col items-center gap-6">
+          <div className="flex items-center justify-between w-full mb-2">
+            <h2 className="text-2xl font-bold text-blue-800">
+              Create a New Group
+            </h2>
+            <button
+              className="rounded-full p-1 hover:bg-blue-50 text-blue-500"
+              onClick={() => setShowChatTypeModal(false)}
             >
-              <div className="flex gap-2">
-                <Input
-                  value={currentMessage}
-                  onChange={(e) => setCurrentMessage(e.target.value)}
-                  onKeyDown={handleKeyPress}
-                  placeholder="Type your message..."
-                  className="border-orange-200 focus:border-orange-500 focus:ring-orange-500 shadow-sm"
-                  disabled={connectionState !== "connected"}
-                />
-                <Button
-                  className="bg-gradient-to-r from-orange-500 to-orange-600 hover:from-orange-600 hover:to-orange-700 text-white shadow-lg"
-                  onClick={handleSendMessage}
-                  disabled={
-                    connectionState !== "connected" || !currentMessage.trim()
-                  }
-                >
-                  <SendHorizontal className="h-4 w-4" />
-                </Button>
-              </div>
-              {connectionState !== "connected" && (
-                <p className="text-sm text-orange-600 mt-2">
-                  Connect to the chat server to send messages
-                </p>
-              )}
-            </motion.div>
+              <X className="h-5 w-5" />
+            </button>
           </div>
-          {/* Sidebar as sibling, not child */}
-          {currentGroupChat && (
-            <>
-              {/* Desktop sidebar */}
-              <div className="hidden md:flex flex-col h-full w-72 shadow-xl rounded-r-2xl m-4 ml-0">
-                <GroupSidebar
-                  groupInfo={sidebarGroupInfo}
-                  members={sidebarMembers}
-                  open={true}
-                  onClose={handleSidebarClose}
-                />
-              </div>
-              {/* Mobile sidebar overlay (remains overlay for mobile) */}
-              <GroupSidebar
-                groupInfo={sidebarGroupInfo}
-                members={sidebarMembers}
-                open={sidebarOpen}
-                onClose={handleSidebarClose}
-              />
-            </>
-          )}
-        </div>
-      ) : (
-        // Chat list view
-        <motion.div
-          initial={{ opacity: 0, y: 30 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.4 }}
-          className="max-w-3xl mx-auto p-4"
-        >
-          {/* Search */}
-          <div className="bg-white rounded-lg shadow-md p-4 mb-6">
-            <div className="relative">
-              <Input
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                placeholder="Search for users to chat with..."
-                className="pl-10 border-orange-200 focus:border-orange-500 focus:ring-orange-500"
-              />
-              <Search className="absolute left-3 top-3 h-5 w-5 text-orange-400" />
-              {isSearching && (
-                <div className="absolute right-3 top-3">
-                  <div className="animate-spin h-5 w-5 border-2 border-orange-500 border-t-transparent rounded-full"></div>
-                </div>
-              )}
-            </div>
-          </div>
-
-          {/* Search Results */}
-          {searchQuery && searchResults.length > 0 && (
-            <div className="bg-white rounded-lg shadow-md mb-6">
-              <h2 className="text-lg font-medium text-gray-800 p-4 border-b border-orange-100">
-                Search Results
-              </h2>
-              <motion.div
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                transition={{ duration: 0.3 }}
-                className="divide-y divide-orange-100"
-              >
-                {searchResults.map((result) => (
-                  <div
-                    key={result.id}
-                    className="p-4 flex justify-between items-center"
-                  >
-                    <div className="flex items-center">
-                      <Avatar className="h-10 w-10 mr-3">
-                        <AvatarFallback className="bg-orange-500 text-white">
-                          {result.username.substring(0, 2).toUpperCase()}
-                        </AvatarFallback>
-                      </Avatar>
-                      <div>
-                        <p className="font-medium text-gray-800">
-                          {result.displayName || result.username}
-                        </p>
-                        <p className="text-sm text-gray-500">
-                          @{result.username}
-                        </p>
-                      </div>
-                    </div>
-                    <div className="flex space-x-2">
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => viewProfile(result.id)}
-                        className="border-orange-200 text-orange-600 hover:bg-orange-50"
-                      >
-                        <UserPlus className="h-4 w-4 mr-1" />
-                        View Profile
-                      </Button>
-                      {result.canChat ? (
-                        <Button
-                          size="sm"
-                          onClick={() => startChat(result.id)}
-                          className="bg-gradient-to-r from-orange-500 to-orange-600 hover:from-orange-600 hover:to-orange-700 text-white"
-                        >
-                          <MessageSquare className="h-4 w-4 mr-1" />
-                          Message
-                        </Button>
-                      ) : (
-                        <Button
-                          size="sm"
-                          disabled
-                          className="bg-gray-100 text-gray-500 cursor-not-allowed"
-                          title="You can only chat with mutual followers"
-                        >
-                          <MessageSquare className="h-4 w-4 mr-1" />
-                          Cannot Chat
-                        </Button>
-                      )}
-                    </div>
-                  </div>
-                ))}
-              </motion.div>
-            </div>
-          )}
-
-          {searchQuery && searchResults.length === 0 && !isSearching && (
-            <div className="bg-white rounded-lg shadow-md p-8 mb-6 text-center">
-              <p className="text-orange-600 mb-2">
-                No users found matching "{searchQuery}"
-              </p>
-              <p className="text-sm text-gray-600">
-                Try a different search term or check the followers list below
-              </p>
-            </div>
-          )}
-
-          {/* Recent Chats */}
-          {recentChats.length > 0 && !searchQuery && (
-            <div className="bg-white rounded-lg shadow-md mb-6">
-              <h2 className="text-lg font-medium text-gray-800 p-4 border-b border-orange-100">
-                Recent Conversations
-              </h2>
-              <motion.div
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                transition={{ duration: 0.3 }}
-                className="divide-y divide-orange-100"
-              >
-                {recentChats.map((chat) => (
-                  <div
-                    key={chat.id}
-                    className="p-4 flex items-center hover:bg-orange-50 cursor-pointer"
-                    onClick={() => startChat(chat.id)}
-                  >
-                    <Avatar className="h-10 w-10 mr-3">
-                      <AvatarFallback className="bg-orange-500 text-white">
-                        {chat.username.substring(0, 2).toUpperCase()}
-                      </AvatarFallback>
-                    </Avatar>
-                    <div>
-                      <p className="font-medium text-gray-800">
-                        {chat.displayName || chat.username}
-                      </p>
-                      <p className="text-sm text-gray-500 truncate max-w-md">
-                        {chat.lastMessage || "Start a conversation"}
-                      </p>
-                    </div>
-                  </div>
-                ))}
-              </motion.div>
-            </div>
-          )}
-
-          {/* Followers */}
-          <div className="bg-white rounded-lg shadow-md">
-            <h2 className="text-lg font-medium text-gray-800 p-4 border-b border-orange-100">
-              Chat with Followers
-              <span className="text-sm font-normal text-gray-500 ml-2">
-                (you can chat with mutual followers)
-              </span>
-            </h2>
-
-            {isLoadingFollowers ? (
-              <div className="flex justify-center py-12">
-                <div className="animate-spin h-8 w-8 border-4 border-orange-500 border-t-transparent rounded-full"></div>
-              </div>
-            ) : followers.length === 0 ? (
-              <div className="text-center py-12 px-4">
-                <p className="text-orange-600 mb-2">
-                  No mutual followers found
-                </p>
-                <p className="text-sm text-gray-600 mb-4">
-                  You need to follow users who follow you back to start a chat
-                </p>
-                <Button
-                  onClick={() => setLocation("/users")}
-                  className="bg-gradient-to-r from-orange-500 to-orange-600 hover:from-orange-600 hover:to-orange-700 text-white"
-                >
-                  <UserPlus className="h-4 w-4 mr-2" />
-                  Find People to Follow
-                </Button>
-              </div>
-            ) : (
-              <motion.div
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                transition={{ duration: 0.3 }}
-                className="divide-y divide-orange-100"
-              >
-                {followers.map((follower) => (
-                  <div
-                    key={follower.id}
-                    className="p-4 flex justify-between items-center hover:bg-orange-50"
-                  >
-                    <div className="flex items-center">
-                      <Avatar className="h-10 w-10 mr-3">
-                        <AvatarFallback className="bg-orange-500 text-white">
-                          {follower.username.substring(0, 2).toUpperCase()}
-                        </AvatarFallback>
-                      </Avatar>
-                      <div>
-                        <p className="font-medium text-gray-800">
-                          {follower.displayName || follower.username}
-                        </p>
-                        <p className="text-sm text-gray-500">
-                          @{follower.username}
-                        </p>
-                      </div>
-                    </div>
-                    <Button
-                      onClick={() => startChat(follower.id)}
-                      className="bg-gradient-to-r from-orange-500 to-orange-600 hover:from-orange-600 hover:to-orange-700 text-white"
-                    >
-                      <MessageSquare className="h-4 w-4 mr-2" />
-                      Message
-                    </Button>
-                  </div>
-                ))}
-              </motion.div>
-            )}
-          </div>
-
-          {/* Group Chats Section */}
-          <div className="bg-white rounded-lg shadow-md mt-6">
-            <h2 className="text-lg font-medium text-gray-800 p-4 border-b border-orange-100 flex justify-between items-center">
-              <span>Group Chats</span>
-              <Button
-                onClick={() => setLocation("/chat/create-group")}
-                className="bg-orange-100 hover:bg-orange-200 text-orange-800 px-3 py-1 h-8"
-                size="sm"
-              >
-                <Users className="h-4 w-4 mr-2" />
-                Create Group
-              </Button>
-            </h2>
-
-            {/* Load group chats here */}
-            <div>
-              {/* Fetch and display group chats */}
-              {isLoadingGroups ? (
-                <div className="flex justify-center py-12">
-                  <div className="animate-spin h-8 w-8 border-4 border-orange-500 border-t-transparent rounded-full"></div>
-                </div>
-              ) : (
-                <motion.div
-                  initial={{ opacity: 0 }}
-                  animate={{ opacity: 1 }}
-                  transition={{ duration: 0.3 }}
-                  className="divide-y divide-orange-100"
-                >
-                  {groups && groups.length > 0 ? (
-                    groups.map((group) => (
-                      <div
-                        key={group.id}
-                        className="p-4 flex justify-between items-center hover:bg-orange-50 cursor-pointer"
-                        onClick={() => openGroupChat(group.id)}
-                      >
-                        <div className="flex items-center">
-                          <Avatar className="h-10 w-10 mr-3 bg-orange-600">
-                            <AvatarFallback className="bg-orange-600 text-white">
-                              {group.name?.substring(0, 2)?.toUpperCase() ||
-                                "GC"}
-                            </AvatarFallback>
-                          </Avatar>
-                          <div>
-                            <p className="font-medium text-gray-800">
-                              {group.name || "Unnamed Group"}
-                            </p>
-                            <p className="text-sm text-gray-500">
-                              {group.memberCount
-                                ? `${group.memberCount} members`
-                                : "Group chat"}
-                              {group.isAdmin && (
-                                <span className="ml-2 text-orange-600 text-xs">
-                                  (Admin)
-                                </span>
-                              )}
-                            </p>
-                          </div>
-                        </div>
-                        <Button className="bg-gradient-to-r from-orange-500 to-orange-600 hover:from-orange-600 hover:to-orange-700 text-white">
-                          <MessageSquare className="h-4 w-4 mr-2" />
-                          Open
-                        </Button>
-                      </div>
-                    ))
-                  ) : (
-                    <div className="text-center py-10 px-4">
-                      <p className="text-orange-600 mb-2">No group chats yet</p>
-                      <p className="text-sm text-gray-600 mb-4">
-                        Create a group chat to start messaging with multiple
-                        people
-                      </p>
-                      <Button
-                        onClick={() => setLocation("/chat/create-group")}
-                        className="bg-gradient-to-r from-orange-500 to-orange-600 hover:from-orange-600 hover:to-orange-700 text-white"
-                      >
-                        <Users className="h-4 w-4 mr-2" />
-                        Create Group Chat
-                      </Button>
-                    </div>
-                  )}
-                </motion.div>
-              )}
-            </div>
-          </div>
-        </motion.div>
-      )}
+          <p className="text-gray-600 mb-4 text-center">
+            Start a new group chat with your friends or classmates.
+          </p>
+          <button
+            className="flex items-center justify-center gap-3 w-full py-4 rounded-xl bg-gradient-to-r from-blue-500 to-blue-600 text-white text-lg font-semibold shadow-lg hover:from-blue-600 hover:to-blue-700 transition-all"
+            onClick={() => {
+              setShowChatTypeModal(false);
+              window.location.href = "/chat/create-group";
+            }}
+          >
+            <Users className="h-6 w-6" /> Go to Group Creation
+          </button>
+          <button
+            className="mt-4 text-blue-500 hover:text-blue-700 text-sm underline"
+            onClick={() => setShowChatTypeModal(false)}
+          >
+            Cancel
+          </button>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };

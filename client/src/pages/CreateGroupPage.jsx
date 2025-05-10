@@ -9,7 +9,7 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { getApiBaseUrl } from "@/lib/utils";
 
-const CreateGroupPage = () => {
+const CreateGroupPage = ({ onClose, onGroupCreated }) => {
   const [, navigate] = useLocation();
   const { toast } = useToast();
   const { user, token } = useContext(AuthContext);
@@ -216,8 +216,18 @@ const CreateGroupPage = () => {
           description: `${groupName} has been created successfully!`,
         });
 
-        // Navigate to the new group chat
-        navigate(`/chat/group/${responseData.id}`);
+        // If onGroupCreated is provided, call it with the new group
+        if (onGroupCreated) {
+          onGroupCreated(responseData);
+        }
+        // If onClose is provided, close the form
+        if (onClose) {
+          onClose();
+        } else {
+          // Navigate to the new group chat (fallback)
+          navigate(`/chat/group/${responseData.id}`);
+        }
+        return;
       } else {
         let errorMessage = "An error occurred while creating the group.";
 
@@ -282,7 +292,13 @@ const CreateGroupPage = () => {
           <Button
             variant="ghost"
             size="icon"
-            onClick={() => navigate("/chat")}
+            onClick={() => {
+              if (onClose) {
+                onClose();
+              } else {
+                navigate("/chat");
+              }
+            }}
             className="mr-2"
           >
             <ArrowLeft className="h-5 w-5 text-orange-600" />

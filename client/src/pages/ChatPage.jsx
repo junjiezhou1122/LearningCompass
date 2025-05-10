@@ -13,6 +13,7 @@ import { Tab } from "@headlessui/react";
 import { AuthContext } from "../contexts/AuthContext";
 import { useSocketIO } from "../components/chat/SocketIOProvider";
 import { useToast } from "@/hooks/use-toast";
+import { Dialog, DialogContent, DialogOverlay } from "@/components/ui/dialog";
 
 // Import chat components
 import ChatSidebar from "../components/chat/ChatSidebar";
@@ -46,6 +47,7 @@ const ChatPage = () => {
   const [pendingMessages, setPendingMessages] = useState({});
   const [searchQuery, setSearchQuery] = useState("");
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [showChatTypeModal, setShowChatTypeModal] = useState(false);
 
   const messagesEndRef = useRef(null);
   const messageListRef = useRef(null);
@@ -717,7 +719,7 @@ const ChatPage = () => {
             <h1 className="text-xl font-bold text-orange-800">Messages</h1>
             <div className="flex space-x-2">
               <button
-                onClick={() => navigate("/chat/new")}
+                onClick={() => setShowChatTypeModal(true)}
                 className="p-2 rounded-full text-orange-600 hover:bg-orange-100 transition-colors"
               >
                 <UserPlus className="h-5 w-5" />
@@ -786,7 +788,7 @@ const ChatPage = () => {
                   <div className="p-4 text-center text-orange-600">
                     <p>No conversations yet</p>
                     <button
-                      onClick={() => navigate("/chat/new")}
+                      onClick={() => setShowChatTypeModal(true)}
                       className="mt-2 text-sm font-medium text-orange-500 hover:text-orange-700"
                     >
                       Start a new conversation
@@ -935,7 +937,7 @@ const ChatPage = () => {
                     View Conversations
                   </button>
                   <button
-                    onClick={() => navigate("/chat/new")}
+                    onClick={() => setShowChatTypeModal(true)}
                     className="px-4 py-2 bg-gradient-to-r from-orange-500 to-orange-600 text-white rounded-lg hover:from-orange-600 hover:to-orange-700 transition-colors shadow-md"
                   >
                     New Message
@@ -946,6 +948,45 @@ const ChatPage = () => {
           </div>
         )}
       </div>
+
+      {/* Chat Type Selection Modal */}
+      <Dialog open={showChatTypeModal} onOpenChange={setShowChatTypeModal}>
+        <DialogOverlay className="fixed inset-0 bg-black/40 z-50" />
+        <DialogContent className="max-w-md mx-auto bg-white rounded-2xl shadow-2xl p-8 flex flex-col items-center gap-6">
+          <h2 className="text-2xl font-bold text-orange-800 mb-2">
+            Start a New Chat
+          </h2>
+          <p className="text-gray-600 mb-4 text-center">
+            Choose who you want to chat with:
+          </p>
+          <div className="flex flex-col gap-4 w-full">
+            <button
+              className="flex items-center justify-center gap-3 w-full py-4 rounded-xl bg-gradient-to-r from-orange-500 to-orange-600 text-white text-lg font-semibold shadow-lg hover:from-orange-600 hover:to-orange-700 transition-all"
+              onClick={() => {
+                setShowChatTypeModal(false);
+                navigate("/chat/new/follower");
+              }}
+            >
+              <UserPlus className="h-6 w-6" /> Chat with Follower
+            </button>
+            <button
+              className="flex items-center justify-center gap-3 w-full py-4 rounded-xl bg-gradient-to-r from-orange-400 to-orange-500 text-white text-lg font-semibold shadow-lg hover:from-orange-500 hover:to-orange-600 transition-all"
+              onClick={() => {
+                setShowChatTypeModal(false);
+                navigate("/chat/create-group");
+              }}
+            >
+              <Users className="h-6 w-6" /> Chat with Group
+            </button>
+          </div>
+          <button
+            className="mt-6 text-orange-500 hover:text-orange-700 text-sm underline"
+            onClick={() => setShowChatTypeModal(false)}
+          >
+            Cancel
+          </button>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };

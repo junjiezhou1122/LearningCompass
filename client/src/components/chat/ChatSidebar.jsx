@@ -95,35 +95,34 @@ const ChatSidebar = ({
         initial={false}
       >
         {/* Header */}
-        <div className="p-4 border-b border-orange-100 flex items-center justify-between bg-orange-50">
-          <h2 className="text-lg font-semibold text-orange-800">Messages</h2>
-
+        <div className="p-4 border-b border-orange-100 flex items-center justify-between bg-orange-50 sticky top-0 z-10">
+          <h2 className="text-lg font-bold text-orange-800">Messages</h2>
           <div className="flex gap-2">
             <Button
-              variant="outline"
+              variant="solid"
               size="icon"
               onClick={handleNewChat}
-              className="rounded-full h-8 w-8"
+              className="rounded-full h-10 w-10 bg-gradient-to-r from-orange-500 to-orange-600 text-white shadow-md hover:from-orange-600 hover:to-orange-700"
+              title="Start New Chat"
             >
-              <MessageSquare className="h-4 w-4 text-orange-600" />
+              <MessageSquare className="h-5 w-5" />
             </Button>
-
             <Button
-              variant="outline"
+              variant="solid"
               size="icon"
               onClick={handleNewGroup}
-              className="rounded-full h-8 w-8"
+              className="rounded-full h-10 w-10 bg-gradient-to-r from-orange-400 to-orange-500 text-white shadow-md hover:from-orange-500 hover:to-orange-600"
+              title="Create Group"
             >
-              <Users className="h-4 w-4 text-orange-600" />
+              <Users className="h-5 w-5" />
             </Button>
-
             <Button
               variant="ghost"
               size="icon"
               onClick={() => setIsOpen(false)}
-              className="lg:hidden rounded-full h-8 w-8"
+              className="lg:hidden rounded-full h-10 w-10"
             >
-              <X className="h-4 w-4" />
+              <X className="h-5 w-5" />
             </Button>
           </div>
         </div>
@@ -142,24 +141,24 @@ const ChatSidebar = ({
           </div>
         </div>
 
-        {/* Tabs */}
+        {/* Tabs with improved visuals */}
         <Tabs
           value={activeTab}
           onValueChange={setActiveTab}
           className="flex-1 flex flex-col overflow-hidden"
         >
-          <TabsList className="grid grid-cols-2 px-4">
+          <TabsList className="grid grid-cols-2 px-4 mb-2 mt-2 gap-2">
             <TabsTrigger
               value="direct"
-              className="data-[state=active]:bg-orange-100 data-[state=active]:text-orange-800"
+              className="data-[state=active]:bg-gradient-to-r data-[state=active]:from-orange-500 data-[state=active]:to-orange-600 data-[state=active]:text-white data-[state=active]:shadow-lg text-orange-700 font-semibold py-2 rounded-lg transition-all text-base"
             >
-              <User className="h-4 w-4 mr-2" /> Direct
+              <User className="h-5 w-5 mr-2" /> Direct
             </TabsTrigger>
             <TabsTrigger
               value="groups"
-              className="data-[state=active]:bg-orange-100 data-[state=active]:text-orange-800"
+              className="data-[state=active]:bg-gradient-to-r data-[state=active]:from-orange-400 data-[state=active]:to-orange-500 data-[state=active]:text-white data-[state=active]:shadow-lg text-orange-700 font-semibold py-2 rounded-lg transition-all text-base"
             >
-              <Users className="h-4 w-4 mr-2" /> Groups
+              <Users className="h-5 w-5 mr-2" /> Groups
             </TabsTrigger>
           </TabsList>
 
@@ -173,73 +172,73 @@ const ChatSidebar = ({
                 <div className="animate-spin h-6 w-6 border-2 border-orange-500 border-t-transparent rounded-full" />
               </div>
             ) : directChats.length === 0 ? (
-              <div className="text-center py-8 px-4">
-                <p className="text-gray-500 mb-4">No conversations yet</p>
+              <div className="flex flex-col items-center justify-center py-12 px-4">
+                <img
+                  src="/assets/empty-chat.svg"
+                  alt="No chats"
+                  className="h-24 w-24 mb-4 opacity-80"
+                />
+                <p className="text-gray-500 mb-2 text-lg font-medium">
+                  No conversations yet
+                </p>
                 <Button
                   onClick={handleNewChat}
-                  className="bg-orange-500 hover:bg-orange-600 text-white"
+                  className="bg-gradient-to-r from-orange-500 to-orange-600 text-white px-6 py-2 rounded-lg shadow-md hover:from-orange-600 hover:to-orange-700 mt-2"
                 >
-                  <Plus className="h-4 w-4 mr-2" />
-                  Start a Chat
+                  <Plus className="h-5 w-5 mr-2" /> Start a Chat
                 </Button>
               </div>
             ) : (
-              <div className="space-y-1">
+              <div className="space-y-2">
                 {directChats.map((partner) => (
                   <div
                     key={partner.id}
-                    className={`flex items-center p-2 rounded-lg cursor-pointer
-                              ${
-                                activeChat?.id === partner.id
-                                  ? "bg-orange-100 text-orange-900"
-                                  : "hover:bg-orange-50 text-gray-700"
-                              }`}
+                    className={`flex items-center p-3 rounded-xl cursor-pointer transition-all duration-150
+                      ${
+                        activeChat?.id === partner.id
+                          ? "bg-orange-100/80 text-orange-900 shadow"
+                          : "hover:bg-orange-50 text-gray-700"
+                      }
+                    `}
                     onClick={() => setActiveChat(partner)}
                   >
                     <div className="relative">
-                      <Avatar className="h-10 w-10">
+                      <Avatar className="h-12 w-12">
                         {partner.profileImage ? (
                           <img
                             src={partner.profileImage}
                             alt={partner.displayName || partner.username}
+                            className="h-full w-full object-cover rounded-full"
                           />
                         ) : (
-                          <AvatarFallback className="bg-orange-600 text-white">
+                          <AvatarFallback className="bg-orange-600 text-white text-lg">
                             {(partner.displayName || partner.username)
                               ?.substring(0, 2)
                               .toUpperCase()}
                           </AvatarFallback>
                         )}
                       </Avatar>
-
-                      {/* Online status indicator */}
                       {partner.status === "online" && (
-                        <span className="absolute bottom-0 right-0 h-3 w-3 rounded-full bg-green-500 border-2 border-white" />
+                        <span className="absolute bottom-1 right-1 h-3 w-3 rounded-full bg-green-500 border-2 border-white" />
                       )}
                     </div>
-
-                    <div className="ml-3 overflow-hidden flex-1">
+                    <div className="ml-4 overflow-hidden flex-1">
                       <div className="flex justify-between items-center">
-                        <p className="font-medium truncate">
+                        <p className="font-semibold truncate text-base">
                           {partner.displayName || partner.username}
                         </p>
-
-                        {/* Timestamp for last message */}
                         {partner.lastMessageTime && (
-                          <p className="text-xs text-gray-500">
+                          <p className="text-xs text-gray-400">
                             {formatMessageTime(partner.lastMessageTime)}
                           </p>
                         )}
                       </div>
-
-                      <div className="flex items-center">
+                      <div className="flex items-center mt-1">
                         <p className="text-sm truncate text-gray-500 flex-1">
                           {partner.lastMessage || "No messages yet"}
                         </p>
-
-                        {/* Unread count badge */}
                         {partner.unreadCount > 0 && (
-                          <Badge className="ml-2 bg-orange-500">
+                          <Badge className="ml-2 bg-orange-500 text-white text-xs px-2 py-0.5 rounded-full shadow">
                             {partner.unreadCount}
                           </Badge>
                         )}
@@ -261,80 +260,76 @@ const ChatSidebar = ({
                 <div className="animate-spin h-6 w-6 border-2 border-orange-500 border-t-transparent rounded-full" />
               </div>
             ) : groupChats.length === 0 ? (
-              <div className="text-center py-8 px-4">
-                <p className="text-gray-500 mb-4">No group chats yet</p>
+              <div className="flex flex-col items-center justify-center py-12 px-4">
+                <img
+                  src="/assets/empty-group.svg"
+                  alt="No group chats"
+                  className="h-24 w-24 mb-4 opacity-80"
+                />
+                <p className="text-gray-500 mb-2 text-lg font-medium">
+                  No group chats yet
+                </p>
                 <Button
                   onClick={handleNewGroup}
-                  className="bg-orange-500 hover:bg-orange-600 text-white"
+                  className="bg-gradient-to-r from-orange-400 to-orange-500 text-white px-6 py-2 rounded-lg shadow-md hover:from-orange-500 hover:to-orange-600 mt-2"
                 >
-                  <Plus className="h-4 w-4 mr-2" />
-                  Create Group Chat
+                  <Plus className="h-5 w-5 mr-2" /> Create Group Chat
                 </Button>
               </div>
             ) : (
-              <div className="space-y-1">
-                {groupChats.map((group) => {
-                  // Ensure group has an id to prevent rendering errors
-                  if (!group || !group.id) return null;
-
-                  return (
-                    <div
-                      key={group.id}
-                      className={`flex items-center p-2 rounded-lg cursor-pointer
-                                ${
-                                  activeChat?.id === group.id
-                                    ? "bg-orange-100 text-orange-900"
-                                    : "hover:bg-orange-50 text-gray-700"
-                                }`}
-                      onClick={() => setActiveChat(group)}
-                    >
-                      <div className="h-10 w-10 rounded-full bg-orange-200 flex items-center justify-center overflow-hidden">
+              <div className="space-y-2">
+                {groupChats.map((group) => (
+                  <div
+                    key={group.id}
+                    className={`flex items-center p-3 rounded-xl cursor-pointer transition-all duration-150
+                      ${
+                        activeChat?.id === group.id
+                          ? "bg-orange-100/80 text-orange-900 shadow"
+                          : "hover:bg-orange-50 text-gray-700"
+                      }
+                    `}
+                    onClick={() => setActiveChat(group)}
+                  >
+                    <div className="relative">
+                      <div className="h-12 w-12 rounded-full bg-orange-200 flex items-center justify-center overflow-hidden">
                         {group.imageUrl ? (
                           <img
                             src={group.imageUrl}
                             alt={group.name}
-                            className="h-full w-full object-cover"
+                            className="h-full w-full object-cover rounded-full"
                           />
                         ) : (
-                          <Users className="h-5 w-5 text-orange-600" />
+                          <Users className="h-6 w-6 text-orange-600" />
                         )}
                       </div>
-
-                      <div className="ml-3 overflow-hidden flex-1">
-                        <div className="flex justify-between items-center">
-                          <p className="font-medium truncate">
-                            {group.name || "Unnamed Group"}
+                    </div>
+                    <div className="ml-4 overflow-hidden flex-1">
+                      <div className="flex justify-between items-center">
+                        <p className="font-semibold truncate text-base">
+                          {group.name || "Unnamed Group"}
+                        </p>
+                        {group.lastMessageTime && (
+                          <p className="text-xs text-gray-400">
+                            {formatMessageTime(group.lastMessageTime)}
                           </p>
-
-                          {/* Timestamp for last message */}
-                          {group.lastMessageTime && (
-                            <p className="text-xs text-gray-500">
-                              {formatMessageTime(group.lastMessageTime)}
-                            </p>
-                          )}
-                        </div>
-
-                        <div className="flex items-center">
-                          <p className="text-sm truncate text-gray-500 flex-1">
-                            {group.lastMessage || "No messages yet"}
-                          </p>
-
-                          {/* Member count */}
-                          <span className="ml-2 text-xs text-gray-500">
-                            {group.memberCount || 0} members
-                          </span>
-
-                          {/* Admin badge */}
-                          {group.isAdmin && (
-                            <Badge className="ml-1 bg-orange-500 text-white text-xs">
-                              Admin
-                            </Badge>
-                          )}
-                        </div>
+                        )}
+                      </div>
+                      <div className="flex items-center mt-1">
+                        <p className="text-sm truncate text-gray-500 flex-1">
+                          {group.lastMessage || "No messages yet"}
+                        </p>
+                        <span className="ml-2 text-xs text-gray-500">
+                          {group.memberCount || 0} members
+                        </span>
+                        {group.isAdmin && (
+                          <Badge className="ml-1 bg-orange-500 text-white text-xs px-2 py-0.5 rounded-full shadow">
+                            Admin
+                          </Badge>
+                        )}
                       </div>
                     </div>
-                  );
-                })}
+                  </div>
+                ))}
               </div>
             )}
           </TabsContent>
