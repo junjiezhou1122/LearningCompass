@@ -414,14 +414,7 @@ const OnlineCoursesTab = () => {
 
         {isAuthenticated && (
           <div className="flex gap-3">
-            <Button
-              variant="outline"
-              className="flex items-center gap-2 border-orange-300 hover:bg-orange-50 hover:text-orange-700"
-              onClick={() => (window.location.href = "/bookmarks?type=courses")}
-            >
-              <BookmarkCheck className="h-4 w-4 text-orange-500" />
-              View Bookmarked Courses
-            </Button>
+            
             <Button
               className="bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 flex items-center gap-2"
               onClick={() => setShowCSVUploadDialog(true)}

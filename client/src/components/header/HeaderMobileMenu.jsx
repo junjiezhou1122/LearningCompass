@@ -140,14 +140,6 @@ export default function HeaderMobileMenu({
                   <Button
                     variant="ghost"
                     className="w-full justify-start text-white hover:bg-amber-700 py-2 h-auto font-normal transition-all duration-300"
-                    onClick={() => handleNavigation("/bookmarks")}
-                  >
-                    <Bookmark className="h-5 w-5 mr-2" />
-                    {t("bookmarks")}
-                  </Button>
-                  <Button
-                    variant="ghost"
-                    className="w-full justify-start text-white hover:bg-amber-700 py-2 h-auto font-normal transition-all duration-300"
                     onClick={() => handleNavigation("/notes")}
                   >
                     <StickyNote className="h-5 w-5 mr-2" />

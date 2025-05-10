@@ -46,6 +46,7 @@ import {
   Lock,
   Settings,
 } from "lucide-react";
+import LearningCenterBookmarksTab from "@/components/learning-center/LearningCenterBookmarksTab";
 
 // Component to show post like status and count
 function PostLikeStatus({ postId }) {
@@ -249,7 +250,11 @@ export default function UserProfile() {
   } = useQuery({
     queryKey: [`/api/users/${userId}/following/${currentUser?.id}`],
     queryFn: async () => {
-      if (!userId || !currentUser?.id || String(userId) === String(currentUser.id)) {
+      if (
+        !userId ||
+        !currentUser?.id ||
+        String(userId) === String(currentUser.id)
+      ) {
         return { following: false };
       }
       console.log(
@@ -272,7 +277,9 @@ export default function UserProfile() {
       }
     },
     enabled:
-      !!userId && !!currentUser?.id && String(userId) !== String(currentUser.id),
+      !!userId &&
+      !!currentUser?.id &&
+      String(userId) !== String(currentUser.id),
     refetchInterval: false,
     refetchOnWindowFocus: true, // Re-check when window gets focus
     refetchOnMount: true, // Re-check when component mounts
@@ -574,12 +581,13 @@ export default function UserProfile() {
       if (!effectiveUserId) return [];
       console.log(`Fetching likes for user ID: ${effectiveUserId}`);
       const response = await fetch(`/api/users/${effectiveUserId}/likes`);
-      if (!response.ok) throw new Error(`Error fetching likes: ${response.statusText}`);
+      if (!response.ok)
+        throw new Error(`Error fetching likes: ${response.statusText}`);
       return response.json();
     },
     enabled: activeTab === "likes" && !!effectiveUserId,
   });
-  
+
   // Update local state when query data changes
   useEffect(() => {
     if (userLikesData) {
@@ -594,17 +602,18 @@ export default function UserProfile() {
       if (!effectiveUserId) return [];
       console.log(`Fetching comments for user ID: ${effectiveUserId}`);
       const response = await fetch(`/api/users/${effectiveUserId}/comments`);
-      if (!response.ok) throw new Error(`Error fetching comments: ${response.statusText}`);
+      if (!response.ok)
+        throw new Error(`Error fetching comments: ${response.statusText}`);
       return response.json();
     },
     enabled: activeTab === "comments" && !!effectiveUserId,
   });
-  
+
   // Update comments loading state based on query status
   useEffect(() => {
     setIsCommentsLoading(commentsQueryLoading);
   }, [commentsQueryLoading]);
-  
+
   // Update local state when comments query data changes
   useEffect(() => {
     if (userCommentsData) {
@@ -835,7 +844,10 @@ export default function UserProfile() {
                             {user.username}
                           </p>
                           {user.isFollowingBack && (
-                            <Badge variant="outline" className="text-xs bg-green-50 text-green-700 border-green-200 px-1.5 py-0">
+                            <Badge
+                              variant="outline"
+                              className="text-xs bg-green-50 text-green-700 border-green-200 px-1.5 py-0"
+                            >
                               <Users className="h-3 w-3 mr-1" /> Mutual
                             </Badge>
                           )}
@@ -961,9 +973,9 @@ export default function UserProfile() {
                   )}
                   {followStatus.isFollowing ? "Unfollow" : "Follow"}
                 </Button>
-                
+
                 {/* Add chat button if both users follow each other */}
-                {profileData && (<ChatButton otherUser={profileData} />)}
+                {profileData && <ChatButton otherUser={profileData} />}
               </div>
             )}
           </div>
@@ -994,6 +1006,10 @@ export default function UserProfile() {
             <TabsTrigger value="comments" className="flex items-center gap-2">
               <MessageSquare className="h-4 w-4" />
               <span>Comments</span>
+            </TabsTrigger>
+            <TabsTrigger value="bookmarks" className="flex items-center gap-2">
+              <Bookmark className="h-4 w-4" />
+              <span>Bookmarks</span>
             </TabsTrigger>
           </TabsList>
 
@@ -1504,14 +1520,21 @@ export default function UserProfile() {
                         {post.userComments && post.userComments.length > 0 ? (
                           <div className="space-y-3">
                             {post.userComments.map((comment, i) => (
-                              <div key={comment.id || i} className="mb-3 last:mb-0">
+                              <div
+                                key={comment.id || i}
+                                className="mb-3 last:mb-0"
+                              >
                                 <p className="text-gray-700 whitespace-pre-line text-sm pl-4 italic">
                                   "{comment.content}"
                                 </p>
                                 <div className="text-xs text-gray-500 mt-1 text-right">
-                                  {new Date(comment.createdAt).toLocaleDateString()}
+                                  {new Date(
+                                    comment.createdAt
+                                  ).toLocaleDateString()}
                                 </div>
-                                {i < post.userComments.length - 1 && <Separator className="mt-2" />}
+                                {i < post.userComments.length - 1 && (
+                                  <Separator className="mt-2" />
+                                )}
                               </div>
                             ))}
                           </div>
@@ -1587,6 +1610,10 @@ export default function UserProfile() {
                 )}
               </div>
             )}
+          </TabsContent>
+
+          <TabsContent value="bookmarks">
+            <LearningCenterBookmarksTab />
           </TabsContent>
         </Tabs>
       </div>
