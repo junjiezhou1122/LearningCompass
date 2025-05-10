@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useRef, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useLocation } from "wouter";
 import { apiRequest, throwIfResNotOk } from "@/lib/queryClient";
@@ -69,6 +69,9 @@ import {
   Upload,
   FileSpreadsheet,
   Info,
+  History,
+  Clock,
+  X,
 } from "lucide-react";
 import SimpleCSVUploader from "./SimpleCSVUploader";
 
@@ -308,7 +311,25 @@ const OnlineCoursesTab = () => {
   // Handle search
   const handleSearch = (e) => {
     e.preventDefault();
-    setPage(1); // Reset to first page on new search
+    setPage(1);
+    if (searchQuery.trim() && isAuthenticated) {
+      fetch("/api/search-history", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${localStorage.getItem("token")}`,
+        },
+        body: JSON.stringify({ searchQuery: searchQuery.trim() }),
+      })
+        .then((response) => {
+          if (!response.ok) {
+            console.error("Failed to save search history:", response.status);
+          } else {
+            window.dispatchEvent(new CustomEvent("searchHistoryUpdated"));
+          }
+        })
+        .catch((error) => console.error("Error saving search history:", error));
+    }
   };
 
   // Clear all filters
@@ -331,6 +352,54 @@ const OnlineCoursesTab = () => {
       title: "Courses Imported Successfully",
       description: "Your courses have been imported from the CSV file.",
     });
+  };
+
+  // Fetch recent searches
+  const fetchRecentSearches = () => {
+    if (isAuthenticated) {
+      fetch("/api/search-history", {
+        headers: {
+          Authorization: `Bearer ${localStorage.getItem("token")}`,
+        },
+      })
+        .then((response) => {
+          if (response.ok) {
+            return response.json();
+          }
+          return [];
+        })
+        .then((data) => {
+          setRecentSearches(data.slice(0, 5));
+        })
+        .catch((error) => {
+          console.error("Error fetching recent searches:", error);
+        });
+    }
+  };
+
+  const [recentSearches, setRecentSearches] = useState([]);
+  const [isSearchPopoverOpen, setIsSearchPopoverOpen] = useState(false);
+  const searchInputRef = useRef(null);
+  const searchContainerRef = useRef(null);
+
+  useEffect(() => {
+    fetchRecentSearches();
+    const handleSearchHistoryUpdated = () => {
+      fetchRecentSearches();
+    };
+    window.addEventListener("searchHistoryUpdated", handleSearchHistoryUpdated);
+    return () => {
+      window.removeEventListener(
+        "searchHistoryUpdated",
+        handleSearchHistoryUpdated
+      );
+    };
+  }, [isAuthenticated]);
+
+  const handleRecentSearchClick = (query) => {
+    setSearchQuery(query);
+    setIsSearchPopoverOpen(false);
+    setPage(1);
   };
 
   return (
@@ -366,7 +435,7 @@ const OnlineCoursesTab = () => {
 
       {/* Filters and search */}
       <div className="flex flex-col md:flex-row gap-4 mb-6 p-4 bg-gradient-to-r from-orange-50 to-amber-50 rounded-xl shadow-md">
-        <div className="flex-1">
+        <div ref={searchContainerRef} className="relative flex-1">
           <form onSubmit={handleSearch} className="flex gap-2">
             <div className="relative flex-1">
               <Search
@@ -374,14 +443,114 @@ const OnlineCoursesTab = () => {
                 size={18}
               />
               <Input
+                ref={searchInputRef}
                 placeholder="Search courses..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 className="pl-10"
+                onFocus={() => {
+                  if (isAuthenticated && recentSearches.length > 0) {
+                    setIsSearchPopoverOpen(true);
+                  }
+                }}
               />
+              {isAuthenticated && recentSearches.length > 0 && (
+                <button
+                  type="button"
+                  className={`absolute right-2 top-1/2 transform -translate-y-1/2 cursor-pointer p-1 rounded-full transition-all duration-500 ${
+                    isSearchPopoverOpen
+                      ? "bg-amber-100 text-amber-700"
+                      : "hover:bg-gray-100"
+                  }`}
+                  onClick={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    setIsSearchPopoverOpen(!isSearchPopoverOpen);
+                  }}
+                >
+                  <History
+                    className={`h-4 w-4 transition-all duration-500 ${
+                      isSearchPopoverOpen ? "text-amber-700" : "text-gray-400"
+                    }`}
+                  />
+                </button>
+              )}
             </div>
             <Button type="submit">Search</Button>
           </form>
+          {/* Recent Searches Dropdown */}
+          {isAuthenticated && recentSearches.length > 0 && (
+            <div
+              className={`absolute top-full left-0 right-0 mt-1 bg-white rounded-md shadow-lg border border-orange-100 z-50 transform transition-all duration-500 ${
+                isSearchPopoverOpen
+                  ? "opacity-100 translate-y-0"
+                  : "opacity-0 -translate-y-2 pointer-events-none"
+              }`}
+              style={{ marginTop: "0.5rem", transformOrigin: "top center" }}
+            >
+              <div className="py-2">
+                <div className="flex items-center justify-between px-3 py-2 text-sm font-medium text-gray-600 bg-orange-50/50 border-b border-orange-100">
+                  <div className="flex items-center">
+                    <History className="h-4 w-4 mr-2 text-orange-500" />
+                    <span>Recent Searches</span>
+                  </div>
+                  <button
+                    className="text-gray-400 hover:text-gray-600 transition-all duration-500 p-1 hover:bg-orange-100 rounded-full hover:rotate-90"
+                    onClick={() => setIsSearchPopoverOpen(false)}
+                  >
+                    <X className="h-4 w-4" />
+                  </button>
+                </div>
+                <div className="max-h-[300px] overflow-y-auto">
+                  <div className="py-1">
+                    {recentSearches.map((item, index) => (
+                      <button
+                        key={item.id}
+                        className="flex items-center justify-between w-full px-3 py-2 text-sm text-gray-700 hover:bg-orange-50 transition-all duration-500 hover:translate-x-1"
+                        onClick={() =>
+                          handleRecentSearchClick(item.searchQuery)
+                        }
+                        style={{
+                          animationDelay: `${index * 50}ms`,
+                          animation: "slideIn 0.3s ease-out forwards",
+                          opacity: 0,
+                        }}
+                      >
+                        <div className="flex items-center">
+                          <Clock className="h-3.5 w-3.5 mr-2 text-orange-400" />
+                          <span>{item.searchQuery}</span>
+                        </div>
+                        <span className="text-xs text-gray-400">
+                          {item.createdAt
+                            ? new Date(item.createdAt).toLocaleString()
+                            : ""}
+                        </span>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+          <style
+            dangerouslySetInnerHTML={{
+              __html: `
+            @keyframes slideIn {
+              from {
+                opacity: 0;
+                transform: translateX(-10px);
+              }
+              to {
+                opacity: 1;
+                transform: translateX(0);
+              }
+            }
+            .animate-fadeIn {
+              animation: fadeIn 0.3s ease-out forwards;
+            }
+            `,
+            }}
+          />
         </div>
 
         <div className="flex gap-2 items-center">
@@ -499,11 +668,14 @@ const OnlineCoursesTab = () => {
           </SelectTrigger>
           <SelectContent>
             <SelectItem value="all">All Categories</SelectItem>
-            {categories.map((category) => (
-              <SelectItem key={category} value={category}>
-                {category}
-              </SelectItem>
-            ))}
+            {categories
+              .filter(Boolean)
+              .filter((category) => category !== "")
+              .map((category) => (
+                <SelectItem key={category} value={category}>
+                  {category}
+                </SelectItem>
+              ))}
           </SelectContent>
         </Select>
 
@@ -515,11 +687,14 @@ const OnlineCoursesTab = () => {
           </SelectTrigger>
           <SelectContent>
             <SelectItem value="all">All Subcategories</SelectItem>
-            {subCategories.map((subCategory) => (
-              <SelectItem key={subCategory} value={subCategory}>
-                {subCategory}
-              </SelectItem>
-            ))}
+            {subCategories
+              .filter(Boolean)
+              .filter((subCategory) => subCategory !== "")
+              .map((subCategory) => (
+                <SelectItem key={subCategory} value={subCategory}>
+                  {subCategory}
+                </SelectItem>
+              ))}
           </SelectContent>
         </Select>
 
@@ -531,11 +706,14 @@ const OnlineCoursesTab = () => {
           </SelectTrigger>
           <SelectContent>
             <SelectItem value="all">All Course Types</SelectItem>
-            {courseTypes.map((type) => (
-              <SelectItem key={type} value={type}>
-                {type}
-              </SelectItem>
-            ))}
+            {courseTypes
+              .filter(Boolean)
+              .filter((type) => type !== "")
+              .map((type) => (
+                <SelectItem key={type} value={type}>
+                  {type}
+                </SelectItem>
+              ))}
           </SelectContent>
         </Select>
 
@@ -547,11 +725,14 @@ const OnlineCoursesTab = () => {
           </SelectTrigger>
           <SelectContent>
             <SelectItem value="all">All Languages</SelectItem>
-            {languages.map((language) => (
-              <SelectItem key={language} value={language}>
-                {language}
-              </SelectItem>
-            ))}
+            {languages
+              .filter(Boolean)
+              .filter((language) => language !== "")
+              .map((language) => (
+                <SelectItem key={language} value={language}>
+                  {language}
+                </SelectItem>
+              ))}
           </SelectContent>
         </Select>
       </div>

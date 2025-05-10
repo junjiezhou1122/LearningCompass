@@ -120,14 +120,6 @@ export default function HeaderMobileMenu({
               <Button
                 variant="ghost"
                 className="w-full justify-start text-white hover:bg-amber-700 py-2 h-auto font-normal transition-all duration-300"
-                onClick={() => handleNavigation("/courses")}
-              >
-                <BookOpen className="h-5 w-5 mr-2" />
-                {t("resourcesHub")}
-              </Button>
-              <Button
-                variant="ghost"
-                className="w-full justify-start text-white hover:bg-amber-700 py-2 h-auto font-normal transition-all duration-300"
                 onClick={() => handleNavigation("/learning-center")}
               >
                 <GraduationCap className="h-5 w-5 mr-2" />
@@ -180,25 +172,33 @@ export default function HeaderMobileMenu({
                 </div>
                 <div className="flex space-x-2 pl-2">
                   <Button
-                    variant={language === LANGUAGES.ENGLISH ? "outline" : "ghost"}
-                    className={`px-3 py-1 h-auto ${language === LANGUAGES.ENGLISH 
-                      ? "bg-amber-700 border-white text-white" 
-                      : "text-white hover:bg-amber-700 transition-all duration-300"}`}
+                    variant={
+                      language === LANGUAGES.ENGLISH ? "outline" : "ghost"
+                    }
+                    className={`px-3 py-1 h-auto ${
+                      language === LANGUAGES.ENGLISH
+                        ? "bg-amber-700 border-white text-white"
+                        : "text-white hover:bg-amber-700 transition-all duration-300"
+                    }`}
                     onClick={() => {
                       setLanguage(LANGUAGES.ENGLISH);
-                      localStorage.setItem('language', LANGUAGES.ENGLISH);
+                      localStorage.setItem("language", LANGUAGES.ENGLISH);
                     }}
                   >
                     🇺🇸 {t("english")}
                   </Button>
                   <Button
-                    variant={language === LANGUAGES.CHINESE ? "outline" : "ghost"}
-                    className={`px-3 py-1 h-auto ${language === LANGUAGES.CHINESE 
-                      ? "bg-amber-700 border-white text-white" 
-                      : "text-white hover:bg-amber-700 transition-all duration-300"}`}
+                    variant={
+                      language === LANGUAGES.CHINESE ? "outline" : "ghost"
+                    }
+                    className={`px-3 py-1 h-auto ${
+                      language === LANGUAGES.CHINESE
+                        ? "bg-amber-700 border-white text-white"
+                        : "text-white hover:bg-amber-700 transition-all duration-300"
+                    }`}
                     onClick={() => {
                       setLanguage(LANGUAGES.CHINESE);
-                      localStorage.setItem('language', LANGUAGES.CHINESE);
+                      localStorage.setItem("language", LANGUAGES.CHINESE);
                     }}
                   >
                     🇨🇳 {t("chinese")}
