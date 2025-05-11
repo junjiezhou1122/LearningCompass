@@ -683,6 +683,77 @@ router.post("/groups", authenticate, async (req, res) => {
   }
 });
 
+// Delete a group (creator only)
+router.delete("/groups/:groupId", authenticate, async (req, res) => {
+  try {
+    const groupId = parseInt(req.params.groupId, 10);
+    const userId = parseInt(req.user.id, 10);
+
+    // Check if user is the creator
+    const group =
+      await sql`SELECT * FROM chat_groups WHERE id = ${groupId} LIMIT 1`;
+    if (!group[0]) return res.status(404).json({ error: "Group not found" });
+    if (group[0].creator_id !== userId) {
+      return res
+        .status(403)
+        .json({ error: "Only the group creator can delete this group" });
+    }
+
+    // Manually delete group members and messages first (if no ON DELETE CASCADE)
+    await sql`DELETE FROM group_members WHERE group_id = ${groupId}`;
+    await sql`DELETE FROM group_messages WHERE group_id = ${groupId}`;
+    // Now delete the group
+    await sql`DELETE FROM chat_groups WHERE id = ${groupId}`;
+    return res.status(204).send();
+  } catch (error) {
+    console.error("Error deleting group:", error);
+    return res.status(500).json({ error: "Failed to delete group" });
+  }
+});
+
+// Remove a member from a group (creator only, cannot remove self)
+router.delete(
+  "/groups/:groupId/members/:userId",
+  authenticate,
+  async (req, res) => {
+    try {
+      const groupId = parseInt(req.params.groupId, 10);
+      const userId = parseInt(req.params.userId, 10);
+      const requesterId = parseInt(req.user.id, 10);
+
+      // Check if group exists and requester is creator
+      const group =
+        await sql`SELECT * FROM chat_groups WHERE id = ${groupId} LIMIT 1`;
+      if (!group[0]) return res.status(404).json({ error: "Group not found" });
+      if (group[0].creator_id !== requesterId) {
+        return res
+          .status(403)
+          .json({ error: "Only the group creator can remove members" });
+      }
+      if (userId === requesterId) {
+        return res
+          .status(403)
+          .json({ error: "Creator cannot remove themselves from the group" });
+      }
+
+      // Check if user is a member
+      const member =
+        await sql`SELECT * FROM group_members WHERE group_id = ${groupId} AND user_id = ${userId} LIMIT 1`;
+      if (!member[0])
+        return res
+          .status(404)
+          .json({ error: "User is not a member of this group" });
+
+      // Remove the member
+      await sql`DELETE FROM group_members WHERE group_id = ${groupId} AND user_id = ${userId}`;
+      return res.status(204).send();
+    } catch (error) {
+      console.error("Error removing group member:", error);
+      return res.status(500).json({ error: "Failed to remove group member" });
+    }
+  }
+);
+
 // Helper function to check if users can chat with each other
 async function checkIfUsersCanChat(userId1, userId2) {
   try {
