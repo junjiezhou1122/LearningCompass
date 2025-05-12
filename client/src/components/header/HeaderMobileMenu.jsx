@@ -17,7 +17,6 @@ import {
   GraduationCap,
   MessagesSquare,
 } from "lucide-react";
-import HeaderSearch from "./HeaderSearch";
 import AuthModals from "../AuthModals";
 import LanguageSwitcher from "../LanguageSwitcher";
 
@@ -72,11 +71,6 @@ export default function HeaderMobileMenu({
               >
                 <X className="h-5 w-5" />
               </Button>
-            </div>
-
-            {/* Mobile search - always shown */}
-            <div className="mb-6">
-              <HeaderSearch isMobile />
             </div>
 
             {/* Navigation Links */}
