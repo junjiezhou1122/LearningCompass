@@ -14,54 +14,48 @@ import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Target, TrendingUp } from "lucide-react";
+import { useState } from "react";
 
 export default function RecommendationsPanel() {
   const { user, isAuthenticated, token } = useAuth();
+  const [page, setPage] = useState(1);
+  const pageSize = 5;
 
   // Fetch personalized recommendations if user is authenticated
   const {
     data: recommendations = [],
     isLoading: isLoadingAuthRecommendations,
   } = useQuery({
-    queryKey: ["/api/recommendations", user?.id],
-    queryFn: async ({ queryKey }) => {
-      if (!isAuthenticated || !user) return [];
-      const response = await fetch(`${queryKey[0]}?userId=${user.id}`, {
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-      });
-      if (!response.ok) throw new Error("Failed to fetch recommendations");
-      return response.json();
+    queryKey: ["recommendations", { page, pageSize, isAuthenticated, token }],
+    queryFn: async () => {
+      if (isAuthenticated && token) {
+        const res = await fetch(
+          `/api/recommendations?limit=${pageSize}&offset=${(page - 1) * pageSize}`,
+          { headers: { Authorization: `Bearer ${token}` } }
+        );
+        if (!res.ok) throw new Error("Failed to fetch recommendations");
+        return res.json();
+      } else {
+        const res = await fetch(
+          `/api/recommendations/anonymous?limit=${pageSize}&offset=${(page - 1) * pageSize}`
+        );
+        if (!res.ok) throw new Error("Failed to fetch recommendations");
+        return res.json();
+      }
     },
-    enabled: !!isAuthenticated && !!user,
-  });
-
-  // Fetch anonymous recommendations if user is not authenticated
-  const {
-    data: anonymousRecommendations = [],
-    isLoading: isLoadingAnonymousRecommendations,
-  } = useQuery({
-    queryKey: ["/api/recommendations/anonymous"],
-    queryFn: async ({ queryKey }) => {
-      const response = await fetch(queryKey[0]);
-      if (!response.ok)
-        throw new Error("Failed to fetch anonymous recommendations");
-      return response.json();
-    },
-    enabled: !isAuthenticated,
+    keepPreviousData: true,
   });
 
   // Determine which recommendations to display
   const displayRecommendations =
     isAuthenticated && recommendations.length > 0
       ? recommendations
-      : anonymousRecommendations;
+      : [];
 
   // Determine if recommendations are loading
   const isLoading = isAuthenticated
     ? isLoadingAuthRecommendations
-    : isLoadingAnonymousRecommendations;
+    : false;
 
   return (
     <Card className="border-blue-100">
@@ -79,7 +73,7 @@ export default function RecommendationsPanel() {
 
       <CardContent className="pt-4 px-3 pb-1">
         {isLoading ? (
-          Array(3)
+          Array(pageSize)
             .fill(0)
             .map((_, i) => (
               <div key={i} className="mb-4">
@@ -141,13 +135,23 @@ export default function RecommendationsPanel() {
         )}
       </CardContent>
 
-      <CardFooter className="pt-0 pb-3 px-4">
+      <CardFooter className="pt-0 pb-3 px-4 flex justify-between items-center">
         <Button
           variant="ghost"
           size="sm"
-          className="w-full text-xs border-t border-gray-100 pt-2 text-blue-600 hover:text-blue-700 hover:bg-blue-50"
+          disabled={page === 1}
+          onClick={() => setPage((p) => Math.max(1, p - 1))}
         >
-          View All Recommendations
+          Previous
+        </Button>
+        <span className="text-xs text-gray-500">Page {page}</span>
+        <Button
+          variant="ghost"
+          size="sm"
+          disabled={displayRecommendations.length < pageSize}
+          onClick={() => setPage((p) => p + 1)}
+        >
+          Next
         </Button>
       </CardFooter>
     </Card>

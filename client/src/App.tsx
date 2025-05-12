@@ -30,6 +30,7 @@ import TokenDebugger from "@/components/TokenDebugger";
 import ErrorBoundary from "@/components/ErrorBoundary";
 import CreateGroupPage from "./pages/CreateGroupPage";
 import ChatTestPage from "./pages/ChatTestPage";
+import RecommendationsPage from "@/pages/RecommendationsPage";
 
 function Router() {
   const [location] = useLocation();
@@ -120,6 +121,7 @@ function Router() {
               <Route path="/users/:userId" component={UserProfile} />
               <Route path="/notes" component={NotesPage} />
               <Route path="/token-debug" component={TokenDebugPage} />
+              <Route path="/recommendations" component={RecommendationsPage} />
               <Route component={NotFound} />
             </Switch>
           </div>

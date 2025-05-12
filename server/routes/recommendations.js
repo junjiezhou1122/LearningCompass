@@ -7,6 +7,8 @@ const router = express.Router();
 // Anonymous recommendations (trending/popular courses)
 router.get("/recommendations/anonymous", async (req, res) => {
   try {
+    const limit = parseInt(req.query.limit) || 5;
+    const offset = parseInt(req.query.offset) || 0;
     // Placeholder: Fetch top 10 trending/popular courses
     // Replace with real DB query in production
     const courses = [
@@ -48,7 +50,9 @@ router.get("/recommendations/anonymous", async (req, res) => {
       },
       // ... more mock courses ...
     ];
-    res.json(courses);
+    // Slice for pagination
+    const paged = courses.slice(offset, offset + limit);
+    res.json(paged);
   } catch (error) {
     console.error("Error fetching anonymous recommendations:", error);
     res
@@ -64,7 +68,9 @@ router.get("/recommendations", authenticate, async (req, res) => {
     if (!userId) {
       return res.status(401).json({ message: "User not authenticated" });
     }
-    const recommendations = await storage.generateRecommendations(userId);
+    const limit = parseInt(req.query.limit) || 5;
+    const offset = parseInt(req.query.offset) || 0;
+    const recommendations = await storage.generateRecommendations(userId, limit, offset);
     res.json(recommendations);
   } catch (error) {
     console.error("Error generating personalized recommendations:", error);

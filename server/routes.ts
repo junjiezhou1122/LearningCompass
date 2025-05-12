@@ -3053,10 +3053,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
     async (req: Request, res: Response) => {
       try {
         const userId = (req as any).user.id;
-
+        const limit = req.query.limit ? Number(req.query.limit) : 5;
+        const offset = req.query.offset ? Number(req.query.offset) : 0;
         // Generate recommendations if they don't exist yet
-        const recommendations = await storage.generateRecommendations(userId);
-
+        const recommendations = await storage.generateRecommendations(userId, limit, offset);
         // Format for frontend
         const formattedRecommendations = recommendations.map((rec) => ({
           id: rec.course.id,
@@ -3066,7 +3066,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
           trending: rec.trending,
           reason: rec.reason,
         }));
-
         res.json(formattedRecommendations);
       } catch (error) {
         console.error("Error fetching recommendations:", error);
