@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import HeaderNav from "./header/HeaderNav";
 import HeaderUserMenu from "./header/HeaderUserMenu";
 import HeaderMobileMenu from "./header/HeaderMobileMenu";
+import Logo from "./header/Logo.jsx";
 
 export default function Header() {
   const [location, navigate] = useLocation();
@@ -24,20 +25,7 @@ export default function Header() {
       <div className="container mx-auto px-4 py-2">
         <div className="flex items-center justify-between">
           {/* Logo */}
-          <Button
-            variant="ghost"
-            className="p-0 h-auto hover:bg-orange-700 hover:text-white text-white rounded-sm"
-            onClick={() => navigate("/")}
-          >
-            <div className="flex items-center">
-              <div className="bg-orange-500 rounded-md p-1 mr-2">
-                <Brain className="text-white h-4 w-4" />
-              </div>
-              <span className="text-base font-semibold">
-                {t("learningHowToLearn")}
-              </span>
-            </div>
-          </Button>
+          <Logo onClick={() => navigate("/")} />
 
           {/* Navigation */}
           <div className="flex items-center">
