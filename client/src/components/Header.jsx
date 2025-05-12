@@ -4,7 +4,6 @@ import { useAuth } from "../contexts/AuthContext";
 import { useLanguage } from "../contexts/LanguageContext";
 import { Brain } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import HeaderSearch from "./header/HeaderSearch";
 import HeaderNav from "./header/HeaderNav";
 import HeaderUserMenu from "./header/HeaderUserMenu";
 import HeaderMobileMenu from "./header/HeaderMobileMenu";
@@ -14,10 +13,6 @@ export default function Header() {
   const { isAuthenticated, user, logout } = useAuth();
   const { t } = useLanguage();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
-
-  // Check if current page is ResourcesHub (home page or courses page)
-  const isResourcesHub =
-    location === "/courses" || location.startsWith("/course/");
 
   // Close mobile menu when location changes
   useEffect(() => {
@@ -44,18 +39,11 @@ export default function Header() {
             </div>
           </Button>
 
-          {/* Desktop Search - only shown on ResourcesHub */}
-          {isResourcesHub && (
-            <div className="hidden md:block w-1/3">
-              <HeaderSearch />
-            </div>
-          )}
-
           {/* Navigation */}
           <div className="flex items-center">
             {/* Desktop Navigation */}
             <div className="hidden md:flex items-center space-x-6">
-              <HeaderNav isResourcesHub={isResourcesHub} />
+              <HeaderNav />
               <HeaderUserMenu />
             </div>
 
@@ -63,17 +51,9 @@ export default function Header() {
             <HeaderMobileMenu
               isOpen={mobileMenuOpen}
               onOpenChange={setMobileMenuOpen}
-              isResourcesHub={isResourcesHub}
             />
           </div>
         </div>
-
-        {/* Mobile Search - only shown on ResourcesHub */}
-        {isResourcesHub && (
-          <div className="md:hidden mt-3">
-            <HeaderSearch isMobile />
-          </div>
-        )}
       </div>
     </header>
   );

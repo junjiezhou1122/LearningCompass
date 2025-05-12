@@ -31,6 +31,8 @@ const translations = {
     viewProfile: 'View Profile',
     overview: 'Overview',
     connectWithOthers: 'Connect & Chat',
+    notes: 'Notes',
+    chat: 'Chat',
     
     // Home/Hero Section
     discoverLearningPath: 'Discover Your Learning Path',
@@ -306,6 +308,8 @@ const translations = {
     viewProfile: '查看个人资料',
     overview: '概览',
     connectWithOthers: '连接与聊天',
+    notes: '笔记',
+    chat: '聊天',
     
     // Home/Hero Section
     discoverLearningPath: '探索您的学习之路',

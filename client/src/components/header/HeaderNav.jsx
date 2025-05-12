@@ -39,7 +39,7 @@ export default function HeaderNav() {
         onClick={() => navigate("/learning-center")}
       >
         <GraduationCap className="h-4 w-4 mr-2" />
-        Learning Center
+        {t("learningCenter")}
       </Button>
       <Button
         variant="ghost"
@@ -57,7 +57,7 @@ export default function HeaderNav() {
             onClick={() => navigate("/chat")}
           >
             <MessagesSquare className="h-4 w-4 mr-2" />
-            Chat
+            {t("chat")}
           </Button>
         </>
       )}

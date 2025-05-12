@@ -24,7 +24,6 @@ import LanguageSwitcher from "../LanguageSwitcher";
 export default function HeaderMobileMenu({
   isOpen,
   onOpenChange,
-  isResourcesHub,
 }) {
   const [, navigate] = useLocation();
   const { user, isAuthenticated, logout } = useAuth();
@@ -75,12 +74,10 @@ export default function HeaderMobileMenu({
               </Button>
             </div>
 
-            {/* Mobile search - only shown on ResourcesHub */}
-            {isResourcesHub && (
-              <div className="mb-6">
-                <HeaderSearch isMobile />
-              </div>
-            )}
+            {/* Mobile search - always shown */}
+            <div className="mb-6">
+              <HeaderSearch isMobile />
+            </div>
 
             {/* Navigation Links */}
             <div className="space-y-4 flex-grow">
@@ -123,7 +120,7 @@ export default function HeaderMobileMenu({
                 onClick={() => handleNavigation("/learning-center")}
               >
                 <GraduationCap className="h-5 w-5 mr-2" />
-                Learning Center
+                {t("learningCenter")}
               </Button>
               <Button
                 variant="ghost"
@@ -143,7 +140,7 @@ export default function HeaderMobileMenu({
                     onClick={() => handleNavigation("/notes")}
                   >
                     <StickyNote className="h-5 w-5 mr-2" />
-                    Notes
+                    {t("notes")}
                   </Button>
                   <Button
                     variant="ghost"
@@ -151,7 +148,7 @@ export default function HeaderMobileMenu({
                     onClick={() => handleNavigation("/chat")}
                   >
                     <MessagesSquare className="h-5 w-5 mr-2" />
-                    Chat
+                    {t("chat")}
                   </Button>
                 </>
               )}

@@ -95,7 +95,7 @@ export default function HeaderUserMenu() {
           onClick={() => navigate("/notes")}
         >
           <StickyNote className="mr-2 h-4 w-4" />
-          <span>Notes</span>
+          <span>{t("notes")}</span>
         </DropdownMenuItem>
         <DropdownMenuSeparator className="bg-orange-100" />
         <DropdownMenuItem
