@@ -1,5 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { useAuth } from "@/contexts/AuthContext";
+import { useLanguage } from "@/contexts/LanguageContext";
 import { Link } from "wouter";
 import {
   Card,
@@ -18,6 +19,7 @@ import { useState } from "react";
 
 export default function RecommendationsPanel() {
   const { user, isAuthenticated, token } = useAuth();
+  const { t } = useLanguage();
   const [page, setPage] = useState(1);
   const pageSize = 5;
 
@@ -63,11 +65,11 @@ export default function RecommendationsPanel() {
         <div className="flex items-center">
           <Target className="h-5 w-5 mr-2 text-blue-600" />
           <CardTitle className="text-lg text-blue-900">
-            Recommended For You
+            {t("recommendedForYou")}
           </CardTitle>
         </div>
         <CardDescription className="text-blue-700">
-          Courses tailored to your interests
+          {t("coursesTailoredToInterests")}
         </CardDescription>
       </CardHeader>
 
@@ -130,7 +132,7 @@ export default function RecommendationsPanel() {
           </div>
         ) : (
           <p className="text-sm text-gray-500 p-2">
-            No recommendations available
+            {t("noRecommendationsAvailable")}
           </p>
         )}
       </CardContent>
@@ -142,16 +144,16 @@ export default function RecommendationsPanel() {
           disabled={page === 1}
           onClick={() => setPage((p) => Math.max(1, p - 1))}
         >
-          Previous
+          {t("previous")}
         </Button>
-        <span className="text-xs text-gray-500">Page {page}</span>
+        <span className="text-xs text-gray-500">{t("page")} {page}</span>
         <Button
           variant="ghost"
           size="sm"
           disabled={displayRecommendations.length < pageSize}
           onClick={() => setPage((p) => p + 1)}
         >
-          Next
+          {t("next")}
         </Button>
       </CardFooter>
     </Card>

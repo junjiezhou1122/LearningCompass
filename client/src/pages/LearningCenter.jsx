@@ -29,7 +29,7 @@ const LearningCenter = () => {
             className="data-[state=active]:bg-gradient-to-br data-[state=active]:from-orange-500 data-[state=active]:to-amber-500 data-[state=active]:text-white rounded-md flex items-center gap-2"
           >
             <BookOpen className="h-4 w-4" />
-            <span className="hidden sm:inline">University</span>
+            <span className="hidden sm:inline">University Courses</span>
             <span className="sm:hidden">Uni</span>
           </TabsTrigger>
           <TabsTrigger

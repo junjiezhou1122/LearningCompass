@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { useAuth } from "../contexts/AuthContext";
+import { useLanguage } from "../contexts/LanguageContext";
 import {
   Dialog,
   DialogContent,
@@ -38,6 +39,7 @@ export default function AuthModals() {
     loginWithGithub,
   } = useAuth();
   const { toast } = useToast();
+  const { t } = useLanguage();
 
   // Login form state
   const [loginForm, setLoginForm] = useState({
@@ -100,8 +102,8 @@ export default function AuthModals() {
 
     if (!loginForm.username || !loginForm.password) {
       toast({
-        title: "Error",
-        description: "Please fill in all fields.",
+        title: t("error"),
+        description: t("pleaseEnterMessage"),
         variant: "destructive",
       });
       return;
@@ -133,7 +135,7 @@ export default function AuthModals() {
       !registerForm.confirmPassword
     ) {
       toast({
-        title: "Error",
+        title: t("error"),
         description: "Please fill in all fields.",
         variant: "destructive",
       });
@@ -142,7 +144,7 @@ export default function AuthModals() {
 
     if (registerForm.password !== registerForm.confirmPassword) {
       toast({
-        title: "Error",
+        title: t("error"),
         description: "Passwords do not match.",
         variant: "destructive",
       });
@@ -151,7 +153,7 @@ export default function AuthModals() {
 
     if (!registerForm.acceptTerms) {
       toast({
-        title: "Error",
+        title: t("error"),
         description: "Please accept the terms and conditions.",
         variant: "destructive",
       });
@@ -204,14 +206,14 @@ export default function AuthModals() {
           variant="ghost"
         >
           <LogIn className="h-5 w-5" />
-          Login
+          {t("login")}
         </Button>
         <Button
           onClick={() => setIsRegisterOpen(true)}
           className="items-center gap-2"
         >
           <UserPlus className="h-5 w-5" />
-          Register
+          {t("register")}
         </Button>
       </div>
 
@@ -221,22 +223,22 @@ export default function AuthModals() {
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2 text-2xl">
               <LogIn className="h-6 w-6" />
-              Login to Your Account
+              {t("loginToAccount")}
             </DialogTitle>
             <DialogDescription>
-              Enter your credentials to access your account
+              {t("enterCredentials")}
             </DialogDescription>
           </DialogHeader>
 
           <form onSubmit={handleLoginSubmit} className="space-y-4">
             <div className="space-y-2">
-              <Label htmlFor="login-username">Username</Label>
+              <Label htmlFor="login-username">{t("username")}</Label>
               <div className="relative">
                 <User className="absolute left-3 top-2.5 h-4 w-4 text-gray-400" />
                 <Input
                   id="login-username"
                   name="username"
-                  placeholder="Your username"
+                  placeholder={t("yourUsername")}
                   className="pl-10"
                   value={loginForm.username}
                   onChange={handleLoginChange}
@@ -245,14 +247,14 @@ export default function AuthModals() {
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="login-password">Password</Label>
+              <Label htmlFor="login-password">{t("password")}</Label>
               <div className="relative">
                 <Lock className="absolute left-3 top-2.5 h-4 w-4 text-gray-400" />
                 <Input
                   id="login-password"
                   name="password"
                   type="password"
-                  placeholder="Your password"
+                  placeholder={t("yourPassword")}
                   className="pl-10"
                   value={loginForm.password}
                   onChange={handleLoginChange}
@@ -267,7 +269,7 @@ export default function AuthModals() {
                 className="px-0 text-sm"
                 onClick={switchToRegister}
               >
-                Don't have an account? Register
+                {t("dontHaveAccount")}
               </Button>
             </div>
 
@@ -276,7 +278,7 @@ export default function AuthModals() {
               className="w-full"
               disabled={isSubmitting}
             >
-              {isSubmitting ? "Logging in..." : "Login"}
+              {isSubmitting ? t("loggingIn") : t("login")}
             </Button>
           </form>
 
@@ -286,7 +288,7 @@ export default function AuthModals() {
             </div>
             <div className="relative flex justify-center text-sm">
               <span className="bg-white dark:bg-gray-800 px-2 text-gray-500">
-                Or continue with
+                {t("orContinueWith")}
               </span>
             </div>
           </div>
@@ -321,17 +323,17 @@ export default function AuthModals() {
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2 text-2xl">
               <UserPlus className="h-6 w-6" />
-              Create an Account
+              {t("createAccount")}
             </DialogTitle>
             <DialogDescription>
-              Join Learning Compass to unlock personalized learning
+              {t("joinLearningCompass")}
             </DialogDescription>
           </DialogHeader>
 
           <form onSubmit={handleRegisterSubmit} className="space-y-4">
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
-                <Label htmlFor="first-name">First Name</Label>
+                <Label htmlFor="first-name">{t("firstName")}</Label>
                 <Input
                   id="first-name"
                   name="firstName"
@@ -341,7 +343,7 @@ export default function AuthModals() {
                 />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="last-name">Last Name</Label>
+                <Label htmlFor="last-name">{t("lastName")}</Label>
                 <Input
                   id="last-name"
                   name="lastName"
@@ -353,14 +355,14 @@ export default function AuthModals() {
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="register-email">Email</Label>
+              <Label htmlFor="register-email">{t("email")}</Label>
               <div className="relative">
                 <Mail className="absolute left-3 top-2.5 h-4 w-4 text-gray-400" />
                 <Input
                   id="register-email"
                   name="email"
                   type="email"
-                  placeholder="Your email"
+                  placeholder={t("yourEmail")}
                   className="pl-10"
                   value={registerForm.email}
                   onChange={handleRegisterChange}
@@ -369,13 +371,13 @@ export default function AuthModals() {
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="register-username">Username</Label>
+              <Label htmlFor="register-username">{t("username")}</Label>
               <div className="relative">
                 <User className="absolute left-3 top-2.5 h-4 w-4 text-gray-400" />
                 <Input
                   id="register-username"
                   name="username"
-                  placeholder="Choose a username"
+                  placeholder={t("chooseUsername")}
                   className="pl-10"
                   value={registerForm.username}
                   onChange={handleRegisterChange}
@@ -384,14 +386,14 @@ export default function AuthModals() {
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="register-password">Password</Label>
+              <Label htmlFor="register-password">{t("password")}</Label>
               <div className="relative">
                 <Lock className="absolute left-3 top-2.5 h-4 w-4 text-gray-400" />
                 <Input
                   id="register-password"
                   name="password"
                   type="password"
-                  placeholder="Create a password"
+                  placeholder={t("createPassword")}
                   className="pl-10"
                   value={registerForm.password}
                   onChange={handleRegisterChange}
@@ -400,14 +402,14 @@ export default function AuthModals() {
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="register-confirm-password">Confirm Password</Label>
+              <Label htmlFor="register-confirm-password">{t("confirmPassword")}</Label>
               <div className="relative">
                 <Lock className="absolute left-3 top-2.5 h-4 w-4 text-gray-400" />
                 <Input
                   id="register-confirm-password"
                   name="confirmPassword"
                   type="password"
-                  placeholder="Confirm your password"
+                  placeholder={t("confirmYourPassword")}
                   className="pl-10"
                   value={registerForm.confirmPassword}
                   onChange={handleRegisterChange}
@@ -431,7 +433,7 @@ export default function AuthModals() {
                 htmlFor="terms"
                 className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
               >
-                I accept the Terms and Conditions
+                {t("acceptTerms")}
               </label>
             </div>
 
@@ -442,7 +444,7 @@ export default function AuthModals() {
                 className="px-0 text-sm"
                 onClick={switchToLogin}
               >
-                Already have an account? Login
+                {t("alreadyHaveAccount")}
               </Button>
             </div>
 
@@ -451,7 +453,7 @@ export default function AuthModals() {
               className="w-full"
               disabled={isSubmitting}
             >
-              {isSubmitting ? "Registering..." : "Create Account"}
+              {isSubmitting ? t("registering") : t("createAccount")}
             </Button>
           </form>
         </DialogContent>
