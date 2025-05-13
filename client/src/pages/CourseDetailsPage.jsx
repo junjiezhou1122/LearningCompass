@@ -260,9 +260,20 @@ const CourseDetailsPage = () => {
 
       return response.json();
     },
-    onSuccess: () => {
+    onSuccess: (newComment) => {
       commentForm.reset();
-      queryClient.invalidateQueries({ queryKey: ['course-comments', id] });
+      // Ensure the new comment has a user object for immediate display
+      const commentWithUser = {
+        ...newComment,
+        user: {
+          id: user.id,
+          username: user.username,
+          photoURL: user.photoURL,
+        },
+      };
+      queryClient.setQueryData(['course-comments', id], (oldData = []) => {
+        return [commentWithUser, ...oldData];
+      });
       toast({
         title: 'Comment Added',
         description: 'Your comment has been added successfully.',
@@ -557,9 +568,43 @@ const CourseDetailsPage = () => {
     },
   });
 
+  // Add after addCommentMutation and before other mutations
+  const deleteCommentMutation = useMutation({
+    mutationFn: async (commentId) => {
+      const response = await fetch(`/api/university-course-comments/${commentId}`, {
+        method: 'DELETE',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+        },
+      });
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || 'Failed to delete comment');
+      }
+      return { commentId };
+    },
+    onSuccess: ({ commentId }) => {
+      // Remove the deleted comment from the cache
+      queryClient.setQueryData(['course-comments', id], (oldData = []) =>
+        oldData.filter((comment) => comment.id !== commentId)
+      );
+      toast({
+        title: 'Comment Deleted',
+        description: 'Your comment has been deleted successfully.',
+      });
+    },
+    onError: (error) => {
+      toast({
+        title: 'Error',
+        description: error.message || 'Failed to delete comment',
+        variant: 'destructive',
+      });
+    },
+  });
+
   // Handle comment submission
   const onCommentSubmit = (data) => {
-    if (!isAuthenticated) {
+    if (!isAuthenticated || !user) {
       toast({
         title: 'Authentication Required',
         description: 'Please log in to add a comment',
@@ -568,7 +613,15 @@ const CourseDetailsPage = () => {
       return;
     }
 
-    addCommentMutation.mutate(data);
+    // Include user data in the comment
+    const commentData = {
+      ...data,
+      userId: user.id,
+      username: user.username,
+      photoURL: user.photoURL
+    };
+
+    addCommentMutation.mutate(commentData);
   };
 
   // Handle resource submission
@@ -679,6 +732,14 @@ const CourseDetailsPage = () => {
 
     if (window.confirm('Are you sure you want to delete this collaboration request?')) {
       deleteCollaborationMutation.mutate(collaborationId);
+    }
+  };
+
+  // Update the onCommentDelete handler to use the mutation
+  const onCommentDelete = (commentId) => {
+    if (!isAuthenticated) return;
+    if (window.confirm('Are you sure you want to delete this comment?')) {
+      deleteCommentMutation.mutate(commentId);
     }
   };
 
@@ -886,13 +947,13 @@ const CourseDetailsPage = () => {
                 <div className="space-y-4">
                   {comments.map((comment) => (
                     <Card key={comment.id} className="border-orange-100">
-                      <CardHeader className="pb-2">
+                      <CardHeader className="pb-2 flex flex-row items-start justify-between">
                         <div>
                           <a href={`/users/${comment.user?.id}`} className="flex items-center gap-3">
                             <Avatar className="h-8 w-8">
                               <AvatarImage src={comment.user?.photoURL} />
                               <AvatarFallback className="bg-orange-100 text-orange-700">
-                                {comment.user?.username.charAt(0).toUpperCase() || 'U'}
+                                {comment.user?.username?.charAt(0).toUpperCase() || 'U'}
                               </AvatarFallback>
                             </Avatar>
                             <div>
@@ -905,6 +966,16 @@ const CourseDetailsPage = () => {
                             </div>
                           </a>
                         </div>
+                        {isAuthenticated && user?.id === comment.user?.id && (
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="text-gray-500 hover:text-red-500 hover:bg-red-50"
+                            onClick={() => onCommentDelete(comment.id)}
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        )}
                       </CardHeader>
                       <CardContent>
                         <p className="text-gray-700">{comment.content}</p>
@@ -1156,14 +1227,7 @@ const CourseDetailsPage = () => {
               <h3 className="text-lg font-medium text-gray-700 mb-2">No resources yet</h3>
               <p className="text-gray-500 mb-4">Be the first to share helpful course resources</p>
               {isAuthenticated ? (
-                <Button 
-                  variant="default" 
-                  className="bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 flex items-center gap-2"
-                  onClick={() => setShowResourceDialog(true)}
-                >
-                  <Plus className="h-4 w-4" />
-                  Add Resource
-                </Button>
+                <p className="text-sm text-orange-600">Click the Add Resource button above to share resources</p>
               ) : (
                 <p className="text-sm text-orange-600">Log in to share resources</p>
               )}

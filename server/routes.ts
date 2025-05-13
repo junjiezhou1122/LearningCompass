@@ -3954,24 +3954,27 @@ export async function registerRoutes(app: Express): Promise<Server> {
     async (req: Request, res: Response) => {
       try {
         const courseId = parseInt(req.params.courseId);
-
-        // Check if the course exists
+        if (isNaN(courseId)) {
+          return res.status(400).json({ message: "Invalid course ID" });
+        }
         const course = await storage.getUniversityCourse(courseId);
         if (!course) {
-          return res
-            .status(404)
-            .json({ message: "University course not found" });
+          return res.status(404).json({ message: "University course not found" });
         }
-
-        const comments = await storage.getUniversityCourseCommentsByCourseId(
-          courseId
+        const comments = await storage.getUniversityCourseCommentsByCourseId(courseId);
+        // Attach user info to each comment
+        const commentsWithUser = await Promise.all(
+          comments.map(async (comment) => {
+            const user = await storage.getUser(comment.userId);
+            if (!user) return { ...comment, user: null };
+            const { password, ...userWithoutPassword } = user;
+            return { ...comment, user: userWithoutPassword };
+          })
         );
-        res.json(comments);
+        res.json(commentsWithUser);
       } catch (error) {
         console.error("Error fetching university course comments:", error);
-        res
-          .status(500)
-          .json({ message: "Error fetching university course comments" });
+        res.status(500).json({ message: "Error fetching university course comments" });
       }
     }
   );
@@ -3984,40 +3987,31 @@ export async function registerRoutes(app: Express): Promise<Server> {
         const userId = (req as any).user.id;
         const courseId = parseInt(req.params.courseId);
         const { content } = req.body;
-
         if (!content) {
-          return res
-            .status(400)
-            .json({ message: "Comment content is required" });
+          return res.status(400).json({ message: "Comment content is required" });
         }
-
-        // Check if the course exists
         const course = await storage.getUniversityCourse(courseId);
         if (!course) {
-          return res
-            .status(404)
-            .json({ message: "University course not found" });
+          return res.status(404).json({ message: "University course not found" });
         }
-
         const commentData = insertUniversityCourseCommentSchema.parse({
           userId,
           courseId,
           content,
           updatedAt: new Date(),
         });
-
-        const comment = await storage.createUniversityCourseComment(
-          commentData
-        );
-        res.status(201).json(comment);
+        const comment = await storage.createUniversityCourseComment(commentData);
+        // Attach user info
+        const user = await storage.getUser(userId);
+        if (!user) return res.status(201).json(comment);
+        const { password, ...userWithoutPassword } = user;
+        res.status(201).json({ ...comment, user: userWithoutPassword });
       } catch (error) {
         if (error instanceof z.ZodError) {
           return res.status(400).json({ message: fromZodError(error).message });
         }
         console.error("Error creating university course comment:", error);
-        res
-          .status(500)
-          .json({ message: "Error creating university course comment" });
+        res.status(500).json({ message: "Error creating university course comment" });
       }
     }
   );
@@ -4108,24 +4102,27 @@ export async function registerRoutes(app: Express): Promise<Server> {
     async (req: Request, res: Response) => {
       try {
         const courseId = parseInt(req.params.courseId);
-
-        // Check if the course exists
+        if (isNaN(courseId)) {
+          return res.status(400).json({ message: "Invalid course ID" });
+        }
         const course = await storage.getUniversityCourse(courseId);
         if (!course) {
-          return res
-            .status(404)
-            .json({ message: "University course not found" });
+          return res.status(404).json({ message: "University course not found" });
         }
-
-        const resources = await storage.getUniversityCourseResourcesByCourseId(
-          courseId
+        const resources = await storage.getUniversityCourseResourcesByCourseId(courseId);
+        // Attach user info to each resource
+        const resourcesWithUser = await Promise.all(
+          resources.map(async (resource) => {
+            const user = await storage.getUser(resource.userId);
+            if (!user) return { ...resource, user: null };
+            const { password, ...userWithoutPassword } = user;
+            return { ...resource, user: userWithoutPassword };
+          })
         );
-        res.json(resources);
+        res.json(resourcesWithUser);
       } catch (error) {
         console.error("Error fetching university course resources:", error);
-        res
-          .status(500)
-          .json({ message: "Error fetching university course resources" });
+        res.status(500).json({ message: "Error fetching university course resources" });
       }
     }
   );
@@ -4554,26 +4551,24 @@ export async function registerRoutes(app: Express): Promise<Server> {
     async (req: Request, res: Response) => {
       try {
         const courseId = parseInt(req.params.courseId);
-
-        // Check if the course exists
         const course = await storage.getUniversityCourse(courseId);
         if (!course) {
-          return res
-            .status(404)
-            .json({ message: "University course not found" });
+          return res.status(404).json({ message: "University course not found" });
         }
-
-        const collaborations =
-          await storage.getUniversityCourseCollaborationsByCourseId(courseId);
-        res.json(collaborations);
-      } catch (error) {
-        console.error(
-          "Error fetching university course collaborations:",
-          error
+        const collaborations = await storage.getUniversityCourseCollaborationsByCourseId(courseId);
+        // Attach user info to each collaboration
+        const collaborationsWithUser = await Promise.all(
+          collaborations.map(async (collab) => {
+            const user = await storage.getUser(collab.userId);
+            if (!user) return { ...collab, user: null };
+            const { password, ...userWithoutPassword } = user;
+            return { ...collab, user: userWithoutPassword };
+          })
         );
-        res
-          .status(500)
-          .json({ message: "Error fetching university course collaborations" });
+        res.json(collaborationsWithUser);
+      } catch (error) {
+        console.error("Error fetching university course collaborations:", error);
+        res.status(500).json({ message: "Error fetching university course collaborations" });
       }
     }
   );
@@ -4584,14 +4579,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
     async (req: Request, res: Response) => {
       try {
         const userId = (req as any).user.id;
-        const collaborations =
-          await storage.getUniversityCourseCollaborationsByUserId(userId);
+        const collaborations = await storage.getUniversityCourseCollaborationsByUserId(userId);
         res.json(collaborations);
       } catch (error) {
-        console.error(
-          "Error fetching user's university course collaborations:",
-          error
-        );
+        console.error("Error fetching user's university course collaborations:", error);
         res.status(500).json({
           message: "Error fetching user's university course collaborations",
         });
@@ -4620,19 +4611,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
             .json({ message: "University course not found" });
         }
 
-        const collaborationData =
-          insertUniversityCourseCollaborationSchema.parse({
-            userId,
-            courseId,
-            message,
-            contactMethod,
-            contactDetails,
-            updatedAt: new Date(),
-          });
+        const collaborationData = insertUniversityCourseCollaborationSchema.parse({
+          userId,
+          courseId,
+          message,
+          contactMethod,
+          contactDetails,
+          updatedAt: new Date(),
+        });
 
-        const collaboration = await storage.createUniversityCourseCollaboration(
-          collaborationData
-        );
+        const collaboration = await storage.createUniversityCourseCollaboration(collaborationData);
         res.status(201).json(collaboration);
       } catch (error) {
         if (error instanceof z.ZodError) {
@@ -4664,9 +4652,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }
 
         // Check if the collaboration exists
-        const collaboration = await storage.getUniversityCourseCollaboration(
-          collaborationId
-        );
+        const collaboration = await storage.getUniversityCourseCollaboration(collaborationId);
         if (!collaboration) {
           return res
             .status(404)
@@ -4681,10 +4667,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           });
         }
 
-        const success = await storage.deleteUniversityCourseCollaboration(
-          collaborationId,
-          userId
-        );
+        const success = await storage.deleteUniversityCourseCollaboration(collaborationId, userId);
         if (!success) {
           return res
             .status(500)
@@ -4712,9 +4695,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         const collaborationId = parseInt(req.params.id);
 
         // Check if the collaboration exists
-        const collaboration = await storage.getUniversityCourseCollaboration(
-          collaborationId
-        );
+        const collaboration = await storage.getUniversityCourseCollaboration(collaborationId);
         if (!collaboration) {
           return res.status(404).json({ message: "Collaboration not found" });
         }
@@ -4726,10 +4707,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           });
         }
 
-        const success = await storage.deleteUniversityCourseCollaboration(
-          collaborationId,
-          userId
-        );
+        const success = await storage.deleteUniversityCourseCollaboration(collaborationId, userId);
         if (!success) {
           return res
             .status(500)
