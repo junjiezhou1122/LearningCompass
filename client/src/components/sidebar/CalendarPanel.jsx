@@ -5,7 +5,7 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
-import { addDays, format } from "date-fns";
+import { addDays, addMinutes, format, parseISO, isBefore } from "date-fns";
 import EventFormDialog from "./EventFormDialog";
 import EventList from "./EventList";
 import EventDetail from "./EventDetail";
@@ -58,7 +58,7 @@ export default function CalendarPanel() {
     defaultValues: {
       title: "",
       description: "",
-      startDate: format(new Date(), "yyyy-MM-dd'T'HH:mm"),
+      startDate: format(addMinutes(new Date(), 5), "yyyy-MM-dd'T'HH:mm"),
     },
   });
 
@@ -81,7 +81,7 @@ export default function CalendarPanel() {
       form.reset({
         title: "",
         description: "",
-        startDate: format(addDays(new Date(), 1), "yyyy-MM-dd'T'HH:mm"),
+        startDate: format(addMinutes(new Date(), 5), "yyyy-MM-dd'T'HH:mm"),
       });
       refetch();
       toast({ title: t('calendarDeadlineAdded'), description: t('calendarDeadlineAddedDesc') });
@@ -113,7 +113,19 @@ export default function CalendarPanel() {
   });
 
   // Form submit handler
-  const onSubmit = useCallback((data) => createEventMutation.mutate(data), [createEventMutation]);
+  const onSubmit = useCallback((data) => {
+    // Prevent creating events in the past
+    const eventStart = parseISO(data.startDate);
+    if (isBefore(eventStart, new Date())) {
+      toast({
+        title: t('error'),
+        description: t('calendarCannotCreatePastEvent') || 'Cannot create an event in the past.',
+        variant: 'destructive',
+      });
+      return;
+    }
+    createEventMutation.mutate(data);
+  }, [createEventMutation, toast, t]);
 
   // Filter events for selected date
   const eventsForSelectedDate = selectedDate

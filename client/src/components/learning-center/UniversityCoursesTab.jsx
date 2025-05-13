@@ -1,5 +1,6 @@
 import React, { useState } from "react";
 import { useLocation } from "wouter";
+import { useLanguage } from "@/contexts/LanguageContext";
 import {
   Dialog,
   DialogContent,
@@ -73,6 +74,7 @@ import AddUniversityCourseDialog from "./university_courses_components/AddUniver
 import useUniversityCoursesData from "@/hooks/useUniversityCoursesData";
 
 const UniversityCoursesTab = () => {
+  const { t } = useLanguage();
   const { isAuthenticated } = useAuth();
   const [, setLocation] = useLocation();
   const { toast } = useToast();
@@ -158,12 +160,11 @@ const UniversityCoursesTab = () => {
     const failedCount = data?.failedRecords?.length || 0;
 
     toast({
-      title: "University Courses Imported Successfully",
-      description: `${importCount} out of ${totalCount} university courses have been imported${
-        warningsCount > 0 ? ` (with ${warningsCount} warnings)` : ""
-      }${
-        failedCount > 0 ? ` (${failedCount} failed)` : ""
-      }. The course list is being refreshed.`,
+      title: t("universityCoursesImported"),
+      description: t("coursesImported", { importCount, totalCount }) +
+        (warningsCount > 0 ? t("withWarnings", { warningsCount }) : "") +
+        (failedCount > 0 ? t("withFailures", { failedCount }) : "") +
+        t("courseListRefreshing"),
       variant: "default",
       duration: 5000, // Show for 5 seconds
     });
@@ -220,10 +221,10 @@ const UniversityCoursesTab = () => {
             <Search className="h-10 w-10 text-orange-500" />
           </div>
           <h3 className="text-lg font-medium text-gray-700 mb-2">
-            No courses found
+            {t("noCoursesFound")}
           </h3>
           <p className="text-gray-500">
-            Try adjusting your filters or search terms
+            {t("tryAdjustingFilters")}
           </p>
         </div>
       ) : (

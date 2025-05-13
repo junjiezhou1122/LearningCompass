@@ -1,4 +1,5 @@
 import React from "react";
+import { useLanguage } from "@/contexts/LanguageContext";
 import {
   Card,
   CardContent,
@@ -29,6 +30,8 @@ const UniversityCourseCard = ({
   onToggleBookmark,
   onDetails,
 }) => {
+  const { t } = useLanguage();
+
   return (
     <Card
       className="overflow-hidden border-orange-100 hover:border-orange-300 transition-all duration-300 hover:shadow-lg transform hover:-translate-y-1"
@@ -75,13 +78,13 @@ const UniversityCourseCard = ({
       <CardContent className="pt-3">
         <div className="space-y-2 text-sm">
           <div className="flex justify-between">
-            <span className="text-gray-500">Professors:</span>
+            <span className="text-gray-500">{t("professors")}:</span>
             <span className="text-gray-700 font-medium">
               {course.professors}
             </span>
           </div>
           <div className="flex justify-between">
-            <span className="text-gray-500">Recent Semesters:</span>
+            <span className="text-gray-500">{t("recentSemesters")}:</span>
             <span className="text-gray-700 font-medium">
               {course.recentSemesters}
             </span>
@@ -95,7 +98,7 @@ const UniversityCourseCard = ({
           className="text-orange-700 hover:text-orange-800 hover:bg-orange-50 flex items-center gap-1 border-orange-200"
           onClick={() => onDetails(course.id)}
         >
-          Course Details <ChevronRight className="h-4 w-4" />
+          {t("courseDetails")} <ChevronRight className="h-4 w-4" />
         </Button>
         <Button
           variant="ghost"
@@ -107,7 +110,7 @@ const UniversityCourseCard = ({
               window.open(course.url, "_blank", "noopener,noreferrer");
           }}
         >
-          University Site <ExternalLink className="h-4 w-4" />
+          {t("universitySite")} <ExternalLink className="h-4 w-4" />
         </Button>
       </CardFooter>
     </Card>

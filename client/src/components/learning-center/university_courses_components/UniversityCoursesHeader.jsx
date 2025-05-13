@@ -1,6 +1,7 @@
 import React from "react";
+import { useLanguage } from "@/contexts/LanguageContext";
 import { Button } from "@/components/ui/button";
-import { Plus, FileSpreadsheet } from "lucide-react";
+import { Plus, Upload } from "lucide-react";
 
 /**
  * Props:
@@ -9,32 +10,23 @@ import { Plus, FileSpreadsheet } from "lucide-react";
  * - onImportCsv: () => void
  */
 const UniversityCoursesHeader = ({ isAuthenticated, onAddCourse, onImportCsv }) => {
+  const { t } = useLanguage();
+
   return (
-    <div className="flex flex-col space-y-4 md:space-y-0 md:flex-row md:justify-between md:items-center mb-6">
+    <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
       <div>
-        <h2 className="text-3xl font-bold text-orange-700">
-          University Courses
-        </h2>
-        <p className="text-gray-600">
-          Discover courses from leading universities like MIT and Stanford
-        </p>
+        <h2 className="text-2xl font-bold text-gray-900">{t("universityCourses")}</h2>
+        <p className="text-gray-600 mt-1">{t("accessPremiumCourses")}</p>
       </div>
       {isAuthenticated && (
         <div className="flex gap-3">
-          <Button
-            variant="outline"
-            className="flex items-center gap-2 border-orange-300 hover:bg-orange-50 hover:text-orange-700"
-            onClick={onImportCsv}
-          >
-            <FileSpreadsheet className="h-4 w-4 text-orange-500" />
-            Import CSV
-          </Button>
-          <Button
-            className="bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 flex items-center gap-2"
-            onClick={onAddCourse}
-          >
+          <Button onClick={onAddCourse} className="flex items-center gap-2">
             <Plus className="h-4 w-4" />
-            Add Course
+            {t("addUniversityCourse")}
+          </Button>
+          <Button onClick={onImportCsv} variant="outline" className="flex items-center gap-2">
+            <Upload className="h-4 w-4" />
+            {t("importFromCSV")}
           </Button>
         </div>
       )}

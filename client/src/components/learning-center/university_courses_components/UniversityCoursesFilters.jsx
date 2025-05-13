@@ -1,4 +1,5 @@
 import React from "react";
+import { useLanguage } from "@/contexts/LanguageContext";
 import { Input } from "@/components/ui/input";
 import {
   Select,
@@ -7,7 +8,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { School, BookOpen, Search } from "lucide-react";
+import { Search } from "lucide-react";
 
 /**
  * Props:
@@ -30,62 +31,46 @@ const UniversityCoursesFilters = ({
   onDeptChange,
   departments,
 }) => {
+  const { t } = useLanguage();
+
   return (
-    <div className="flex flex-col md:flex-row gap-4 mb-6 p-4 bg-gradient-to-r from-orange-50 to-amber-50 rounded-xl shadow-md">
-      <div className="flex-1">
-        <div className="relative">
-          <Search
-            className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400"
-            size={18}
-          />
-          <Input
-            placeholder="Search courses..."
-            value={searchQuery}
-            onChange={(e) => onSearchChange(e.target.value)}
-            className="pl-10 bg-white/70 border-orange-200 focus:border-orange-400"
-          />
-        </div>
+    <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+      <div className="relative">
+        <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
+        <Input
+          type="text"
+          placeholder={t("searchCourses")}
+          value={searchQuery}
+          onChange={(e) => onSearchChange(e.target.value)}
+          className="pl-10"
+        />
       </div>
-      <div className="flex-1 flex flex-col sm:flex-row gap-3">
-        <Select
-          value={universityFilter}
-          onValueChange={onUniversityChange}
-        >
-          <SelectTrigger className="bg-white/70 border-orange-200 focus:border-orange-400">
-            <div className="flex items-center">
-              <School className="mr-2 h-4 w-4 text-orange-500" />
-              <SelectValue placeholder="All Universities" />
-            </div>
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">All Universities</SelectItem>
-            {universities.map((uni) => (
-              <SelectItem key={uni} value={uni}>
-                {uni}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-        <Select
-          value={deptFilter}
-          onValueChange={onDeptChange}
-        >
-          <SelectTrigger className="bg-white/70 border-orange-200 focus:border-orange-400">
-            <div className="flex items-center">
-              <BookOpen className="mr-2 h-4 w-4 text-orange-500" />
-              <SelectValue placeholder="All Departments" />
-            </div>
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">All Departments</SelectItem>
-            {departments.map((dept) => (
-              <SelectItem key={dept} value={dept}>
-                {dept}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-      </div>
+      <Select value={universityFilter} onValueChange={onUniversityChange}>
+        <SelectTrigger>
+          <SelectValue placeholder={t("filterByUniversity")} />
+        </SelectTrigger>
+        <SelectContent>
+          <SelectItem value="all">{t("allUniversities")}</SelectItem>
+          {universities?.map((university) => (
+            <SelectItem key={university} value={university}>
+              {university}
+            </SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
+      <Select value={deptFilter} onValueChange={onDeptChange}>
+        <SelectTrigger>
+          <SelectValue placeholder={t("filterByDepartment")} />
+        </SelectTrigger>
+        <SelectContent>
+          <SelectItem value="all">{t("allDepartments")}</SelectItem>
+          {departments?.map((dept) => (
+            <SelectItem key={dept} value={dept}>
+              {dept}
+            </SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
     </div>
   );
 };

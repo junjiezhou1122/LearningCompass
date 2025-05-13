@@ -5,20 +5,20 @@ import UniversityCoursesTab from "@/components/learning-center/UniversityCourses
 import LearningMethodsTab from "@/components/learning-center/LearningMethodsTab";
 import LearningToolsTab from "@/components/learning-center/LearningToolsTab";
 import OnlineCoursesTab from "@/components/learning-center/OnlineCoursesTab";
+import { useLanguage } from "@/contexts/LanguageContext";
 
 const LearningCenter = () => {
   const [activeTab, setActiveTab] = useState("university-courses");
+  const { t } = useLanguage();
 
   return (
     <div className="p-4 max-w-6xl mx-auto">
       <div className="mb-8">
         <h1 className="text-4xl font-extrabold text-orange-800 mb-2">
-          Learning Center
+          {t("learningCenter")}
         </h1>
         <p className="text-gray-600">
-          Discover university and online courses from prestigious institutions
-          and platforms, explore effective learning methods, and find useful
-          learning tools to enhance your educational journey.
+          {t("comprehensiveHub")}
         </p>
       </div>
 
@@ -29,7 +29,7 @@ const LearningCenter = () => {
             className="data-[state=active]:bg-gradient-to-br data-[state=active]:from-orange-500 data-[state=active]:to-amber-500 data-[state=active]:text-white rounded-md flex items-center gap-2"
           >
             <BookOpen className="h-4 w-4" />
-            <span className="hidden sm:inline">University Courses</span>
+            <span className="hidden sm:inline">{t("universityCourses")}</span>
             <span className="sm:hidden">Uni</span>
           </TabsTrigger>
           <TabsTrigger
@@ -37,7 +37,7 @@ const LearningCenter = () => {
             className="data-[state=active]:bg-gradient-to-br data-[state=active]:from-orange-500 data-[state=active]:to-amber-500 data-[state=active]:text-white rounded-md flex items-center gap-2"
           >
             <Globe className="h-4 w-4" />
-            <span className="hidden sm:inline">Online Courses</span>
+            <span className="hidden sm:inline">{t("onlineCourses")}</span>
             <span className="sm:hidden">Online</span>
           </TabsTrigger>
           <TabsTrigger
@@ -45,7 +45,7 @@ const LearningCenter = () => {
             className="data-[state=active]:bg-gradient-to-br data-[state=active]:from-orange-500 data-[state=active]:to-amber-500 data-[state=active]:text-white rounded-md flex items-center gap-2"
           >
             <Lightbulb className="h-4 w-4" />
-            <span className="hidden sm:inline">Methods</span>
+            <span className="hidden sm:inline">{t("learningMethodsTitle")}</span>
             <span className="sm:hidden">Methods</span>
           </TabsTrigger>
           <TabsTrigger
@@ -53,7 +53,7 @@ const LearningCenter = () => {
             className="data-[state=active]:bg-gradient-to-br data-[state=active]:from-orange-500 data-[state=active]:to-amber-500 data-[state=active]:text-white rounded-md flex items-center gap-2"
           >
             <Compass className="h-4 w-4" />
-            <span className="hidden sm:inline">Tools</span>
+            <span className="hidden sm:inline">{t("learningTools")}</span>
             <span className="sm:hidden">Tools</span>
           </TabsTrigger>
         </TabsList>

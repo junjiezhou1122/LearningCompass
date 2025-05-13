@@ -1,6 +1,9 @@
 import { addNotesFeatures } from './migrations/add_notes_features';
 import { addAdvancedNotesFeatures } from './migrations/add_advanced_notes_features';
 import { addChatMessagesFeature } from './migrations/add_chat_messages_feature';
+import dotenv from "dotenv";
+dotenv.config();
+console.log("Loaded DATABASE_URL:", process.env.DATABASE_URL);
 
 async function runMigrations() {
   console.log('Starting database migrations...');

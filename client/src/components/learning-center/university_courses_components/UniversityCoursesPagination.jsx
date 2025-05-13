@@ -1,8 +1,8 @@
 import React from "react";
+import { useLanguage } from "@/contexts/LanguageContext";
 import {
   Pagination,
   PaginationContent,
-  PaginationEllipsis,
   PaginationItem,
   PaginationLink,
   PaginationNext,
@@ -24,6 +24,10 @@ const UniversityCoursesPagination = ({
   coursesLength,
   onPageChange,
 }) => {
+  const { t } = useLanguage();
+  const start = (page - 1) * 9 + 1;
+  const end = start + coursesLength - 1;
+
   if (isLoadingCount && coursesLength > 0) {
     return (
       <div className="flex justify-center mt-8">
@@ -33,106 +37,78 @@ const UniversityCoursesPagination = ({
   }
   if (totalPages <= 1) return null;
   return (
-    <Pagination className="mt-8">
-      <PaginationContent>
-        <PaginationItem>
-          <PaginationPrevious
-            href="#"
-            onClick={(e) => {
-              e.preventDefault();
-              if (page > 1) onPageChange(page - 1);
-            }}
-            className={page === 1 ? "pointer-events-none opacity-50" : ""}
-          />
-        </PaginationItem>
-        {/* Show first page */}
-        {page > 2 && (
+    <div className="mt-8 flex flex-col items-center gap-4">
+      <Pagination>
+        <PaginationContent>
+          <PaginationItem>
+            <PaginationPrevious
+              onClick={() => onPageChange(page - 1)}
+              className={page <= 1 ? "pointer-events-none opacity-50" : ""}
+            />
+          </PaginationItem>
+          {/* Show first page */}
+          {page > 2 && (
+            <PaginationItem>
+              <PaginationLink
+                onClick={() => onPageChange(1)}
+              >
+                1
+              </PaginationLink>
+            </PaginationItem>
+          )}
+          {/* Show ellipsis if needed */}
+          {page > 3 && (
+            <PaginationItem>
+              <PaginationLink
+                onClick={() => onPageChange(page - 1)}
+              >
+                {page - 1}
+              </PaginationLink>
+            </PaginationItem>
+          )}
+          {/* Current page */}
           <PaginationItem>
             <PaginationLink
-              href="#"
-              onClick={(e) => {
-                e.preventDefault();
-                onPageChange(1);
-              }}
+              onClick={() => onPageChange(page)}
+              isActive={true}
             >
-              1
+              {page}
             </PaginationLink>
           </PaginationItem>
-        )}
-        {/* Show ellipsis if needed */}
-        {page > 3 && (
+          {/* Show next page */}
+          {page < totalPages && (
+            <PaginationItem>
+              <PaginationLink
+                onClick={() => onPageChange(page + 1)}
+              >
+                {page + 1}
+              </PaginationLink>
+            </PaginationItem>
+          )}
+          {/* Show ellipsis if needed */}
+          {page < totalPages - 2 && (
+            <PaginationItem>
+              <PaginationLink
+                onClick={() => onPageChange(totalPages)}
+              >
+                {totalPages}
+              </PaginationLink>
+            </PaginationItem>
+          )}
           <PaginationItem>
-            <PaginationEllipsis />
+            <PaginationNext
+              onClick={() => onPageChange(page + 1)}
+              className={page >= totalPages ? "pointer-events-none opacity-50" : ""}
+            />
           </PaginationItem>
-        )}
-        {/* Show previous page */}
-        {page > 1 && (
-          <PaginationItem>
-            <PaginationLink
-              href="#"
-              onClick={(e) => {
-                e.preventDefault();
-                onPageChange(page - 1);
-              }}
-            >
-              {page - 1}
-            </PaginationLink>
-          </PaginationItem>
-        )}
-        {/* Current page */}
-        <PaginationItem>
-          <PaginationLink href="#" isActive onClick={(e) => e.preventDefault()}>
-            {page}
-          </PaginationLink>
-        </PaginationItem>
-        {/* Show next page */}
-        {page < totalPages && (
-          <PaginationItem>
-            <PaginationLink
-              href="#"
-              onClick={(e) => {
-                e.preventDefault();
-                onPageChange(page + 1);
-              }}
-            >
-              {page + 1}
-            </PaginationLink>
-          </PaginationItem>
-        )}
-        {/* Show ellipsis if needed */}
-        {page < totalPages - 2 && (
-          <PaginationItem>
-            <PaginationEllipsis />
-          </PaginationItem>
-        )}
-        {/* Show last page */}
-        {page < totalPages - 1 && (
-          <PaginationItem>
-            <PaginationLink
-              href="#"
-              onClick={(e) => {
-                e.preventDefault();
-                onPageChange(totalPages);
-              }}
-            >
-              {totalPages}
-            </PaginationLink>
-          </PaginationItem>
-        )}
-        <PaginationItem>
-          <PaginationNext
-            href="#"
-            onClick={(e) => {
-              e.preventDefault();
-              if (page < totalPages) onPageChange(page + 1);
-            }}
-            className={
-              page === totalPages ? "pointer-events-none opacity-50" : ""
-            }
-          />
-        </PaginationItem>
-      </PaginationContent>
-    </Pagination>
+        </PaginationContent>
+      </Pagination>
+      {!isLoadingCount && (
+        <p className="text-sm text-gray-500">
+          {t("showingCourses", { start, end, total: totalPages * 9 })}
+        </p>
+      )}
+    </div>
   );
 };
 

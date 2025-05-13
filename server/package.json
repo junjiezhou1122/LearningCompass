@@ -9,6 +9,11 @@
     "dev": "nodemon --loader ts-node/esm index.ts"
   },
   "dependencies": {
+    "dotenv": "^16.5.0",
     "ws": "^8.14.2"
+  },
+  "devDependencies": {
+    "ts-node": "^10.9.2",
+    "typescript": "^5.8.3"
   }
 }
