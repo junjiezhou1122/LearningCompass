@@ -1,7 +1,6 @@
 import { createContext, useState, useEffect, useContext } from "react";
 import { useToast } from "../hooks/use-toast";
-import { RecaptchaVerifier } from "firebase/auth";
-import { auth, signInWithGoogle as firebaseSignInWithGoogle, handleRedirectResult } from "../lib/firebase";
+import { auth, signInWithGoogle as firebaseSignInWithGoogle, signInWithGithub as firebaseSignInWithGithub, handleRedirectResult } from "../lib/firebase";
 import { getApiBaseUrl } from "../lib/utils";
 
 // Create auth context
@@ -304,10 +303,14 @@ export function AuthProvider({ children }) {
       setLoading(true);
 
       // Step 1: Use Firebase's direct authentication
-      const result = await signInWithPopup(auth, githubProvider);
+      const githubUser = await firebaseSignInWithGithub();
+      
+      // If we don't have a githubUser object, it means the auth was done via redirect
+      // and we will handle it in the useEffect
+      if (!githubUser) return;
 
       // Step 2: Get the Firebase ID token
-      const idToken = await result.user.getIdToken();
+      const idToken = await githubUser.getIdToken();
 
       if (!idToken) {
         throw new Error("Failed to get Firebase ID token");
@@ -323,7 +326,7 @@ export function AuthProvider({ children }) {
           firstName: data.user.firstName || null,
           lastName: data.user.lastName || null,
           phoneNumber: data.user.phoneNumber || null,
-          photoURL: data.user.photoURL || result.user.photoURL || null,
+          photoURL: data.user.photoURL || githubUser.photoURL || null,
         };
 
         // Save auth data from our database
@@ -351,25 +354,21 @@ export function AuthProvider({ children }) {
         });
 
         // Create a temporary user from Firebase data
-        const firebaseUser = result.user;
         const userData = {
-          id: firebaseUser.uid,
-          email: firebaseUser.email,
+          id: githubUser.uid,
+          email: githubUser.email,
           username:
-            firebaseUser.displayName ||
-            (firebaseUser.email
-              ? firebaseUser.email.split("@")[0]
-              : `user_${firebaseUser.uid.substring(0, 8)}`),
-          photoURL: firebaseUser.photoURL,
-          firstName: firebaseUser.displayName
-            ? firebaseUser.displayName.split(" ")[0]
+            githubUser.displayName || (githubUser.email ? githubUser.email.split("@")[0] : `user_${githubUser.uid.substring(0, 8)}`),
+          photoURL: githubUser.photoURL,
+          firstName: githubUser.displayName
+            ? githubUser.displayName.split(" ")[0]
             : null,
           lastName:
-            firebaseUser.displayName &&
-            firebaseUser.displayName.split(" ").length > 1
-              ? firebaseUser.displayName.split(" ").slice(1).join(" ")
+            githubUser.displayName &&
+            githubUser.displayName.split(" ").length > 1
+              ? githubUser.displayName.split(" ").slice(1).join(" ")
               : null,
-          phoneNumber: firebaseUser.phoneNumber || null,
+          phoneNumber: githubUser.phoneNumber || null,
         };
 
         // Save temporary user data
@@ -383,130 +382,6 @@ export function AuthProvider({ children }) {
       }
     } catch (error) {
       console.error("GitHub login error:", error);
-      throw error;
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  // Setup phone number verification
-  const setupPhoneAuth = () => {
-    if (!window.recaptchaVerifier) {
-      window.recaptchaVerifier = new RecaptchaVerifier(
-        auth,
-        "recaptcha-container",
-        {
-          size: "normal",
-          callback: () => {
-            // reCAPTCHA solved, allow signInWithPhoneNumber.
-          },
-          "expired-callback": () => {
-            // Response expired. Ask user to solve reCAPTCHA again.
-            toast({
-              title: "reCAPTCHA expired",
-              description: "Please verify again",
-              variant: "destructive",
-            });
-          },
-        }
-      );
-    }
-  };
-
-  // Send phone verification code
-  const sendPhoneVerification = async (phoneNumber) => {
-    try {
-      setupPhoneAuth();
-      const confirmationResult = await signInWithPhoneNumber(
-        auth,
-        phoneNumber,
-        window.recaptchaVerifier
-      );
-      window.confirmationResult = confirmationResult;
-
-      toast({
-        title: "Verification code sent",
-        description: "Please check your phone",
-      });
-    } catch (error) {
-      toast({
-        title: "Failed to send code",
-        description: error.message,
-        variant: "destructive",
-      });
-      throw error;
-    }
-  };
-
-  // Verify phone code and login
-  const verifyPhoneCode = async (code) => {
-    try {
-      setLoading(true);
-      const result = await window.confirmationResult.confirm(code);
-      const idToken = await result.user.getIdToken();
-
-      // Try to connect to the backend server
-      try {
-        const data = await handleAuthRequest("phone", { token: idToken });
-
-        // Ensure user object has all necessary fields
-        const normalizedUser = {
-          ...data.user,
-          firstName: data.user.firstName || null,
-          lastName: data.user.lastName || null,
-          phoneNumber: data.user.phoneNumber || result.user.phoneNumber || null,
-          photoURL: data.user.photoURL || null,
-        };
-
-        // Save auth data from our database
-        localStorage.setItem("user", JSON.stringify(normalizedUser));
-        localStorage.setItem("token", data.token);
-
-        setUser(normalizedUser);
-        setToken(data.token);
-
-        toast({
-          title: "Login successful",
-          description: `Welcome, ${normalizedUser.username}!`,
-        });
-
-        return { user: normalizedUser, token: data.token };
-      } catch (serverError) {
-        console.error("Backend server connection failed:", serverError);
-
-        // Fallback to using just Firebase user if server is down
-        toast({
-          title: "Limited Login",
-          description:
-            "Connected to authentication but not to database. Some features may be limited.",
-          variant: "warning",
-        });
-
-        // Create a temporary user from Firebase data
-        const firebaseUser = result.user;
-        const userData = {
-          id: firebaseUser.uid,
-          email: firebaseUser.email,
-          username:
-            firebaseUser.displayName ||
-            `user_${firebaseUser.uid.substring(0, 8)}`,
-          photoURL: firebaseUser.photoURL,
-          firstName: null,
-          lastName: null,
-          phoneNumber: firebaseUser.phoneNumber || null,
-        };
-
-        // Save temporary user data
-        localStorage.setItem("user", JSON.stringify(userData));
-        localStorage.setItem("token", idToken);
-
-        setUser(userData);
-        setToken(idToken);
-
-        return { user: userData, token: idToken };
-      }
-    } catch (error) {
-      console.error("Phone verification error:", error);
       throw error;
     } finally {
       setLoading(false);
@@ -581,8 +456,6 @@ export function AuthProvider({ children }) {
         logout,
         loginWithGoogle,
         loginWithGithub,
-        sendPhoneVerification,
-        verifyPhoneCode,
       }}
     >
       {children}

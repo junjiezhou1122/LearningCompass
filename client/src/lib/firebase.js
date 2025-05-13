@@ -2,6 +2,7 @@ import { initializeApp } from 'firebase/app';
 import { 
   getAuth, 
   GoogleAuthProvider, 
+  GithubAuthProvider,
   signInWithPopup, 
   signInWithRedirect, 
   getRedirectResult,
@@ -21,10 +22,15 @@ const firebaseConfig = {
 const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
 const googleProvider = new GoogleAuthProvider();
+const githubProvider = new GithubAuthProvider();
 
 // Add scopes for additional permissions if needed
 googleProvider.addScope('https://www.googleapis.com/auth/userinfo.email');
 googleProvider.addScope('https://www.googleapis.com/auth/userinfo.profile');
+
+// Add GitHub scopes if needed
+githubProvider.addScope('read:user');
+githubProvider.addScope('user:email');
 
 // Google sign-in function with fallback from popup to redirect
 export const signInWithGoogle = async () => {
@@ -52,6 +58,36 @@ export const signInWithGoogle = async () => {
     }
   } catch (error) {
     console.error("Google sign-in error:", error);
+    throw error;
+  }
+};
+
+// GitHub sign-in function with fallback from popup to redirect
+export const signInWithGithub = async () => {
+  try {
+    // Try popup first (works better on some platforms)
+    try {
+      const result = await signInWithPopup(auth, githubProvider);
+      return result.user;
+    } catch (popupError) {
+      console.log("Popup sign-in failed, trying redirect method", popupError);
+      
+      // If popup fails (especially for auth/unauthorized-domain), try redirect
+      if (popupError.code === 'auth/unauthorized-domain' || 
+          popupError.code === 'auth/popup-closed-by-user' ||
+          popupError.code === 'auth/popup-blocked') {
+        
+        // Use redirect method as fallback
+        await signInWithRedirect(auth, githubProvider);
+        // This line never executes immediately as the page redirects
+        return null;
+      } else {
+        // For other errors, rethrow
+        throw popupError;
+      }
+    }
+  } catch (error) {
+    console.error("GitHub sign-in error:", error);
     throw error;
   }
 };

@@ -21,7 +21,6 @@ import {
   Facebook,
   LogIn,
   UserPlus,
-  Phone,
   Github,
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
@@ -30,19 +29,13 @@ import { FcGoogle } from "react-icons/fc";
 export default function AuthModals() {
   const [isLoginOpen, setIsLoginOpen] = useState(false);
   const [isRegisterOpen, setIsRegisterOpen] = useState(false);
-  const [isPhoneModalOpen, setIsPhoneModalOpen] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [phoneNumber, setPhoneNumber] = useState("");
-  const [verificationCode, setVerificationCode] = useState("");
-  const [isCodeSent, setIsCodeSent] = useState(false);
 
   const {
     login,
     register,
     loginWithGoogle,
     loginWithGithub,
-    sendPhoneVerification,
-    verifyPhoneCode,
   } = useAuth();
   const { toast } = useToast();
 
@@ -80,49 +73,6 @@ export default function AuthModals() {
       setIsLoginOpen(false);
     } catch (error) {
       console.error("GitHub login error:", error);
-    }
-  };
-
-  // Handle phone number submission
-  const handlePhoneSubmit = async (e) => {
-    e.preventDefault();
-    if (!phoneNumber) {
-      toast({
-        title: "Error",
-        description: "Please enter your phone number",
-        variant: "destructive",
-      });
-      return;
-    }
-
-    try {
-      await sendPhoneVerification(phoneNumber);
-      setIsCodeSent(true);
-    } catch (error) {
-      console.error("Phone verification error:", error);
-    }
-  };
-
-  // Handle verification code submission
-  const handleVerifyCode = async (e) => {
-    e.preventDefault();
-    if (!verificationCode) {
-      toast({
-        title: "Error",
-        description: "Please enter the verification code",
-        variant: "destructive",
-      });
-      return;
-    }
-
-    try {
-      await verifyPhoneCode(verificationCode);
-      setIsPhoneModalOpen(false);
-      setIsCodeSent(false);
-      setPhoneNumber("");
-      setVerificationCode("");
-    } catch (error) {
-      console.error("Code verification error:", error);
     }
   };
 
@@ -249,364 +199,261 @@ export default function AuthModals() {
     <>
       <div className="flex items-center gap-4">
         <Button
-          variant="ghost"
           onClick={() => setIsLoginOpen(true)}
-          className="text-white hover:text-white hover:bg-amber-600/80 transition-all duration-500 flex items-center gap-2"
+          className="items-center gap-2"
+          variant="ghost"
         >
-          <LogIn className="h-4 w-4" />
-          Sign In
+          <LogIn className="h-5 w-5" />
+          Login
         </Button>
         <Button
           onClick={() => setIsRegisterOpen(true)}
-          className="bg-white hover:bg-orange-50 text-orange-600 hover:text-orange-700 transition-all duration-500 flex items-center gap-2"
+          className="items-center gap-2"
         >
-          <UserPlus className="h-4 w-4" />
-          Sign Up
+          <UserPlus className="h-5 w-5" />
+          Register
         </Button>
       </div>
 
       {/* Login Modal */}
       <Dialog open={isLoginOpen} onOpenChange={setIsLoginOpen}>
-        <DialogContent className="sm:max-w-md">
+        <DialogContent className="max-w-md">
           <DialogHeader>
-            <DialogTitle className="text-xl font-semibold flex items-center gap-2">
-              <LogIn className="h-5 w-5" />
-              Sign In
+            <DialogTitle className="flex items-center gap-2 text-2xl">
+              <LogIn className="h-6 w-6" />
+              Login to Your Account
             </DialogTitle>
             <DialogDescription>
               Enter your credentials to access your account
             </DialogDescription>
           </DialogHeader>
 
-          <form onSubmit={handleLoginSubmit}>
-            <div className="grid gap-4 py-4">
-              <div className="grid gap-2">
-                <Label htmlFor="username">Username</Label>
-                <div className="relative">
-                  <User className="absolute left-3 top-2.5 h-4 w-4 text-gray-400" />
-                  <Input
-                    id="username"
-                    name="username"
-                    placeholder="your_username"
-                    className="pl-10"
-                    value={loginForm.username}
-                    onChange={handleLoginChange}
-                    required
-                  />
-                </div>
-              </div>
-
-              <div className="grid gap-2">
-                <div className="flex justify-between items-center">
-                  <Label htmlFor="password">Password</Label>
-                  <Button
-                    variant="link"
-                    className="h-auto p-0 text-sm"
-                    type="button"
-                  >
-                    Forgot password?
-                  </Button>
-                </div>
-                <div className="relative">
-                  <Lock className="absolute left-3 top-2.5 h-4 w-4 text-gray-400" />
-                  <Input
-                    id="password"
-                    name="password"
-                    type="password"
-                    placeholder="••••••••"
-                    className="pl-10"
-                    value={loginForm.password}
-                    onChange={handleLoginChange}
-                    required
-                  />
-                </div>
+          <form onSubmit={handleLoginSubmit} className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="login-username">Username</Label>
+              <div className="relative">
+                <User className="absolute left-3 top-2.5 h-4 w-4 text-gray-400" />
+                <Input
+                  id="login-username"
+                  name="username"
+                  placeholder="Your username"
+                  className="pl-10"
+                  value={loginForm.username}
+                  onChange={handleLoginChange}
+                />
               </div>
             </div>
 
-            <Button type="submit" className="w-full" disabled={isSubmitting}>
-              {isSubmitting ? "Signing in..." : "Sign In"}
+            <div className="space-y-2">
+              <Label htmlFor="login-password">Password</Label>
+              <div className="relative">
+                <Lock className="absolute left-3 top-2.5 h-4 w-4 text-gray-400" />
+                <Input
+                  id="login-password"
+                  name="password"
+                  type="password"
+                  placeholder="Your password"
+                  className="pl-10"
+                  value={loginForm.password}
+                  onChange={handleLoginChange}
+                />
+              </div>
+            </div>
+
+            <div className="flex justify-between items-center">
+              <Button
+                type="button"
+                variant="link"
+                className="px-0 text-sm"
+                onClick={switchToRegister}
+              >
+                Don't have an account? Register
+              </Button>
+            </div>
+
+            <Button
+              type="submit"
+              className="w-full"
+              disabled={isSubmitting}
+            >
+              {isSubmitting ? "Logging in..." : "Login"}
             </Button>
           </form>
 
           <div className="relative my-4">
             <div className="absolute inset-0 flex items-center">
-              <Separator className="w-full" />
+              <span className="w-full border-t border-gray-300" />
             </div>
-            <div className="relative flex justify-center">
-              <span className="bg-background px-2 text-muted-foreground text-sm">
+            <div className="relative flex justify-center text-sm">
+              <span className="bg-white dark:bg-gray-800 px-2 text-gray-500">
                 Or continue with
               </span>
             </div>
           </div>
 
-          <div className="grid grid-cols-3 gap-4">
+          <div className="grid grid-cols-2 gap-4">
             <Button
-              variant="outline"
               type="button"
-              className="flex gap-2 hover:bg-orange-50 hover:text-orange-600 transition-all duration-300"
+              variant="outline"
               onClick={handleGoogleLogin}
+              className="gap-2"
             >
               <FcGoogle className="h-5 w-5" />
               <span>Google</span>
             </Button>
+
             <Button
-              variant="outline"
               type="button"
-              className="flex gap-2 hover:bg-gray-900 hover:text-white transition-all duration-300"
+              variant="outline"
               onClick={handleGithubLogin}
+              className="gap-2"
             >
               <Github className="h-5 w-5" />
-              <span>GitHub</span>
-            </Button>
-            <Button
-              variant="outline"
-              type="button"
-              className="flex gap-2 hover:bg-green-50 hover:text-green-600 transition-all duration-300"
-              onClick={() => {
-                setIsLoginOpen(false);
-                setIsPhoneModalOpen(true);
-              }}
-            >
-              <Phone className="h-5 w-5" />
-              <span>Phone</span>
+              <span>Github</span>
             </Button>
           </div>
-
-          <div className="mt-4 text-center text-sm">
-            <p>
-              Don't have an account?{" "}
-              <Button
-                variant="link"
-                onClick={switchToRegister}
-                className="p-0 h-auto"
-              >
-                Sign up
-              </Button>
-            </p>
-          </div>
-        </DialogContent>
-      </Dialog>
-
-      {/* Phone Authentication Modal */}
-      <Dialog open={isPhoneModalOpen} onOpenChange={setIsPhoneModalOpen}>
-        <DialogContent className="sm:max-w-md">
-          <DialogHeader>
-            <DialogTitle className="text-xl font-semibold flex items-center gap-2">
-              <Phone className="h-5 w-5" />
-              Phone Authentication
-            </DialogTitle>
-            <DialogDescription>
-              {isCodeSent
-                ? "Enter the verification code sent to your phone"
-                : "Enter your phone number to receive a verification code"}
-            </DialogDescription>
-          </DialogHeader>
-
-          {!isCodeSent ? (
-            <form onSubmit={handlePhoneSubmit}>
-              <div className="grid gap-4 py-4">
-                <div className="grid gap-2">
-                  <Label htmlFor="phone">Phone Number</Label>
-                  <div className="relative">
-                    <Phone className="absolute left-3 top-2.5 h-4 w-4 text-gray-400" />
-                    <Input
-                      id="phone"
-                      type="tel"
-                      placeholder="+1234567890"
-                      className="pl-10"
-                      value={phoneNumber}
-                      onChange={(e) => setPhoneNumber(e.target.value)}
-                      required
-                    />
-                  </div>
-                </div>
-                <div id="recaptcha-container"></div>
-              </div>
-              <Button type="submit" className="w-full">
-                Send Code
-              </Button>
-            </form>
-          ) : (
-            <form onSubmit={handleVerifyCode}>
-              <div className="grid gap-4 py-4">
-                <div className="grid gap-2">
-                  <Label htmlFor="code">Verification Code</Label>
-                  <Input
-                    id="code"
-                    type="text"
-                    placeholder="Enter code"
-                    value={verificationCode}
-                    onChange={(e) => setVerificationCode(e.target.value)}
-                    required
-                  />
-                </div>
-              </div>
-              <Button type="submit" className="w-full">
-                Verify Code
-              </Button>
-            </form>
-          )}
         </DialogContent>
       </Dialog>
 
       {/* Register Modal */}
       <Dialog open={isRegisterOpen} onOpenChange={setIsRegisterOpen}>
-        <DialogContent className="sm:max-w-lg">
+        <DialogContent className="max-w-md">
           <DialogHeader>
-            <DialogTitle className="text-xl font-semibold flex items-center gap-2">
-              <UserPlus className="h-5 w-5" />
-              Create Account
+            <DialogTitle className="flex items-center gap-2 text-2xl">
+              <UserPlus className="h-6 w-6" />
+              Create an Account
             </DialogTitle>
             <DialogDescription>
-              Join EduRecommend to get personalized course recommendations
+              Join Learning Compass to unlock personalized learning
             </DialogDescription>
           </DialogHeader>
 
-          <form onSubmit={handleRegisterSubmit}>
-            <div className="grid gap-4 py-4">
-              <div className="grid grid-cols-2 gap-4">
-                <div className="grid gap-2">
-                  <Label htmlFor="firstName">First Name</Label>
-                  <Input
-                    id="firstName"
-                    name="firstName"
-                    placeholder="John"
-                    value={registerForm.firstName}
-                    onChange={handleRegisterChange}
-                    required
-                  />
-                </div>
-                <div className="grid gap-2">
-                  <Label htmlFor="lastName">Last Name</Label>
-                  <Input
-                    id="lastName"
-                    name="lastName"
-                    placeholder="Doe"
-                    value={registerForm.lastName}
-                    onChange={handleRegisterChange}
-                    required
-                  />
-                </div>
-              </div>
-
-              <div className="grid gap-2">
-                <Label htmlFor="email">Email</Label>
-                <div className="relative">
-                  <Mail className="absolute left-3 top-2.5 h-4 w-4 text-gray-400" />
-                  <Input
-                    id="email"
-                    name="email"
-                    type="email"
-                    placeholder="your@email.com"
-                    className="pl-10"
-                    value={registerForm.email}
-                    onChange={handleRegisterChange}
-                    required
-                  />
-                </div>
-              </div>
-
-              <div className="grid gap-2">
-                <Label htmlFor="username">Username</Label>
-                <div className="relative">
-                  <User className="absolute left-3 top-2.5 h-4 w-4 text-gray-400" />
-                  <Input
-                    id="username"
-                    name="username"
-                    placeholder="your_username"
-                    className="pl-10"
-                    value={registerForm.username}
-                    onChange={handleRegisterChange}
-                    required
-                  />
-                </div>
-              </div>
-
-              <div className="grid gap-2">
-                <Label htmlFor="password">Password</Label>
-                <div className="relative">
-                  <Lock className="absolute left-3 top-2.5 h-4 w-4 text-gray-400" />
-                  <Input
-                    id="password"
-                    name="password"
-                    type="password"
-                    placeholder="8+ characters, 1 uppercase, 1 number"
-                    className="pl-10"
-                    value={registerForm.password}
-                    onChange={handleRegisterChange}
-                    required
-                  />
-                </div>
-              </div>
-
-              <div className="grid gap-2">
-                <Label htmlFor="confirmPassword">Confirm Password</Label>
-                <div className="relative">
-                  <Lock className="absolute left-3 top-2.5 h-4 w-4 text-gray-400" />
-                  <Input
-                    id="confirmPassword"
-                    name="confirmPassword"
-                    type="password"
-                    placeholder="Re-enter password"
-                    className="pl-10"
-                    value={registerForm.confirmPassword}
-                    onChange={handleRegisterChange}
-                    required
-                  />
-                </div>
-              </div>
-
-              <div className="flex items-start space-x-2 pt-2">
-                <Checkbox
-                  id="acceptTerms"
-                  name="acceptTerms"
-                  checked={registerForm.acceptTerms}
-                  onCheckedChange={(checked) =>
-                    setRegisterForm((prev) => ({
-                      ...prev,
-                      acceptTerms: checked === true,
-                    }))
-                  }
+          <form onSubmit={handleRegisterSubmit} className="space-y-4">
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="first-name">First Name</Label>
+                <Input
+                  id="first-name"
+                  name="firstName"
+                  placeholder="John"
+                  value={registerForm.firstName}
+                  onChange={handleRegisterChange}
                 />
-                <label
-                  htmlFor="acceptTerms"
-                  className="text-sm leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 mt-0.5"
-                >
-                  I agree to the{" "}
-                  <a
-                    href="#"
-                    className="text-primary-600 hover:text-primary-700"
-                  >
-                    Terms of Service
-                  </a>{" "}
-                  and{" "}
-                  <a
-                    href="#"
-                    className="text-primary-600 hover:text-primary-700"
-                  >
-                    Privacy Policy
-                  </a>
-                </label>
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="last-name">Last Name</Label>
+                <Input
+                  id="last-name"
+                  name="lastName"
+                  placeholder="Doe"
+                  value={registerForm.lastName}
+                  onChange={handleRegisterChange}
+                />
               </div>
             </div>
 
-            <Button type="submit" className="w-full" disabled={isSubmitting}>
-              {isSubmitting ? "Creating Account..." : "Create Account"}
+            <div className="space-y-2">
+              <Label htmlFor="register-email">Email</Label>
+              <div className="relative">
+                <Mail className="absolute left-3 top-2.5 h-4 w-4 text-gray-400" />
+                <Input
+                  id="register-email"
+                  name="email"
+                  type="email"
+                  placeholder="Your email"
+                  className="pl-10"
+                  value={registerForm.email}
+                  onChange={handleRegisterChange}
+                />
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="register-username">Username</Label>
+              <div className="relative">
+                <User className="absolute left-3 top-2.5 h-4 w-4 text-gray-400" />
+                <Input
+                  id="register-username"
+                  name="username"
+                  placeholder="Choose a username"
+                  className="pl-10"
+                  value={registerForm.username}
+                  onChange={handleRegisterChange}
+                />
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="register-password">Password</Label>
+              <div className="relative">
+                <Lock className="absolute left-3 top-2.5 h-4 w-4 text-gray-400" />
+                <Input
+                  id="register-password"
+                  name="password"
+                  type="password"
+                  placeholder="Create a password"
+                  className="pl-10"
+                  value={registerForm.password}
+                  onChange={handleRegisterChange}
+                />
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="register-confirm-password">Confirm Password</Label>
+              <div className="relative">
+                <Lock className="absolute left-3 top-2.5 h-4 w-4 text-gray-400" />
+                <Input
+                  id="register-confirm-password"
+                  name="confirmPassword"
+                  type="password"
+                  placeholder="Confirm your password"
+                  className="pl-10"
+                  value={registerForm.confirmPassword}
+                  onChange={handleRegisterChange}
+                />
+              </div>
+            </div>
+
+            <div className="flex items-center space-x-2">
+              <Checkbox
+                id="terms"
+                name="acceptTerms"
+                checked={registerForm.acceptTerms}
+                onCheckedChange={(checked) =>
+                  setRegisterForm((prev) => ({
+                    ...prev,
+                    acceptTerms: checked,
+                  }))
+                }
+              />
+              <label
+                htmlFor="terms"
+                className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
+              >
+                I accept the Terms and Conditions
+              </label>
+            </div>
+
+            <div className="flex justify-between items-center">
+              <Button
+                type="button"
+                variant="link"
+                className="px-0 text-sm"
+                onClick={switchToLogin}
+              >
+                Already have an account? Login
+              </Button>
+            </div>
+
+            <Button
+              type="submit"
+              className="w-full"
+              disabled={isSubmitting}
+            >
+              {isSubmitting ? "Registering..." : "Create Account"}
             </Button>
           </form>
-
-          <div className="mt-4 text-center text-sm">
-            <p>
-              Already have an account?{" "}
-              <Button
-                variant="link"
-                onClick={switchToLogin}
-                className="p-0 h-auto"
-              >
-                Sign in
-              </Button>
-            </p>
-          </div>
         </DialogContent>
       </Dialog>
     </>
