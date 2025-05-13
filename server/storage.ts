@@ -1734,7 +1734,7 @@ export class DatabaseStorage implements IStorage {
       eventType?: string;
     }
   ): Promise<UserEvent[]> {
-    const whereConditions = [];
+    const whereConditions = [eq(userEvents.userId, userId)];
     if (options?.startDate) whereConditions.push(eq(userEvents.startDate, options.startDate));
     if (options?.endDate) whereConditions.push(eq(userEvents.endDate, options.endDate));
     if (options?.eventType) whereConditions.push(eq(userEvents.eventType, options.eventType));
@@ -1744,7 +1744,9 @@ export class DatabaseStorage implements IStorage {
       .from(userEvents)
       .where(whereClause)
       .orderBy(desc(userEvents.createdAt));
+    // Only call .limit if supported (Drizzle's select builder supports it, but not after .selectDistinct or .groupBy)
     if (typeof options?.limit === 'number') {
+      // @ts-expect-error: Drizzle type issue, but select builder supports .limit
       query = query.limit(options.limit);
     }
     return await query;
@@ -1811,6 +1813,7 @@ export class DatabaseStorage implements IStorage {
       )
       .orderBy(desc(userEvents.createdAt));
     if (typeof limit === 'number') {
+      // @ts-expect-error: Drizzle type issue, but select builder supports .limit
       query = query.limit(limit);
     }
     return await query;
@@ -1835,21 +1838,22 @@ export class DatabaseStorage implements IStorage {
       isPinned?: boolean;
     }
   ): Promise<UserNote[]> {
-    const whereConditions = [];
+    const whereConditions = [eq(userNotes.userId, userId)];
     if (options?.tag) whereConditions.push(arrayContains(userNotes.tags, [options.tag]));
     if (options?.courseId) whereConditions.push(eq(userNotes.courseId, options.courseId));
-    if (options?.isPinned) whereConditions.push(eq(userNotes.isPinned, options.isPinned));
+    if (typeof options?.isPinned === 'boolean') whereConditions.push(eq(userNotes.isPinned, options.isPinned));
     const whereClause = whereConditions.length > 0 ? and(...whereConditions) : undefined;
     let query = db
       .select()
       .from(userNotes)
       .where(whereClause)
       .orderBy(desc(userNotes.createdAt));
-    // Only call .limit/.offset if defined and query supports it
-    if (typeof options?.limit === 'number' && typeof query.limit === 'function') {
+    if (typeof options?.limit === 'number') {
+      // @ts-expect-error: Drizzle type issue, but select builder supports .limit
       query = query.limit(options.limit);
     }
-    if (typeof options?.offset === 'number' && typeof query.offset === 'function') {
+    if (typeof options?.offset === 'number') {
+      // @ts-expect-error: Drizzle type issue, but select builder supports .offset
       query = query.offset(options.offset);
     }
     return await query;
@@ -2020,14 +2024,19 @@ export class DatabaseStorage implements IStorage {
   }
 
   async getCourseDepartments(university?: string): Promise<string[]> {
-    let query = db
-      .selectDistinct({ department: universityCourses.courseDept })
-      .from(universityCourses);
-    if (university && typeof query.where === 'function') {
-      query = query.where(eq(universityCourses.university, university));
+    let query;
+    if (university) {
+      query = db
+        .selectDistinct({ department: universityCourses.courseDept })
+        .from(universityCourses)
+        .where(eq(universityCourses.university, university));
+    } else {
+      query = db
+        .selectDistinct({ department: universityCourses.courseDept })
+        .from(universityCourses);
     }
     const result = await query;
-    return result.map((r) => r.department);
+    return result.map((r) => r.department).filter((d): d is string => typeof d === 'string');
   }
 
   // University Course Bookmark operations
@@ -2172,7 +2181,7 @@ export class DatabaseStorage implements IStorage {
       .where(
         and(eq(universityCourseComments.id, id), eq(universityCourseComments.userId, userId))
       );
-    return Boolean(result.rowCount) && result.rowCount > 0;
+    return (result.rowCount ?? 0) > 0;
   }
 
   // University Course Resources operations
@@ -2223,7 +2232,7 @@ export class DatabaseStorage implements IStorage {
       .where(
         and(eq(universityCourseResources.id, id), eq(universityCourseResources.userId, userId))
       );
-    return Boolean(result.rowCount) && result.rowCount > 0;
+    return (result.rowCount ?? 0) > 0;
   }
 
   // University Course Collaborations operations
@@ -2274,7 +2283,7 @@ export class DatabaseStorage implements IStorage {
       .where(
         and(eq(universityCourseCollaborations.id, id), eq(universityCourseCollaborations.userId, userId))
       );
-    return Boolean(result.rowCount) && result.rowCount > 0;
+    return (result.rowCount ?? 0) > 0;
   }
 
   // Learning Methods operations
@@ -2298,7 +2307,7 @@ export class DatabaseStorage implements IStorage {
     const whereConditions = [];
     if (options?.userId) whereConditions.push(eq(learningMethods.userId, options.userId));
     if (options?.difficulty) whereConditions.push(eq(learningMethods.difficulty, options.difficulty));
-    if (options?.tag) whereConditions.push(eq(learningMethods.tag, options.tag));
+    if (options?.tag) whereConditions.push(arrayContains(learningMethods.tags, [options.tag]));
     if (options?.search) {
       whereConditions.push(
         or(
@@ -2348,7 +2357,7 @@ export class DatabaseStorage implements IStorage {
       .where(
         and(eq(learningMethods.id, id), eq(learningMethods.userId, userId))
       );
-    return Boolean(result.rowCount) && result.rowCount > 0;
+    return (result.rowCount ?? 0) > 0;
   }
 
   async incrementLearningMethodViews(id: number): Promise<void> {
@@ -2366,9 +2375,21 @@ export class DatabaseStorage implements IStorage {
   }
 
   async getLearningMethodTags(): Promise<string[]> {
-    return await db
-      .selectDistinct({ tag: learningMethods.tag })
-      .from(learningMethods);
+    const result = await db.select({ tags: learningMethods.tags }).from(learningMethods);
+    // Flatten and deduplicate tags
+    const tagSet = new Set<string>();
+    result.forEach((row) => {
+      if (Array.isArray(row.tags)) {
+        row.tags.forEach((tag) => {
+          if (typeof tag === 'string') tagSet.add(tag);
+        });
+      } else if (typeof row.tags === 'string') {
+        (row.tags as string).split(',').forEach((t: string) => {
+          if (typeof t === 'string') tagSet.add(t.trim());
+        });
+      }
+    });
+    return Array.from(tagSet).filter(Boolean);
   }
 
   // Learning Method Comments operations
@@ -2419,7 +2440,7 @@ export class DatabaseStorage implements IStorage {
       .where(
         and(eq(learningMethodComments.id, id), eq(learningMethodComments.userId, userId))
       );
-    return Boolean(result.rowCount) && result.rowCount > 0;
+    return (result.rowCount ?? 0) > 0;
   }
 
   // Learning Method Reviews operations
@@ -2471,7 +2492,7 @@ export class DatabaseStorage implements IStorage {
       .where(
         and(eq(learningMethodReviews.id, id), eq(learningMethodReviews.userId, userId))
       );
-    return Boolean(result.rowCount) && result.rowCount > 0;
+    return (result.rowCount ?? 0) > 0;
   }
 
   // Learning Tools operations
@@ -2560,7 +2581,7 @@ export class DatabaseStorage implements IStorage {
     const result = await db
       .delete(learningTools)
       .where(and(eq(learningTools.id, id), eq(learningTools.userId, userId)));
-    return Boolean(result.rowCount) && result.rowCount > 0;
+    return (result.rowCount ?? 0) > 0;
   }
 
   async incrementLearningToolViews(id: number): Promise<void> {
@@ -2581,7 +2602,8 @@ export class DatabaseStorage implements IStorage {
     const result = await db
       .selectDistinct({ category: learningTools.category })
       .from(learningTools);
-    return result.map((row) => row.category).filter(Boolean);
+    // Only map/filter after awaiting result
+    return result.map((row) => row.category).filter((c): c is string => typeof c === 'string' && c.length > 0);
   }
 
   // Learning Tool Reviews operations
@@ -2633,7 +2655,7 @@ export class DatabaseStorage implements IStorage {
       .where(
         and(eq(learningToolReviews.id, id), eq(learningToolReviews.userId, userId))
       );
-    return Boolean(result.rowCount) && result.rowCount > 0;
+    return (result.rowCount ?? 0) > 0;
   }
 
   // Chat Messages operations
@@ -2669,15 +2691,14 @@ export class DatabaseStorage implements IStorage {
         )
       )
       .orderBy(asc(chatMessages.createdAt));
-
     if (options?.limit) {
+      // @ts-expect-error: Drizzle type issue, but select builder supports .limit
       query = query.limit(options.limit);
     }
-
     if (options?.offset) {
+      // @ts-expect-error: Drizzle type issue, but select builder supports .offset
       query = query.offset(options.offset);
     }
-
     return await query;
   }
 
@@ -3159,7 +3180,7 @@ export class DatabaseStorage implements IStorage {
             ]
           );
 
-          if (duplicateCheckResult.rowCount > 0) {
+          if ((duplicateCheckResult.rowCount ?? 0) > 0) {
             warnings.push(
               `Skipped record #${processedCount}: Course already exists in database`
             );
@@ -3340,13 +3361,16 @@ export class DatabaseStorage implements IStorage {
     try {
       console.log(`Finding chat partners for user ${userId}`);
       // Find all users who have exchanged messages with this user
-      const result = await this.db.query.chatMessages.findMany({
-        where: or(
-          eq(chatMessages.senderId, userId),
-          eq(chatMessages.receiverId, userId)
-        ),
-        orderBy: desc(chatMessages.createdAt),
-      });
+      const result = await db
+        .select()
+        .from(chatMessages)
+        .where(
+          or(
+            eq(chatMessages.senderId, userId),
+            eq(chatMessages.receiverId, userId)
+          )
+        )
+        .orderBy(desc(chatMessages.createdAt));
 
       console.log(`Found ${result.length} chat messages for user ${userId}`);
 
