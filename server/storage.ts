@@ -112,6 +112,7 @@ import {
   inArray,
   arrayContains,
   count,
+  between,
 } from "drizzle-orm";
 
 export interface IStorage {
@@ -313,7 +314,8 @@ export interface IStorage {
   // Recommendations operations
   getUserRecommendations(
     userId: number,
-    limit?: number
+    limit?: number,
+    offset?: number
   ): Promise<(UserRecommendation & { course: Course })[]>;
   createUserRecommendation(
     recommendation: InsertUserRecommendation
@@ -794,7 +796,7 @@ export class DatabaseStorage implements IStorage {
         )
       );
 
-    return result.rowCount ? result.rowCount > 0 : false;
+    return !!result.rowCount && result.rowCount > 0;
   }
 
   async getCourse(id: number): Promise<Course | undefined> {
@@ -813,31 +815,13 @@ export class DatabaseStorage implements IStorage {
     sortBy?: string;
     search?: string;
   }): Promise<Course[]> {
-    let query = db.select().from(courses);
-
-    // Apply filters
+    const limit = options?.limit ?? 200;
     const whereConditions = [];
-
-    if (options?.category) {
-      whereConditions.push(eq(courses.category, options.category));
-    }
-
-    if (options?.subCategory) {
-      whereConditions.push(eq(courses.subCategory, options.subCategory));
-    }
-
-    if (options?.courseType) {
-      whereConditions.push(eq(courses.courseType, options.courseType));
-    }
-
-    if (options?.language) {
-      whereConditions.push(eq(courses.language, options.language));
-    }
-
-    if (options?.rating && courses.rating) {
-      whereConditions.push(sql`${courses.rating} >= ${options.rating}`);
-    }
-
+    if (options?.category) whereConditions.push(eq(courses.category, options.category));
+    if (options?.subCategory) whereConditions.push(eq(courses.subCategory, options.subCategory));
+    if (options?.courseType) whereConditions.push(eq(courses.courseType, options.courseType));
+    if (options?.language) whereConditions.push(eq(courses.language, options.language));
+    if (options?.rating && courses.rating) whereConditions.push(sql`${courses.rating} >= ${options.rating}`);
     if (options?.search) {
       whereConditions.push(
         or(
@@ -847,42 +831,19 @@ export class DatabaseStorage implements IStorage {
         )
       );
     }
-
-    if (whereConditions.length > 0) {
-      query = query.where(and(...whereConditions));
-    }
-
-    // Apply sorting
-    if (options?.sortBy) {
-      switch (options.sortBy) {
-        case "rating_high":
-          query = query.orderBy(desc(courses.rating));
-          break;
-        case "rating_low":
-          query = query.orderBy(asc(courses.rating));
-          break;
-        case "popular":
-          query = query.orderBy(desc(courses.numberOfViewers));
-          break;
-        default:
-          // Default sorting (recommended)
-          query = query.orderBy(desc(courses.rating));
-      }
-    } else {
-      // Default sorting
-      query = query.orderBy(desc(courses.rating));
-    }
-
-    // Apply pagination
-    if (options?.limit) {
-      query = query.limit(options.limit);
-    }
-
-    if (options?.offset) {
-      query = query.offset(options.offset);
-    }
-
-    return await query;
+    const whereClause = whereConditions.length > 0 ? and(...whereConditions) : undefined;
+    // Get all matching course IDs
+    const allCourseIds = (await db
+      .select({ id: courses.id })
+      .from(courses)
+      .where(whereClause)
+    ).map((c) => c.id);
+    // Shuffle and sample
+    const shuffled = allCourseIds.sort(() => Math.random() - 0.5);
+    const sampledIds = shuffled.slice(0, limit);
+    if (sampledIds.length === 0) return [];
+    // Fetch full course data for sampled IDs
+    return await db.select().from(courses).where(inArray(courses.id, sampledIds));
   }
 
   async getCoursesCount(options?: {
@@ -893,31 +854,12 @@ export class DatabaseStorage implements IStorage {
     rating?: number;
     search?: string;
   }): Promise<number> {
-    let query = db.select({ count: sql`count(*)` }).from(courses);
-
-    // Apply filters
     const whereConditions = [];
-
-    if (options?.category) {
-      whereConditions.push(eq(courses.category, options.category));
-    }
-
-    if (options?.subCategory) {
-      whereConditions.push(eq(courses.subCategory, options.subCategory));
-    }
-
-    if (options?.courseType) {
-      whereConditions.push(eq(courses.courseType, options.courseType));
-    }
-
-    if (options?.language) {
-      whereConditions.push(eq(courses.language, options.language));
-    }
-
-    if (options?.rating && courses.rating) {
-      whereConditions.push(sql`${courses.rating} >= ${options.rating}`);
-    }
-
+    if (options?.category) whereConditions.push(eq(courses.category, options.category));
+    if (options?.subCategory) whereConditions.push(eq(courses.subCategory, options.subCategory));
+    if (options?.courseType) whereConditions.push(eq(courses.courseType, options.courseType));
+    if (options?.language) whereConditions.push(eq(courses.language, options.language));
+    if (options?.rating && courses.rating) whereConditions.push(sql`${courses.rating} >= ${options.rating}`);
     if (options?.search) {
       whereConditions.push(
         or(
@@ -927,12 +869,11 @@ export class DatabaseStorage implements IStorage {
         )
       );
     }
-
-    if (whereConditions.length > 0) {
-      query = query.where(and(...whereConditions));
-    }
-
-    const result = await query;
+    const whereClause = whereConditions.length > 0 ? and(...whereConditions) : undefined;
+    const result = await db
+      .select({ count: sql`count(*)` })
+      .from(courses)
+      .where(whereClause);
     return Number(result[0]?.count || 0);
   }
 
@@ -1184,88 +1125,66 @@ export class DatabaseStorage implements IStorage {
     tag?: string;
     userId?: number;
   }): Promise<LearningPost[]> {
-    let query = db.select().from(learningPosts);
-
-    // Apply filters
     const whereConditions = [];
-
-    if (options?.type) {
-      whereConditions.push(eq(learningPosts.type, options.type));
+    if (options?.type) whereConditions.push(eq(learningPosts.type, options.type));
+    if (options?.tag) whereConditions.push(arrayContains(learningPosts.tags, [options.tag]));
+    if (options?.userId) whereConditions.push(eq(learningPosts.userId, options.userId));
+    const whereClause = whereConditions.length > 0 ? and(...whereConditions) : undefined;
+    if (typeof options?.limit === 'number' && typeof options?.offset === 'number') {
+      return await db
+        .select()
+        .from(learningPosts)
+        .where(whereClause)
+        .orderBy(desc(learningPosts.createdAt))
+        .limit(options.limit)
+        .offset(options.offset);
+    } else if (typeof options?.limit === 'number') {
+      return await db
+        .select()
+        .from(learningPosts)
+        .where(whereClause)
+        .orderBy(desc(learningPosts.createdAt))
+        .limit(options.limit);
+    } else if (typeof options?.offset === 'number') {
+      return await db
+        .select()
+        .from(learningPosts)
+        .where(whereClause)
+        .orderBy(desc(learningPosts.createdAt))
+        .offset(options.offset);
+    } else {
+      return await db
+        .select()
+        .from(learningPosts)
+        .where(whereClause)
+        .orderBy(desc(learningPosts.createdAt));
     }
-
-    if (options?.tag) {
-      whereConditions.push(arrayContains(learningPosts.tags, [options.tag]));
-    }
-
-    if (options?.userId) {
-      whereConditions.push(eq(learningPosts.userId, options.userId));
-    }
-
-    if (whereConditions.length > 0) {
-      query = query.where(and(...whereConditions));
-    }
-
-    // Order by most recent
-    query = query.orderBy(desc(learningPosts.createdAt));
-
-    // Apply pagination
-    if (options?.limit) {
-      query = query.limit(options.limit);
-    }
-
-    if (options?.offset) {
-      query = query.offset(options.offset);
-    }
-
-    return await query;
   }
 
-  async createLearningPost(
-    insertPost: InsertLearningPost
-  ): Promise<LearningPost> {
-    const [post] = await db
-      .insert(learningPosts)
-      .values(insertPost)
-      .returning();
-    return post;
+  async createLearningPost(post: InsertLearningPost): Promise<LearningPost> {
+    const [result] = await db.insert(learningPosts).values(post).returning();
+    return result;
   }
 
   async updateLearningPost(
     id: number,
     post: Partial<InsertLearningPost>
   ): Promise<LearningPost | undefined> {
-    const [updatedPost] = await db
+    const [result] = await db
       .update(learningPosts)
-      .set({
-        ...post,
-        updatedAt: new Date(),
-      })
+      .set(post)
       .where(eq(learningPosts.id, id))
       .returning();
-    return updatedPost || undefined;
+    return result || undefined;
   }
 
   async deleteLearningPost(id: number, userId: number): Promise<boolean> {
-    // First, ensure the post exists and belongs to the user
-    const [post] = await db
-      .select()
-      .from(learningPosts)
-      .where(and(eq(learningPosts.id, id), eq(learningPosts.userId, userId)));
-
-    if (!post) return false;
-
-    // Delete all associated data first
-    await db.delete(learningPostLikes).where(eq(learningPostLikes.postId, id));
-    await db
-      .delete(learningPostComments)
-      .where(eq(learningPostComments.postId, id));
-    await db
-      .delete(learningPostBookmarks)
-      .where(eq(learningPostBookmarks.postId, id));
-
-    // Then delete the post
-    await db.delete(learningPosts).where(eq(learningPosts.id, id));
-    return true;
+    const result = await db
+      .delete(learningPosts)
+      .where(
+        and(eq(learningPosts.id, id), eq(learningPosts.userId, userId))
+      );
+    return !!result.rowCount && result.rowCount > 0;
   }
 
   async incrementLearningPostViews(id: number): Promise<void> {
@@ -1278,9 +1197,7 @@ export class DatabaseStorage implements IStorage {
   }
 
   // Learning post comment operations
-  async getLearningPostComment(
-    id: number
-  ): Promise<LearningPostComment | undefined> {
+  async getLearningPostComment(id: number): Promise<LearningPostComment | undefined> {
     const [comment] = await db
       .select()
       .from(learningPostComments)
@@ -1294,8 +1211,7 @@ export class DatabaseStorage implements IStorage {
     return await db
       .select()
       .from(learningPostComments)
-      .where(eq(learningPostComments.postId, postId))
-      .orderBy(asc(learningPostComments.createdAt));
+      .where(eq(learningPostComments.postId, postId));
   }
 
   async getLearningPostCommentsByUserId(
@@ -1304,8 +1220,7 @@ export class DatabaseStorage implements IStorage {
     return await db
       .select()
       .from(learningPostComments)
-      .where(eq(learningPostComments.userId, userId))
-      .orderBy(desc(learningPostComments.createdAt));
+      .where(eq(learningPostComments.userId, userId));
   }
 
   async getLearningPostCommentsCount(postId: number): Promise<number> {
@@ -1317,43 +1232,34 @@ export class DatabaseStorage implements IStorage {
   }
 
   async createLearningPostComment(
-    insertComment: InsertLearningPostComment
+    comment: InsertLearningPostComment
   ): Promise<LearningPostComment> {
-    const [comment] = await db
+    const [result] = await db
       .insert(learningPostComments)
-      .values(insertComment)
+      .values(comment)
       .returning();
-    return comment;
+    return result;
   }
 
   async updateLearningPostComment(
     id: number,
     content: string
   ): Promise<LearningPostComment | undefined> {
-    const [updatedComment] = await db
+    const [result] = await db
       .update(learningPostComments)
-      .set({
-        content,
-        updatedAt: new Date(),
-      })
+      .set({ content })
       .where(eq(learningPostComments.id, id))
       .returning();
-    return updatedComment || undefined;
+    return result || undefined;
   }
 
-  async deleteLearningPostComment(
-    id: number,
-    userId: number
-  ): Promise<boolean> {
-    await db
+  async deleteLearningPostComment(id: number, userId: number): Promise<boolean> {
+    const result = await db
       .delete(learningPostComments)
       .where(
-        and(
-          eq(learningPostComments.id, id),
-          eq(learningPostComments.userId, userId)
-        )
+        and(eq(learningPostComments.id, id), eq(learningPostComments.userId, userId))
       );
-    return true;
+    return !!result.rowCount && result.rowCount > 0;
   }
 
   // Learning post like operations
@@ -1365,56 +1271,42 @@ export class DatabaseStorage implements IStorage {
       .select()
       .from(learningPostLikes)
       .where(
-        and(
-          eq(learningPostLikes.postId, postId),
-          eq(learningPostLikes.userId, userId)
-        )
+        and(eq(learningPostLikes.postId, postId), eq(learningPostLikes.userId, userId))
       );
     return like || undefined;
   }
 
-  async getLearningPostLikesByPostId(
-    postId: number
-  ): Promise<LearningPostLike[]> {
+  async getLearningPostLikesByPostId(postId: number): Promise<LearningPostLike[]> {
     return await db
       .select()
       .from(learningPostLikes)
       .where(eq(learningPostLikes.postId, postId));
   }
 
-  async getLearningPostLikesByUserId(
-    userId: number
-  ): Promise<LearningPostLike[]> {
+  async getLearningPostLikesByUserId(userId: number): Promise<LearningPostLike[]> {
     return await db
       .select()
       .from(learningPostLikes)
-      .where(eq(learningPostLikes.userId, userId))
-      .orderBy(desc(learningPostLikes.createdAt));
+      .where(eq(learningPostLikes.userId, userId));
   }
 
   async createLearningPostLike(
-    insertLike: InsertLearningPostLike
+    like: InsertLearningPostLike
   ): Promise<LearningPostLike> {
-    const [like] = await db
+    const [result] = await db
       .insert(learningPostLikes)
-      .values(insertLike)
+      .values(like)
       .returning();
-    return like;
+    return result;
   }
 
-  async deleteLearningPostLike(
-    postId: number,
-    userId: number
-  ): Promise<boolean> {
-    await db
+  async deleteLearningPostLike(postId: number, userId: number): Promise<boolean> {
+    const result = await db
       .delete(learningPostLikes)
       .where(
-        and(
-          eq(learningPostLikes.postId, postId),
-          eq(learningPostLikes.userId, userId)
-        )
+        and(eq(learningPostLikes.postId, postId), eq(learningPostLikes.userId, userId))
       );
-    return true;
+    return !!result.rowCount && result.rowCount > 0;
   }
 
   async getLearningPostLikesCount(postId: number): Promise<number> {
@@ -1434,10 +1326,7 @@ export class DatabaseStorage implements IStorage {
       .select()
       .from(learningPostBookmarks)
       .where(
-        and(
-          eq(learningPostBookmarks.postId, postId),
-          eq(learningPostBookmarks.userId, userId)
-        )
+        and(eq(learningPostBookmarks.postId, postId), eq(learningPostBookmarks.userId, userId))
       );
     return bookmark || undefined;
   }
@@ -1452,48 +1341,40 @@ export class DatabaseStorage implements IStorage {
   }
 
   async createLearningPostBookmark(
-    insertBookmark: InsertLearningPostBookmark
+    bookmark: InsertLearningPostBookmark
   ): Promise<LearningPostBookmark> {
-    const [bookmark] = await db
+    const [result] = await db
       .insert(learningPostBookmarks)
-      .values(insertBookmark)
+      .values(bookmark)
       .returning();
-    return bookmark;
+    return result;
   }
 
-  async deleteLearningPostBookmark(
-    postId: number,
-    userId: number
-  ): Promise<boolean> {
-    await db
+  async deleteLearningPostBookmark(postId: number, userId: number): Promise<boolean> {
+    const result = await db
       .delete(learningPostBookmarks)
       .where(
-        and(
-          eq(learningPostBookmarks.postId, postId),
-          eq(learningPostBookmarks.userId, userId)
-        )
+        and(eq(learningPostBookmarks.postId, postId), eq(learningPostBookmarks.userId, userId))
       );
-    return true;
+    return !!result.rowCount && result.rowCount > 0;
   }
 
   // Learning post tag operations
   async getLearningPostTags(): Promise<string[]> {
-    const result = await db
-      .select({ tags: learningPosts.tags })
-      .from(learningPosts)
-      .where(sql`${learningPosts.tags} IS NOT NULL`);
-
-    // Extract and deduplicate tags
+    const result = await db.select({ tags: learningPosts.tags }).from(learningPosts);
     const tagSet = new Set<string>();
-    result.forEach((r) => {
-      if (r.tags && r.tags.length > 0) {
-        r.tags.forEach((tag) => {
-          if (tag) tagSet.add(tag);
+    result.forEach((row) => {
+      if (Array.isArray(row.tags)) {
+        row.tags.forEach((tag) => {
+          if (typeof tag === 'string') tagSet.add(tag);
+        });
+      } else if (typeof row.tags === 'string') {
+        (row.tags as string).split(',').forEach((t: string) => {
+          if (typeof t === 'string') tagSet.add(t.trim());
         });
       }
     });
-
-    return Array.from(tagSet);
+    return Array.from(tagSet).filter(Boolean);
   }
 
   // AI conversation operations
@@ -1509,8 +1390,7 @@ export class DatabaseStorage implements IStorage {
     return await db
       .select()
       .from(aiConversations)
-      .where(eq(aiConversations.userId, userId))
-      .orderBy(desc(aiConversations.createdAt));
+      .where(eq(aiConversations.userId, userId));
   }
 
   async createAiConversation(
@@ -1527,15 +1407,12 @@ export class DatabaseStorage implements IStorage {
     id: number,
     data: Partial<InsertAiConversation>
   ): Promise<AiConversation | undefined> {
-    const [updated] = await db
+    const [result] = await db
       .update(aiConversations)
-      .set({
-        ...data,
-        updatedAt: new Date(),
-      })
+      .set(data)
       .where(eq(aiConversations.id, id))
       .returning();
-    return updated;
+    return result || undefined;
   }
 
   async deleteAiConversation(id: number, userId: number): Promise<boolean> {
@@ -1544,28 +1421,23 @@ export class DatabaseStorage implements IStorage {
       .where(
         and(eq(aiConversations.id, id), eq(aiConversations.userId, userId))
       );
-    return result.rowCount > 0;
+    return !!result.rowCount && result.rowCount > 0;
   }
 
   // Method application operations
-  async getMethodApplication(
-    id: number
-  ): Promise<MethodApplication | undefined> {
-    const [methodApp] = await db
+  async getMethodApplication(id: number): Promise<MethodApplication | undefined> {
+    const [application] = await db
       .select()
       .from(methodApplications)
       .where(eq(methodApplications.id, id));
-    return methodApp || undefined;
+    return application || undefined;
   }
 
-  async getMethodApplicationsByUserId(
-    userId: number
-  ): Promise<MethodApplication[]> {
+  async getMethodApplicationsByUserId(userId: number): Promise<MethodApplication[]> {
     return await db
       .select()
       .from(methodApplications)
-      .where(eq(methodApplications.userId, userId))
-      .orderBy(desc(methodApplications.createdAt));
+      .where(eq(methodApplications.userId, userId));
   }
 
   async getMethodApplicationsByMethodId(
@@ -1574,58 +1446,51 @@ export class DatabaseStorage implements IStorage {
     return await db
       .select()
       .from(methodApplications)
-      .where(eq(methodApplications.methodPostId, methodPostId))
-      .orderBy(desc(methodApplications.createdAt));
+      .where(eq(methodApplications.methodPostId, methodPostId));
   }
 
   async getMethodApplicationByUserAndMethod(
     userId: number,
     methodPostId: number
   ): Promise<MethodApplication | undefined> {
-    const [methodApp] = await db
+    const [application] = await db
       .select()
       .from(methodApplications)
       .where(
-        and(
-          eq(methodApplications.userId, userId),
-          eq(methodApplications.methodPostId, methodPostId)
-        )
+        and(eq(methodApplications.userId, userId), eq(methodApplications.methodPostId, methodPostId))
       );
-    return methodApp || undefined;
+    return application || undefined;
   }
 
   async createMethodApplication(
     application: InsertMethodApplication
   ): Promise<MethodApplication> {
-    const [methodApp] = await db
+    const [result] = await db
       .insert(methodApplications)
       .values(application)
       .returning();
-    return methodApp;
+    return result;
   }
 
   async updateMethodApplication(
     id: number,
     data: Partial<InsertMethodApplication>
   ): Promise<MethodApplication | undefined> {
-    const [updatedMethodApp] = await db
+    const [result] = await db
       .update(methodApplications)
       .set(data)
       .where(eq(methodApplications.id, id))
       .returning();
-    return updatedMethodApp;
+    return result || undefined;
   }
 
   async deleteMethodApplication(id: number, userId: number): Promise<boolean> {
     const result = await db
       .delete(methodApplications)
       .where(
-        and(
-          eq(methodApplications.id, id),
-          eq(methodApplications.userId, userId)
-        )
+        and(eq(methodApplications.id, id), eq(methodApplications.userId, userId))
       );
-    return result.rowCount > 0;
+    return !!result.rowCount && result.rowCount > 0;
   }
 
   async getActiveMethodApplicationsByUserId(
@@ -1635,12 +1500,8 @@ export class DatabaseStorage implements IStorage {
       .select()
       .from(methodApplications)
       .where(
-        and(
-          eq(methodApplications.userId, userId),
-          eq(methodApplications.status, "active")
-        )
-      )
-      .orderBy(desc(methodApplications.createdAt));
+        and(eq(methodApplications.userId, userId), eq(methodApplications.status, "active"))
+      );
   }
 
   async getCompletedMethodApplicationsByUserId(
@@ -1650,29 +1511,20 @@ export class DatabaseStorage implements IStorage {
       .select()
       .from(methodApplications)
       .where(
-        and(
-          eq(methodApplications.userId, userId),
-          eq(methodApplications.status, "completed")
-        )
-      )
-      .orderBy(desc(methodApplications.createdAt));
+        and(eq(methodApplications.userId, userId), eq(methodApplications.status, "completed"))
+      );
   }
 
   async getMethodApplicationsCount(methodPostId: number): Promise<number> {
     const result = await db
-      .select({
-        count: sql`count(*)`,
-      })
+      .select({ count: sql`count(*)` })
       .from(methodApplications)
       .where(eq(methodApplications.methodPostId, methodPostId));
-
     return Number(result[0]?.count || 0);
   }
 
   // Gamification operations
-  async getUserGamification(
-    userId: number
-  ): Promise<UserGamification | undefined> {
+  async getUserGamification(userId: number): Promise<UserGamification | undefined> {
     const [gamification] = await db
       .select()
       .from(userGamification)
@@ -1681,106 +1533,60 @@ export class DatabaseStorage implements IStorage {
   }
 
   async createUserGamification(
-    data: InsertUserGamification
+    gamification: InsertUserGamification
   ): Promise<UserGamification> {
-    const [gamification] = await db
+    const [result] = await db
       .insert(userGamification)
-      .values(data)
+      .values(gamification)
       .returning();
-    return gamification;
+    return result;
   }
 
   async updateUserGamification(
     userId: number,
     data: Partial<InsertUserGamification>
   ): Promise<UserGamification | undefined> {
-    const [updated] = await db
+    const [result] = await db
       .update(userGamification)
-      .set({
-        ...data,
-        updatedAt: new Date(),
-      })
+      .set(data)
       .where(eq(userGamification.userId, userId))
       .returning();
-
-    return updated;
+    return result || undefined;
   }
 
   async addUserPoints(
     userId: number,
     points: number
   ): Promise<UserGamification | undefined> {
-    // Get current user gamification
-    let userGamificationData = await this.getUserGamification(userId);
-
-    if (!userGamificationData) {
-      // Create new gamification record if it doesn't exist
-      userGamificationData = await this.createUserGamification({
-        userId,
-        points,
-        level: 1,
-        streak: 0,
-      });
-    } else {
-      // Add points to existing record
-      const newPoints = userGamificationData.points + points;
-      let newLevel = userGamificationData.level;
-
-      // Simple level up logic
-      const pointsForNextLevel = newLevel * 100; // Each level requires level * 100 points
-      if (newPoints >= pointsForNextLevel) {
-        newLevel += 1;
-      }
-
-      userGamificationData = await this.updateUserGamification(userId, {
-        points: newPoints,
-        level: newLevel,
-        lastActivity: new Date(),
-      });
+    const [gamification] = await db
+      .select()
+      .from(userGamification)
+      .where(eq(userGamification.userId, userId));
+    if (!gamification) {
+      throw new Error("User gamification not found");
     }
-
-    return userGamificationData;
+    const [result] = await db
+      .update(userGamification)
+      .set({ points: gamification.points + points })
+      .where(eq(userGamification.userId, userId))
+      .returning();
+    return result || undefined;
   }
 
-  async incrementUserStreak(
-    userId: number
-  ): Promise<UserGamification | undefined> {
-    // Get current user gamification
-    let userGamificationData = await this.getUserGamification(userId);
-
-    if (!userGamificationData) {
-      // Create new gamification record if it doesn't exist
-      userGamificationData = await this.createUserGamification({
-        userId,
-        points: 5, // Bonus points for first streak
-        level: 1,
-        streak: 1,
-      });
-    } else {
-      const now = new Date();
-      const lastActivity = userGamificationData.lastActivity;
-
-      // Check if streak should be reset (more than 48 hours since last activity)
-      let newStreak = userGamificationData.streak;
-      if (
-        !lastActivity ||
-        now.getTime() - lastActivity.getTime() > 48 * 60 * 60 * 1000
-      ) {
-        newStreak = 1; // Reset streak
-      } else if (now.getTime() - lastActivity.getTime() > 20 * 60 * 60 * 1000) {
-        // If more than 20 hours since last activity, increment streak
-        newStreak += 1;
-      }
-
-      // Update streak
-      userGamificationData = await this.updateUserGamification(userId, {
-        streak: newStreak,
-        lastActivity: now,
-        points: userGamificationData.points + 5, // Add 5 points for maintaining streak
-      });
+  async incrementUserStreak(userId: number): Promise<UserGamification | undefined> {
+    const [gamification] = await db
+      .select()
+      .from(userGamification)
+      .where(eq(userGamification.userId, userId));
+    if (!gamification) {
+      throw new Error("User gamification not found");
     }
-
-    return userGamificationData;
+    const [result] = await db
+      .update(userGamification)
+      .set({ streak: gamification.streak + 1 })
+      .where(eq(userGamification.userId, userId))
+      .returning();
+    return result || undefined;
   }
 
   // User badges operations
@@ -1788,112 +1594,125 @@ export class DatabaseStorage implements IStorage {
     return await db
       .select()
       .from(userBadges)
-      .where(eq(userBadges.userId, userId))
-      .orderBy(desc(userBadges.awardedAt));
+      .where(eq(userBadges.userId, userId));
   }
 
   async createUserBadge(badge: InsertUserBadge): Promise<UserBadge> {
-    // Check if badge already exists
-    const [existingBadge] = await db
-      .select()
-      .from(userBadges)
-      .where(
-        and(
-          eq(userBadges.userId, badge.userId),
-          eq(userBadges.badgeId, badge.badgeId)
-        )
-      );
-
-    if (existingBadge) {
-      return existingBadge; // Badge already awarded
-    }
-
-    // Award new badge and add points
-    const [newBadge] = await db.insert(userBadges).values(badge).returning();
-
-    // Add 25 points for earning a badge
-    await this.addUserPoints(badge.userId, 25);
-
-    return newBadge;
+    const [result] = await db
+      .insert(userBadges)
+      .values(badge)
+      .returning();
+    return result;
   }
 
   // Recommendations operations
   async getUserRecommendations(
     userId: number,
-    limit?: number
+    limit?: number,
+    offset?: number
   ): Promise<(UserRecommendation & { course: Course })[]> {
-    const recommendations = await db
-      .select({
-        recommendation: userRecommendations,
-        course: courses,
-      })
-      .from(userRecommendations)
-      .innerJoin(courses, eq(userRecommendations.courseId, courses.id))
-      .where(eq(userRecommendations.userId, userId))
-      .orderBy(desc(userRecommendations.score))
-      .limit(limit);
+    limit = typeof limit === 'number' ? limit : 10;
+    offset = typeof offset === 'number' ? offset : 0;
+    // Aggregate user interactions
+    const [bookmarks, posts, comments, likes, searchHistory, aiConvos] =
+      await Promise.all([
+        this.getBookmarksByUserId(userId),
+        this.getLearningPosts({ userId }),
+        this.getLearningPostCommentsByUserId(userId),
+        this.getLearningPostLikesByUserId(userId),
+        this.getSearchHistoryByUserId(userId),
+        this.getAiConversationsByUserId(userId),
+      ]);
 
-    return recommendations.map((r) => ({
-      ...r.recommendation,
-      course: r.course,
-    }));
-  }
-
-  async createUserRecommendation(
-    recommendation: InsertUserRecommendation
-  ): Promise<UserRecommendation> {
-    // Check if recommendation already exists
-    const [existingRec] = await db
-      .select()
-      .from(userRecommendations)
-      .where(
-        and(
-          eq(userRecommendations.userId, recommendation.userId),
-          eq(userRecommendations.courseId, recommendation.courseId)
-        )
-      );
-
-    if (existingRec) {
-      // Update existing recommendation with new score if provided
-      if (recommendation.score !== undefined) {
-        const [updated] = await db
-          .update(userRecommendations)
-          .set({
-            score: recommendation.score,
-            reason: recommendation.reason,
-            trending: recommendation.trending,
-            updatedAt: new Date(),
-          })
-          .where(eq(userRecommendations.id, existingRec.id))
-          .returning();
-
-        return updated;
-      }
-      return existingRec;
+    // Collect all course IDs the user has interacted with
+    const interactedCourseIds = new Set<number>();
+    bookmarks.forEach((b) => interactedCourseIds.add(b.courseId));
+    posts.forEach((p) => {
+      if ((p as any).courseId) interactedCourseIds.add((p as any).courseId);
+    });
+    const postIdSet = new Set<number>();
+    comments.forEach((c) => { if (c.postId) postIdSet.add(c.postId); });
+    likes.forEach((l) => { if (l.postId) postIdSet.add(l.postId); });
+    const postIdArr = Array.from(postIdSet);
+    let relatedPosts: any[] = [];
+    if (postIdArr.length > 0) {
+      relatedPosts = await Promise.all(postIdArr.map((id) => this.getLearningPost(id)));
+      relatedPosts.forEach((p) => { if (p && (p as any).courseId) interactedCourseIds.add((p as any).courseId); });
     }
-
-    // Create new recommendation
-    const [newRec] = await db
-      .insert(userRecommendations)
-      .values(recommendation)
-      .returning();
-    return newRec;
-  }
-
-  async updateUserRecommendation(
-    id: number,
-    data: Partial<InsertUserRecommendation>
-  ): Promise<UserRecommendation | undefined> {
-    const [updated] = await db
-      .update(userRecommendations)
-      .set({
-        ...data,
+    const allCourseIds = Array.from(interactedCourseIds).filter(Boolean);
+    const interactedCourses = allCourseIds.length > 0 ? await this.getCoursesByIds(allCourseIds) : [];
+    const categories = new Set<string>();
+    const subCategories = new Set<string>();
+    const skills = new Set<string>();
+    interactedCourses.forEach((course) => {
+      if (course.category) categories.add(course.category);
+      if (course.subCategory) subCategories.add(course.subCategory);
+      if (course.skills) course.skills.split(",").forEach((skill) => skills.add(skill.trim()));
+    });
+    const keywords = new Set<string>();
+    searchHistory.forEach((s) => {
+      if ((s as any).searchQuery) (s as any).searchQuery.split(/\s+/).forEach((word: string) => keywords.add(word.toLowerCase()));
+    });
+    aiConvos.forEach((c) => {
+      if (Array.isArray((c as any).messages)) {
+        (c as any).messages.forEach((m: any) => {
+          if (m.content) m.content.split(/\s+/).forEach((word: string) => keywords.add(word.toLowerCase()));
+        });
+      }
+    });
+    posts.forEach((p) => { if (p.content) p.content.split(/\s+/).forEach((word: string) => keywords.add(word.toLowerCase())); });
+    comments.forEach((c) => { if (c.content) c.content.split(/\s+/).forEach((word: string) => keywords.add(word.toLowerCase())); });
+    if (likes.length > 0) {
+      const likedPosts = await Promise.all(likes.map((l) => this.getLearningPost(l.postId)));
+      likedPosts.forEach((p) => { if (p && p.content) p.content.split(/\s+/).forEach((word: string) => keywords.add(word.toLowerCase())); });
+      for (const p of likedPosts) {
+        if (p) {
+          const postComments = await this.getLearningPostCommentsByPostId(p.id);
+          postComments.forEach((c) => { if (c.content) c.content.split(/\s+/).forEach((word: string) => keywords.add(word.toLowerCase())); });
+        }
+      }
+    }
+    const userProfile = { categories, subCategories, skills, keywords };
+    const candidateCourses = await this.getCourses({ limit: 200 });
+    const filteredCandidates = candidateCourses.filter((c) => c.id && !interactedCourseIds.has(c.id));
+    function scoreCourse(course: Course): number {
+      let score = 0;
+      if (course.category && userProfile.categories.has(course.category)) score += 2;
+      if (course.subCategory && userProfile.subCategories.has(course.subCategory)) score += 1.5;
+      if (course.skills) course.skills.split(",").forEach((skill) => { if (userProfile.skills.has(skill.trim())) score += 1; });
+      const text = `${course.title} ${course.shortIntro || ""}`.toLowerCase();
+      userProfile.keywords.forEach((kw) => { if (text.includes(kw)) score += 0.2; });
+      if (course.rating && course.rating > 4.5) score += 0.5;
+      if (course.numberOfViewers && course.numberOfViewers > 10000) score += 0.3;
+      return score;
+    }
+    // Score and sort candidates deterministically
+    const scored = filteredCandidates.map((course) => ({ course, score: scoreCourse(course) }));
+    scored.sort((a, b) => b.score - a.score || a.course.id - b.course.id);
+    // Build recommendations in-memory only
+    const recommendations: (UserRecommendation & { course: Course })[] = scored.map(({ course, score }) => {
+      let reason = "Based on your learning activity";
+      if (course.category && userProfile.categories.has(course.category)) reason = `Similar to your interests in ${course.category}`;
+      else if (course.rating && course.rating > 4.5) reason = "Highly rated course you might enjoy";
+      else if (course.numberOfViewers && course.numberOfViewers > 10000) reason = "Popular with many learners";
+      return {
+        userId,
+        courseId: course.id,
+        score,
+        reason,
+        trending: !!course.numberOfViewers && course.numberOfViewers > 50000,
+        course,
+        id: 0, // Not persisted
+        createdAt: new Date(),
         updatedAt: new Date(),
-      })
-      .where(eq(userRecommendations.id, id))
-      .returning();
-
-    return updated;
+      };
+    });
+    // Optionally, cache/store top 10 recommendations in DB for analytics
+    // for (const rec of recommendations.slice(0, 10)) {
+    //   await this.createUserRecommendation({ userId, courseId: rec.courseId, score: rec.score, reason: rec.reason, trending: rec.trending });
+    // }
+    // Return paginated slice
+    return recommendations.slice(offset, offset + limit);
   }
 
   // User Events operations
@@ -1915,80 +1734,49 @@ export class DatabaseStorage implements IStorage {
       eventType?: string;
     }
   ): Promise<UserEvent[]> {
+    const whereConditions = [];
+    if (options?.startDate) whereConditions.push(eq(userEvents.startDate, options.startDate));
+    if (options?.endDate) whereConditions.push(eq(userEvents.endDate, options.endDate));
+    if (options?.eventType) whereConditions.push(eq(userEvents.eventType, options.eventType));
+    const whereClause = whereConditions.length > 0 ? and(...whereConditions) : undefined;
     let query = db
       .select()
       .from(userEvents)
-      .where(eq(userEvents.userId, userId));
-
-    // Apply filters
-    if (options?.eventType) {
-      query = query.where(eq(userEvents.eventType, options.eventType));
-    }
-
-    if (options?.startDate) {
-      query = query.where(sql`${userEvents.startDate} >= ${options.startDate}`);
-    }
-
-    if (options?.endDate) {
-      query = query.where(sql`${userEvents.startDate} <= ${options.endDate}`);
-    }
-
-    if (options?.upcoming) {
-      // Get events from today onwards
-      const today = new Date();
-      today.setHours(0, 0, 0, 0);
-      query = query.where(sql`${userEvents.startDate} >= ${today}`);
-
-      // Order by closest upcoming date
-      query = query.orderBy(asc(userEvents.startDate));
-    } else {
-      // Default ordering by start date (descending - most recent first)
-      query = query.orderBy(desc(userEvents.startDate));
-    }
-
-    // Apply pagination
-    if (options?.limit) {
+      .where(whereClause)
+      .orderBy(desc(userEvents.createdAt));
+    if (typeof options?.limit === 'number') {
       query = query.limit(options.limit);
     }
-
     return await query;
   }
 
   async createUserEvent(event: InsertUserEvent): Promise<UserEvent> {
-    const [createdEvent] = await db
+    const [result] = await db
       .insert(userEvents)
       .values(event)
       .returning();
-    return createdEvent;
+    return result;
   }
 
   async updateUserEvent(
     id: number,
     event: Partial<InsertUserEvent>
   ): Promise<UserEvent | undefined> {
-    const [updatedEvent] = await db
+    const [result] = await db
       .update(userEvents)
-      .set({
-        ...event,
-        updatedAt: new Date(),
-      })
+      .set(event)
       .where(eq(userEvents.id, id))
       .returning();
-    return updatedEvent || undefined;
+    return result || undefined;
   }
 
   async deleteUserEvent(id: number, userId: number): Promise<boolean> {
-    // First check if event exists and belongs to the user
-    const [event] = await db
-      .select()
-      .from(userEvents)
-      .where(and(eq(userEvents.id, id), eq(userEvents.userId, userId)));
-
-    if (!event) return false;
-
-    // Delete the event
-    await db.delete(userEvents).where(eq(userEvents.id, id));
-    return true;
+    const result = await db
+      .delete(userEvents)
+      .where(
+        and(eq(userEvents.id, id), eq(userEvents.userId, userId))
+      );
+    return !!result.rowCount && result.rowCount > 0;
   }
 
   async getEventsByDateRange(
@@ -1996,74 +1784,45 @@ export class DatabaseStorage implements IStorage {
     startDate: Date,
     endDate: Date
   ): Promise<UserEvent[]> {
+    // Import between from drizzle-orm at the top
     return await db
       .select()
       .from(userEvents)
       .where(
         and(
           eq(userEvents.userId, userId),
-          sql`${userEvents.startDate} >= ${startDate}`,
-          sql`${userEvents.startDate} <= ${endDate}`
+          between(userEvents.startDate, startDate, endDate),
+          between(userEvents.endDate, startDate, endDate)
         )
       )
-      .orderBy(asc(userEvents.startDate));
+      .orderBy(desc(userEvents.createdAt));
   }
 
-  async getUpcomingEvents(
-    userId: number,
-    limit: number = 5
-  ): Promise<UserEvent[]> {
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-
-    return await db
+  async getUpcomingEvents(userId: number, limit?: number): Promise<UserEvent[]> {
+    const now = new Date();
+    let query = db
       .select()
       .from(userEvents)
       .where(
         and(
           eq(userEvents.userId, userId),
-          sql`${userEvents.startDate} >= ${today}`
+          sql`${userEvents.startDate} >= ${now.toISOString()}`
         )
       )
-      .orderBy(asc(userEvents.startDate))
-      .limit(limit);
+      .orderBy(desc(userEvents.createdAt));
+    if (typeof limit === 'number') {
+      query = query.limit(limit);
+    }
+    return await query;
   }
 
   // User Notes operations
   async getUserNote(id: number): Promise<UserNote | undefined> {
-    try {
-      // Select only the fields that definitely exist in the database
-      const [note] = await db
-        .select({
-          id: userNotes.id,
-          userId: userNotes.userId,
-          content: userNotes.content,
-          pageUrl: userNotes.pageUrl,
-          pageTitle: userNotes.pageTitle,
-          courseId: userNotes.courseId,
-          tags: userNotes.tags,
-          color: userNotes.color,
-          isPinned: userNotes.isPinned,
-          createdAt: userNotes.createdAt,
-          updatedAt: userNotes.updatedAt,
-        })
-        .from(userNotes)
-        .where(eq(userNotes.id, id));
-
-      if (!note) return undefined;
-
-      // Add default values for new fields that might not be in the database yet
-      return {
-        ...note,
-        imageUrl: "",
-        fontSize: "normal",
-        position: "",
-        isExpanded: false,
-      };
-    } catch (error) {
-      console.error("Error in getUserNote:", error);
-      throw error;
-    }
+    const [note] = await db
+      .select()
+      .from(userNotes)
+      .where(eq(userNotes.id, id));
+    return note || undefined;
   }
 
   async getUserNotes(
@@ -2076,347 +1835,74 @@ export class DatabaseStorage implements IStorage {
       isPinned?: boolean;
     }
   ): Promise<UserNote[]> {
-    try {
-      // Select only the fields that definitely exist in the database
-      // This avoids errors if the schema hasn't been fully updated
-      let query = db
-        .select({
-          id: userNotes.id,
-          userId: userNotes.userId,
-          content: userNotes.content,
-          pageUrl: userNotes.pageUrl,
-          pageTitle: userNotes.pageTitle,
-          courseId: userNotes.courseId,
-          tags: userNotes.tags,
-          color: userNotes.color,
-          isPinned: userNotes.isPinned,
-          createdAt: userNotes.createdAt,
-          updatedAt: userNotes.updatedAt,
-        })
-        .from(userNotes)
-        .where(eq(userNotes.userId, userId));
-
-      // Apply filters
-      if (options?.tag) {
-        query = query.where(arrayContains(userNotes.tags, [options.tag]));
-      }
-
-      if (options?.courseId) {
-        query = query.where(eq(userNotes.courseId, options.courseId));
-      }
-
-      if (options?.isPinned !== undefined) {
-        query = query.where(eq(userNotes.isPinned, options.isPinned));
-      }
-
-      // Order by pinned notes first, then by creation date
-      query = query.orderBy(
-        desc(userNotes.isPinned),
-        desc(userNotes.createdAt)
-      );
-
-      // Apply pagination
-      if (options?.limit) {
-        query = query.limit(options.limit);
-      }
-
-      if (options?.offset) {
-        query = query.offset(options.offset);
-      }
-
-      const notes = await query;
-
-      // Add default values for new fields that might not be in the database yet
-      return notes.map((note) => ({
-        ...note,
-        imageUrl: "",
-        fontSize: "normal",
-        position: "",
-        isExpanded: false,
-      }));
-    } catch (error) {
-      console.error("Error in getUserNotes:", error);
-      throw error;
+    const whereConditions = [];
+    if (options?.tag) whereConditions.push(arrayContains(userNotes.tags, [options.tag]));
+    if (options?.courseId) whereConditions.push(eq(userNotes.courseId, options.courseId));
+    if (options?.isPinned) whereConditions.push(eq(userNotes.isPinned, options.isPinned));
+    const whereClause = whereConditions.length > 0 ? and(...whereConditions) : undefined;
+    let query = db
+      .select()
+      .from(userNotes)
+      .where(whereClause)
+      .orderBy(desc(userNotes.createdAt));
+    // Only call .limit/.offset if defined and query supports it
+    if (typeof options?.limit === 'number' && typeof query.limit === 'function') {
+      query = query.limit(options.limit);
     }
+    if (typeof options?.offset === 'number' && typeof query.offset === 'function') {
+      query = query.offset(options.offset);
+    }
+    return await query;
   }
 
   async createUserNote(note: InsertUserNote): Promise<UserNote> {
-    try {
-      // Extract the fields that we know exist in the database
-      const safeNote = {
-        userId: note.userId,
-        content: note.content,
-        pageUrl: note.pageUrl,
-        pageTitle: note.pageTitle,
-        courseId: note.courseId,
-        tags: note.tags,
-        color: note.color,
-        isPinned: note.isPinned,
-      };
-
-      const [result] = await db.insert(userNotes).values(safeNote).returning();
-
-      // Add the new fields as defaults to the response
-      return {
-        ...result,
-        imageUrl: note.imageUrl || "",
-        fontSize: note.fontSize || "normal",
-        position: note.position || "",
-        isExpanded: note.isExpanded || false,
-      };
-    } catch (error) {
-      console.error("Error in createUserNote:", error);
-      throw error;
-    }
+    const [result] = await db
+      .insert(userNotes)
+      .values(note)
+      .returning();
+    return result;
   }
 
   async updateUserNote(
     id: number,
     note: Partial<InsertUserNote>
   ): Promise<UserNote | undefined> {
-    try {
-      // First ensure the note exists
-      const existingNote = await this.getUserNote(id);
-      if (!existingNote) {
-        return undefined;
-      }
-
-      // Extract only the fields that exist in the database
-      const safeNote: any = {};
-
-      // Extract safe fields
-      if (note.content !== undefined) safeNote.content = note.content;
-      if (note.pageUrl !== undefined) safeNote.pageUrl = note.pageUrl;
-      if (note.pageTitle !== undefined) safeNote.pageTitle = note.pageTitle;
-      if (note.courseId !== undefined) safeNote.courseId = note.courseId;
-      if (note.tags !== undefined) safeNote.tags = note.tags;
-      if (note.color !== undefined) safeNote.color = note.color;
-      if (note.isPinned !== undefined) safeNote.isPinned = note.isPinned;
-
-      // Always update the updatedAt field
-      safeNote.updatedAt = new Date();
-
-      // Update the note with only the fields that exist in the database
-      const [dbUpdatedNote] = await db
-        .update(userNotes)
-        .set(safeNote)
-        .where(eq(userNotes.id, id))
-        .returning();
-
-      // Start with the base note from the database
-      const updatedNote = { ...dbUpdatedNote };
-
-      // Add the new fields, preserving any that were sent in the update
-      updatedNote.imageUrl =
-        note.imageUrl !== undefined ? note.imageUrl : existingNote.imageUrl;
-      updatedNote.fontSize =
-        note.fontSize !== undefined ? note.fontSize : existingNote.fontSize;
-      updatedNote.position =
-        note.position !== undefined ? note.position : existingNote.position;
-      updatedNote.isExpanded =
-        note.isExpanded !== undefined
-          ? note.isExpanded
-          : existingNote.isExpanded;
-
-      return updatedNote;
-    } catch (error) {
-      console.error("Error updating note:", error);
-      return undefined;
-    }
+    const [result] = await db
+      .update(userNotes)
+      .set(note)
+      .where(eq(userNotes.id, id))
+      .returning();
+    return result || undefined;
   }
 
   async deleteUserNote(id: number, userId: number): Promise<boolean> {
-    try {
-      const result = await db
-        .delete(userNotes)
-        .where(and(eq(userNotes.id, id), eq(userNotes.userId, userId)));
-
-      return result.rowCount > 0;
-    } catch (error) {
-      console.error("Error deleting note:", error);
-      return false;
-    }
+    const result = await db
+      .delete(userNotes)
+      .where(
+        and(eq(userNotes.id, id), eq(userNotes.userId, userId))
+      );
+    return !!result.rowCount && result.rowCount > 0;
   }
 
   async getUserNoteTags(userId: number): Promise<string[]> {
-    const notes = await db
+    const result = await db
       .select({ tags: userNotes.tags })
       .from(userNotes)
       .where(eq(userNotes.userId, userId));
-
-    // Extract and deduplicate tags
+    // Flatten and deduplicate tags
     const tagSet = new Set<string>();
-    notes.forEach((note) => {
-      if (note.tags && Array.isArray(note.tags)) {
-        note.tags.forEach((tag) => {
-          if (tag) tagSet.add(tag);
+    result.forEach((row) => {
+      if (Array.isArray(row.tags)) {
+        row.tags.forEach((tag) => {
+          if (typeof tag === 'string') tagSet.add(tag);
+        });
+      } else if (typeof row.tags === 'string') {
+        (row.tags as string).split(',').forEach((t: string) => {
+          if (typeof t === 'string') tagSet.add(t.trim());
         });
       }
     });
-
-    return Array.from(tagSet);
-  }
-
-  // Chat Messages operations
-  async getChatMessage(id: number): Promise<ChatMessage | undefined> {
-    const [message] = await db
-      .select()
-      .from(chatMessages)
-      .where(eq(chatMessages.id, id));
-    return message || undefined;
-  }
-
-  async getChatMessagesBetweenUsers(
-    userId1: number,
-    userId2: number,
-    options?: {
-      limit?: number;
-      offset?: number;
-    }
-  ): Promise<ChatMessage[]> {
-    let query = db
-      .select()
-      .from(chatMessages)
-      .where(
-        or(
-          and(
-            eq(chatMessages.senderId, userId1),
-            eq(chatMessages.receiverId, userId2)
-          ),
-          and(
-            eq(chatMessages.senderId, userId2),
-            eq(chatMessages.receiverId, userId1)
-          )
-        )
-      )
-      .orderBy(asc(chatMessages.createdAt));
-
-    if (options?.limit) {
-      query = query.limit(options.limit);
-    }
-
-    if (options?.offset) {
-      query = query.offset(options.offset);
-    }
-
-    return await query;
-  }
-
-  async createChatMessage(message: InsertChatMessage): Promise<ChatMessage> {
-    const [result] = await db.insert(chatMessages).values(message).returning();
-    return result;
-  }
-
-  async markChatMessagesAsRead(
-    senderId: number,
-    receiverId: number
-  ): Promise<boolean> {
-    // Mark all messages from sender to receiver as read
-    const result = await db
-      .update(chatMessages)
-      .set({ isRead: true })
-      .where(
-        and(
-          eq(chatMessages.senderId, senderId),
-          eq(chatMessages.receiverId, receiverId),
-          eq(chatMessages.isRead, false)
-        )
-      );
-
-    return result.rowCount ? result.rowCount > 0 : false;
-  }
-
-  async getUnreadMessageCount(userId: number): Promise<number> {
-    const result = await db
-      .select({ count: sql`count(*)` })
-      .from(chatMessages)
-      .where(
-        and(eq(chatMessages.receiverId, userId), eq(chatMessages.isRead, false))
-      );
-
-    return Number(result[0]?.count || 0);
-  }
-
-  async getChatPartners(userId: number): Promise<User[]> {
-    // Get all unique users that the current user has chatted with
-    const sentToUsers = await db
-      .select({
-        user: users,
-      })
-      .from(chatMessages)
-      .innerJoin(users, eq(chatMessages.receiverId, users.id))
-      .where(eq(chatMessages.senderId, userId))
-      .groupBy(users.id);
-
-    const receivedFromUsers = await db
-      .select({
-        user: users,
-      })
-      .from(chatMessages)
-      .innerJoin(users, eq(chatMessages.senderId, users.id))
-      .where(eq(chatMessages.receiverId, userId))
-      .groupBy(users.id);
-
-    // Combine and deduplicate users
-    const uniqueUsers = new Map<number, User>();
-    sentToUsers.forEach((u) => uniqueUsers.set(u.user.id, u.user));
-    receivedFromUsers.forEach((u) => uniqueUsers.set(u.user.id, u.user));
-
-    // Remove the current user from the list of chat partners
-    uniqueUsers.delete(userId);
-
-    return Array.from(uniqueUsers.values());
-  }
-
-  async getChatHistory(
-    userId1: number,
-    userId2: number,
-    limit: number = 50,
-    before?: number
-  ): Promise<ChatMessage[]> {
-    let query = db
-      .select()
-      .from(chatMessages)
-      .where(
-        or(
-          and(
-            eq(chatMessages.senderId, userId1),
-            eq(chatMessages.receiverId, userId2)
-          ),
-          and(
-            eq(chatMessages.senderId, userId2),
-            eq(chatMessages.receiverId, userId1)
-          )
-        )
-      );
-
-    if (before) {
-      query = query.where(sql`${chatMessages.id} < ${before}`);
-    }
-
-    const messages = await query
-      .orderBy(asc(chatMessages.createdAt))
-      .limit(limit);
-
-    return messages;
-  }
-
-  async getUnreadMessagesForUser(userId: number): Promise<ChatMessage[]> {
-    const messages = await db
-      .select()
-      .from(chatMessages)
-      .where(
-        and(eq(chatMessages.receiverId, userId), eq(chatMessages.isRead, false))
-      )
-      .orderBy(asc(chatMessages.createdAt));
-
-    return messages;
-  }
-
-  async canUsersChat(userId1: number, userId2: number): Promise<boolean> {
-    // For now, allow any users to chat with each other
-    // In a real application, this might be restricted based on relationships
-    return true;
+    return Array.from(tagSet).filter(Boolean);
   }
 
   // University Courses operations
@@ -2435,49 +1921,31 @@ export class DatabaseStorage implements IStorage {
     courseDept?: string;
     search?: string;
   }): Promise<UniversityCourse[]> {
-    const {
-      limit = 20,
-      offset = 0,
-      university,
-      courseDept,
-      search,
-    } = options || {};
-
-    let query = db.select().from(universityCourses);
-
-    // Apply filters if provided and not 'all'
-    if (university && university !== "all") {
-      query = query.where(eq(universityCourses.university, university));
-    }
-
-    if (courseDept && courseDept !== "all") {
-      query = query.where(eq(universityCourses.courseDept, courseDept));
-    }
-
-    if (search) {
-      const searchLower = `%${search.toLowerCase()}%`;
-      query = query.where(
+    const limit = options?.limit ?? 200;
+    const whereConditions = [];
+    if (options?.university) whereConditions.push(eq(universityCourses.university, options.university));
+    if (options?.courseDept) whereConditions.push(eq(universityCourses.courseDept, options.courseDept));
+    if (options?.search) {
+      whereConditions.push(
         or(
-          like(sql`LOWER(${universityCourses.courseTitle})`, searchLower),
-          like(sql`LOWER(${universityCourses.courseDept})`, searchLower),
-          like(sql`LOWER(${universityCourses.courseNumber})`, searchLower),
-          like(sql`LOWER(${universityCourses.university})`, searchLower),
-          like(sql`LOWER(${universityCourses.description})`, searchLower)
+          like(universityCourses.courseTitle, `%${options.search}%`),
+          like(universityCourses.description, `%${options.search}%`)
         )
       );
     }
-
-    // Apply pagination and ordering
-    query = query
-      .limit(limit)
-      .offset(offset)
-      .orderBy(
-        asc(universityCourses.university),
-        asc(universityCourses.courseDept),
-        asc(universityCourses.courseNumber)
-      );
-
-    return await query;
+    const whereClause = whereConditions.length > 0 ? and(...whereConditions) : undefined;
+    // Get all matching course IDs
+    const allCourseIds = (await db
+      .select({ id: universityCourses.id })
+      .from(universityCourses)
+      .where(whereClause)
+    ).map((c) => c.id);
+    // Shuffle and sample
+    const shuffled = allCourseIds.sort(() => Math.random() - 0.5);
+    const sampledIds = shuffled.slice(0, limit);
+    if (sampledIds.length === 0) return [];
+    // Fetch full course data for sampled IDs
+    return await db.select().from(universityCourses).where(inArray(universityCourses.id, sampledIds));
   }
 
   async getUniversityCoursesCount(options?: {
@@ -2485,33 +1953,22 @@ export class DatabaseStorage implements IStorage {
     courseDept?: string;
     search?: string;
   }): Promise<number> {
-    const { university, courseDept, search } = options || {};
-
-    let query = db.select({ count: sql`count(*)` }).from(universityCourses);
-
-    // Apply filters if provided and not 'all'
-    if (university && university !== "all") {
-      query = query.where(eq(universityCourses.university, university));
-    }
-
-    if (courseDept && courseDept !== "all") {
-      query = query.where(eq(universityCourses.courseDept, courseDept));
-    }
-
-    if (search) {
-      const searchLower = `%${search.toLowerCase()}%`;
-      query = query.where(
+    const whereConditions = [];
+    if (options?.university) whereConditions.push(eq(universityCourses.university, options.university));
+    if (options?.courseDept) whereConditions.push(eq(universityCourses.courseDept, options.courseDept));
+    if (options?.search) {
+      whereConditions.push(
         or(
-          like(sql`LOWER(${universityCourses.courseTitle})`, searchLower),
-          like(sql`LOWER(${universityCourses.courseDept})`, searchLower),
-          like(sql`LOWER(${universityCourses.courseNumber})`, searchLower),
-          like(sql`LOWER(${universityCourses.university})`, searchLower),
-          like(sql`LOWER(${universityCourses.description})`, searchLower)
+          like(universityCourses.courseTitle, `%${options.search}%`),
+          like(universityCourses.description, `%${options.search}%`)
         )
       );
     }
-
-    const result = await query;
+    const whereClause = whereConditions.length > 0 ? and(...whereConditions) : undefined;
+    const result = await db
+      .select({ count: sql`count(*)` })
+      .from(universityCourses)
+      .where(whereClause);
     return Number(result[0]?.count || 0);
   }
 
@@ -2536,47 +1993,41 @@ export class DatabaseStorage implements IStorage {
   async createUniversityCourse(
     course: InsertUniversityCourse
   ): Promise<UniversityCourse> {
-    const [createdCourse] = await db
+    const [result] = await db
       .insert(universityCourses)
       .values(course)
       .returning();
-    return createdCourse;
+    return result;
   }
 
   async updateUniversityCourse(
     id: number,
     course: Partial<InsertUniversityCourse>
   ): Promise<UniversityCourse | undefined> {
-    const [updatedCourse] = await db
+    const [result] = await db
       .update(universityCourses)
       .set(course)
       .where(eq(universityCourses.id, id))
       .returning();
-    return updatedCourse || undefined;
+    return result || undefined;
   }
 
   async getUniversities(): Promise<string[]> {
     const result = await db
-      .select({ university: universityCourses.university })
-      .from(universityCourses)
-      .where(sql`${universityCourses.university} IS NOT NULL`)
-      .groupBy(universityCourses.university);
-    return result.map((r) => r.university || "");
+      .selectDistinct({ university: universityCourses.university })
+      .from(universityCourses);
+    return result.map((r) => r.university).filter(Boolean);
   }
 
   async getCourseDepartments(university?: string): Promise<string[]> {
     let query = db
-      .select({ department: universityCourses.courseDept })
-      .from(universityCourses)
-      .where(sql`${universityCourses.courseDept} IS NOT NULL`);
-
-    // Only apply university filter if a specific university is provided and it's not 'all'
-    if (university && university !== "all") {
+      .selectDistinct({ department: universityCourses.courseDept })
+      .from(universityCourses);
+    if (university && typeof query.where === 'function') {
       query = query.where(eq(universityCourses.university, university));
     }
-
-    const result = await query.groupBy(universityCourses.courseDept);
-    return result.map((r) => r.department || "");
+    const result = await query;
+    return result.map((r) => r.department);
   }
 
   // University Course Bookmark operations
@@ -2588,10 +2039,7 @@ export class DatabaseStorage implements IStorage {
       .select()
       .from(universityCourseBookmarks)
       .where(
-        and(
-          eq(universityCourseBookmarks.userId, userId),
-          eq(universityCourseBookmarks.universityCourseId, courseId)
-        )
+        and(eq(universityCourseBookmarks.userId, userId), eq(universityCourseBookmarks.universityCourseId, courseId))
       );
     return bookmark || undefined;
   }
@@ -2608,11 +2056,11 @@ export class DatabaseStorage implements IStorage {
   async createUniversityCourseBookmark(
     bookmark: InsertUniversityCourseBookmark
   ): Promise<UniversityCourseBookmark> {
-    const [createdBookmark] = await db
+    const [result] = await db
       .insert(universityCourseBookmarks)
       .values(bookmark)
       .returning();
-    return createdBookmark;
+    return result;
   }
 
   async deleteUniversityCourseBookmark(
@@ -2622,12 +2070,9 @@ export class DatabaseStorage implements IStorage {
     const result = await db
       .delete(universityCourseBookmarks)
       .where(
-        and(
-          eq(universityCourseBookmarks.userId, userId),
-          eq(universityCourseBookmarks.universityCourseId, courseId)
-        )
+        and(eq(universityCourseBookmarks.userId, userId), eq(universityCourseBookmarks.universityCourseId, courseId))
       );
-    return result.rowCount ? result.rowCount > 0 : false;
+    return (result.rowCount ?? 0) > 0;
   }
 
   // University Course Links operations
@@ -2647,8 +2092,7 @@ export class DatabaseStorage implements IStorage {
     return await db
       .select()
       .from(universityCourseLinks)
-      .where(eq(universityCourseLinks.courseId, courseId))
-      .orderBy(asc(universityCourseLinks.title));
+      .where(eq(universityCourseLinks.courseId, courseId));
   }
 
   async createUniversityCourseLink(
@@ -2665,13 +2109,9 @@ export class DatabaseStorage implements IStorage {
     id: number,
     link: Partial<InsertUniversityCourseLink>
   ): Promise<UniversityCourseLink | undefined> {
-    const updatedFields = {
-      ...link,
-      updatedAt: new Date(),
-    };
     const [result] = await db
       .update(universityCourseLinks)
-      .set(updatedFields)
+      .set(link)
       .where(eq(universityCourseLinks.id, id))
       .returning();
     return result || undefined;
@@ -2681,7 +2121,7 @@ export class DatabaseStorage implements IStorage {
     const result = await db
       .delete(universityCourseLinks)
       .where(eq(universityCourseLinks.id, id));
-    return result.rowCount ? result.rowCount > 0 : false;
+    return !!result.rowCount && result.rowCount > 0;
   }
 
   // University Course Comments operations
@@ -2699,18 +2139,9 @@ export class DatabaseStorage implements IStorage {
     courseId: number
   ): Promise<UniversityCourseComment[]> {
     return await db
-      .select({
-        ...universityCourseComments,
-        user: {
-          id: users.id,
-          username: users.username,
-          photoURL: users.photoURL,
-        },
-      })
+      .select()
       .from(universityCourseComments)
-      .innerJoin(users, eq(universityCourseComments.userId, users.id))
-      .where(eq(universityCourseComments.courseId, courseId))
-      .orderBy(desc(universityCourseComments.createdAt));
+      .where(eq(universityCourseComments.courseId, courseId));
   }
 
   async createUniversityCourseComment(
@@ -2729,28 +2160,19 @@ export class DatabaseStorage implements IStorage {
   ): Promise<UniversityCourseComment | undefined> {
     const [result] = await db
       .update(universityCourseComments)
-      .set({
-        content,
-        updatedAt: new Date(),
-      })
+      .set({ content })
       .where(eq(universityCourseComments.id, id))
       .returning();
     return result || undefined;
   }
 
-  async deleteUniversityCourseComment(
-    id: number,
-    userId: number
-  ): Promise<boolean> {
+  async deleteUniversityCourseComment(id: number, userId: number): Promise<boolean> {
     const result = await db
       .delete(universityCourseComments)
       .where(
-        and(
-          eq(universityCourseComments.id, id),
-          eq(universityCourseComments.userId, userId)
-        )
+        and(eq(universityCourseComments.id, id), eq(universityCourseComments.userId, userId))
       );
-    return result.rowCount > 0;
+    return Boolean(result.rowCount) && result.rowCount > 0;
   }
 
   // University Course Resources operations
@@ -2768,18 +2190,9 @@ export class DatabaseStorage implements IStorage {
     courseId: number
   ): Promise<UniversityCourseResource[]> {
     return await db
-      .select({
-        ...universityCourseResources,
-        user: {
-          id: users.id,
-          username: users.username,
-          photoURL: users.photoURL,
-        },
-      })
+      .select()
       .from(universityCourseResources)
-      .innerJoin(users, eq(universityCourseResources.userId, users.id))
-      .where(eq(universityCourseResources.courseId, courseId))
-      .orderBy(desc(universityCourseResources.createdAt));
+      .where(eq(universityCourseResources.courseId, courseId));
   }
 
   async createUniversityCourseResource(
@@ -2796,31 +2209,21 @@ export class DatabaseStorage implements IStorage {
     id: number,
     resource: Partial<InsertUniversityCourseResource>
   ): Promise<UniversityCourseResource | undefined> {
-    const updatedFields = {
-      ...resource,
-      updatedAt: new Date(),
-    };
     const [result] = await db
       .update(universityCourseResources)
-      .set(updatedFields)
+      .set(resource)
       .where(eq(universityCourseResources.id, id))
       .returning();
     return result || undefined;
   }
 
-  async deleteUniversityCourseResource(
-    id: number,
-    userId: number
-  ): Promise<boolean> {
+  async deleteUniversityCourseResource(id: number, userId: number): Promise<boolean> {
     const result = await db
       .delete(universityCourseResources)
       .where(
-        and(
-          eq(universityCourseResources.id, id),
-          eq(universityCourseResources.userId, userId)
-        )
+        and(eq(universityCourseResources.id, id), eq(universityCourseResources.userId, userId))
       );
-    return result.rowCount > 0;
+    return Boolean(result.rowCount) && result.rowCount > 0;
   }
 
   // University Course Collaborations operations
@@ -2838,41 +2241,18 @@ export class DatabaseStorage implements IStorage {
     courseId: number
   ): Promise<UniversityCourseCollaboration[]> {
     return await db
-      .select({
-        ...universityCourseCollaborations,
-        user: {
-          id: users.id,
-          username: users.username,
-          photoURL: users.photoURL,
-        },
-      })
+      .select()
       .from(universityCourseCollaborations)
-      .innerJoin(users, eq(universityCourseCollaborations.userId, users.id))
-      .where(eq(universityCourseCollaborations.courseId, courseId))
-      .orderBy(desc(universityCourseCollaborations.createdAt));
+      .where(eq(universityCourseCollaborations.courseId, courseId));
   }
 
   async getUniversityCourseCollaborationsByUserId(
     userId: number
   ): Promise<UniversityCourseCollaboration[]> {
     return await db
-      .select({
-        ...universityCourseCollaborations,
-        course: {
-          id: universityCourses.id,
-          university: universityCourses.university,
-          courseDept: universityCourses.courseDept,
-          courseNumber: universityCourses.courseNumber,
-          courseTitle: universityCourses.courseTitle,
-        },
-      })
+      .select()
       .from(universityCourseCollaborations)
-      .innerJoin(
-        universityCourses,
-        eq(universityCourseCollaborations.courseId, universityCourses.id)
-      )
-      .where(eq(universityCourseCollaborations.userId, userId))
-      .orderBy(desc(universityCourseCollaborations.createdAt));
+      .where(eq(universityCourseCollaborations.userId, userId));
   }
 
   async createUniversityCourseCollaboration(
@@ -2892,12 +2272,9 @@ export class DatabaseStorage implements IStorage {
     const result = await db
       .delete(universityCourseCollaborations)
       .where(
-        and(
-          eq(universityCourseCollaborations.id, id),
-          eq(universityCourseCollaborations.userId, userId)
-        )
+        and(eq(universityCourseCollaborations.id, id), eq(universityCourseCollaborations.userId, userId))
       );
-    return result.rowCount > 0;
+    return Boolean(result.rowCount) && result.rowCount > 0;
   }
 
   // Learning Methods operations
@@ -2917,23 +2294,11 @@ export class DatabaseStorage implements IStorage {
     tag?: string;
     search?: string;
   }): Promise<LearningMethod[]> {
-    let query = db.select().from(learningMethods);
-
-    // Apply filters
+    const limit = options?.limit ?? 200;
     const whereConditions = [];
-
-    if (options?.userId) {
-      whereConditions.push(eq(learningMethods.userId, options.userId));
-    }
-
-    if (options?.difficulty) {
-      whereConditions.push(eq(learningMethods.difficulty, options.difficulty));
-    }
-
-    if (options?.tag && learningMethods.tags) {
-      whereConditions.push(arrayContains(learningMethods.tags, [options.tag]));
-    }
-
+    if (options?.userId) whereConditions.push(eq(learningMethods.userId, options.userId));
+    if (options?.difficulty) whereConditions.push(eq(learningMethods.difficulty, options.difficulty));
+    if (options?.tag) whereConditions.push(eq(learningMethods.tag, options.tag));
     if (options?.search) {
       whereConditions.push(
         or(
@@ -2942,32 +2307,22 @@ export class DatabaseStorage implements IStorage {
         )
       );
     }
-
-    if (whereConditions.length > 0) {
-      query = query.where(and(...whereConditions));
-    }
-
-    // Apply default sorting - newest first, then by upvotes
-    query = query.orderBy(
-      desc(learningMethods.upvotes),
-      desc(learningMethods.createdAt)
-    );
-
-    // Apply pagination
-    if (options?.limit) {
-      query = query.limit(options.limit);
-    }
-
-    if (options?.offset) {
-      query = query.offset(options.offset);
-    }
-
-    return await query;
+    const whereClause = whereConditions.length > 0 ? and(...whereConditions) : undefined;
+    // Get all matching method IDs
+    const allMethodIds = (await db
+      .select({ id: learningMethods.id })
+      .from(learningMethods)
+      .where(whereClause)
+    ).map((m) => m.id);
+    // Shuffle and sample
+    const shuffled = allMethodIds.sort(() => Math.random() - 0.5);
+    const sampledIds = shuffled.slice(0, limit);
+    if (sampledIds.length === 0) return [];
+    // Fetch full method data for sampled IDs
+    return await db.select().from(learningMethods).where(inArray(learningMethods.id, sampledIds));
   }
 
-  async createLearningMethod(
-    method: InsertLearningMethod
-  ): Promise<LearningMethod> {
+  async createLearningMethod(method: InsertLearningMethod): Promise<LearningMethod> {
     const [result] = await db
       .insert(learningMethods)
       .values(method)
@@ -2993,40 +2348,27 @@ export class DatabaseStorage implements IStorage {
       .where(
         and(eq(learningMethods.id, id), eq(learningMethods.userId, userId))
       );
-    return result.rowCount > 0;
+    return Boolean(result.rowCount) && result.rowCount > 0;
   }
 
   async incrementLearningMethodViews(id: number): Promise<void> {
     await db
       .update(learningMethods)
-      .set({
-        views: sql`${learningMethods.views} + 1`,
-      })
+      .set({ views: sql`${learningMethods.views} + 1` })
       .where(eq(learningMethods.id, id));
   }
 
   async incrementLearningMethodUpvotes(id: number): Promise<void> {
     await db
       .update(learningMethods)
-      .set({
-        upvotes: sql`${learningMethods.upvotes} + 1`,
-      })
+      .set({ upvotes: sql`${learningMethods.upvotes} + 1` })
       .where(eq(learningMethods.id, id));
   }
 
   async getLearningMethodTags(): Promise<string[]> {
-    const methods = await db
-      .select({ tags: learningMethods.tags })
+    return await db
+      .selectDistinct({ tag: learningMethods.tag })
       .from(learningMethods);
-    const allTags = new Set<string>();
-
-    methods.forEach((method) => {
-      if (method.tags && Array.isArray(method.tags)) {
-        method.tags.forEach((tag) => allTags.add(tag));
-      }
-    });
-
-    return Array.from(allTags).sort();
   }
 
   // Learning Method Comments operations
@@ -3040,33 +2382,13 @@ export class DatabaseStorage implements IStorage {
     return comment || undefined;
   }
 
-  async getLearningMethodCommentsByMethodId(methodId: number): Promise<any[]> {
-    try {
-      // Get the comments
-      const comments = await db
-        .select()
-        .from(learningMethodComments)
-        .where(eq(learningMethodComments.methodId, methodId))
-        .orderBy(desc(learningMethodComments.createdAt));
-
-      // Fetch user information for each comment
-      const commentsWithUserData = await Promise.all(
-        comments.map(async (comment) => {
-          const user = await this.getUser(comment.userId);
-
-          if (!user) return { ...comment, user: null };
-
-          // Remove sensitive user data
-          const { password, ...userWithoutPassword } = user;
-          return { ...comment, user: userWithoutPassword };
-        })
-      );
-
-      return commentsWithUserData;
-    } catch (error) {
-      console.error("Error in getLearningMethodCommentsByMethodId:", error);
-      return [];
-    }
+  async getLearningMethodCommentsByMethodId(
+    methodId: number
+  ): Promise<LearningMethodComment[]> {
+    return await db
+      .select()
+      .from(learningMethodComments)
+      .where(eq(learningMethodComments.methodId, methodId));
   }
 
   async createLearningMethodComment(
@@ -3091,19 +2413,13 @@ export class DatabaseStorage implements IStorage {
     return result || undefined;
   }
 
-  async deleteLearningMethodComment(
-    id: number,
-    userId: number
-  ): Promise<boolean> {
+  async deleteLearningMethodComment(id: number, userId: number): Promise<boolean> {
     const result = await db
       .delete(learningMethodComments)
       .where(
-        and(
-          eq(learningMethodComments.id, id),
-          eq(learningMethodComments.userId, userId)
-        )
+        and(eq(learningMethodComments.id, id), eq(learningMethodComments.userId, userId))
       );
-    return result.rowCount > 0;
+    return Boolean(result.rowCount) && result.rowCount > 0;
   }
 
   // Learning Method Reviews operations
@@ -3149,19 +2465,13 @@ export class DatabaseStorage implements IStorage {
     return result || undefined;
   }
 
-  async deleteLearningMethodReview(
-    id: number,
-    userId: number
-  ): Promise<boolean> {
+  async deleteLearningMethodReview(id: number, userId: number): Promise<boolean> {
     const result = await db
       .delete(learningMethodReviews)
       .where(
-        and(
-          eq(learningMethodReviews.id, id),
-          eq(learningMethodReviews.userId, userId)
-        )
+        and(eq(learningMethodReviews.id, id), eq(learningMethodReviews.userId, userId))
       );
-    return result.rowCount > 0;
+    return Boolean(result.rowCount) && result.rowCount > 0;
   }
 
   // Learning Tools operations
@@ -3250,24 +2560,20 @@ export class DatabaseStorage implements IStorage {
     const result = await db
       .delete(learningTools)
       .where(and(eq(learningTools.id, id), eq(learningTools.userId, userId)));
-    return result.rowCount > 0;
+    return Boolean(result.rowCount) && result.rowCount > 0;
   }
 
   async incrementLearningToolViews(id: number): Promise<void> {
     await db
       .update(learningTools)
-      .set({
-        views: sql`${learningTools.views} + 1`,
-      })
+      .set({ views: sql`${learningTools.views} + 1` })
       .where(eq(learningTools.id, id));
   }
 
   async incrementLearningToolUpvotes(id: number): Promise<void> {
     await db
       .update(learningTools)
-      .set({
-        upvotes: sql`${learningTools.upvotes} + 1`,
-      })
+      .set({ upvotes: sql`${learningTools.upvotes} + 1` })
       .where(eq(learningTools.id, id));
   }
 
@@ -3325,12 +2631,9 @@ export class DatabaseStorage implements IStorage {
     const result = await db
       .delete(learningToolReviews)
       .where(
-        and(
-          eq(learningToolReviews.id, id),
-          eq(learningToolReviews.userId, userId)
-        )
+        and(eq(learningToolReviews.id, id), eq(learningToolReviews.userId, userId))
       );
-    return result.rowCount > 0;
+    return Boolean(result.rowCount) && result.rowCount > 0;
   }
 
   // Chat Messages operations
@@ -3399,7 +2702,7 @@ export class DatabaseStorage implements IStorage {
         )
       );
 
-    return result.rowCount ? result.rowCount > 0 : false;
+    return Boolean(result.rowCount) && result.rowCount > 0;
   }
 
   async getUnreadMessageCount(userId: number): Promise<number> {
@@ -4226,6 +3529,16 @@ export class DatabaseStorage implements IStorage {
     // }
     // Return paginated slice
     return recommendations.slice(offset, offset + limit);
+  }
+
+  // 1. Add missing methods to match IStorage interface:
+  async createUserRecommendation(recommendation: InsertUserRecommendation): Promise<UserRecommendation> {
+    const [result] = await db.insert(userRecommendations).values(recommendation).returning();
+    return result;
+  }
+  async updateUserRecommendation(id: number, data: Partial<InsertUserRecommendation>): Promise<UserRecommendation | undefined> {
+    const [result] = await db.update(userRecommendations).set(data).where(eq(userRecommendations.id, id)).returning();
+    return result || undefined;
   }
 }
 
