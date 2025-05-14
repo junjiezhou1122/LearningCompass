@@ -721,16 +721,35 @@ const NewChatPage = () => {
       {/* Sidebar */}
       <aside className="w-full md:w-80 bg-white/70 backdrop-blur-lg shadow-2xl rounded-r-3xl flex-shrink-0 flex flex-col h-full border-r border-blue-100 relative overflow-hidden">
         {/* Floating, glassy header */}
-        <div className="sticky top-0 z-20 bg-white/80 backdrop-blur-lg border-b-2 border-blue-200 px-8 py-7 flex items-center gap-4 rounded-tr-3xl shadow-xl">
-          <MessageSquare className="h-8 w-8 text-blue-600 drop-shadow-lg" />
-          <span className="text-3xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-blue-500 via-purple-500 to-pink-400 tracking-wide drop-shadow-lg">
-            Chats
-          </span>
+        <div className="sticky top-0 z-20 bg-gradient-to-r from-blue-50 via-indigo-50 to-purple-50 border-b border-blue-200/50 px-6 py-6 flex flex-col gap-4 rounded-tr-3xl shadow-lg">
+          <div className="flex items-center gap-3">
+            <div className="bg-gradient-to-br from-blue-500 to-indigo-600 p-2 rounded-xl shadow-lg">
+              <MessageSquare className="h-6 w-6 text-white" />
+            </div>
+            <div>
+              <h1 className="text-2xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-blue-600 to-indigo-600">
+                Messages
+              </h1>
+              <p className="text-sm text-gray-500">Connect with your network</p>
+            </div>
+          </div>
+          
+          {/* Search bar */}
+          <div className="relative">
+            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+            <Input
+              type="text"
+              placeholder="Search chats..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="pl-10 bg-white/80 border-blue-200 focus:border-blue-500 focus:ring-blue-500 rounded-full shadow-sm"
+            />
+          </div>
         </div>
+
         {/* Floating pill tabs */}
-        <nav className="flex md:flex-col flex-row md:gap-4 gap-2 md:mt-10 mt-4 px-2 md:px-8 justify-center">
+        <nav className="flex md:flex-col flex-row md:gap-4 gap-2 md:mt-4 mt-2 px-2 md:px-8 justify-center">
           {[
-            { key: "recent", label: "Recent", icon: MessageSquare },
             { key: "followers", label: "Followers", icon: UserPlus },
             { key: "groups", label: "Groups", icon: Users },
           ].map((tab, idx) => (
@@ -739,7 +758,7 @@ const NewChatPage = () => {
               className={`flex items-center gap-2 px-8 py-2 rounded-full text-lg font-semibold shadow-md transition-all duration-200
                 ${
                   selectedTab === tab.key
-                    ? "bg-gradient-to-r from-blue-100 via-purple-100 to-pink-100 text-blue-800 shadow-xl scale-105 border-2 border-blue-400"
+                    ? "bg-gradient-to-r from-blue-100 via-indigo-100 to-purple-100 text-blue-800 shadow-xl scale-105 border-2 border-blue-400"
                     : "bg-white/60 text-gray-500 hover:bg-blue-50/80 hover:scale-105"
                 }`}
               onClick={() => setSelectedTab(tab.key)}
@@ -757,119 +776,43 @@ const NewChatPage = () => {
             </motion.button>
           ))}
         </nav>
-        <div className="border-b border-blue-100 my-6 mx-2 md:mx-8" />
+
+        <div className="border-b border-blue-100 my-4 mx-2 md:mx-8" />
+
         {/* Chat List */}
         <div className="flex-1 overflow-y-auto px-2 md:px-8 pb-8 max-h-[calc(100vh-180px)]">
-          <AnimatePresence initial={false}>
-            {selectedTab === "recent" &&
-              (recentChats.length === 0 ? (
-                <motion.div
-                  initial={{ opacity: 0 }}
-                  animate={{ opacity: 1 }}
-                  transition={{ duration: 0.5 }}
-                  className="flex flex-col items-center justify-center py-16"
-                >
-                  <MessageSquare className="h-14 w-14 text-blue-200 mb-3 animate-bounce" />
-                  <p className="font-semibold text-gray-400 mb-2 text-lg">
-                    No recent conversations
-                  </p>
-                  <p className="text-gray-400 text-sm">Start a conversation!</p>
-                </motion.div>
-              ) : (
-                recentChats.map((chat, idx) => (
-                  <motion.div
-                    key={chat.id}
-                    initial={{ opacity: 0, y: 10 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    exit={{ opacity: 0, y: 10 }}
-                    transition={{
-                      delay: idx * 0.02,
-                      duration: 0.18,
-                      type: "spring",
-                      stiffness: 200,
-                      damping: 16,
-                    }}
-                    whileHover={{ scale: 1.01, backgroundColor: "#eaf3fb" }}
-                    className={`flex items-center gap-2 px-2 py-1 rounded-lg transition cursor-pointer group mb-0 border-b border-blue-100 bg-white/80
-                      ${
-                        activeChat &&
-                        activeChat.type === "user" &&
-                        activeChat.id === chat.id
-                          ? "bg-blue-50 border-blue-300 scale-100"
-                          : "hover:bg-blue-50"
-                      }`}
-                    onClick={() => setActiveChat({ type: "user", id: chat.id })}
-                  >
-                    <Avatar className="h-8 w-8 shadow-sm border border-blue-100 bg-blue-100">
-                      <AvatarFallback className="text-blue-700 font-bold text-xs">
-                        {chat.username?.substring(0, 2).toUpperCase()}
-                      </AvatarFallback>
-                    </Avatar>
-                    <div className="flex-1 min-w-0">
-                      <div className="font-medium truncate text-sm text-blue-900">
-                        {chat.displayName || chat.username}
-                      </div>
-                      <div className="text-xs text-gray-500 truncate font-normal">
-                        {chat.lastMessage || "Start a conversation"}
-                      </div>
-                    </div>
-                    {chat.lastMessageTime && (
-                      <div className="text-xs text-gray-400 ml-2 whitespace-nowrap font-normal">
-                        {chat.lastMessageTime}
-                      </div>
-                    )}
-                  </motion.div>
-                ))
-              ))}
-            {selectedTab === "followers" &&
-              (isLoadingFollowers ? (
+          {selectedTab === "followers" && (
+            <>
+              {isLoadingFollowers ? (
                 <div className="flex justify-center py-16">
                   <div className="animate-spin h-10 w-10 border-4 border-blue-500 border-t-transparent rounded-full"></div>
                 </div>
               ) : followers.length === 0 ? (
-                <motion.div
-                  initial={{ opacity: 0 }}
-                  animate={{ opacity: 1 }}
-                  transition={{ duration: 0.5 }}
-                  className="flex flex-col items-center justify-center py-16"
-                >
-                  <UserPlus className="h-14 w-14 text-blue-200 mb-3 animate-bounce" />
+                <div className="flex flex-col items-center justify-center py-16">
+                  <UserPlus className="h-14 w-14 text-blue-200 mb-3" />
                   <p className="font-semibold text-gray-400 mb-2 text-lg">
                     No mutual followers
                   </p>
                   <p className="text-gray-400 text-sm">
                     Invite friends to connect!
                   </p>
-                </motion.div>
+                </div>
               ) : (
-                followers.map((follower, idx) => (
-                  <motion.div
+                followers.map((follower) => (
+                  <div
                     key={follower.id}
-                    initial={{ opacity: 0, y: 10 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    exit={{ opacity: 0, y: 10 }}
-                    transition={{
-                      delay: idx * 0.02,
-                      duration: 0.18,
-                      type: "spring",
-                      stiffness: 200,
-                      damping: 16,
-                    }}
-                    whileHover={{ scale: 1.01, backgroundColor: "#eaf3fb" }}
-                    className={`flex items-center gap-2 px-2 py-1 rounded-lg transition cursor-pointer group mb-0 border-b border-blue-100 bg-white/80
+                    className={`flex items-center gap-3 px-4 py-3 rounded-xl transition cursor-pointer group mb-2 border border-blue-100 bg-white/80
                       ${
                         activeChat &&
                         activeChat.type === "user" &&
                         activeChat.id === follower.id
-                          ? "bg-blue-50 border-blue-300 scale-100"
-                          : "hover:bg-blue-50"
+                          ? "bg-blue-50 border-blue-300 scale-100 shadow-md"
+                          : "hover:bg-blue-50 hover:shadow-sm"
                       }`}
-                    onClick={() =>
-                      setActiveChat({ type: "user", id: follower.id })
-                    }
+                    onClick={() => setActiveChat({ type: "user", id: follower.id })}
                   >
-                    <Avatar className="h-8 w-8 shadow-sm border border-blue-100 bg-blue-100">
-                      <AvatarFallback className="text-blue-700 font-bold text-xs">
+                    <Avatar className="h-10 w-10 shadow-sm border border-blue-100 bg-gradient-to-br from-blue-100 to-blue-200">
+                      <AvatarFallback className="text-blue-700 font-bold text-sm">
                         {follower.username?.substring(0, 2).toUpperCase()}
                       </AvatarFallback>
                     </Avatar>
@@ -881,83 +824,90 @@ const NewChatPage = () => {
                         @{follower.username}
                       </div>
                     </div>
-                  </motion.div>
+                  </div>
                 ))
-              ))}
-            {selectedTab === "groups" && (
-              <div className="mb-6 flex justify-center">
-                <Button
-                  variant="outline"
-                  className="w-full flex items-center gap-2 justify-center text-blue-700 border-blue-200 hover:bg-blue-50 rounded-full py-3 text-lg font-semibold shadow-md"
-                  onClick={() => setShowCreateGroup(true)}
-                >
-                  <svg
-                    xmlns="http://www.w3.org/2000/svg"
-                    className="h-6 w-6"
-                    fill="none"
-                    viewBox="0 0 24 24"
-                    stroke="currentColor"
+              )}
+            </>
+          )}
+
+          {selectedTab === "groups" && (
+            <>
+              {groups.length > 0 && (
+                <div className="mb-6 flex justify-center">
+                  <Button
+                    variant="outline"
+                    className="w-full flex items-center gap-2 justify-center text-blue-700 border-blue-200 hover:bg-blue-50 rounded-full py-3 text-lg font-semibold shadow-md"
+                    onClick={() => setShowCreateGroup(true)}
                   >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth={2}
-                      d="M12 4v16m8-8H4"
-                    />
-                  </svg>
-                  Create Group
-                </Button>
-              </div>
-            )}
-            {selectedTab === "groups" &&
-              (isLoadingGroups ? (
+                    <svg
+                      xmlns="http://www.w3.org/2000/svg"
+                      className="h-6 w-6"
+                      fill="none"
+                      viewBox="0 0 24 24"
+                      stroke="currentColor"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d="M12 4v16m8-8H4"
+                      />
+                    </svg>
+                    Create New Group
+                  </Button>
+                </div>
+              )}
+              {isLoadingGroups ? (
                 <div className="flex justify-center py-16">
                   <div className="animate-spin h-10 w-10 border-4 border-blue-500 border-t-transparent rounded-full"></div>
                 </div>
               ) : groups.length === 0 ? (
-                <motion.div
-                  initial={{ opacity: 0 }}
-                  animate={{ opacity: 1 }}
-                  transition={{ duration: 0.5 }}
-                  className="flex flex-col items-center justify-center py-16"
-                >
-                  <Users className="h-14 w-14 text-blue-200 mb-3 animate-bounce" />
+                <div className="flex flex-col items-center justify-center py-16">
+                  <Users className="h-14 w-14 text-blue-200 mb-3" />
                   <p className="font-semibold text-gray-400 mb-2 text-lg">
                     No group chats
                   </p>
                   <p className="text-gray-400 text-sm">
                     Create a group to get started!
                   </p>
-                </motion.div>
+                  <Button
+                    variant="outline"
+                    className="mt-4 flex items-center gap-2 text-blue-700 border-blue-200 hover:bg-blue-50 rounded-full px-6 py-2 text-sm font-semibold shadow-sm"
+                    onClick={() => setShowCreateGroup(true)}
+                  >
+                    <svg
+                      xmlns="http://www.w3.org/2000/svg"
+                      className="h-5 w-5"
+                      fill="none"
+                      viewBox="0 0 24 24"
+                      stroke="currentColor"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d="M12 4v16m8-8H4"
+                      />
+                    </svg>
+                    Create Your First Group
+                  </Button>
+                </div>
               ) : (
-                groups.map((group, idx) => (
-                  <motion.div
+                groups.map((group) => (
+                  <div
                     key={group.id}
-                    initial={{ opacity: 0, y: 10 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    exit={{ opacity: 0, y: 10 }}
-                    transition={{
-                      delay: idx * 0.02,
-                      duration: 0.18,
-                      type: "spring",
-                      stiffness: 200,
-                      damping: 16,
-                    }}
-                    whileHover={{ scale: 1.01, backgroundColor: "#eaf3fb" }}
-                    className={`flex items-center gap-2 px-2 py-1 rounded-lg transition cursor-pointer group mb-0 border-b border-blue-100 bg-white/80
+                    className={`flex items-center gap-3 px-4 py-3 rounded-xl transition cursor-pointer group mb-2 border border-blue-100 bg-white/80
                       ${
                         activeChat &&
                         activeChat.type === "group" &&
                         activeChat.id === group.id
-                          ? "bg-blue-50 border-blue-300 scale-100"
-                          : "hover:bg-blue-50"
+                          ? "bg-blue-50 border-blue-300 scale-100 shadow-md"
+                          : "hover:bg-blue-50 hover:shadow-sm"
                       }`}
-                    onClick={() =>
-                      setActiveChat({ type: "group", id: group.id })
-                    }
+                    onClick={() => setActiveChat({ type: "group", id: group.id })}
                   >
-                    <Avatar className="h-8 w-8 shadow-sm border border-blue-100 bg-blue-100">
-                      <AvatarFallback className="text-blue-700 font-bold text-xs">
+                    <Avatar className="h-10 w-10 shadow-sm border border-blue-100 bg-gradient-to-br from-blue-100 to-blue-200">
+                      <AvatarFallback className="text-blue-700 font-bold text-sm">
                         {group.name?.substring(0, 2)?.toUpperCase() || "GC"}
                       </AvatarFallback>
                     </Avatar>
@@ -971,10 +921,11 @@ const NewChatPage = () => {
                           : "Group chat"}
                       </div>
                     </div>
-                  </motion.div>
+                  </div>
                 ))
-              ))}
-          </AnimatePresence>
+              )}
+            </>
+          )}
         </div>
       </aside>
 
