@@ -10,17 +10,21 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Pagination, PaginationContent, PaginationEllipsis, PaginationItem, PaginationLink, PaginationNext, PaginationPrevious } from '@/components/ui/pagination';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
-import { ChevronRight, Star, Compass, Search, Filter, ExternalLink, ThumbsUp, MessageSquare } from 'lucide-react';
+import { ChevronRight, Star, Compass, Search, Filter, ExternalLink, ThumbsUp, MessageSquare, Trash2 } from 'lucide-react';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useForm } from 'react-hook-form';
 import { z } from 'zod';
 import { useAuth } from '@/contexts/AuthContext';
 import { queryClient } from '@/lib/queryClient';
 import { useToast } from '@/hooks/use-toast';
+import { Avatar, AvatarFallback } from '@/components/ui/avatar';
+import { Link, useNavigate } from 'react-router-dom';
+import { useLocation } from 'wouter';
 
 const LearningToolsTab = () => {
   const { isAuthenticated, user } = useAuth();
   const { toast } = useToast();
+  const [, setLocation] = useLocation();
   const [page, setPage] = useState(1);
   const [categoryFilter, setCategoryFilter] = useState('all');
   const [pricingFilter, setPricingFilter] = useState('all');
@@ -28,6 +32,8 @@ const LearningToolsTab = () => {
   const [showAddToolDialog, setShowAddToolDialog] = useState(false);
   const [activeView, setActiveView] = useState('all'); // 'all', 'mine'
   const limit = 9; // Number of tools per page
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [toolToDelete, setToolToDelete] = useState(null);
   
   // Fetch tool categories for filter
   const { data: categories = [] } = useQuery({
@@ -185,6 +191,42 @@ const LearningToolsTab = () => {
         description: error.message || "Failed to upvote. Please try again.",
         variant: "destructive",
       });
+    },
+  });
+  
+  // Mutation for deleting a learning tool
+  const deleteToolMutation = useMutation({
+    mutationFn: async (toolId) => {
+      const response = await fetch(`/api/learning-tools/${toolId}`, {
+        method: 'DELETE',
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('token')}`,
+        },
+      });
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || 'Failed to delete tool');
+      }
+      return toolId;
+    },
+    onSuccess: (toolId) => {
+      toast({
+        title: 'Deleted!',
+        description: 'Your learning tool has been deleted.',
+        variant: 'default',
+      });
+      setDeleteDialogOpen(false);
+      setToolToDelete(null);
+      queryClient.invalidateQueries({ queryKey: ['learning-tools'] });
+    },
+    onError: (error) => {
+      toast({
+        title: 'Error',
+        description: error.message || 'Failed to delete your tool. Please try again.',
+        variant: 'destructive',
+      });
+      setDeleteDialogOpen(false);
+      setToolToDelete(null);
     },
   });
   
@@ -377,6 +419,21 @@ const LearningToolsTab = () => {
                       >
                         {tool.pricing?.charAt(0).toUpperCase() + tool.pricing?.slice(1) || 'Unknown'}
                       </Badge>
+                      {activeView === 'mine' && isAuthenticated && tool.userId === user.id && (
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="text-red-500 hover:text-red-700 hover:bg-red-50"
+                          onClick={() => { setToolToDelete(tool); setDeleteDialogOpen(true); }}
+                          disabled={deleteToolMutation.isPending && toolToDelete?.id === tool.id}
+                        >
+                          {deleteToolMutation.isPending && toolToDelete?.id === tool.id ? (
+                            <div className="h-4 w-4 animate-spin rounded-full border-2 border-red-500 border-t-transparent"></div>
+                          ) : (
+                            <Trash2 className="h-4 w-4" />
+                          )}
+                        </Button>
+                      )}
                     </div>
                   </div>
                   <Badge className="mt-1 bg-amber-100 text-amber-800 hover:bg-amber-200">
@@ -411,10 +468,20 @@ const LearningToolsTab = () => {
                 
                 <CardFooter className="flex justify-between items-center border-t border-orange-100 pt-3">
                   <div className="flex items-center gap-3">
-                    <Badge variant="outline" className="flex gap-1 items-center">
-                      <MessageSquare className="h-3 w-3 text-orange-500" />
-                      <span className="text-xs">Reviews</span>
-                    </Badge>
+                    <div className="flex items-center gap-2">
+                      <Avatar className="h-6 w-6 bg-orange-200">
+                        <AvatarFallback>
+                          {tool.user ? `${tool.user.firstName?.[0] || ''}${tool.user.lastName?.[0] || ''}` : 'U'}
+                        </AvatarFallback>
+                      </Avatar>
+                      <Button
+                        variant="ghost"
+                        className="h-auto p-0 text-sm text-gray-600 hover:text-orange-600 transition-colors"
+                        onClick={() => setLocation(`/users/${tool.userId}`)}
+                      >
+                        {tool.user ? `${tool.user.firstName} ${tool.user.lastName}` : 'Anonymous'}
+                      </Button>
+                    </div>
                     <span className="text-xs text-gray-500">{tool.views || 0} views</span>
                   </div>
                   
@@ -799,6 +866,40 @@ const LearningToolsTab = () => {
               </DialogFooter>
             </form>
           </Form>
+        </DialogContent>
+      </Dialog>
+      
+      {/* Delete Confirmation Dialog */}
+      <Dialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+        <DialogContent className="sm:max-w-[400px]">
+          <DialogHeader>
+            <DialogTitle className="text-xl font-bold text-red-700">Delete Tool?</DialogTitle>
+            <DialogDescription>
+              Are you sure you want to delete <span className="font-semibold">{toolToDelete?.name}</span>? This action cannot be undone.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter className="mt-6">
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => setDeleteDialogOpen(false)}
+              className="border-orange-200"
+            >
+              Cancel
+            </Button>
+            <Button
+              type="button"
+              className="bg-gradient-to-r from-red-500 to-amber-500 hover:from-red-600 hover:to-amber-600"
+              onClick={() => deleteToolMutation.mutate(toolToDelete.id)}
+              disabled={deleteToolMutation.isPending}
+            >
+              {deleteToolMutation.isPending ? (
+                <div className="mr-2 h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent"></div>
+              ) : (
+                'Delete'
+              )}
+            </Button>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
     </div>

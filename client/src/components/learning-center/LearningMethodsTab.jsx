@@ -146,44 +146,6 @@ const LearningMethodsTab = () => {
     },
   });
   
-  // Mutation for upvoting a learning method
-  const upvoteMutation = useMutation({
-    mutationFn: async (methodId) => {
-      const response = await fetch(`/api/learning-methods/${methodId}/upvote`, {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${localStorage.getItem('token')}`,
-        },
-      });
-      
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.message || 'Failed to upvote method');
-      }
-      
-      return response.json();
-    },
-    onSuccess: (data, methodId) => {
-      // Invalidate the specific method to update its upvote count
-      queryClient.invalidateQueries({
-        queryKey: ['learning-methods', difficultyFilter, tagFilter, searchQuery, activeView, page, limit]
-      });
-      
-      toast({
-        title: "Upvoted!",
-        description: "You upvoted this learning method.",
-        variant: "default",
-      });
-    },
-    onError: (error) => {
-      toast({
-        title: "Error",
-        description: error.message || "Failed to upvote. Please try again.",
-        variant: "destructive",
-      });
-    },
-  });
-  
   // Function to handle form submission
   const onSubmit = (data) => {
     if (!isAuthenticated) {
@@ -203,20 +165,6 @@ const LearningMethodsTab = () => {
     };
     
     addMethodMutation.mutate(transformedData);
-  };
-  
-  // Function to handle upvoting
-  const handleUpvote = (methodId) => {
-    if (!isAuthenticated) {
-      toast({
-        title: "Authentication Required",
-        description: "Please log in to upvote learning methods.",
-        variant: "destructive",
-      });
-      return;
-    }
-    
-    upvoteMutation.mutate(methodId);
   };
   
   return (
@@ -359,17 +307,6 @@ const LearningMethodsTab = () => {
                       {method.title}
                     </CardTitle>
                     <div className="flex items-center gap-2">
-                      <Button 
-                        variant="ghost" 
-                        size="icon" 
-                        className="text-orange-500 hover:text-orange-700 hover:bg-orange-100" 
-                        onClick={() => handleUpvote(method.id)}
-                      >
-                        <div className="flex items-center gap-1">
-                          <ThumbsUp className="h-4 w-4" />
-                          <span className="text-sm">{method.upvotes}</span>
-                        </div>
-                      </Button>
                       {method.difficulty ? (
                         <Badge
                           variant="outline"
@@ -416,9 +353,7 @@ const LearningMethodsTab = () => {
                     </Avatar>
                     <span className="text-sm text-gray-500">{method.authorName || 'Anonymous'}</span>
                   </div>
-                  
                   <div className="flex items-center gap-2">
-                    <span className="text-sm text-gray-500">{method.views} views</span>
                     <Link to={`/learning-methods/${method.id}`}>
                       <Button 
                         variant="outline" 

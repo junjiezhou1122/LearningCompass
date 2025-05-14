@@ -2578,6 +2578,12 @@ export class DatabaseStorage implements IStorage {
   }
 
   async deleteLearningTool(id: number, userId: number): Promise<boolean> {
+    // First delete any associated reviews
+    await db
+      .delete(learningToolReviews)
+      .where(eq(learningToolReviews.toolId, id));
+
+    // Then delete the tool
     const result = await db
       .delete(learningTools)
       .where(and(eq(learningTools.id, id), eq(learningTools.userId, userId)));

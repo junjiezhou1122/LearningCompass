@@ -160,13 +160,20 @@ const LearningToolDetail = () => {
           'Authorization': `Bearer ${localStorage.getItem('token')}`,
         },
       });
-      
+      if (response.status === 204) return { success: true };
+      const contentType = response.headers.get('content-type');
       if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.message || 'Failed to delete review');
+        if (contentType && contentType.includes('application/json')) {
+          const errorData = await response.json();
+          throw new Error(errorData.message || 'Failed to delete review');
+        } else {
+          throw new Error('Failed to delete review');
+        }
       }
-      
-      return response.json();
+      if (contentType && contentType.includes('application/json')) {
+        return response.json();
+      }
+      return { success: true };
     },
     onSuccess: () => {
       // Show success toast
@@ -515,16 +522,18 @@ const LearningToolDetail = () => {
                     {reviews.slice(0, 2).map((review) => (
                       <div key={review.id} className="p-4 border border-orange-100 rounded-lg">
                         <div className="flex justify-between items-start mb-2">
-                          <div className="flex items-center">
+                          <div className="flex items-center cursor-pointer" onClick={() => setLocation(`/users/${review.userId}`)}>
                             <Avatar className="h-8 w-8 mr-2">
                               <AvatarImage src={review.user?.photoURL} />
                               <AvatarFallback className="bg-orange-100 text-orange-800">
-                                {getInitials(review.user?.firstName + ' ' + review.user?.lastName)}
+                                {getInitials((review.user?.firstName || '') + ' ' + (review.user?.lastName || ''))}
                               </AvatarFallback>
                             </Avatar>
                             <div>
-                              <div className="font-medium">{review.user?.firstName} {review.user?.lastName}</div>
-                              <div className="text-sm text-gray-500">{formatDate(review.createdAt)}</div>
+                              <div className="font-medium hover:text-orange-700">{review.user?.firstName} {review.user?.lastName}</div>
+                              <div className="text-sm text-gray-500 flex items-center">
+                                <Calendar className="h-3 w-3 mr-1" /> {formatDate(review.createdAt)}
+                              </div>
                             </div>
                           </div>
                           <div className="flex">
@@ -714,15 +723,15 @@ const LearningToolDetail = () => {
                   {reviews.map((review) => (
                     <div key={review.id} className="p-6 bg-white border border-orange-100 rounded-lg shadow-sm">
                       <div className="flex justify-between items-start mb-3">
-                        <div className="flex items-center">
+                        <div className="flex items-center cursor-pointer" onClick={() => setLocation(`/users/${review.userId}`)}>
                           <Avatar className="h-10 w-10 mr-3">
                             <AvatarImage src={review.user?.photoURL} />
                             <AvatarFallback className="bg-orange-100 text-orange-800">
-                              {getInitials(review.user?.firstName + ' ' + review.user?.lastName)}
+                              {getInitials((review.user?.firstName || '') + ' ' + (review.user?.lastName || ''))}
                             </AvatarFallback>
                           </Avatar>
                           <div>
-                            <div className="font-medium">{review.user?.firstName} {review.user?.lastName}</div>
+                            <div className="font-medium hover:text-orange-700">{review.user?.firstName} {review.user?.lastName}</div>
                             <div className="text-sm text-gray-500 flex items-center">
                               <Calendar className="h-3 w-3 mr-1" /> {formatDate(review.createdAt)}
                             </div>

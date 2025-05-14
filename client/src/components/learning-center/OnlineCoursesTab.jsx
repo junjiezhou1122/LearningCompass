@@ -411,19 +411,6 @@ const OnlineCoursesTab = () => {
             Discover courses from leading online education platforms
           </p>
         </div>
-
-        {isAuthenticated && (
-          <div className="flex gap-3">
-            
-            <Button
-              className="bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 flex items-center gap-2"
-              onClick={() => setShowCSVUploadDialog(true)}
-            >
-              <FileSpreadsheet className="h-4 w-4" />
-              Upload CSV
-            </Button>
-          </div>
-        )}
       </div>
 
       {/* Filters and search */}

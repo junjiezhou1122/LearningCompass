@@ -5087,7 +5087,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
       };
 
       const tools = await storage.getLearningTools(options);
-      res.json(tools);
+
+      // Get user data for each tool
+      const toolsWithUsers = await Promise.all(
+        tools.map(async (tool) => {
+          const user = await storage.getUser(tool.userId);
+          if (!user) return { ...tool, user: null };
+
+          const { password, ...userWithoutPassword } = user;
+          return { ...tool, user: userWithoutPassword };
+        })
+      );
+
+      res.json(toolsWithUsers);
     } catch (error) {
       console.error("Error fetching learning tools:", error);
       res.status(500).json({ message: "Error fetching learning tools" });
@@ -5255,7 +5267,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }
 
         const reviews = await storage.getLearningToolReviewsByToolId(toolId);
-        res.json(reviews);
+        // Attach user info to each review
+        const reviewsWithUser = await Promise.all(
+          reviews.map(async (review) => {
+            const user = await storage.getUser(review.userId);
+            if (!user) return { ...review, user: null };
+            const { password, ...userWithoutPassword } = user;
+            return { ...review, user: userWithoutPassword };
+          })
+        );
+        res.json(reviewsWithUser);
       } catch (error) {
         console.error("Error fetching learning tool reviews:", error);
         res
@@ -5803,6 +5824,36 @@ export async function registerRoutes(app: Express): Promise<Server> {
       } catch (error) {
         console.error("Error fetching recent chats:", error);
         res.status(500).json({ message: "Error fetching recent chats" });
+      }
+    }
+  );
+
+  app.delete(
+    "/api/learning-tools/:toolId([0-9]+)/reviews/:reviewId([0-9]+)",
+    authenticateJWT,
+    async (req: Request, res: Response) => {
+      try {
+        const userId = (req as any).user.id;
+        const toolId = parseInt(req.params.toolId);
+        const reviewId = parseInt(req.params.reviewId);
+
+        // Check if review exists
+        const review = await storage.getLearningToolReview(reviewId);
+        if (!review) {
+          return res.status(404).json({ message: "Review not found" });
+        }
+        if (review.userId !== userId) {
+          return res.status(403).json({ message: "You can only delete your own reviews" });
+        }
+
+        const success = await storage.deleteLearningToolReview(reviewId, userId);
+        if (!success) {
+          return res.status(404).json({ message: "Review not found or already deleted" });
+        }
+        res.status(204).end();
+      } catch (error) {
+        console.error("Error deleting learning tool review:", error);
+        res.status(500).json({ message: "Error deleting learning tool review" });
       }
     }
   );
