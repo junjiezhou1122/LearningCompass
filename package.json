@@ -99,6 +99,9 @@
     "zod-validation-error": "^3.4.0"
   },
   "devDependencies": {
+    "@babel/preset-env": "^7.27.2",
+    "@babel/preset-react": "^7.27.1",
+    "@playwright/test": "^1.52.0",
     "@replit/vite-plugin-cartographer": "^0.0.11",
     "@replit/vite-plugin-runtime-error-modal": "^0.0.3",
     "@tailwindcss/typography": "^0.5.15",
@@ -124,5 +127,17 @@
   },
   "optionalDependencies": {
     "bufferutil": "^4.0.8"
-  }
+  },
+  "main": "check-groups-db.js",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/junjiezhou1122/LearningCompass.git"
+  },
+  "keywords": [],
+  "author": "",
+  "bugs": {
+    "url": "https://github.com/junjiezhou1122/LearningCompass/issues"
+  },
+  "homepage": "https://github.com/junjiezhou1122/LearningCompass#readme",
+  "description": ""
 }
