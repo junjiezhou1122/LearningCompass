@@ -19,10 +19,12 @@ import { z } from 'zod';
 import { useAuth } from '@/contexts/AuthContext';
 import { queryClient } from '@/lib/queryClient';
 import { useToast } from '@/hooks/use-toast';
+import { useLanguage } from '@/contexts/LanguageContext';
 
 const LearningMethodsTab = () => {
   const { isAuthenticated, user } = useAuth();
   const { toast } = useToast();
+  const { t } = useLanguage();
   const [page, setPage] = useState(1);
   const [difficultyFilter, setDifficultyFilter] = useState('all');
   const [tagFilter, setTagFilter] = useState('all');
@@ -127,8 +129,8 @@ const LearningMethodsTab = () => {
       
       // Show success toast
       toast({
-        title: "Success!",
-        description: "Your learning method has been shared with the community.",
+        title: t("success"),
+        description: t("learningMethodShared", { defaultValue: "Your learning method has been shared with the community." }),
         variant: "default",
       });
       
@@ -139,8 +141,8 @@ const LearningMethodsTab = () => {
     },
     onError: (error) => {
       toast({
-        title: "Error",
-        description: error.message || "Failed to add your learning method. Please try again.",
+        title: t("error"),
+        description: error.message || t("failedToAddLearningMethod", { defaultValue: "Failed to add your learning method. Please try again." }),
         variant: "destructive",
       });
     },
@@ -150,8 +152,8 @@ const LearningMethodsTab = () => {
   const onSubmit = (data) => {
     if (!isAuthenticated) {
       toast({
-        title: "Authentication Required",
-        description: "Please log in to share your learning method.",
+        title: t("authRequired"),
+        description: t("signInToBookmark", { defaultValue: "Please log in to share your learning method." }),
         variant: "destructive",
       });
       return;
@@ -171,8 +173,8 @@ const LearningMethodsTab = () => {
     <div>
       <div className="flex flex-col space-y-4 md:space-y-0 md:flex-row md:justify-between md:items-center mb-6">
         <div>
-          <h2 className="text-3xl font-bold text-orange-700">Learning Methods</h2>
-          <p className="text-gray-600">Discover and share effective learning techniques with the community</p>
+          <h2 className="text-3xl font-bold text-orange-700">{t("learningMethodsTitle")}</h2>
+          <p className="text-gray-600">{t("discoverScienceBacked")}</p>
         </div>
         
         {isAuthenticated && (
@@ -181,7 +183,7 @@ const LearningMethodsTab = () => {
             onClick={() => setShowAddMethodDialog(true)}
           >
             <Lightbulb className="h-4 w-4 mr-2" />
-            Share Your Method
+            {t("shareYourInsights", { defaultValue: "Share Your Method" })}
           </Button>
         )}
       </div>
@@ -193,14 +195,14 @@ const LearningMethodsTab = () => {
             value="all" 
             className="data-[state=active]:bg-gradient-to-br data-[state=active]:from-orange-500 data-[state=active]:to-amber-500 data-[state=active]:text-white rounded-md"
           >
-            All Methods
+            {t("allResources", { defaultValue: "All Methods" })}
           </TabsTrigger>
           {isAuthenticated && (
             <TabsTrigger 
               value="mine" 
               className="data-[state=active]:bg-gradient-to-br data-[state=active]:from-orange-500 data-[state=active]:to-amber-500 data-[state=active]:text-white rounded-md"
             >
-              My Methods
+              {t("myMethods", { defaultValue: "My Methods" })}
             </TabsTrigger>
           )}
         </TabsList>
@@ -212,7 +214,7 @@ const LearningMethodsTab = () => {
           <div className="relative">
             <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={18} />
             <Input
-              placeholder="Search learning methods..."
+              placeholder={t("searchMethods", { defaultValue: "Search learning methods..." })}
               value={searchQuery}
               onChange={(e) => {
                 setSearchQuery(e.target.value);
@@ -234,14 +236,14 @@ const LearningMethodsTab = () => {
             <SelectTrigger className="bg-white/70 border-orange-200 focus:border-orange-400">
               <div className="flex items-center">
                 <Filter className="mr-2 h-4 w-4 text-orange-500" />
-                <SelectValue placeholder="All Difficulty Levels" />
+                <SelectValue placeholder={t("allDifficulties", { defaultValue: "All Difficulty Levels" })} />
               </div>
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="all">All Difficulty Levels</SelectItem>
-              <SelectItem value="beginner">Beginner</SelectItem>
-              <SelectItem value="intermediate">Intermediate</SelectItem>
-              <SelectItem value="advanced">Advanced</SelectItem>
+              <SelectItem value="all">{t("allDifficulties", { defaultValue: "All Difficulty Levels" })}</SelectItem>
+              <SelectItem value="beginner">{t("beginner", { defaultValue: "Beginner" })}</SelectItem>
+              <SelectItem value="intermediate">{t("intermediate", { defaultValue: "Intermediate" })}</SelectItem>
+              <SelectItem value="advanced">{t("advanced", { defaultValue: "Advanced" })}</SelectItem>
             </SelectContent>
           </Select>
           
@@ -255,11 +257,11 @@ const LearningMethodsTab = () => {
             <SelectTrigger className="bg-white/70 border-orange-200 focus:border-orange-400">
               <div className="flex items-center">
                 <Filter className="mr-2 h-4 w-4 text-orange-500" />
-                <SelectValue placeholder="All Tags" />
+                <SelectValue placeholder={t("allTags", { defaultValue: "All Tags" })} />
               </div>
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="all">All Tags</SelectItem>
+              <SelectItem value="all">{t("allTags", { defaultValue: "All Tags" })}</SelectItem>
               {tags.map((tag) => (
                 <SelectItem key={tag} value={tag}>{tag}</SelectItem>
               ))}
@@ -278,12 +280,14 @@ const LearningMethodsTab = () => {
             <Lightbulb className="h-10 w-10 text-orange-500" />
           </div>
           <h3 className="text-lg font-medium text-gray-700 mb-2">
-            {activeView === 'mine' ? "You haven't shared any learning methods yet" : "No learning methods found"}
+            {activeView === 'mine' 
+              ? t("noMyMethods", { defaultValue: "You haven't shared any learning methods yet" }) 
+              : t("noMethodsFound", { defaultValue: "No learning methods found" })}
           </h3>
           <p className="text-gray-500 mb-6">
             {activeView === 'mine' 
-              ? "Share your learning techniques with the community" 
-              : "Try adjusting your filters or search terms"}
+              ? t("shareYourMethodsText", { defaultValue: "Share your learning techniques with the community" }) 
+              : t("tryAdjustingFilters", { defaultValue: "Try adjusting your filters or search terms" })}
           </p>
           
           {activeView === 'mine' && isAuthenticated && (
@@ -292,7 +296,7 @@ const LearningMethodsTab = () => {
               onClick={() => setShowAddMethodDialog(true)}
             >
               <Lightbulb className="h-4 w-4 mr-2" />
-              Share Learning Method
+              {t("shareYourInsights", { defaultValue: "Share Learning Method" })}
             </Button>
           )}
         </div>
@@ -334,7 +338,7 @@ const LearningMethodsTab = () => {
                 </CardHeader>
                 
                 <CardContent className="pt-3">
-                  <h4 className="font-medium text-orange-800 mb-2">Steps:</h4>
+                  <h4 className="font-medium text-orange-800 mb-2">{t("steps", { defaultValue: "Steps:" })}</h4>
                   {Array.isArray(method.steps) ? (
                     <ul className="list-disc pl-5 space-y-1 line-clamp-3">
                       {method.steps.map((step, index) => (
@@ -351,7 +355,7 @@ const LearningMethodsTab = () => {
                     <Avatar className="h-6 w-6 bg-orange-200">
                       <AvatarFallback>{method.authorName?.charAt(0) || 'U'}</AvatarFallback>
                     </Avatar>
-                    <span className="text-sm text-gray-500">{method.authorName || 'Anonymous'}</span>
+                    <span className="text-sm text-gray-500">{method.authorName || t("anonymous", { defaultValue: "Anonymous" })}</span>
                   </div>
                   <div className="flex items-center gap-2">
                     <Link to={`/learning-methods/${method.id}`}>
@@ -361,7 +365,7 @@ const LearningMethodsTab = () => {
                         className="border-orange-200 text-orange-700 hover:bg-orange-50 flex items-center gap-1"
                       >
                         <Eye className="h-4 w-4" />
-                        View Details
+                        {t("viewDetails", { defaultValue: "View Details" })}
                       </Button>
                     </Link>
                   </div>
@@ -490,9 +494,9 @@ const LearningMethodsTab = () => {
       <Dialog open={showAddMethodDialog} onOpenChange={setShowAddMethodDialog}>
         <DialogContent className="sm:max-w-[600px]">
           <DialogHeader>
-            <DialogTitle className="text-2xl font-bold text-orange-700">Share Your Learning Method</DialogTitle>
+            <DialogTitle className="text-2xl font-bold text-orange-700">{t("shareYourMethod", { defaultValue: "Share Your Learning Method" })}</DialogTitle>
             <DialogDescription>
-              Share your effective learning technique with the community. Be detailed and specific to help others learn from your experience.
+              {t("shareMethodDescription", { defaultValue: "Share your effective learning technique with the community. Be detailed and specific to help others learn from your experience." })}
             </DialogDescription>
           </DialogHeader>
           
@@ -503,10 +507,10 @@ const LearningMethodsTab = () => {
                 name="title"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Title</FormLabel>
+                    <FormLabel>{t("title", { defaultValue: "Title" })}</FormLabel>
                     <FormControl>
                       <Input 
-                        placeholder="E.g., Spaced Repetition Technique" 
+                        placeholder={t("titlePlaceholder", { defaultValue: "E.g., Spaced Repetition Technique" })}
                         {...field} 
                         className="border-orange-200 focus-visible:ring-orange-400"
                       />
@@ -521,10 +525,10 @@ const LearningMethodsTab = () => {
                 name="description"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Description</FormLabel>
+                    <FormLabel>{t("description", { defaultValue: "Description" })}</FormLabel>
                     <FormControl>
                       <Textarea 
-                        placeholder="A brief description of your learning method..." 
+                        placeholder={t("descriptionPlaceholder", { defaultValue: "A brief description of your learning method..." })}
                         {...field} 
                         className="min-h-20 border-orange-200 focus-visible:ring-orange-400"
                       />
@@ -539,16 +543,16 @@ const LearningMethodsTab = () => {
                 name="tags"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Tags</FormLabel>
+                    <FormLabel>{t("tags", { defaultValue: "Tags" })}</FormLabel>
                     <FormControl>
                       <Input 
-                        placeholder="memory,focus,recall (comma separated)" 
+                        placeholder={t("tagsPlaceholder", { defaultValue: "memory,focus,recall (comma separated)" })}
                         {...field} 
                         className="border-orange-200 focus-visible:ring-orange-400"
                       />
                     </FormControl>
                     <FormDescription className="text-xs">
-                      Separate tags with commas
+                      {t("tagsDescription", { defaultValue: "Separate tags with commas" })}
                     </FormDescription>
                     <FormMessage />
                   </FormItem>
@@ -560,16 +564,16 @@ const LearningMethodsTab = () => {
                 name="steps"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Step-by-Step Instructions</FormLabel>
+                    <FormLabel>{t("stepByStepInstructions", { defaultValue: "Step-by-Step Instructions" })}</FormLabel>
                     <FormControl>
                       <Textarea 
-                        placeholder="Provide detailed steps on how to implement this learning method..." 
+                        placeholder={t("stepsPlaceholder", { defaultValue: "Provide detailed steps on how to implement this learning method..." })}
                         {...field} 
                         className="min-h-32 border-orange-200 focus-visible:ring-orange-400"
                       />
                     </FormControl>
                     <FormDescription className="text-xs">
-                      Be clear and detailed. This will help others understand and implement your method effectively.
+                      {t("stepsDescription", { defaultValue: "Be clear and detailed. This will help others understand and implement your method effectively." })}
                     </FormDescription>
                     <FormMessage />
                   </FormItem>
@@ -583,7 +587,7 @@ const LearningMethodsTab = () => {
                   onClick={() => setShowAddMethodDialog(false)}
                   className="border-orange-200"
                 >
-                  Cancel
+                  {t("cancel")}
                 </Button>
                 <Button 
                   type="submit" 
@@ -593,10 +597,10 @@ const LearningMethodsTab = () => {
                   {addMethodMutation.isPending ? (
                     <>
                       <div className="mr-2 h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent"></div>
-                      Sharing...
+                      {t("sharing", { defaultValue: "Sharing..." })}
                     </>
                   ) : (
-                    "Share Method"
+                    t("shareMethod", { defaultValue: "Share Method" })
                   )}
                 </Button>
               </DialogFooter>

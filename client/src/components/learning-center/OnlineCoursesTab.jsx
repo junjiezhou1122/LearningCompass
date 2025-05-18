@@ -4,6 +4,7 @@ import { useLocation } from "wouter";
 import { apiRequest, throwIfResNotOk } from "@/lib/queryClient";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
+import { useLanguage } from "@/contexts/LanguageContext";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -80,6 +81,7 @@ const OnlineCoursesTab = () => {
   const [, setLocation] = useLocation();
   const { toast } = useToast();
   const queryClient = useQueryClient();
+  const { t } = useLanguage();
 
   // State for courses list
   const [page, setPage] = useState(1);
@@ -276,18 +278,18 @@ const OnlineCoursesTab = () => {
       toast({
         title:
           data.action === "add"
-            ? "Added to Bookmarks"
-            : "Removed from Bookmarks",
+            ? t("bookmarkAdded")
+            : t("bookmarkRemoved"),
         description:
           data.action === "add"
-            ? "Course has been added to your bookmarks"
-            : "Course has been removed from your bookmarks",
+            ? t("bookmarkAddedDescription", { title: "Course" })
+            : t("bookmarkRemovedDescription", { title: "Course" }),
       });
     },
     onError: (error) => {
       toast({
-        title: "Error",
-        description: "Failed to update bookmark. Please try again.",
+        title: t("error"),
+        description: t("bookmarkUpdateError"),
         variant: "destructive",
       });
     },
@@ -297,8 +299,8 @@ const OnlineCoursesTab = () => {
   const toggleBookmark = (courseId) => {
     if (!isAuthenticated) {
       toast({
-        title: "Authentication Required",
-        description: "Please log in to bookmark courses.",
+        title: t("authRequired"),
+        description: t("signInToBookmark"),
         variant: "destructive",
       });
       return;
@@ -349,8 +351,8 @@ const OnlineCoursesTab = () => {
     queryClient.invalidateQueries({ queryKey: ["courses-count"] });
     // Show success message
     toast({
-      title: "Courses Imported Successfully",
-      description: "Your courses have been imported from the CSV file.",
+      title: t("coursesImported", { importCount: "All", totalCount: "" }),
+      description: t("courseListRefreshing"),
     });
   };
 
@@ -406,9 +408,9 @@ const OnlineCoursesTab = () => {
     <div>
       <div className="flex flex-col space-y-4 md:space-y-0 md:flex-row md:justify-between md:items-center mb-6">
         <div>
-          <h2 className="text-3xl font-bold text-orange-700">Online Courses</h2>
+          <h2 className="text-3xl font-bold text-orange-700">{t("onlineCourses")}</h2>
           <p className="text-gray-600">
-            Discover courses from leading online education platforms
+            {t("discoverEliteCourses")}
           </p>
         </div>
       </div>
@@ -424,7 +426,7 @@ const OnlineCoursesTab = () => {
               />
               <Input
                 ref={searchInputRef}
-                placeholder="Search courses..."
+                placeholder={t("searchCourses")}
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 className="pl-10"
@@ -456,7 +458,7 @@ const OnlineCoursesTab = () => {
                 </button>
               )}
             </div>
-            <Button type="submit">Search</Button>
+            <Button type="submit">{t("search")}</Button>
           </form>
           {/* Recent Searches Dropdown */}
           {isAuthenticated && recentSearches.length > 0 && (
@@ -472,7 +474,7 @@ const OnlineCoursesTab = () => {
                 <div className="flex items-center justify-between px-3 py-2 text-sm font-medium text-gray-600 bg-orange-50/50 border-b border-orange-100">
                   <div className="flex items-center">
                     <History className="h-4 w-4 mr-2 text-orange-500" />
-                    <span>Recent Searches</span>
+                    <span>{t("recentSearches")}</span>
                   </div>
                   <button
                     className="text-gray-400 hover:text-gray-600 transition-all duration-500 p-1 hover:bg-orange-100 rounded-full hover:rotate-90"
@@ -556,7 +558,7 @@ const OnlineCoursesTab = () => {
                 </Button>
               </TooltipTrigger>
               <TooltipContent>
-                <p>Clear all filters</p>
+                <p>{t("resetFilters")}</p>
               </TooltipContent>
             </Tooltip>
           </TooltipProvider>
@@ -565,13 +567,13 @@ const OnlineCoursesTab = () => {
             <SelectTrigger className="w-[160px] border-orange-200">
               <div className="flex items-center">
                 <SortAsc className="mr-2 h-4 w-4 text-orange-500" />
-                <SelectValue placeholder="Sort by" />
+                <SelectValue placeholder={t("sortBy")} />
               </div>
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="newest">Newest</SelectItem>
-              <SelectItem value="rating">Highest Rated</SelectItem>
-              <SelectItem value="popular">Most Popular</SelectItem>
+              <SelectItem value="newest">{t("newest")}</SelectItem>
+              <SelectItem value="rating">{t("highestRated")}</SelectItem>
+              <SelectItem value="popular">{t("mostPopular")}</SelectItem>
               <SelectItem value="title">Title A-Z</SelectItem>
             </SelectContent>
           </Select>
@@ -585,7 +587,7 @@ const OnlineCoursesTab = () => {
             variant="outline"
             className="bg-orange-50 text-orange-700 hover:bg-orange-100"
           >
-            Category: {categoryFilter}
+            {t("category")}: {categoryFilter}
             <button
               className="ml-2 hover:text-orange-900"
               onClick={() => setCategoryFilter("all")}
@@ -599,7 +601,7 @@ const OnlineCoursesTab = () => {
             variant="outline"
             className="bg-orange-50 text-orange-700 hover:bg-orange-100"
           >
-            Subcategory: {subCategoryFilter}
+            {t("subCategory")}: {subCategoryFilter}
             <button
               className="ml-2 hover:text-orange-900"
               onClick={() => setSubCategoryFilter("all")}
@@ -613,7 +615,7 @@ const OnlineCoursesTab = () => {
             variant="outline"
             className="bg-orange-50 text-orange-700 hover:bg-orange-100"
           >
-            Type: {courseTypeFilter}
+            {t("courseType")}: {courseTypeFilter}
             <button
               className="ml-2 hover:text-orange-900"
               onClick={() => setCourseTypeFilter("all")}
@@ -627,7 +629,7 @@ const OnlineCoursesTab = () => {
             variant="outline"
             className="bg-orange-50 text-orange-700 hover:bg-orange-100"
           >
-            Language: {languageFilter}
+            {t("language")}: {languageFilter}
             <button
               className="ml-2 hover:text-orange-900"
               onClick={() => setLanguageFilter("all")}
@@ -643,11 +645,11 @@ const OnlineCoursesTab = () => {
         <Select value={categoryFilter} onValueChange={setCategoryFilter}>
           <SelectTrigger className="border-orange-200">
             <div className="flex items-center">
-              <SelectValue placeholder="All Categories" />
+              <SelectValue placeholder={t("allCategories") || "All Categories"} />
             </div>
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="all">All Categories</SelectItem>
+            <SelectItem value="all">{t("allCategories") || "All Categories"}</SelectItem>
             {categories
               .filter(Boolean)
               .filter((category) => category !== "")
@@ -662,11 +664,11 @@ const OnlineCoursesTab = () => {
         <Select value={subCategoryFilter} onValueChange={setSubCategoryFilter}>
           <SelectTrigger className="border-orange-200">
             <div className="flex items-center">
-              <SelectValue placeholder="All Subcategories" />
+              <SelectValue placeholder={t("noSubCategoriesAvailable") || "All Subcategories"} />
             </div>
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="all">All Subcategories</SelectItem>
+            <SelectItem value="all">{t("noSubCategoriesAvailable") || "All Subcategories"}</SelectItem>
             {subCategories
               .filter(Boolean)
               .filter((subCategory) => subCategory !== "")
@@ -681,11 +683,11 @@ const OnlineCoursesTab = () => {
         <Select value={courseTypeFilter} onValueChange={setCourseTypeFilter}>
           <SelectTrigger className="border-orange-200">
             <div className="flex items-center">
-              <SelectValue placeholder="All Course Types" />
+              <SelectValue placeholder={t("noCourseTypesAvailable") || "All Course Types"} />
             </div>
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="all">All Course Types</SelectItem>
+            <SelectItem value="all">{t("noCourseTypesAvailable") || "All Course Types"}</SelectItem>
             {courseTypes
               .filter(Boolean)
               .filter((type) => type !== "")
@@ -725,10 +727,10 @@ const OnlineCoursesTab = () => {
       ) : coursesError ? (
         <div className="text-center py-12 bg-white/50 rounded-xl border border-orange-100">
           <h3 className="text-lg font-medium text-gray-700 mb-2">
-            Error loading courses
+            {t("errorOccurred")}
           </h3>
           <p className="text-gray-500">
-            There was a problem fetching the courses. Please try again.
+            {t("courseListRefreshing")}
           </p>
         </div>
       ) : courses.length === 0 ? (
@@ -737,10 +739,10 @@ const OnlineCoursesTab = () => {
             <Search className="h-10 w-10 text-orange-500" />
           </div>
           <h3 className="text-lg font-medium text-gray-700 mb-2">
-            No courses found
+            {t("noCoursesFound")}
           </h3>
           <p className="text-gray-500">
-            Try adjusting your filters or search terms
+            {t("tryAdjustingFilters")}
           </p>
         </div>
       ) : (
@@ -764,8 +766,8 @@ const OnlineCoursesTab = () => {
                       className="text-orange-500 hover:text-orange-700 transition-colors"
                       aria-label={
                         bookmarkedCourseIds.has(course.id)
-                          ? "Remove bookmark"
-                          : "Add bookmark"
+                          ? t("removeBookmark")
+                          : t("addBookmark")
                       }
                     >
                       {bookmarkedCourseIds.has(course.id) ? (
@@ -799,14 +801,14 @@ const OnlineCoursesTab = () => {
 
                 <CardContent className="pt-4">
                   <div className="text-sm text-gray-600 mb-4 line-clamp-3">
-                    {course.shortIntro || "No description available."}
+                    {course.shortIntro || t("notSpecified")}
                   </div>
 
                   <div className="text-sm space-y-1">
                     {course.instructors && (
                       <div className="flex items-start">
                         <span className="text-gray-500 w-20 flex-shrink-0">
-                          Instructor:
+                          {t("instructors")}:
                         </span>
                         <span className="text-gray-700 font-medium truncate">
                           {course.instructors}
@@ -817,7 +819,7 @@ const OnlineCoursesTab = () => {
                     {course.rating !== null && course.rating !== undefined && (
                       <div className="flex items-center">
                         <span className="text-gray-500 w-20 flex-shrink-0">
-                          Rating:
+                          {t("rating")}:
                         </span>
                         <span className="text-gray-700 font-medium flex items-center">
                           {course.rating.toFixed(1)}
@@ -829,7 +831,7 @@ const OnlineCoursesTab = () => {
                     {course.courseType && (
                       <div className="flex items-center">
                         <span className="text-gray-500 w-20 flex-shrink-0">
-                          Type:
+                          {t("type")}:
                         </span>
                         <span className="text-gray-700 font-medium">
                           {course.courseType}
@@ -840,7 +842,7 @@ const OnlineCoursesTab = () => {
                     {course.duration && (
                       <div className="flex items-center">
                         <span className="text-gray-500 w-20 flex-shrink-0">
-                          Duration:
+                          {t("duration")}:
                         </span>
                         <span className="text-gray-700 font-medium">
                           {course.duration}
@@ -868,7 +870,7 @@ const OnlineCoursesTab = () => {
                         setLocation(`/course/${course.id}`);
                       }}
                     >
-                      View Details <ChevronRight className="h-4 w-4 ml-1" />
+                      {t("courseDetails")} <ChevronRight className="h-4 w-4 ml-1" />
                     </Button>
                   </div>
                 </CardFooter>
@@ -888,7 +890,7 @@ const OnlineCoursesTab = () => {
                       disabled={page === 1}
                       onClick={() => page > 1 && setPage(page - 1)}
                       className="h-9 w-9 rounded-md border-orange-200 text-orange-700 hover:bg-orange-50 disabled:opacity-40"
-                      aria-label="Go to previous page"
+                      aria-label={t("previous")}
                     >
                       <ChevronLeft className="h-4 w-4" />
                     </Button>
@@ -980,7 +982,7 @@ const OnlineCoursesTab = () => {
                       disabled={page === totalPages}
                       onClick={() => page < totalPages && setPage(page + 1)}
                       className="h-9 w-9 rounded-md border-orange-200 text-orange-700 hover:bg-orange-50 disabled:opacity-40"
-                      aria-label="Go to next page"
+                      aria-label={t("next")}
                     >
                       <ChevronRight className="h-4 w-4" />
                     </Button>
@@ -989,7 +991,7 @@ const OnlineCoursesTab = () => {
               </Pagination>
 
               <div className="mt-3 text-center text-sm text-gray-500">
-                Page {page} of {totalPages}
+                {t("page")} {page} {t("of")} {totalPages}
               </div>
             </div>
           )}

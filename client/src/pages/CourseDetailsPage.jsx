@@ -3,6 +3,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useLocation, useParams } from 'wouter';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/hooks/use-auth';
+import { useLanguage } from '@/contexts/LanguageContext';
 
 // UI Components
 import {
@@ -58,6 +59,7 @@ const CourseDetailsPage = () => {
   const { id } = useParams();
   const { toast } = useToast();
   const { isAuthenticated, user, token } = useAuth();
+  const { t } = useLanguage();
   const queryClient = useQueryClient();
   const [activeTab, setActiveTab] = useState('details');
   const [showResourceDialog, setShowResourceDialog] = useState(false);
@@ -255,7 +257,7 @@ const CourseDetailsPage = () => {
 
       if (!response.ok) {
         const errorData = await response.json();
-        throw new Error(errorData.message || 'Failed to add comment');
+        throw new Error(errorData.message || t('failedToAddComment'));
       }
 
       return response.json();
@@ -275,14 +277,14 @@ const CourseDetailsPage = () => {
         return [commentWithUser, ...oldData];
       });
       toast({
-        title: 'Comment Added',
-        description: 'Your comment has been added successfully.',
+        title: t('success'),
+        description: t('commentAdded'),
       });
     },
     onError: (error) => {
       toast({
-        title: 'Error',
-        description: error.message || 'Failed to add comment',
+        title: t('error'),
+        description: error.message || t('failedToAddComment'),
         variant: 'destructive',
       });
     },
@@ -760,14 +762,14 @@ const CourseDetailsPage = () => {
           <div className="mx-auto w-20 h-20 mb-4 flex items-center justify-center rounded-full bg-orange-100">
             <Globe className="h-10 w-10 text-orange-500" />
           </div>
-          <h3 className="text-lg font-medium text-gray-700 mb-2">Course not found</h3>
-          <p className="text-gray-500 mb-4">The course you're looking for might have been removed or doesn't exist</p>
+          <h3 className="text-lg font-medium text-gray-700 mb-2">{t('courseNotFound')}</h3>
+          <p className="text-gray-500 mb-4">{t('courseNotFoundMessage')}</p>
           <Button 
             variant="default" 
             className="bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600"
             onClick={() => setLocation('/learning-center')}
           >
-            <ChevronLeft className="mr-2 h-4 w-4" /> Back to Learning Center
+            <ChevronLeft className="mr-2 h-4 w-4" /> {t('backToCourses')}
           </Button>
         </div>
       </div>
@@ -783,7 +785,7 @@ const CourseDetailsPage = () => {
           className="hover:bg-orange-50 text-orange-600 gap-1 -ml-2 mb-2"
           onClick={() => setLocation('/learning-center')}
         >
-          <ChevronLeft className="h-4 w-4" /> Back to Learning Center
+          <ChevronLeft className="h-4 w-4" /> {t('backToCourses')}
         </Button>
       </div>
 
@@ -811,7 +813,7 @@ const CourseDetailsPage = () => {
                 onClick={() => setShowEditCourseDialog(true)}
               >
                 <Edit className="h-4 w-4" />
-                Edit Course
+                {t('editProfile')}
               </Button>
             )}
             {course.url && (
@@ -820,7 +822,7 @@ const CourseDetailsPage = () => {
                 onClick={() => window.open(course.url, '_blank', 'noopener,noreferrer')}
               >
                 <ExternalLink className="h-4 w-4" />
-                Visit Official Page
+                {t('universitySite')}
               </Button>
             )}
           </div>
@@ -830,24 +832,24 @@ const CourseDetailsPage = () => {
           <div className="flex items-center gap-2">
             <School className="text-orange-500 h-5 w-5" />
             <div>
-              <div className="text-sm font-medium text-gray-700">Professors</div>
-              <div>{course.professors || 'Not specified'}</div>
+              <div className="text-sm font-medium text-gray-700">{t('professors')}</div>
+              <div>{course.professors || t('notSpecified')}</div>
             </div>
           </div>
           
           <div className="flex items-center gap-2">
             <Calendar className="text-orange-500 h-5 w-5" />
             <div>
-              <div className="text-sm font-medium text-gray-700">Recent Semesters</div>
-              <div>{course.recentSemesters || 'Not specified'}</div>
+              <div className="text-sm font-medium text-gray-700">{t('recentSemesters')}</div>
+              <div>{course.recentSemesters || t('notSpecified')}</div>
             </div>
           </div>
           
           <div className="flex items-center gap-2">
             <Users className="text-orange-500 h-5 w-5" />
             <div>
-              <div className="text-sm font-medium text-gray-700">Collaboration</div>
-              <div>{collaborations.length} students interested</div>
+              <div className="text-sm font-medium text-gray-700">{t('connectWithOthers')}</div>
+              <div>{collaborations.length} {t('students')}</div>
             </div>
           </div>
         </div>
@@ -860,34 +862,34 @@ const CourseDetailsPage = () => {
             value="details" 
             className="data-[state=active]:bg-white data-[state=active]:text-orange-700 data-[state=active]:shadow-sm"
           >
-            Details
+            {t('courseDetails')}
           </TabsTrigger>
           <TabsTrigger 
             value="resources" 
             className="data-[state=active]:bg-white data-[state=active]:text-orange-700 data-[state=active]:shadow-sm"
           >
-            Resources
+            {t('resourcesHub')}
           </TabsTrigger>
           <TabsTrigger 
             value="collaborate" 
             className="data-[state=active]:bg-white data-[state=active]:text-orange-700 data-[state=active]:shadow-sm"
           >
-            Collaborate
+            {t('connectWithOthers')}
           </TabsTrigger>
         </TabsList>
 
         <TabsContent value="details" className="mt-6">
           <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
             <div className="md:col-span-2">
-              <h2 className="text-xl font-bold text-orange-800 mb-4">Discussion</h2>
+              <h2 className="text-xl font-bold text-orange-800 mb-4">{t('comments')}</h2>
               
               {/* Comment form */}
               {isAuthenticated && (
                 <Card className="mb-6 border-orange-100">
                   <CardHeader className="pb-3">
-                    <CardTitle className="text-lg text-orange-700">Add a Comment</CardTitle>
+                    <CardTitle className="text-lg text-orange-700">{t('addComment')}</CardTitle>
                     <CardDescription>
-                      Share your thoughts, questions, or experiences about this course
+                      {t('shareThoughtsAboutCourse')}
                     </CardDescription>
                   </CardHeader>
                   <CardContent>
@@ -900,7 +902,7 @@ const CourseDetailsPage = () => {
                             <FormItem>
                               <FormControl>
                                 <Textarea 
-                                  placeholder="Write your comment here..."
+                                  placeholder={t('writeCommentHere')}
                                   className="min-h-[100px] resize-none border-orange-200 focus:border-orange-500"
                                   {...field} 
                                 />
@@ -917,10 +919,10 @@ const CourseDetailsPage = () => {
                           >
                             {addCommentMutation.isPending ? (
                               <>
-                                <span className="animate-spin mr-2">⟳</span> Posting...
+                                <span className="animate-spin mr-2">⟳</span> {t('posting')}
                               </>
                             ) : (
-                              <>Post Comment</>
+                              <>{t('postComment')}</>
                             )}
                           </Button>
                         </div>
@@ -939,8 +941,8 @@ const CourseDetailsPage = () => {
                 <Card className="border-dashed border-orange-200 bg-orange-50/30">
                   <CardContent className="pt-6 text-center">
                     <MessageSquare className="mx-auto h-10 w-10 text-orange-300 mb-2" />
-                    <p className="text-gray-500">No comments yet</p>
-                    <p className="text-sm text-gray-400 mt-1">Be the first to share your thoughts on this course</p>
+                    <p className="text-gray-500">{t('noCommentsYet')}</p>
+                    <p className="text-sm text-gray-400 mt-1">{t('beFirstToComment')}</p>
                   </CardContent>
                 </Card>
               ) : (
@@ -989,12 +991,12 @@ const CourseDetailsPage = () => {
             <div className="md:col-span-1">
               <Card className="border-orange-100 mb-6">
                 <CardHeader className="pb-3">
-                  <CardTitle className="text-lg text-orange-700">About This Course</CardTitle>
+                  <CardTitle className="text-lg text-orange-700">{t('aboutThisCourse')}</CardTitle>
                 </CardHeader>
                 <CardContent className="text-sm">
                   <div className="space-y-4">
                     <div>
-                      <div className="font-medium text-gray-700 mb-1">University</div>
+                      <div className="font-medium text-gray-700 mb-1">{t('university')}</div>
                       <div className="flex items-center gap-2">
                         <School className="h-4 w-4 text-orange-500" />
                         <span>{course.university}</span>
@@ -1002,7 +1004,7 @@ const CourseDetailsPage = () => {
                     </div>
                     
                     <div>
-                      <div className="font-medium text-gray-700 mb-1">Department</div>
+                      <div className="font-medium text-gray-700 mb-1">{t('department')}</div>
                       <div className="flex items-center gap-2">
                         <BookOpen className="h-4 w-4 text-orange-500" />
                         <span>{course.courseDept}</span>
@@ -1010,20 +1012,20 @@ const CourseDetailsPage = () => {
                     </div>
                     
                     <div>
-                      <div className="font-medium text-gray-700 mb-1">Course Number</div>
+                      <div className="font-medium text-gray-700 mb-1">{t('courseNumber')}</div>
                       <div className="pl-6">{course.courseNumber}</div>
                     </div>
 
                     {course.professors && (
                       <div>
-                        <div className="font-medium text-gray-700 mb-1">Professors</div>
+                        <div className="font-medium text-gray-700 mb-1">{t('professors')}</div>
                         <div className="pl-6">{course.professors}</div>
                       </div>
                     )}
 
                     {course.recentSemesters && (
                       <div>
-                        <div className="font-medium text-gray-700 mb-1">Recent Semesters</div>
+                        <div className="font-medium text-gray-700 mb-1">{t('recentSemesters')}</div>
                         <div className="pl-6">{course.recentSemesters}</div>
                       </div>
                     )}
@@ -1036,7 +1038,7 @@ const CourseDetailsPage = () => {
                           onClick={() => window.open(course.url, '_blank', 'noopener,noreferrer')}
                         >
                           <ExternalLink className="mr-2 h-4 w-4" />
-                          Visit Official Page
+                          {t('universitySite')}
                         </Button>
                       </div>
                     )}
@@ -1048,7 +1050,7 @@ const CourseDetailsPage = () => {
               <Card className="border-orange-100">
                 <CardHeader className="pb-3">
                   <div className="flex justify-between items-center">
-                    <CardTitle className="text-lg text-orange-700">Course Links</CardTitle>
+                    <CardTitle className="text-lg text-orange-700">{t('courseLinks')}</CardTitle>
                     {isAuthenticated && (
                       <Button
                         variant="ghost"
@@ -1057,12 +1059,12 @@ const CourseDetailsPage = () => {
                         onClick={() => setShowAddLinkDialog(true)}
                       >
                         <Plus className="h-4 w-4 mr-1" />
-                        Add Link
+                        {t('addLink')}
                       </Button>
                     )}
                   </div>
                   <CardDescription>
-                    Useful links related to this course
+                    {t('usefulLinksRelatedToCourse')}
                   </CardDescription>
                 </CardHeader>
                 <CardContent>
@@ -1073,14 +1075,14 @@ const CourseDetailsPage = () => {
                   ) : courseLinks.length === 0 ? (
                     <div className="text-center py-6 text-gray-500">
                       <LinkIcon className="mx-auto h-8 w-8 text-orange-200 mb-2" />
-                      <p className="text-sm">No links added yet</p>
+                      <p className="text-sm">{t('noLinksAddedYet')}</p>
                       {isAuthenticated && (
                         <Button
                           variant="link"
                           className="text-orange-600 mt-1 text-sm p-0 h-auto"
                           onClick={() => setShowAddLinkDialog(true)}
                         >
-                          Add the first link
+                          {t('addFirstLink')}
                         </Button>
                       )}
                     </div>
@@ -1115,11 +1117,11 @@ const CourseDetailsPage = () => {
                             )}
                           </div>
                           <div className="text-xs text-gray-400 mt-2 flex items-center gap-2">
-                            <span>Added {new Date(link.createdAt).toLocaleDateString()}</span>
+                            <span>{t('added')} {new Date(link.createdAt).toLocaleDateString()}</span>
                             {link.userId && link.username && (
                               <>
                                 <span>•</span>
-                                <span>by {link.username}</span>
+                                <span>{t('by')} {link.username}</span>
                               </>
                             )}
                           </div>
@@ -1136,8 +1138,8 @@ const CourseDetailsPage = () => {
         <TabsContent value="resources" className="mt-6">
           <div className="flex justify-between items-center mb-4">
             <div>
-              <h2 className="text-xl font-bold text-orange-800">Course Resources</h2>
-              <p className="text-sm text-gray-500">Share and discover helpful learning materials</p>
+              <h2 className="text-xl font-bold text-orange-800">{t('courseResources')}</h2>
+              <p className="text-sm text-gray-500">{t('shareAndDiscoverMaterials')}</p>
             </div>
             {isAuthenticated && (
               <Button 
@@ -1145,7 +1147,7 @@ const CourseDetailsPage = () => {
                 className="bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 flex items-center gap-2"
               >
                 <Plus className="h-4 w-4" />
-                Add Resource
+                {t('addResource')}
               </Button>
             )}
           </div>
@@ -1153,13 +1155,13 @@ const CourseDetailsPage = () => {
           {/* Filter buttons - only show when we have resources */}
           {resources.length > 0 && (
             <div className="flex flex-wrap gap-2 mb-6 bg-orange-50/50 p-3 rounded-lg border border-orange-100">
-              <p className="text-sm text-gray-500 mr-2 flex items-center">Filter by:</p>
+              <p className="text-sm text-gray-500 mr-2 flex items-center">{t('filterBy')}:</p>
               <Badge 
                 variant={resourceFilter === 'all' ? 'default' : 'outline'}
                 className="cursor-pointer"
                 onClick={() => setResourceFilter('all')}
               >
-                All Resources
+                {t('allResources')}
               </Badge>
               <Badge 
                 variant={resourceFilter === 'github' ? 'default' : 'outline'}
@@ -1174,28 +1176,28 @@ const CourseDetailsPage = () => {
                 className="cursor-pointer bg-blue-50 text-blue-800 hover:bg-blue-100 border-blue-200"
                 onClick={() => setResourceFilter('documentation')}
               >
-                Documentation
+                {t('documentation')}
               </Badge>
               <Badge 
                 variant={resourceFilter === 'video' ? 'default' : 'outline'}
                 className="cursor-pointer bg-red-50 text-red-800 hover:bg-red-100 border-red-200"
                 onClick={() => setResourceFilter('video')}
               >
-                Videos
+                {t('videos')}
               </Badge>
               <Badge 
                 variant={resourceFilter === 'article' ? 'default' : 'outline'}
                 className="cursor-pointer bg-green-50 text-green-800 hover:bg-green-100 border-green-200"
                 onClick={() => setResourceFilter('article')}
               >
-                Articles
+                {t('articles')}
               </Badge>
               <Badge 
                 variant={resourceFilter === 'certificate' ? 'default' : 'outline'}
                 className="cursor-pointer bg-purple-50 text-purple-800 hover:bg-purple-100 border-purple-200"
                 onClick={() => setResourceFilter('certificate')}
               >
-                Certificates
+                {t('certificates')}
               </Badge>
               <Badge 
                 variant={resourceFilter === 'file' ? 'default' : 'outline'}
@@ -1203,14 +1205,14 @@ const CourseDetailsPage = () => {
                 onClick={() => setResourceFilter('file')}
               >
                 <File className="mr-1 h-3 w-3" />
-                Files
+                {t('files')}
               </Badge>
               <Badge 
                 variant={resourceFilter === 'other' ? 'default' : 'outline'}
                 className="cursor-pointer"
                 onClick={() => setResourceFilter('other')}
               >
-                Other
+                {t('other')}
               </Badge>
             </div>
           )}
@@ -1224,12 +1226,12 @@ const CourseDetailsPage = () => {
               <div className="mx-auto w-20 h-20 mb-4 flex items-center justify-center rounded-full bg-orange-100">
                 <Share className="h-10 w-10 text-orange-500" />
               </div>
-              <h3 className="text-lg font-medium text-gray-700 mb-2">No resources yet</h3>
-              <p className="text-gray-500 mb-4">Be the first to share helpful course resources</p>
+              <h3 className="text-lg font-medium text-gray-700 mb-2">{t('noResourcesYet')}</h3>
+              <p className="text-gray-500 mb-4">{t('beFirstToShareResources')}</p>
               {isAuthenticated ? (
-                <p className="text-sm text-orange-600">Click the Add Resource button above to share resources</p>
+                <p className="text-sm text-orange-600">{t('clickToAddResource')}</p>
               ) : (
-                <p className="text-sm text-orange-600">Log in to share resources</p>
+                <p className="text-sm text-orange-600">{t('loginToShareResources')}</p>
               )}
             </div>
           ) : (
@@ -1552,7 +1554,7 @@ const CourseDetailsPage = () => {
         <TabsContent value="collaborate" className="mt-6">
           <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
             <div className="md:col-span-2">
-              <h2 className="text-xl font-bold text-orange-800 mb-4">Find Collaborators</h2>
+              <h2 className="text-xl font-bold text-orange-800 mb-4">{t('findCollaborators')}</h2>
               
               {/* Collaboration request button and dialog */}
               {isAuthenticated && (
@@ -1562,14 +1564,14 @@ const CourseDetailsPage = () => {
                       <Button 
                         className="bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 mb-4"
                       >
-                        <Users className="mr-2 h-4 w-4" /> Post Collaboration Request
+                        <Users className="mr-2 h-4 w-4" /> {t('postCollaborationRequest')}
                       </Button>
                     </DialogTrigger>
                     <DialogContent className="sm:max-w-[550px]">
                       <DialogHeader>
-                        <DialogTitle className="text-lg text-orange-700">Post Collaboration Request</DialogTitle>
+                        <DialogTitle className="text-lg text-orange-700">{t('postCollaborationRequest')}</DialogTitle>
                         <DialogDescription>
-                          Find others to study with or work on course assignments together
+                          {t('findOthersToStudyWith')}
                         </DialogDescription>
                       </DialogHeader>
                       
@@ -1580,10 +1582,10 @@ const CourseDetailsPage = () => {
                             name="message"
                             render={({ field }) => (
                               <FormItem>
-                                <FormLabel>Your Message</FormLabel>
+                                <FormLabel>{t('yourMessage')}</FormLabel>
                                 <FormControl>
                                   <Textarea 
-                                    placeholder="Describe what you're looking for in a study partner or collaborator..."
+                                    placeholder={t('describeWhatLookingFor')}
                                     className="min-h-[100px] resize-none border-orange-200 focus:border-orange-500"
                                     {...field} 
                                   />
@@ -1599,10 +1601,10 @@ const CourseDetailsPage = () => {
                               name="contactMethod"
                               render={({ field }) => (
                                 <FormItem>
-                                  <FormLabel>Contact Method</FormLabel>
+                                  <FormLabel>{t('contactMethod')}</FormLabel>
                                   <FormControl>
                                     <Input 
-                                      placeholder="e.g. Email, Discord, Slack"
+                                      placeholder={t('contactMethodPlaceholder')}
                                       {...field} 
                                     />
                                   </FormControl>
@@ -1616,10 +1618,10 @@ const CourseDetailsPage = () => {
                               name="contactDetails"
                               render={({ field }) => (
                                 <FormItem>
-                                  <FormLabel>Contact Details</FormLabel>
+                                  <FormLabel>{t('contactDetails')}</FormLabel>
                                   <FormControl>
                                     <Input 
-                                      placeholder="e.g. your@email.com, username#1234"
+                                      placeholder={t('contactDetailsPlaceholder')}
                                       {...field} 
                                     />
                                   </FormControl>
@@ -1637,10 +1639,10 @@ const CourseDetailsPage = () => {
                             >
                               {addCollaborationMutation.isPending ? (
                                 <>
-                                  <span className="animate-spin mr-2">⟳</span> Posting...
+                                  <span className="animate-spin mr-2">⟳</span> {t('posting')}
                                 </>
                               ) : (
-                                <>Post Collaboration Request</>
+                                <>{t('postCollaborationRequest')}</>
                               )}
                             </Button>
                           </div>
@@ -1660,8 +1662,8 @@ const CourseDetailsPage = () => {
                 <Card className="border-dashed border-orange-200 bg-orange-50/30">
                   <CardContent className="pt-6 text-center">
                     <Users className="mx-auto h-10 w-10 text-orange-300 mb-2" />
-                    <p className="text-gray-500">No collaboration requests yet</p>
-                    <p className="text-sm text-gray-400 mt-1">Be the first to find a study partner for this course</p>
+                    <p className="text-gray-500">{t('noCollaborationRequestsYet')}</p>
+                    <p className="text-sm text-gray-400 mt-1">{t('beFirstToFindStudyPartner')}</p>
                   </CardContent>
                 </Card>
               ) : (
@@ -1704,11 +1706,11 @@ const CourseDetailsPage = () => {
                         <p className="text-gray-700 mb-4">{collab.message}</p>
                         <div className="bg-orange-50 p-3 rounded-lg grid grid-cols-2 gap-2 text-sm">
                           <div>
-                            <div className="font-medium text-gray-700">Contact Via:</div>
+                            <div className="font-medium text-gray-700">{t('contactVia')}:</div>
                             <div>{collab.contactMethod}</div>
                           </div>
                           <div>
-                            <div className="font-medium text-gray-700">Contact Details:</div>
+                            <div className="font-medium text-gray-700">{t('contactDetails')}:</div>
                             <div>{collab.contactDetails}</div>
                           </div>
                         </div>
@@ -1722,38 +1724,38 @@ const CourseDetailsPage = () => {
             <div className="md:col-span-1">
               <Card className="border-orange-100 bg-gradient-to-br from-orange-50 to-amber-50/50">
                 <CardHeader className="pb-3">
-                  <CardTitle className="text-lg text-orange-700">Why Collaborate?</CardTitle>
+                  <CardTitle className="text-lg text-orange-700">{t('whyCollaborate')}</CardTitle>
                 </CardHeader>
                 <CardContent className="text-sm space-y-4">
                   <div className="flex gap-2">
                     <div className="bg-orange-100 rounded-full h-6 w-6 flex items-center justify-center text-orange-700 flex-shrink-0 mt-0.5">1</div>
                     <div>
-                      <p className="font-medium text-gray-700">Enhanced Learning</p>
-                      <p className="text-gray-600">Discussing concepts with others helps reinforce understanding and uncover new perspectives.</p>
+                      <p className="font-medium text-gray-700">{t('enhancedLearning')}</p>
+                      <p className="text-gray-600">{t('enhancedLearningDesc')}</p>
                     </div>
                   </div>
                   
                   <div className="flex gap-2">
                     <div className="bg-orange-100 rounded-full h-6 w-6 flex items-center justify-center text-orange-700 flex-shrink-0 mt-0.5">2</div>
                     <div>
-                      <p className="font-medium text-gray-700">Increased Motivation</p>
-                      <p className="text-gray-600">Having a study partner creates accountability and helps maintain momentum through challenging material.</p>
+                      <p className="font-medium text-gray-700">{t('increasedMotivation')}</p>
+                      <p className="text-gray-600">{t('increasedMotivationDesc')}</p>
                     </div>
                   </div>
                   
                   <div className="flex gap-2">
                     <div className="bg-orange-100 rounded-full h-6 w-6 flex items-center justify-center text-orange-700 flex-shrink-0 mt-0.5">3</div>
                     <div>
-                      <p className="font-medium text-gray-700">Diverse Skillsets</p>
-                      <p className="text-gray-600">Each person brings unique strengths to a collaboration, creating more robust solutions to assignments.</p>
+                      <p className="font-medium text-gray-700">{t('diverseSkillsets')}</p>
+                      <p className="text-gray-600">{t('diverseSkillsetsDesc')}</p>
                     </div>
                   </div>
                   
                   <div className="flex gap-2">
                     <div className="bg-orange-100 rounded-full h-6 w-6 flex items-center justify-center text-orange-700 flex-shrink-0 mt-0.5">4</div>
                     <div>
-                      <p className="font-medium text-gray-700">Network Building</p>
-                      <p className="text-gray-600">Building connections with fellow learners can lead to future academic or professional opportunities.</p>
+                      <p className="font-medium text-gray-700">{t('networkBuilding')}</p>
+                      <p className="text-gray-600">{t('networkBuildingDesc')}</p>
                     </div>
                   </div>
                 </CardContent>

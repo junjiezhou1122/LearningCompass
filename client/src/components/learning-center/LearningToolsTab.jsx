@@ -17,6 +17,7 @@ import { z } from 'zod';
 import { useAuth } from '@/contexts/AuthContext';
 import { queryClient } from '@/lib/queryClient';
 import { useToast } from '@/hooks/use-toast';
+import { useLanguage } from '@/contexts/LanguageContext';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Link, useNavigate } from 'react-router-dom';
 import { useLocation } from 'wouter';
@@ -24,6 +25,7 @@ import { useLocation } from 'wouter';
 const LearningToolsTab = () => {
   const { isAuthenticated, user } = useAuth();
   const { toast } = useToast();
+  const { t } = useLanguage();
   const [, setLocation] = useLocation();
   const [page, setPage] = useState(1);
   const [categoryFilter, setCategoryFilter] = useState('all');
@@ -141,8 +143,8 @@ const LearningToolsTab = () => {
       
       // Show success toast
       toast({
-        title: "Success!",
-        description: "Your learning tool has been shared with the community.",
+        title: t("success"),
+        description: t("learningToolShared", { defaultValue: "Your learning tool has been shared with the community." }),
         variant: "default",
       });
       
@@ -151,8 +153,8 @@ const LearningToolsTab = () => {
     },
     onError: (error) => {
       toast({
-        title: "Error",
-        description: error.message || "Failed to add your learning tool. Please try again.",
+        title: t("error"),
+        description: error.message || t("failedToAddLearningTool", { defaultValue: "Failed to add your learning tool. Please try again." }),
         variant: "destructive",
       });
     },
@@ -180,15 +182,15 @@ const LearningToolsTab = () => {
       queryClient.invalidateQueries({ queryKey: ['learning-tools'] });
       
       toast({
-        title: "Upvoted!",
-        description: "You upvoted this learning tool.",
+        title: t("upvoted", { defaultValue: "Upvoted!" }),
+        description: t("upvotedDescription", { defaultValue: "You upvoted this learning tool." }),
         variant: "default",
       });
     },
     onError: (error) => {
       toast({
-        title: "Error",
-        description: error.message || "Failed to upvote. Please try again.",
+        title: t("error"),
+        description: error.message || t("failedToUpvote", { defaultValue: "Failed to upvote. Please try again." }),
         variant: "destructive",
       });
     },
@@ -211,8 +213,8 @@ const LearningToolsTab = () => {
     },
     onSuccess: (toolId) => {
       toast({
-        title: 'Deleted!',
-        description: 'Your learning tool has been deleted.',
+        title: t("deleted", { defaultValue: 'Deleted!' }),
+        description: t("toolDeleted", { defaultValue: 'Your learning tool has been deleted.' }),
         variant: 'default',
       });
       setDeleteDialogOpen(false);
@@ -221,8 +223,8 @@ const LearningToolsTab = () => {
     },
     onError: (error) => {
       toast({
-        title: 'Error',
-        description: error.message || 'Failed to delete your tool. Please try again.',
+        title: t("error"),
+        description: error.message || t("failedToDeleteTool", { defaultValue: 'Failed to delete your tool. Please try again.' }),
         variant: 'destructive',
       });
       setDeleteDialogOpen(false);
@@ -234,8 +236,8 @@ const LearningToolsTab = () => {
   const onSubmit = (data) => {
     if (!isAuthenticated) {
       toast({
-        title: "Authentication Required",
-        description: "Please log in to share learning tools.",
+        title: t("authRequired"),
+        description: t("signInToShareTools", { defaultValue: "Please log in to share learning tools." }),
         variant: "destructive",
       });
       return;
@@ -248,8 +250,8 @@ const LearningToolsTab = () => {
   const handleUpvote = (toolId) => {
     if (!isAuthenticated) {
       toast({
-        title: "Authentication Required",
-        description: "Please log in to upvote learning tools.",
+        title: t("authRequired"),
+        description: t("signInToUpvote", { defaultValue: "Please log in to upvote learning tools." }),
         variant: "destructive",
       });
       return;
@@ -262,8 +264,8 @@ const LearningToolsTab = () => {
     <div>
       <div className="flex flex-col space-y-4 md:space-y-0 md:flex-row md:justify-between md:items-center mb-6">
         <div>
-          <h2 className="text-3xl font-bold text-orange-700">Learning Tools</h2>
-          <p className="text-gray-600">Discover useful tools and applications to enhance your learning experience</p>
+          <h2 className="text-3xl font-bold text-orange-700">{t("learningTools")}</h2>
+          <p className="text-gray-600">{t("findPerfectTools")}</p>
         </div>
         
         {isAuthenticated && (
@@ -272,7 +274,7 @@ const LearningToolsTab = () => {
             onClick={() => setShowAddToolDialog(true)}
           >
             <Compass className="h-4 w-4 mr-2" />
-            Share a Tool
+            {t("shareATool", { defaultValue: "Share a Tool" })}
           </Button>
         )}
       </div>
@@ -284,14 +286,14 @@ const LearningToolsTab = () => {
             value="all" 
             className="data-[state=active]:bg-gradient-to-br data-[state=active]:from-orange-500 data-[state=active]:to-amber-500 data-[state=active]:text-white rounded-md"
           >
-            All Tools
+            {t("allTools", { defaultValue: "All Tools" })}
           </TabsTrigger>
           {isAuthenticated && (
             <TabsTrigger 
               value="mine" 
               className="data-[state=active]:bg-gradient-to-br data-[state=active]:from-orange-500 data-[state=active]:to-amber-500 data-[state=active]:text-white rounded-md"
             >
-              My Shared Tools
+              {t("mySharedTools", { defaultValue: "My Shared Tools" })}
             </TabsTrigger>
           )}
         </TabsList>
@@ -303,7 +305,7 @@ const LearningToolsTab = () => {
           <div className="relative">
             <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={18} />
             <Input
-              placeholder="Search learning tools..."
+              placeholder={t("searchTools", { defaultValue: "Search learning tools..." })}
               value={searchQuery}
               onChange={(e) => {
                 setSearchQuery(e.target.value);
@@ -325,11 +327,11 @@ const LearningToolsTab = () => {
             <SelectTrigger className="bg-white/70 border-orange-200 focus:border-orange-400">
               <div className="flex items-center">
                 <Filter className="mr-2 h-4 w-4 text-orange-500" />
-                <SelectValue placeholder="All Categories" />
+                <SelectValue placeholder={t("category")} />
               </div>
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="all">All Categories</SelectItem>
+              <SelectItem value="all">{t("allCategories", { defaultValue: "All Categories" })}</SelectItem>
               {categories.map((category) => (
                 <SelectItem key={category} value={category}>{category}</SelectItem>
               ))}
@@ -346,14 +348,14 @@ const LearningToolsTab = () => {
             <SelectTrigger className="bg-white/70 border-orange-200 focus:border-orange-400">
               <div className="flex items-center">
                 <Filter className="mr-2 h-4 w-4 text-orange-500" />
-                <SelectValue placeholder="All Pricing" />
+                <SelectValue placeholder={t("pricing", { defaultValue: "All Pricing" })} />
               </div>
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="all">All Pricing</SelectItem>
-              <SelectItem value="free">Free</SelectItem>
-              <SelectItem value="freemium">Freemium</SelectItem>
-              <SelectItem value="paid">Paid</SelectItem>
+              <SelectItem value="all">{t("allPricing", { defaultValue: "All Pricing" })}</SelectItem>
+              <SelectItem value="free">{t("free", { defaultValue: "Free" })}</SelectItem>
+              <SelectItem value="freemium">{t("freemium", { defaultValue: "Freemium" })}</SelectItem>
+              <SelectItem value="paid">{t("paid", { defaultValue: "Paid" })}</SelectItem>
             </SelectContent>
           </Select>
         </div>
@@ -369,12 +371,14 @@ const LearningToolsTab = () => {
             <Compass className="h-10 w-10 text-orange-500" />
           </div>
           <h3 className="text-lg font-medium text-gray-700 mb-2">
-            {activeView === 'mine' ? "You haven't shared any learning tools yet" : "No learning tools found"}
+            {activeView === 'mine' 
+              ? t("noToolsShared", { defaultValue: "You haven't shared any learning tools yet" })
+              : t("noToolsFound", { defaultValue: "No learning tools found" })}
           </h3>
           <p className="text-gray-500 mb-6">
             {activeView === 'mine' 
-              ? "Share your favorite learning tools with the community" 
-              : "Try adjusting your filters or search terms"}
+              ? t("shareToolsText", { defaultValue: "Share your favorite learning tools with the community" })
+              : t("tryAdjustingFilters")}
           </p>
           
           {activeView === 'mine' && isAuthenticated && (
@@ -383,7 +387,7 @@ const LearningToolsTab = () => {
               onClick={() => setShowAddToolDialog(true)}
             >
               <Compass className="h-4 w-4 mr-2" />
-              Share a Learning Tool
+              {t("shareATool", { defaultValue: "Share a Learning Tool" })}
             </Button>
           )}
         </div>
@@ -417,7 +421,7 @@ const LearningToolsTab = () => {
                           ${tool.pricing === 'paid' ? 'bg-purple-50 text-purple-700 border-purple-200' : ''}
                         `}
                       >
-                        {tool.pricing?.charAt(0).toUpperCase() + tool.pricing?.slice(1) || 'Unknown'}
+                        {tool.pricing?.charAt(0).toUpperCase() + tool.pricing?.slice(1) || t("unknown", { defaultValue: "Unknown" })}
                       </Badge>
                       {activeView === 'mine' && isAuthenticated && tool.userId === user.id && (
                         <Button
@@ -448,18 +452,18 @@ const LearningToolsTab = () => {
                   <div className="space-y-4">
                     {tool.keyFeatures && (
                       <div>
-                        <h4 className="font-medium text-orange-800 mb-1">Key Features:</h4>
+                        <h4 className="font-medium text-orange-800 mb-1">{t("keyFeatures", { defaultValue: "Key Features:" })}</h4>
                         <p className="text-gray-700 text-sm line-clamp-2">{tool.keyFeatures}</p>
                       </div>
                     )}
                     {tool.pros && Array.isArray(tool.pros) && tool.pros.length > 0 && (
                       <div>
-                        <h4 className="font-medium text-green-700 mb-1">Pros:</h4>
+                        <h4 className="font-medium text-green-700 mb-1">{t("pros", { defaultValue: "Pros:" })}</h4>
                         <ul className="text-gray-700 text-sm list-disc pl-5">
                           {tool.pros.slice(0, 2).map((pro, index) => (
                             <li key={index}>{pro}</li>
                           ))}
-                          {tool.pros.length > 2 && <li className="text-orange-500">+ {tool.pros.length - 2} more</li>}
+                          {tool.pros.length > 2 && <li className="text-orange-500">+ {tool.pros.length - 2} {t("more", { defaultValue: "more" })}</li>}
                         </ul>
                       </div>
                     )}
@@ -479,17 +483,17 @@ const LearningToolsTab = () => {
                         className="h-auto p-0 text-sm text-gray-600 hover:text-orange-600 transition-colors"
                         onClick={() => setLocation(`/users/${tool.userId}`)}
                       >
-                        {tool.user ? `${tool.user.firstName} ${tool.user.lastName}` : 'Anonymous'}
+                        {tool.user ? `${tool.user.firstName} ${tool.user.lastName}` : t("anonymous", { defaultValue: "Anonymous" })}
                       </Button>
                     </div>
-                    <span className="text-xs text-gray-500">{tool.views || 0} views</span>
+                    <span className="text-xs text-gray-500">{tool.views || 0} {t("views", { defaultValue: "views" })}</span>
                   </div>
                   
                   <div className="flex gap-2">
                     {tool.url && (
                       <Button asChild variant="ghost" size="sm" className="text-orange-600 hover:text-orange-800 hover:bg-orange-50">
                         <a href={tool.url} target="_blank" rel="noopener noreferrer" className="flex items-center">
-                          <ExternalLink className="h-3 w-3 mr-1" /> Visit
+                          <ExternalLink className="h-3 w-3 mr-1" /> {t("visit", { defaultValue: "Visit" })}
                         </a>
                       </Button>
                     )}
@@ -500,7 +504,7 @@ const LearningToolsTab = () => {
                       className="bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600"
                     >
                       <a href={`/learning-tools/${tool.id}`} className="flex items-center gap-1">
-                        Details <ChevronRight className="h-3 w-3" />
+                        {t("details", { defaultValue: "Details" })} <ChevronRight className="h-3 w-3" />
                       </a>
                     </Button>
                   </div>
@@ -629,9 +633,9 @@ const LearningToolsTab = () => {
       <Dialog open={showAddToolDialog} onOpenChange={setShowAddToolDialog}>
         <DialogContent className="sm:max-w-[600px]">
           <DialogHeader>
-            <DialogTitle className="text-2xl font-bold text-orange-700">Share a Learning Tool</DialogTitle>
+            <DialogTitle className="text-2xl font-bold text-orange-700">{t("shareATool", { defaultValue: "Share a Learning Tool" })}</DialogTitle>
             <DialogDescription>
-              Share your favorite learning tool or application with the community. Provide details to help others discover useful resources.
+              {t("shareToolDescription", { defaultValue: "Share your favorite learning tool or application with the community. Provide details to help others discover useful resources." })}
             </DialogDescription>
           </DialogHeader>
           
@@ -847,7 +851,7 @@ const LearningToolsTab = () => {
                   onClick={() => setShowAddToolDialog(false)}
                   className="border-orange-200"
                 >
-                  Cancel
+                  {t("cancel")}
                 </Button>
                 <Button 
                   type="submit" 
@@ -857,10 +861,10 @@ const LearningToolsTab = () => {
                   {addToolMutation.isPending ? (
                     <>
                       <div className="mr-2 h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent"></div>
-                      Sharing...
+                      {t("sharing")}
                     </>
                   ) : (
-                    "Share Tool"
+                    {t("shareTool")}
                   )}
                 </Button>
               </DialogFooter>
@@ -873,9 +877,9 @@ const LearningToolsTab = () => {
       <Dialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
         <DialogContent className="sm:max-w-[400px]">
           <DialogHeader>
-            <DialogTitle className="text-xl font-bold text-red-700">Delete Tool?</DialogTitle>
+            <DialogTitle className="text-xl font-bold text-red-700">{t("deleteTool", { defaultValue: "Delete Tool?" })}</DialogTitle>
             <DialogDescription>
-              Are you sure you want to delete <span className="font-semibold">{toolToDelete?.name}</span>? This action cannot be undone.
+              {t("deleteToolConfirmation", { defaultValue: "Are you sure you want to delete" })} <span className="font-semibold">{toolToDelete?.name}</span>? {t("cannotBeUndone", { defaultValue: "This action cannot be undone." })}
             </DialogDescription>
           </DialogHeader>
           <DialogFooter className="mt-6">
@@ -885,7 +889,7 @@ const LearningToolsTab = () => {
               onClick={() => setDeleteDialogOpen(false)}
               className="border-orange-200"
             >
-              Cancel
+              {t("cancel")}
             </Button>
             <Button
               type="button"
@@ -896,7 +900,7 @@ const LearningToolsTab = () => {
               {deleteToolMutation.isPending ? (
                 <div className="mr-2 h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent"></div>
               ) : (
-                'Delete'
+                t("delete", { defaultValue: 'Delete' })
               )}
             </Button>
           </DialogFooter>

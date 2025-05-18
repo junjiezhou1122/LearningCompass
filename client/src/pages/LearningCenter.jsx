@@ -30,7 +30,7 @@ const LearningCenter = () => {
           >
             <BookOpen className="h-4 w-4" />
             <span className="hidden sm:inline">{t("universityCourses")}</span>
-            <span className="sm:hidden">Uni</span>
+            <span className="sm:hidden">{t("uniShort")}</span>
           </TabsTrigger>
           <TabsTrigger
             value="online-courses"
@@ -38,7 +38,7 @@ const LearningCenter = () => {
           >
             <Globe className="h-4 w-4" />
             <span className="hidden sm:inline">{t("onlineCourses")}</span>
-            <span className="sm:hidden">Online</span>
+            <span className="sm:hidden">{t("onlineShort")}</span>
           </TabsTrigger>
           <TabsTrigger
             value="learning-methods"
@@ -46,7 +46,7 @@ const LearningCenter = () => {
           >
             <Lightbulb className="h-4 w-4" />
             <span className="hidden sm:inline">{t("learningMethodsTitle")}</span>
-            <span className="sm:hidden">Methods</span>
+            <span className="sm:hidden">{t("methodsShort")}</span>
           </TabsTrigger>
           <TabsTrigger
             value="learning-tools"
@@ -54,7 +54,7 @@ const LearningCenter = () => {
           >
             <Compass className="h-4 w-4" />
             <span className="hidden sm:inline">{t("learningTools")}</span>
-            <span className="sm:hidden">Tools</span>
+            <span className="sm:hidden">{t("toolsShort")}</span>
           </TabsTrigger>
         </TabsList>
 
