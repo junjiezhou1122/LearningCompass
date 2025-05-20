@@ -367,7 +367,7 @@ const LearningMethodDetail = () => {
         <CardFooter className="flex justify-between items-center pt-2 pb-4 border-t border-gray-200">
           <div className="flex items-center gap-2">
             {method.userId ? (
-              <Link to={`/profile/${method.userId}`}>
+              <Link to={`/users/${method.userId}`}>
                 <Avatar className="h-8 w-8 bg-orange-200 cursor-pointer hover:opacity-80">
                   <AvatarFallback>{method.authorName?.charAt(0) || 'U'}</AvatarFallback>
                 </Avatar>
@@ -456,7 +456,7 @@ const LearningMethodDetail = () => {
             {comments.map((comment) => (
               <div key={comment.id} className="bg-white/70 rounded-lg p-4 border border-orange-100">
                 <div className="flex items-start gap-3">
-                  <Link to={comment.user ? `/profile/${comment.user.id}` : '#'}>
+                  <Link to={comment.user ? `/users/${comment.user.id}` : '#'}>
                     <Avatar className="h-8 w-8 bg-orange-200 cursor-pointer hover:opacity-80">
                       <AvatarFallback>{comment.user?.firstName?.charAt(0) || 'U'}</AvatarFallback>
                     </Avatar>

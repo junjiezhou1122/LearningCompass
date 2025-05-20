@@ -2443,29 +2443,35 @@ export class DatabaseStorage implements IStorage {
   async getLearningMethodCommentsByMethodId(
     methodId: number
   ): Promise<LearningMethodComment[]> {
+    // First get comments without user data
     const comments = await db
-      .select({
-        id: learningMethodComments.id,
-        methodId: learningMethodComments.methodId,
-        userId: learningMethodComments.userId,
-        content: learningMethodComments.content,
-        createdAt: learningMethodComments.createdAt,
-        updatedAt: learningMethodComments.updatedAt,
-        user: {
-          id: users.id,
-          firstName: users.firstName,
-          lastName: users.lastName,
-          email: users.email,
-          username: users.username,
-          profileImageUrl: users.profileImageUrl
-        }
-      })
+      .select()
       .from(learningMethodComments)
-      .leftJoin(users, eq(learningMethodComments.userId, users.id))
       .where(eq(learningMethodComments.methodId, methodId))
       .orderBy(desc(learningMethodComments.createdAt));
     
-    return comments;
+    // Then fetch user data separately and merge it
+    const commentWithUsers = await Promise.all(
+      comments.map(async (comment) => {
+        if (comment.userId) {
+          const user = await this.getUser(comment.userId);
+          return {
+            ...comment,
+            user: user ? {
+              id: user.id,
+              firstName: user.firstName,
+              lastName: user.lastName,
+              email: user.email,
+              username: user.username,
+              photoURL: user.photoURL
+            } : null
+          };
+        }
+        return { ...comment, user: null };
+      })
+    );
+    
+    return commentWithUsers;
   }
 
   async createLearningMethodComment(

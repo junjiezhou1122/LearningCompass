@@ -848,7 +848,7 @@ const CourseDetailsPage = () => {
           <div className="flex items-center gap-2">
             <Users className="text-orange-500 h-5 w-5" />
             <div>
-              <div className="text-sm font-medium text-gray-700">{t('connectWithOthers')}</div>
+              <div className="text-sm font-medium text-gray-700">{t('协同合作')}</div>
               <div>{collaborations.length} {t('students')}</div>
             </div>
           </div>
@@ -874,7 +874,7 @@ const CourseDetailsPage = () => {
             value="collaborate" 
             className="data-[state=active]:bg-white data-[state=active]:text-orange-700 data-[state=active]:shadow-sm"
           >
-            {t('connectWithOthers')}
+            {t('协同合作')}
           </TabsTrigger>
         </TabsList>
 
