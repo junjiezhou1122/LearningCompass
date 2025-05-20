@@ -1207,7 +1207,9 @@ export type InsertUniversityCourseResource = typeof universityCourseResources.$i
 export type UniversityCourseCollaboration = typeof universityCourseCollaborations.$inferSelect;
 export type InsertUniversityCourseCollaboration = typeof universityCourseCollaborations.$inferInsert;
 
-export type LearningMethod = typeof learningMethods.$inferSelect;
+export type LearningMethod = typeof learningMethods.$inferSelect & {
+  authorName?: string;
+};
 export type InsertLearningMethod = typeof learningMethods.$inferInsert;
 
 export type LearningMethodReview = typeof learningMethodReviews.$inferSelect;

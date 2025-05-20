@@ -864,7 +864,7 @@ const LearningToolsTab = () => {
                       {t("sharing")}
                     </>
                   ) : (
-                    {t("shareTool")}
+                    t("shareTool", { defaultValue: "Share Tool" })
                   )}
                 </Button>
               </DialogFooter>

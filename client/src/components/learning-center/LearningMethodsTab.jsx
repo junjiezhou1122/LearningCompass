@@ -355,7 +355,9 @@ const LearningMethodsTab = () => {
                     <Avatar className="h-6 w-6 bg-orange-200">
                       <AvatarFallback>{method.authorName?.charAt(0) || 'U'}</AvatarFallback>
                     </Avatar>
-                    <span className="text-sm text-gray-500">{method.authorName || t("anonymous", { defaultValue: "Anonymous" })}</span>
+                    <span className="text-sm text-gray-500">
+                      {method.authorName ? method.authorName : t("anonymous", { defaultValue: "Anonymous" })}
+                    </span>
                   </div>
                   <div className="flex items-center gap-2">
                     <Link to={`/learning-methods/${method.id}`}>

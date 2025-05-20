@@ -4,6 +4,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
 import { apiRequest, throwIfResNotOk } from '@/lib/queryClient';
+import { useLanguage } from '@/contexts/LanguageContext';
 import {
   AlertCircle,
   BookmarkIcon,
@@ -40,6 +41,7 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from '@/components/ui/alert-dialog';
+import { Link } from 'wouter';
 
 const LearningMethodDetail = () => {
   const { id } = useParams();
@@ -47,6 +49,7 @@ const LearningMethodDetail = () => {
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const [newComment, setNewComment] = useState('');
+  const { t } = useLanguage();
   
   // Fetch the learning method details
   const { data: method, isLoading, error: methodError } = useQuery({
@@ -103,14 +106,14 @@ const LearningMethodDetail = () => {
       setNewComment('');
       queryClient.invalidateQueries({ queryKey: ['learning-method-comments', id] });
       toast({
-        title: 'Comment added',
-        description: 'Your thought has been shared successfully.',
+        title: t('commentAdded', { defaultValue: 'Comment added' }),
+        description: t('commentAddedDescription', { defaultValue: 'Your thought has been shared successfully.' }),
       });
     },
     onError: (error) => {
       toast({
-        title: 'Error',
-        description: error.message || 'Failed to add comment. Please try again.',
+        title: t('error'),
+        description: error.message || t('failedToAddComment', { defaultValue: 'Failed to add comment. Please try again.' }),
         variant: 'destructive',
       });
     },
@@ -127,14 +130,14 @@ const LearningMethodDetail = () => {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['learning-method', id] });
       toast({
-        title: 'Upvoted!',
-        description: 'You upvoted this learning method.',
+        title: t('upvoted'),
+        description: t('upvotedDescription'),
       });
     },
     onError: (error) => {
       toast({
-        title: 'Error',
-        description: error.message || 'Failed to upvote. Please try again.',
+        title: t('error'),
+        description: error.message || t('failedToUpvote'),
         variant: 'destructive',
       });
     },
@@ -151,14 +154,14 @@ const LearningMethodDetail = () => {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['learning-method-comments', id] });
       toast({
-        title: 'Comment deleted',
-        description: 'Your comment has been removed successfully.',
+        title: t('commentDeleted', { defaultValue: 'Comment deleted' }),
+        description: t('commentDeletedDescription', { defaultValue: 'Your comment has been removed successfully.' }),
       });
     },
     onError: (error) => {
       toast({
-        title: 'Error',
-        description: error.message || 'Failed to delete comment. Please try again.',
+        title: t('error'),
+        description: error.message || t('failedToDeleteComment', { defaultValue: 'Failed to delete comment. Please try again.' }),
         variant: 'destructive',
       });
     },
@@ -169,8 +172,8 @@ const LearningMethodDetail = () => {
     e.preventDefault();
     if (!isAuthenticated) {
       toast({
-        title: 'Authentication Required',
-        description: 'Please log in to share your thoughts.',
+        title: t('authRequired'),
+        description: t('signInToComment', { defaultValue: 'Please log in to share your thoughts.' }),
         variant: 'destructive',
       });
       return;
@@ -178,8 +181,8 @@ const LearningMethodDetail = () => {
     
     if (!newComment.trim()) {
       toast({
-        title: 'Empty Comment',
-        description: 'Please enter a comment before submitting.',
+        title: t('emptyComment', { defaultValue: 'Empty Comment' }),
+        description: t('pleaseEnterComment', { defaultValue: 'Please enter a comment before submitting.' }),
         variant: 'destructive',
       });
       return;
@@ -192,8 +195,8 @@ const LearningMethodDetail = () => {
   const handleUpvote = () => {
     if (!isAuthenticated) {
       toast({
-        title: 'Authentication Required',
-        description: 'Please log in to upvote this method.',
+        title: t('authRequired'),
+        description: t('signInToUpvote'),
         variant: 'destructive',
       });
       return;
@@ -206,8 +209,8 @@ const LearningMethodDetail = () => {
   const handleDeleteComment = (commentId) => {
     if (!isAuthenticated) {
       toast({
-        title: 'Authentication Required',
-        description: 'Please log in to delete comments.',
+        title: t('authRequired'),
+        description: t('signInToDeleteComment', { defaultValue: 'Please log in to delete comments.' }),
         variant: 'destructive',
       });
       return;
@@ -230,14 +233,14 @@ const LearningMethodDetail = () => {
         <div className="mx-auto w-20 h-20 mb-4 flex items-center justify-center rounded-full bg-orange-100">
           <AlertCircle className="h-10 w-10 text-red-500" />
         </div>
-        <h3 className="text-lg font-medium text-gray-700 mb-2">Error Loading Learning Method</h3>
-        <p className="text-gray-500 mb-6">{methodError.message || 'An error occurred while loading the learning method'}</p>
+        <h3 className="text-lg font-medium text-gray-700 mb-2">{t('errorLoadingLearningMethod', { defaultValue: 'Error Loading Learning Method' })}</h3>
+        <p className="text-gray-500 mb-6">{methodError.message || t('errorOccurred')}</p>
         <Button 
           className="bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600"
           onClick={() => window.history.back()}
         >
           <ChevronLeft className="h-4 w-4 mr-2" />
-          Go Back
+          {t('goBack', { defaultValue: 'Go Back' })}
         </Button>
       </div>
     );
@@ -249,14 +252,14 @@ const LearningMethodDetail = () => {
         <div className="mx-auto w-20 h-20 mb-4 flex items-center justify-center rounded-full bg-orange-100">
           <Lightbulb className="h-10 w-10 text-orange-500" />
         </div>
-        <h3 className="text-lg font-medium text-gray-700 mb-2">Learning method not found</h3>
-        <p className="text-gray-500 mb-6">The learning method you're looking for doesn't exist or has been removed</p>
+        <h3 className="text-lg font-medium text-gray-700 mb-2">{t('methodNotFound', { defaultValue: 'Learning method not found' })}</h3>
+        <p className="text-gray-500 mb-6">{t('methodNotFoundDescription', { defaultValue: "The learning method you're looking for doesn't exist or has been removed" })}</p>
         <Button 
           className="bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600"
           onClick={() => window.history.back()}
         >
           <ChevronLeft className="h-4 w-4 mr-2" />
-          Go Back
+          {t('goBack', { defaultValue: 'Go Back' })}
         </Button>
       </div>
     );
@@ -271,7 +274,7 @@ const LearningMethodDetail = () => {
         onClick={() => window.history.back()}
       >
         <ChevronLeft className="h-4 w-4 mr-2" />
-        Back to Learning Methods
+        {t('backToLearningMethods', { defaultValue: 'Back to Learning Methods' })}
       </Button>
       
       {/* Method details */}
@@ -316,7 +319,7 @@ const LearningMethodDetail = () => {
         <CardContent className="pt-6 space-y-6">
           {/* Steps section */}
           <div>
-            <h3 className="text-lg font-semibold text-orange-800 mb-3">Step-by-Step Instructions</h3>
+            <h3 className="text-lg font-semibold text-orange-800 mb-3">{t('stepByStepInstructions')}</h3>
             {Array.isArray(method.steps) ? (
               <ul className="list-disc pl-6 space-y-2 text-gray-700">
                 {method.steps.map((step, index) => (
@@ -331,7 +334,7 @@ const LearningMethodDetail = () => {
           {/* Resources section (if available) */}
           {method.resources && (
             <div>
-              <h3 className="text-lg font-semibold text-orange-800 mb-3">Resources</h3>
+              <h3 className="text-lg font-semibold text-orange-800 mb-3">{t('resources', { defaultValue: 'Resources' })}</h3>
               {Array.isArray(method.resources) ? (
                 <ul className="list-disc pl-6 space-y-2 text-gray-700">
                   {method.resources.map((resource, index) => (
@@ -347,7 +350,7 @@ const LearningMethodDetail = () => {
           {/* Benefits section (if available) */}
           {method.benefits && (
             <div>
-              <h3 className="text-lg font-semibold text-orange-800 mb-3">Benefits</h3>
+              <h3 className="text-lg font-semibold text-orange-800 mb-3">{t('benefits', { defaultValue: 'Benefits' })}</h3>
               {Array.isArray(method.benefits) ? (
                 <ul className="list-disc pl-6 space-y-2 text-gray-700">
                   {method.benefits.map((benefit, index) => (
@@ -363,11 +366,19 @@ const LearningMethodDetail = () => {
         
         <CardFooter className="flex justify-between items-center pt-2 pb-4 border-t border-gray-200">
           <div className="flex items-center gap-2">
-            <Avatar className="h-8 w-8 bg-orange-200">
-              <AvatarFallback>{method.authorName?.charAt(0) || 'U'}</AvatarFallback>
-            </Avatar>
+            {method.userId ? (
+              <Link to={`/profile/${method.userId}`}>
+                <Avatar className="h-8 w-8 bg-orange-200 cursor-pointer hover:opacity-80">
+                  <AvatarFallback>{method.authorName?.charAt(0) || 'U'}</AvatarFallback>
+                </Avatar>
+              </Link>
+            ) : (
+              <Avatar className="h-8 w-8 bg-orange-200">
+                <AvatarFallback>{method.authorName?.charAt(0) || 'U'}</AvatarFallback>
+              </Avatar>
+            )}
             <div>
-              <p className="text-sm font-medium">{method.authorName || 'Anonymous'}</p>
+              <p className="text-sm font-medium">{method.authorName ? method.authorName : t('anonymous')}</p>
               <p className="text-xs text-gray-500">
                 {new Date(method.createdAt).toLocaleDateString('en-US', {
                   year: 'numeric',
@@ -384,7 +395,7 @@ const LearningMethodDetail = () => {
       <div>
         <h3 className="text-xl font-bold text-orange-800 mb-4 flex items-center gap-2">
           <MessageSquare className="h-5 w-5" />
-          Community Thoughts
+          {t('communityThoughts', { defaultValue: 'Community Thoughts' })}
         </h3>
         
         {/* Add comment form */}
@@ -395,7 +406,7 @@ const LearningMethodDetail = () => {
             </Avatar>
             <div className="flex-1">
               <Textarea
-                placeholder={isAuthenticated ? "Share your thoughts about this learning method..." : "Please log in to share your thoughts"}
+                placeholder={isAuthenticated ? t('shareYourThoughtsAboutMethod', { defaultValue: "Share your thoughts about this learning method..." }) : t('pleaseLoginToShareThoughts', { defaultValue: "Please log in to share your thoughts" })}
                 value={newComment}
                 onChange={(e) => setNewComment(e.target.value)}
                 className="min-h-20 border-orange-200 focus-visible:ring-orange-400 mb-2"
@@ -410,12 +421,12 @@ const LearningMethodDetail = () => {
                   {addCommentMutation.isPending ? (
                     <>
                       <div className="mr-2 h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent"></div>
-                      Posting...
+                      {t('posting')}
                     </>
                   ) : (
                     <>
                       <Send className="h-4 w-4 mr-2" />
-                      Post Comment
+                      {t('postComment')}
                     </>
                   )}
                 </Button>
@@ -432,22 +443,24 @@ const LearningMethodDetail = () => {
         ) : commentsError ? (
           <div className="text-center py-8 bg-white/50 rounded-xl border border-orange-100">
             <AlertCircle className="h-10 w-10 text-red-400 mx-auto mb-3" />
-            <p className="text-gray-700 font-medium">Error loading comments</p>
-            <p className="text-gray-500">{commentsError.message || 'Failed to load comments. Please try again later.'}</p>
+            <p className="text-gray-700 font-medium">{t('errorLoadingComments', { defaultValue: 'Error loading comments' })}</p>
+            <p className="text-gray-500">{commentsError.message || t('failedToLoadComments', { defaultValue: 'Failed to load comments. Please try again later.' })}</p>
           </div>
         ) : comments.length === 0 ? (
           <div className="text-center py-8 bg-white/50 rounded-xl border border-orange-100">
             <MessageSquare className="h-10 w-10 text-orange-300 mx-auto mb-3" />
-            <p className="text-gray-500">No comments yet. Be the first to share your thoughts!</p>
+            <p className="text-gray-500">{t('noCommentsYet', { defaultValue: 'No comments yet. Be the first to share your thoughts!' })}</p>
           </div>
         ) : (
           <div className="space-y-4">
             {comments.map((comment) => (
               <div key={comment.id} className="bg-white/70 rounded-lg p-4 border border-orange-100">
                 <div className="flex items-start gap-3">
-                  <Avatar className="h-8 w-8 bg-orange-200">
-                    <AvatarFallback>{comment.user?.firstName?.charAt(0) || 'U'}</AvatarFallback>
-                  </Avatar>
+                  <Link to={comment.user ? `/profile/${comment.user.id}` : '#'}>
+                    <Avatar className="h-8 w-8 bg-orange-200 cursor-pointer hover:opacity-80">
+                      <AvatarFallback>{comment.user?.firstName?.charAt(0) || 'U'}</AvatarFallback>
+                    </Avatar>
+                  </Link>
                   <div className="flex-1">
                     <div className="flex justify-between items-center mb-1">
                       <h4 className="font-medium text-gray-800">
@@ -474,18 +487,18 @@ const LearningMethodDetail = () => {
                             </AlertDialogTrigger>
                             <AlertDialogContent>
                               <AlertDialogHeader>
-                                <AlertDialogTitle>Delete Comment?</AlertDialogTitle>
+                                <AlertDialogTitle>{t('deleteComment', { defaultValue: 'Delete Comment?' })}</AlertDialogTitle>
                                 <AlertDialogDescription>
-                                  Are you sure you want to delete your comment? This action cannot be undone.
+                                  {t('deleteCommentConfirmation', { defaultValue: 'Are you sure you want to delete your comment? This action cannot be undone.' })}
                                 </AlertDialogDescription>
                               </AlertDialogHeader>
                               <AlertDialogFooter>
-                                <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                <AlertDialogCancel>{t('cancel')}</AlertDialogCancel>
                                 <AlertDialogAction
                                   onClick={() => handleDeleteComment(comment.id)}
                                   className="bg-red-500 hover:bg-red-600"
                                 >
-                                  Delete
+                                  {t('delete')}
                                 </AlertDialogAction>
                               </AlertDialogFooter>
                             </AlertDialogContent>

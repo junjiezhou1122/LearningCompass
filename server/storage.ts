@@ -2288,11 +2288,28 @@ export class DatabaseStorage implements IStorage {
 
   // Learning Methods operations
   async getLearningMethod(id: number): Promise<LearningMethod | undefined> {
-    const [method] = await db
-      .select()
+    const [result] = await db
+      .select({
+        id: learningMethods.id,
+        userId: learningMethods.userId,
+        title: learningMethods.title,
+        description: learningMethods.description,
+        steps: learningMethods.steps,
+        tags: learningMethods.tags,
+        difficulty: learningMethods.difficulty,
+        timeRequired: learningMethods.timeRequired,
+        benefits: learningMethods.benefits,
+        resources: learningMethods.resources,
+        upvotes: learningMethods.upvotes,
+        views: learningMethods.views,
+        createdAt: learningMethods.createdAt,
+        updatedAt: learningMethods.updatedAt,
+        authorName: sql<string>`concat(${users.firstName}, ' ', ${users.lastName})`,
+      })
       .from(learningMethods)
+      .leftJoin(users, eq(learningMethods.userId, users.id))
       .where(eq(learningMethods.id, id));
-    return method || undefined;
+    return result || undefined;
   }
 
   async getLearningMethods(options?: {
@@ -2304,6 +2321,9 @@ export class DatabaseStorage implements IStorage {
     search?: string;
   }): Promise<LearningMethod[]> {
     const limit = options?.limit ?? 200;
+    const offset = options?.offset ?? 0;
+    
+    // Build where clause
     const whereConditions = [];
     if (options?.userId) whereConditions.push(eq(learningMethods.userId, options.userId));
     if (options?.difficulty) whereConditions.push(eq(learningMethods.difficulty, options.difficulty));
@@ -2316,19 +2336,36 @@ export class DatabaseStorage implements IStorage {
         )
       );
     }
+    
     const whereClause = whereConditions.length > 0 ? and(...whereConditions) : undefined;
-    // Get all matching method IDs
-    const allMethodIds = (await db
-      .select({ id: learningMethods.id })
+    
+    // Fetch methods with author information
+    const result = await db
+      .select({
+        id: learningMethods.id,
+        userId: learningMethods.userId,
+        title: learningMethods.title,
+        description: learningMethods.description,
+        steps: learningMethods.steps,
+        tags: learningMethods.tags,
+        difficulty: learningMethods.difficulty,
+        timeRequired: learningMethods.timeRequired,
+        benefits: learningMethods.benefits,
+        resources: learningMethods.resources,
+        upvotes: learningMethods.upvotes,
+        views: learningMethods.views,
+        createdAt: learningMethods.createdAt,
+        updatedAt: learningMethods.updatedAt,
+        authorName: sql<string>`concat(${users.firstName}, ' ', ${users.lastName})`,
+      })
       .from(learningMethods)
+      .leftJoin(users, eq(learningMethods.userId, users.id))
       .where(whereClause)
-    ).map((m) => m.id);
-    // Shuffle and sample
-    const shuffled = allMethodIds.sort(() => Math.random() - 0.5);
-    const sampledIds = shuffled.slice(0, limit);
-    if (sampledIds.length === 0) return [];
-    // Fetch full method data for sampled IDs
-    return await db.select().from(learningMethods).where(inArray(learningMethods.id, sampledIds));
+      .orderBy(desc(learningMethods.createdAt))
+      .limit(limit)
+      .offset(offset);
+      
+    return result;
   }
 
   async createLearningMethod(method: InsertLearningMethod): Promise<LearningMethod> {
@@ -2406,10 +2443,29 @@ export class DatabaseStorage implements IStorage {
   async getLearningMethodCommentsByMethodId(
     methodId: number
   ): Promise<LearningMethodComment[]> {
-    return await db
-      .select()
+    const comments = await db
+      .select({
+        id: learningMethodComments.id,
+        methodId: learningMethodComments.methodId,
+        userId: learningMethodComments.userId,
+        content: learningMethodComments.content,
+        createdAt: learningMethodComments.createdAt,
+        updatedAt: learningMethodComments.updatedAt,
+        user: {
+          id: users.id,
+          firstName: users.firstName,
+          lastName: users.lastName,
+          email: users.email,
+          username: users.username,
+          profileImageUrl: users.profileImageUrl
+        }
+      })
       .from(learningMethodComments)
-      .where(eq(learningMethodComments.methodId, methodId));
+      .leftJoin(users, eq(learningMethodComments.userId, users.id))
+      .where(eq(learningMethodComments.methodId, methodId))
+      .orderBy(desc(learningMethodComments.createdAt));
+    
+    return comments;
   }
 
   async createLearningMethodComment(
