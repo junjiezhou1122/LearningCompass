@@ -21,6 +21,7 @@ import {
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { AuthContext } from "../contexts/AuthContext";
+import { useLanguage } from "../contexts/LanguageContext";
 import { useSocketIO } from "../components/chat/SocketIOProvider";
 import { getApiBaseUrl } from "@/lib/utils";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
@@ -40,6 +41,7 @@ import CreateGroupPage from "./CreateGroupPage";
 const NewChatPage = () => {
   const { toast } = useToast();
   const { user } = useContext(AuthContext);
+  const { t } = useLanguage();
   const {
     connected,
     connectionState,
@@ -211,8 +213,8 @@ const NewChatPage = () => {
         setChatUser(userData);
       } else {
         toast({
-          title: "Error",
-          description: "Could not load user information",
+          title: t('error'),
+          description: t('couldNotLoadUserInfo'),
           variant: "destructive",
         });
       }
@@ -241,8 +243,8 @@ const NewChatPage = () => {
         setGroupInfo(groupData);
       } else {
         toast({
-          title: "Error",
-          description: "Could not load group information",
+          title: t('error'),
+          description: t('couldNotLoadGroupInfo'),
           variant: "destructive",
         });
       }
@@ -278,18 +280,16 @@ const NewChatPage = () => {
           `Failed to fetch chat history: ${response.status} ${errorText}`
         );
         toast({
-          title: "Error loading chat history",
-          description:
-            "Could not load the conversation history. Please try again.",
+          title: t('errorLoadingChatHistory'),
+          description: t('couldNotLoadConversationHistory'),
           variant: "destructive",
         });
       }
     } catch (error) {
       console.error("Error fetching chat history:", error);
       toast({
-        title: "Connection Error",
-        description:
-          "Could not connect to the server. Please check your internet connection.",
+        title: t('connectionError'),
+        description: t('couldNotConnectToServer'),
         variant: "destructive",
       });
     } finally {
@@ -441,8 +441,8 @@ const NewChatPage = () => {
             console.error("Groups data is not an array:", data);
             setGroups([]);
             toast({
-              title: "Error",
-              description: "Invalid group data format received",
+              title: t('error'),
+              description: t('invalidGroupDataFormat'),
               variant: "destructive",
             });
           }
@@ -454,8 +454,8 @@ const NewChatPage = () => {
             errorText
           );
           toast({
-            title: "Error",
-            description: "Failed to load group chats",
+            title: t('error'),
+            description: t('failedToLoadGroupChats'),
             variant: "destructive",
           });
           setGroups([]);
@@ -464,8 +464,8 @@ const NewChatPage = () => {
         console.error("Error fetching group conversations:", error);
         setGroups([]);
         toast({
-          title: "Error",
-          description: "Could not connect to group chat service",
+          title: t('error'),
+          description: t('couldNotConnectToGroupChatService'),
           variant: "destructive",
         });
       } finally {
@@ -567,16 +567,16 @@ const NewChatPage = () => {
       } else {
         console.error("Failed to search users:", await response.text());
         toast({
-          title: "Search failed",
-          description: "Could not search for users. Please try again.",
+          title: t('searchFailed'),
+          description: t('couldNotSearchUsers'),
           variant: "destructive",
         });
       }
     } catch (error) {
       console.error("Error searching users:", error);
       toast({
-        title: "Error",
-        description: "An error occurred while searching. Please try again.",
+        title: t('error'),
+        description: t('anErrorOccurredWhileSearching'),
         variant: "destructive",
       });
     } finally {
@@ -728,9 +728,9 @@ const NewChatPage = () => {
             </div>
             <div>
               <h1 className="text-2xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-blue-600 to-indigo-600">
-                Messages
+                {t('messages')}
               </h1>
-              <p className="text-sm text-gray-500">Connect with your network</p>
+              <p className="text-sm text-gray-500">{t('connectWithYourNetwork')}</p>
             </div>
           </div>
           
@@ -739,7 +739,7 @@ const NewChatPage = () => {
             <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
             <Input
               type="text"
-              placeholder="Search chats..."
+              placeholder={t('searchChats')}
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               className="pl-10 bg-white/80 border-blue-200 focus:border-blue-500 focus:ring-blue-500 rounded-full shadow-sm"
@@ -750,8 +750,8 @@ const NewChatPage = () => {
         {/* Floating pill tabs */}
         <nav className="flex md:flex-col flex-row md:gap-4 gap-2 md:mt-4 mt-2 px-2 md:px-8 justify-center">
           {[
-            { key: "followers", label: "Followers", icon: UserPlus },
-            { key: "groups", label: "Groups", icon: Users },
+            { key: "followers", label: t('followers'), icon: UserPlus },
+            { key: "groups", label: t('groups'), icon: Users },
           ].map((tab, idx) => (
             <motion.button
               key={tab.key}
@@ -791,10 +791,10 @@ const NewChatPage = () => {
                 <div className="flex flex-col items-center justify-center py-16">
                   <UserPlus className="h-14 w-14 text-blue-200 mb-3" />
                   <p className="font-semibold text-gray-400 mb-2 text-lg">
-                    No mutual followers
+                    {t('noMutualFollowers')}
                   </p>
                   <p className="text-gray-400 text-sm">
-                    Invite friends to connect!
+                    {t('inviteFriendsToConnect')}
                   </p>
                 </div>
               ) : (
@@ -853,7 +853,7 @@ const NewChatPage = () => {
                         d="M12 4v16m8-8H4"
                       />
                     </svg>
-                    Create New Group
+                    {t('createNewGroup')}
                   </Button>
                 </div>
               )}
@@ -865,10 +865,10 @@ const NewChatPage = () => {
                 <div className="flex flex-col items-center justify-center py-16">
                   <Users className="h-14 w-14 text-blue-200 mb-3" />
                   <p className="font-semibold text-gray-400 mb-2 text-lg">
-                    No group chats
+                    {t('noGroupChats')}
                   </p>
                   <p className="text-gray-400 text-sm">
-                    Create a group to get started!
+                    {t('createGroupToGetStarted')}
                   </p>
                   <Button
                     variant="outline"
@@ -889,7 +889,7 @@ const NewChatPage = () => {
                         d="M12 4v16m8-8H4"
                       />
                     </svg>
-                    Create Your First Group
+                    {t('createYourFirstGroup')}
                   </Button>
                 </div>
               ) : (
@@ -913,12 +913,10 @@ const NewChatPage = () => {
                     </Avatar>
                     <div className="flex-1 min-w-0">
                       <div className="font-medium truncate text-sm text-blue-900">
-                        {group.name || "Unnamed Group"}
+                        {group.name || t('unnamedGroup')}
                       </div>
-                      <div className="text-xs text-gray-500 truncate font-normal">
-                        {group.memberCount
-                          ? `${group.memberCount} members`
-                          : "Group chat"}
+                      <div className="text-xs text-gray-500">
+                        {group.memberCount} {t('members')}
                       </div>
                     </div>
                   </div>
@@ -976,7 +974,7 @@ const NewChatPage = () => {
                       {groupInfo.name}
                     </div>
                     <div className="text-xs text-gray-500">
-                      {groupInfo.memberCount} members
+                      {groupInfo.memberCount} {t('members')}
                     </div>
                   </div>
                   {activeChat?.type === "group" &&
@@ -989,7 +987,7 @@ const NewChatPage = () => {
                         onClick={async () => {
                           if (
                             !window.confirm(
-                              "Are you sure you want to delete this group? This cannot be undone."
+                              t('confirmDeleteGroup')
                             )
                           )
                             return;
@@ -1008,22 +1006,22 @@ const NewChatPage = () => {
                             );
                             if (res.status === 204) {
                               toast({
-                                title: "Group deleted",
-                                description: "The group has been deleted.",
+                                title: t('groupDeleted'),
+                                description: t('groupDeletedDescription'),
                               });
                               setActiveChat(null);
                               // Optionally refresh group list here
                             } else {
                               const data = await res.json();
                               toast({
-                                title: "Failed to delete group",
-                                description: data.error || "Unknown error",
+                                title: t('failedToDeleteGroup'),
+                                description: data.error || t('unknownError'),
                                 variant: "destructive",
                               });
                             }
                           } catch (e) {
                             toast({
-                              title: "Error",
+                              title: t('error'),
                               description: e.message,
                               variant: "destructive",
                             });
@@ -1032,7 +1030,7 @@ const NewChatPage = () => {
                           }
                         }}
                       >
-                        {deletingGroup ? "Deleting..." : "Delete Group"}
+                        {deletingGroup ? t('deleting') : t('deleteGroup')}
                       </Button>
                     )}
                   {activeChat?.type === "group" &&
@@ -1043,7 +1041,7 @@ const NewChatPage = () => {
                         className="ml-2"
                         onClick={() => setShowMembersModal(true)}
                       >
-                        Group Members
+                        {t('groupMembers')}
                       </Button>
                     )}
                 </>
@@ -1063,9 +1061,9 @@ const NewChatPage = () => {
                     className="h-full flex flex-col items-center justify-center text-blue-600"
                   >
                     <MessageSquare className="h-12 w-12 mb-4 text-blue-400 animate-bounce" />
-                    <p className="text-lg font-medium">No messages yet</p>
+                    <p className="text-lg font-medium">{t('noMessagesYet')}</p>
                     <p className="text-sm text-gray-500 mt-2">
-                      Send a message to start the conversation
+                      {t('sendMessageToStart')}
                     </p>
                   </motion.div>
                 ) : (
@@ -1227,7 +1225,7 @@ const NewChatPage = () => {
                     value={currentMessage}
                     onChange={(e) => setCurrentMessage(e.target.value)}
                     onKeyDown={handleKeyPress}
-                    placeholder="Type your message..."
+                    placeholder={t('typeYourMessage')}
                     className="border-blue-200 focus:border-blue-500 focus:ring-blue-500 shadow-sm"
                     disabled={connectionState !== "connected"}
                   />
@@ -1243,7 +1241,7 @@ const NewChatPage = () => {
                 </div>
                 {connectionState !== "connected" && (
                   <p className="text-sm text-blue-600 mt-2">
-                    Connect to the chat server to send messages
+                    {t('connectToChatServer')}
                   </p>
                 )}
               </motion.div>
@@ -1253,7 +1251,7 @@ const NewChatPage = () => {
           <div className="flex flex-col items-center justify-center h-full text-gray-400">
             <MessageSquare className="h-16 w-16 mb-4" />
             <div className="text-lg font-medium">
-              Select a chat to start messaging
+              {t('selectChatToStartMessaging')}
             </div>
           </div>
         )}
@@ -1264,7 +1262,7 @@ const NewChatPage = () => {
         <DialogContent className="max-w-md mx-auto bg-white rounded-2xl shadow-2xl p-8 flex flex-col items-center gap-6">
           <div className="flex items-center justify-between w-full mb-2">
             <h2 className="text-2xl font-bold text-blue-800">
-              Create a New Group
+              {t('createNewGroup')}
             </h2>
             <button
               className="rounded-full p-1 hover:bg-blue-50 text-blue-500"
@@ -1274,7 +1272,7 @@ const NewChatPage = () => {
             </button>
           </div>
           <p className="text-gray-600 mb-4 text-center">
-            Start a new group chat with your friends or classmates.
+            {t('startNewGroupChatDescription')}
           </p>
           <button
             className="flex items-center justify-center gap-3 w-full py-4 rounded-xl bg-gradient-to-r from-blue-500 to-blue-600 text-white text-lg font-semibold shadow-lg hover:from-blue-600 hover:to-blue-700 transition-all"
@@ -1283,13 +1281,13 @@ const NewChatPage = () => {
               window.location.href = "/chat/create-group";
             }}
           >
-            <Users className="h-6 w-6" /> Go to Group Creation
+            <Users className="h-6 w-6" /> {t('goToGroupCreation')}
           </button>
           <button
             className="mt-4 text-blue-500 hover:text-blue-700 text-sm underline"
             onClick={() => setShowChatTypeModal(false)}
           >
-            Cancel
+            {t('cancel')}
           </button>
         </DialogContent>
       </Dialog>
@@ -1305,7 +1303,7 @@ const NewChatPage = () => {
               <X className="h-5 w-5" />
             </button>
             <h2 className="text-xl font-bold mb-4 text-blue-800">
-              Group Members
+              {t('groupMembers')}
             </h2>
             <ul className="space-y-3">
               {groupInfo.members?.map((member) => (
@@ -1328,9 +1326,9 @@ const NewChatPage = () => {
                       onClick={async () => {
                         if (
                           !window.confirm(
-                            `Remove ${
+                            `${t('removeMemberConfirm')} ${
                               member.displayName || member.username
-                            } from the group?`
+                            } ${t('fromGroup')}`
                           )
                         )
                           return;
@@ -1349,24 +1347,24 @@ const NewChatPage = () => {
                           );
                           if (res.status === 204) {
                             toast({
-                              title: "Member removed",
+                              title: t('memberRemoved'),
                               description: `${
                                 member.displayName || member.username
-                              } has been removed.`,
+                              } ${t('hasBeenRemoved')}`,
                             });
                             // Refresh group info
                             fetchGroupInfo(activeChat.id);
                           } else {
                             const data = await res.json();
                             toast({
-                              title: "Failed to remove member",
-                              description: data.error || "Unknown error",
+                              title: t('failedToRemoveMember'),
+                              description: data.error || t('unknownError'),
                               variant: "destructive",
                             });
                           }
                         } catch (e) {
                           toast({
-                            title: "Error",
+                            title: t('error'),
                             description: e.message,
                             variant: "destructive",
                           });

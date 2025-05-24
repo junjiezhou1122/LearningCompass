@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { useParams, useLocation } from "wouter";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useAuth } from "@/contexts/AuthContext";
+import { useLanguage } from "@/contexts/LanguageContext";
 import { useToast } from "@/hooks/use-toast";
 import ChatButton from "../components/chat/ChatButton";
 import {
@@ -115,6 +116,7 @@ export default function UserProfile() {
   const { userId } = useParams();
   const [, navigate] = useLocation();
   const { toast } = useToast();
+  const { t } = useLanguage();
   const queryClient = useQueryClient();
   const { user: currentUser, isAuthenticated, logout } = useAuth();
 
@@ -339,8 +341,8 @@ export default function UserProfile() {
   const followUser = async () => {
     if (!isAuthenticated) {
       toast({
-        title: "Authentication Required",
-        description: "Please sign in to follow users",
+        title: t('authenticationRequired'),
+        description: t('pleaseSignInToFollowUsers'),
         variant: "destructive",
       });
       return;
@@ -379,8 +381,8 @@ export default function UserProfile() {
         });
 
         toast({
-          title: "Success",
-          description: `You are now following ${profileData?.username}`,
+          title: t('success'),
+          description: `${t('youAreNowFollowing')} ${profileData?.username}`,
         });
       } else {
         const errorData = await response.json();
@@ -400,8 +402,8 @@ export default function UserProfile() {
           }));
 
           toast({
-            title: "Error",
-            description: errorData.message || "Failed to follow user",
+            title: t('error'),
+            description: errorData.message || t('failedToFollowUser'),
             variant: "destructive",
           });
         }
@@ -465,12 +467,12 @@ export default function UserProfile() {
         });
 
         toast({
-          title: "Success",
-          description: `You have unfollowed ${profileData?.username}`,
+          title: t('success'),
+          description: `${t('youHaveUnfollowed')} ${profileData?.username}`,
         });
       } else {
         // Try to get error message from response
-        let errorMessage = "Failed to unfollow user";
+        let errorMessage = t('failedToUnfollowUser');
         try {
           const errorData = await response.json();
           errorMessage = errorData.message || errorMessage;
@@ -485,7 +487,7 @@ export default function UserProfile() {
         }));
 
         toast({
-          title: "Error",
+          title: t('error'),
           description: errorMessage,
           variant: "destructive",
         });
@@ -495,12 +497,12 @@ export default function UserProfile() {
       setFollowStatus((prev) => ({
         ...prev,
         isLoading: false,
-        error: error.message || "Failed to unfollow user",
+        error: error.message || t('failedToUnfollowUser'),
       }));
 
       toast({
         title: "Error",
-        description: error.message || "Failed to unfollow user",
+        description: error.message || t('failedToUnfollowUser'),
         variant: "destructive",
       });
     }
@@ -510,8 +512,8 @@ export default function UserProfile() {
   const handleFollowToggle = () => {
     if (!isAuthenticated) {
       toast({
-        title: "Authentication Required",
-        description: "Please sign in to follow users",
+        title: t('authenticationRequired'),
+        description: t('pleaseSignInToFollowUsers'),
         variant: "destructive",
       });
       return;
@@ -546,8 +548,8 @@ export default function UserProfile() {
         setModalUsers(data);
       } else {
         toast({
-          title: "Error",
-          description: `Failed to load ${type}`,
+          title: t('error'),
+          description: `${t('failedToLoad')} ${type}`,
           variant: "destructive",
         });
       }
@@ -773,16 +775,16 @@ export default function UserProfile() {
           <div className="text-center py-12">
             <User className="h-16 w-16 mx-auto text-gray-300 mb-4" />
             <h1 className="text-2xl font-bold text-gray-800 mb-2">
-              User Not Found
+              {t('userNotFound')}
             </h1>
             <p className="text-gray-500 mb-6">
-              The user you're looking for doesn't exist or has been removed.
+              {t('userNotFoundDescription')}
             </p>
             <Button
               onClick={() => navigate("/")}
               className="bg-orange-500 hover:bg-orange-600"
             >
-              Return Home
+              {t('returnHome')}
             </Button>
           </div>
         </div>
@@ -799,18 +801,18 @@ export default function UserProfile() {
             <DialogTitle className="flex items-center gap-2">
               {modalType === "followers" ? (
                 <>
-                  <UserCheck className="h-5 w-5 text-orange-500" /> Followers
+                  <UserCheck className="h-5 w-5 text-orange-500" /> {t('followers')}
                 </>
               ) : (
                 <>
-                  <UserPlus className="h-5 w-5 text-orange-500" /> Following
+                  <UserPlus className="h-5 w-5 text-orange-500" /> {t('following')}
                 </>
               )}
             </DialogTitle>
             <DialogDescription>
               {modalType === "followers"
-                ? `People who follow ${profileData?.username}`
-                : `People ${profileData?.username} follows`}
+                ? `${t('peopleWhoFollow')} ${profileData?.username}`
+                : `${t('peopleFollowedBy')} ${profileData?.username}`}
             </DialogDescription>
           </DialogHeader>
 
@@ -848,7 +850,7 @@ export default function UserProfile() {
                               variant="outline"
                               className="text-xs bg-green-50 text-green-700 border-green-200 px-1.5 py-0"
                             >
-                              <Users className="h-3 w-3 mr-1" /> Mutual
+                              <Users className="h-3 w-3 mr-1" /> {t('mutual')}
                             </Badge>
                           )}
                         </div>
@@ -870,7 +872,7 @@ export default function UserProfile() {
                           navigate(`/users/${user.id}`);
                         }}
                       >
-                        View Profile
+                        {t('viewProfile')}
                       </Button>
                     )}
                   </div>
@@ -880,8 +882,8 @@ export default function UserProfile() {
               <div className="text-center py-6">
                 <p className="text-gray-500">
                   {modalType === "followers"
-                    ? `${profileData?.username} doesn't have any followers yet.`
-                    : `${profileData?.username} isn't following anyone yet.`}
+                    ? `${profileData?.username} ${t('noFollowersYet')}`
+                    : `${profileData?.username} ${t('notFollowingAnyoneYet')}`}
                 </p>
               </div>
             )}
@@ -890,7 +892,7 @@ export default function UserProfile() {
           <div className="flex justify-end">
             <DialogClose asChild>
               <Button type="button" variant="secondary" onClick={closeModal}>
-                Close
+                {t('close')}
               </Button>
             </DialogClose>
           </div>
@@ -919,7 +921,7 @@ export default function UserProfile() {
               <div className="flex flex-wrap items-center justify-center sm:justify-start gap-4 mb-2">
                 <div className="flex items-center gap-1 text-gray-600">
                   <User className="h-4 w-4 text-gray-500" />
-                  <span>{userPosts?.length || 0} posts</span>
+                  <span>{userPosts?.length || 0} {t('posts')}</span>
                 </div>
 
                 <div
@@ -928,7 +930,7 @@ export default function UserProfile() {
                 >
                   <UserCheck className="h-4 w-4 text-gray-500" />
                   <span className="hover:underline">
-                    {followersCount || 0} followers
+                    {followersCount || 0} {t('followers')}
                   </span>
                 </div>
 
@@ -938,14 +940,14 @@ export default function UserProfile() {
                 >
                   <UserPlus className="h-4 w-4 text-gray-500" />
                   <span className="hover:underline">
-                    {followingCount || 0} following
+                    {followingCount || 0} {t('following')}
                   </span>
                 </div>
 
                 <div className="flex items-center gap-1 text-gray-600">
                   <Calendar className="h-4 w-4 text-gray-500" />
                   <span>
-                    Joined{" "}
+                    {t('joined')}{" "}
                     {new Date(profileData.createdAt).toLocaleDateString()}
                   </span>
                 </div>
@@ -971,7 +973,7 @@ export default function UserProfile() {
                   ) : (
                     <UserPlus className="h-4 w-4 mr-2" />
                   )}
-                  {followStatus.isFollowing ? "Unfollow" : "Follow"}
+                  {followStatus.isFollowing ? t('unfollow') : t('follow')}
                 </Button>
 
                 {/* Add chat button if both users follow each other */}

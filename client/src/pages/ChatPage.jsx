@@ -11,6 +11,7 @@ import {
 import { motion, AnimatePresence } from "framer-motion";
 import { Tab } from "@headlessui/react";
 import { AuthContext } from "../contexts/AuthContext";
+import { useLanguage } from "../contexts/LanguageContext";
 import { useSocketIO } from "../components/chat/SocketIOProvider";
 import { useToast } from "@/hooks/use-toast";
 import { Dialog, DialogContent, DialogOverlay } from "@/components/ui/dialog";
@@ -33,6 +34,7 @@ const ChatPage = () => {
   const { toast } = useToast();
   const { user, token } = useContext(AuthContext);
   const { sendMessage, connectionState } = useSocketIO();
+  const { t } = useLanguage();
 
   // Main states
   const [activeTab, setActiveTab] = useState(0); // 0 = Direct Messages, 1 = Group Chats
@@ -301,8 +303,8 @@ const ChatPage = () => {
       console.error("No user or token available");
       setIsLoadingMessages(false);
       toast({
-        title: "Authentication required",
-        description: "Please log in to view chat messages",
+        title: t('authenticationRequired'),
+        description: t('pleaseLoginToViewChat'),
         variant: "destructive",
       });
       navigate("/login");
@@ -740,7 +742,7 @@ const ChatPage = () => {
                 type="text"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                placeholder="Search conversations..."
+                placeholder={t('searchConversations')}
                 className="w-full pl-9 pr-4 py-2 rounded-full border border-orange-200 bg-white shadow-sm focus:outline-none focus:ring-2 focus:ring-orange-500"
               />
               <Search className="absolute left-3 top-2.5 h-4 w-4 text-orange-400" />
@@ -760,7 +762,7 @@ const ChatPage = () => {
                  }`
                 }
               >
-                Direct Messages
+                {t('directMessages')}
               </Tab>
               <Tab
                 className={({ selected }) =>
@@ -772,7 +774,7 @@ const ChatPage = () => {
                  }`
                 }
               >
-                Group Chats
+                {t('groupChats')}
               </Tab>
             </Tab.List>
             <Tab.Panels className="flex-1 overflow-y-auto">

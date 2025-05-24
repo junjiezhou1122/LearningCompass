@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { useLocation } from "wouter";
 import { useAuth } from "@/contexts/AuthContext";
+import { useLanguage } from "@/contexts/LanguageContext";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -89,6 +90,7 @@ const tagOptions = [
 export default function Share() {
   const [, navigate] = useLocation();
   const { isAuthenticated, user } = useAuth();
+  const { t } = useLanguage();
   const [activeTab, setActiveTab] = useState("all");
   const [showNewPostForm, setShowNewPostForm] = useState(false);
   const [newPost, setNewPost] = useState({
@@ -295,8 +297,8 @@ export default function Share() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/learning-posts"] });
       toast({
-        title: "Success!",
-        description: "Your post has been published.",
+        title: t('success'),
+        description: t('yourPostHasBeenPublished'),
       });
 
       // Reset form
@@ -311,9 +313,8 @@ export default function Share() {
     },
     onError: (error) => {
       toast({
-        title: "Error",
-        description:
-          error.message || "Failed to create post. Please try again.",
+        title: t('error'),
+        description: error.message || t('failedToCreatePost'),
         variant: "destructive",
       });
     },
@@ -404,14 +405,13 @@ export default function Share() {
       setNewComment("");
 
       toast({
-        description: "Comment added successfully",
+        description: t('commentAddedSuccessfully'),
       });
     },
     onError: (error) => {
       toast({
-        title: "Error",
-        description:
-          error.message || "Failed to add comment. Please try again.",
+        title: t('error'),
+        description: error.message || t('failedToAddComment'),
         variant: "destructive",
       });
     },
@@ -422,8 +422,8 @@ export default function Share() {
     mutationFn: async (postId) => {
       if (!isAuthenticated) {
         toast({
-          title: "Authentication Required",
-          description: "Please sign in to like posts",
+          title: t('authenticationRequired'),
+          description: t('pleaseSignInToLikePosts'),
           variant: "destructive",
         });
         return;
@@ -485,7 +485,7 @@ export default function Share() {
         }, 300);
 
         toast({
-          description: data.liked ? "Post liked" : "Post unliked",
+          description: data.liked ? t('postLiked') : t('postUnliked'),
         });
       }
     },
@@ -494,8 +494,8 @@ export default function Share() {
       queryClient.invalidateQueries({ queryKey: ["/api/learning-posts"] });
 
       toast({
-        title: "Error",
-        description: error.message || "Failed to like post. Please try again.",
+        title: t('error'),
+        description: error.message || t('failedToLikePost'),
         variant: "destructive",
       });
     },
@@ -884,27 +884,27 @@ export default function Share() {
           <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 animate-in fade-in duration-500">
             <div className="animate-in slide-in-from-left-4 duration-500">
               <h1 className="text-3xl font-bold text-gray-900 hover:text-orange-700 transition-colors duration-300">
-                Share & Connect
+                {t('shareConnect')}
               </h1>
               <p className="text-gray-600 mt-2 animate-in fade-in duration-700 delay-100">
-                Share your thoughts, discoveries, and learning resources
+                {t('shareThoughtsDiscoveriesResources')}
               </p>
             </div>
 
             {isAuthenticated ? (
               <Button
-                className="mt-4 md:mt-0 bg-orange-500 hover:bg-orange-600 transition-all duration-300 hover:scale-105 hover:shadow-md animate-in slide-in-from-right-4 duration-500"
-                onClick={() => setShowNewPostForm(true)}
+                className="bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 px-6 py-3 rounded-lg text-white font-medium shadow-md hover:shadow-xl transition-all duration-300 transform hover:scale-105 animate-in slide-in-from-right-4 duration-500 group"
+                onClick={() => setShowNewPostForm(!showNewPostForm)}
               >
                 <Plus
                   size={18}
                   className="mr-2 transition-transform duration-300 group-hover:rotate-90"
                 />
-                Create Post
+                {t('createPost')}
               </Button>
             ) : (
               <div className="mt-4 md:mt-0 text-sm bg-amber-50 border border-amber-300 rounded-md p-3 animate-in slide-in-from-right-4 duration-500 hover:bg-amber-100 hover:border-amber-400 transition-all duration-300 hover:shadow-md">
-                <p>Sign in to share your thoughts and resources</p>
+                <p>{t('signInToShareThoughts')}</p>
               </div>
             )}
           </div>
@@ -922,7 +922,7 @@ export default function Share() {
                     value="all"
                     className="transition-all duration-300 hover:bg-orange-100 data-[state=active]:bg-orange-500 data-[state=active]:text-white data-[state=active]:shadow-md"
                   >
-                    All
+                    {t('all')}
                   </TabsTrigger>
                   <TabsTrigger
                     value="thought"
@@ -932,7 +932,7 @@ export default function Share() {
                       size={16}
                       className="mr-2 transition-all duration-300 data-[state=active]:text-white"
                     />
-                    Thoughts
+                    {t('thoughts')}
                   </TabsTrigger>
                   <TabsTrigger
                     value="method"
@@ -942,7 +942,7 @@ export default function Share() {
                       size={16}
                       className="mr-2 transition-all duration-300 data-[state=active]:text-white"
                     />
-                    Methods
+                    {t('methods')}
                   </TabsTrigger>
                   <TabsTrigger
                     value="resource"
@@ -952,7 +952,7 @@ export default function Share() {
                       size={16}
                       className="mr-2 transition-all duration-300 data-[state=active]:text-white"
                     />
-                    Resources
+                    {t('resources')}
                   </TabsTrigger>
                 </TabsList>
               </Tabs>
@@ -968,7 +968,7 @@ export default function Share() {
                       <Input
                         value={currentTag}
                         onChange={(e) => setCurrentTag(e.target.value)}
-                        placeholder="Search for a tag..."
+                        placeholder={t('searchForATag')}
                         list="filter-tag-options"
                         className="transition-all duration-300 focus:border-orange-300 focus:ring-orange-200 group-hover:border-orange-200"
                         onKeyDown={(e) => {
@@ -979,7 +979,7 @@ export default function Share() {
                         }}
                       />
                       <datalist id="filter-tag-options">
-                        <option value="all-tags">All tags</option>
+                        <option value="all-tags">{t('allTags')}</option>
                         {currentTag.trim() !== "" &&
                           [...new Set([...tagOptions, ...availableTags])]
                             .sort()
@@ -1011,7 +1011,7 @@ export default function Share() {
                         size={14}
                         className="mr-1 transition-transform duration-300 group-hover:rotate-90"
                       />
-                      Filter
+                      {t('filter')}
                     </Button>
                   </div>
                 </div>
@@ -1025,7 +1025,7 @@ export default function Share() {
                 size={18}
               />
               <Input
-                placeholder="Search by post title, content, or tags..."
+                placeholder={t('searchByPostTitle')}
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 className="pl-10 w-full transition-all duration-300 focus:border-orange-300 focus:ring-orange-200 group-hover:border-orange-200"
@@ -1049,7 +1049,7 @@ export default function Share() {
             {availableTags.length > 0 && (
               <div className="flex flex-wrap gap-2 mt-2 animate-in fade-in slide-in-from-bottom-4 duration-500 delay-400">
                 <span className="text-sm text-gray-500 self-center mr-1">
-                  Popular tags:
+                  {t('popularTags')}
                 </span>
                 {availableTags.slice(0, 8).map((tag) => (
                   <Badge
@@ -1082,7 +1082,7 @@ export default function Share() {
               <CardHeader className="transition-colors duration-300">
                 <div className="flex justify-between items-center">
                   <CardTitle className="animate-in slide-in-from-left-4 duration-500">
-                    Create New Post
+                    {t('createNewPostTitle')}
                   </CardTitle>
                   <Button
                     variant="ghost"
@@ -1105,7 +1105,7 @@ export default function Share() {
                       onValueChange={handleTypeChange}
                     >
                       <SelectTrigger className="transition-all duration-300 focus:border-orange-300 focus:ring-orange-200 hover:border-orange-200">
-                        <SelectValue placeholder="Select post type" />
+                        <SelectValue placeholder={t('selectPostType')} />
                       </SelectTrigger>
                       <SelectContent>
                         <SelectItem value="thought">
@@ -1114,7 +1114,7 @@ export default function Share() {
                               size={16}
                               className="mr-2 text-amber-500"
                             />
-                            <span>Share a thought</span>
+                            <span>{t('shareThought')}</span>
                           </div>
                         </SelectItem>
                         <SelectItem value="resource">
@@ -1123,7 +1123,7 @@ export default function Share() {
                               size={16}
                               className="mr-2 text-blue-500"
                             />
-                            <span>Share a resource</span>
+                            <span>{t('shareResource')}</span>
                           </div>
                         </SelectItem>
                         <SelectItem value="method">
@@ -1132,7 +1132,7 @@ export default function Share() {
                               size={16}
                               className="mr-2 text-green-500"
                             />
-                            <span>Share a method</span>
+                            <span>{t('shareMethod')}</span>
                           </div>
                         </SelectItem>
                       </SelectContent>
@@ -1141,7 +1141,7 @@ export default function Share() {
 
                   <div className="animate-in slide-in-from-right-4 duration-500 delay-150">
                     <Input
-                      placeholder="Post title"
+                      placeholder={t('postTitle')}
                       value={newPost.title}
                       onChange={(e) =>
                         setNewPost({ ...newPost, title: e.target.value })
@@ -1152,7 +1152,7 @@ export default function Share() {
 
                   <div className="animate-in slide-in-from-right-4 duration-500 delay-200">
                     <Textarea
-                      placeholder="What would you like to share?"
+                      placeholder={t('whatWouldYouLikeToShare')}
                       rows={4}
                       value={newPost.content}
                       onChange={(e) =>
@@ -1165,7 +1165,7 @@ export default function Share() {
                   {newPost.type === "resource" && (
                     <div className="animate-in slide-in-from-right-4 duration-500 delay-250">
                       <Input
-                        placeholder="Resource URL (optional)"
+                        placeholder={t('resourceURL')}
                         value={newPost.resourceLink}
                         onChange={(e) =>
                           setNewPost({
@@ -1179,7 +1179,7 @@ export default function Share() {
                   )}
 
                   <div className="animate-in slide-in-from-right-4 duration-500 delay-300">
-                    <div className="text-sm font-medium mb-2">Tags</div>
+                    <div className="text-sm font-medium mb-2">{t('tags')}</div>
                     <div className="flex flex-wrap gap-2 mb-2">
                       {newPost.tags.map((tag) => (
                         <Badge
@@ -1201,7 +1201,7 @@ export default function Share() {
                         <Input
                           value={currentTag}
                           onChange={(e) => setCurrentTag(e.target.value)}
-                          placeholder="Create or search for a tag"
+                          placeholder={t('createOrSearchForTag')}
                           list="tag-options"
                           className="transition-all duration-300 focus:border-orange-300 focus:ring-orange-200 group-hover:border-orange-200"
                         />
@@ -1231,7 +1231,7 @@ export default function Share() {
                           size={16}
                           className="mr-2 transition-transform duration-300 group-hover:rotate-12"
                         />
-                        Add
+                        {t('add')}
                       </Button>
                     </div>
                   </div>
@@ -1243,14 +1243,14 @@ export default function Share() {
                   onClick={() => setShowNewPostForm(false)}
                   className="transition-all duration-300 hover:bg-red-50 hover:text-red-500 hover:border-red-200"
                 >
-                  Cancel
+                  {t('cancel')}
                 </Button>
                 <Button
                   className="bg-orange-500 hover:bg-orange-600 transition-all duration-300 hover:shadow-md transform hover:translate-y-[-2px]"
                   onClick={handleCreatePost}
                 >
                   <Send className="mr-2 h-4 w-4" />
-                  Publish
+                  {t('publish')}
                 </Button>
               </CardFooter>
             </Card>
@@ -1300,7 +1300,7 @@ export default function Share() {
                                     }
                                   }}
                                 >
-                                  {post.user?.username || "Anonymous"}
+                                  {post.user?.username || t('anonymous')}
                                 </span>
                                 <span className="inline-block mx-2">•</span>
                                 <Calendar
@@ -1314,7 +1314,7 @@ export default function Share() {
                                 </span>
                                 <span className="inline-block mx-2">•</span>
                                 <Eye size={14} className="mr-1 text-blue-400" />
-                                <span>{post.views || 0} views</span>
+                                <span>{post.views || 0} {t('views')}</span>
                               </CardDescription>
                             </div>
                           </div>
@@ -1350,10 +1350,10 @@ export default function Share() {
                                 />
                               )}
                               {post.type === "thought"
-                                ? "Thought"
+                                ? t('thought')
                                 : post.type === "method"
-                                ? "Method"
-                                : "Resource"}
+                                ? t('method')
+                                : t('resource')}
                             </Badge>
                           </div>
                         </div>
@@ -1371,7 +1371,7 @@ export default function Share() {
                             className="inline-flex items-center mt-3 text-blue-600 hover:text-blue-800 underline transform transition-all duration-300 hover:translate-x-1"
                             onClick={(e) => e.stopPropagation()} // Prevent navigating to post detail
                           >
-                            View Resource{" "}
+                            {t('viewResource')}
                             <ArrowRight size={16} className="ml-1" />
                           </a>
                         )}
@@ -1392,19 +1392,19 @@ export default function Share() {
                                   className="mr-2"
                                   fill="currentColor"
                                 />
-                                Applied - View Progress
+                                {t('applied')}
                               </Button>
                             ) : (
                               <Button
                                 variant="outline"
-                                className="mt-3 text-green-600 border-green-300 hover:bg-green-50 hover:text-green-700 hover:border-green-400"
+                                className="mt-3 text-gray-600 border-gray-300 hover:bg-gray-50"
                                 onClick={(e) => {
-                                  e.stopPropagation(); // Prevent navigating to post detail
-                                  applyMethodMutation.mutate(post.id);
+                                  e.stopPropagation();
+                                  navigate("/login");
                                 }}
                               >
                                 <FlaskRound size={16} className="mr-2" />
-                                Apply This Method
+                                {t('applyMethod')}
                               </Button>
                             )
                           ) : (
@@ -1422,7 +1422,7 @@ export default function Share() {
                               }}
                             >
                               <FlaskRound size={16} className="mr-2" />
-                              Apply This Method
+                              {t('applyThisMethod')}
                             </Button>
                           ))}
 
@@ -1508,7 +1508,7 @@ export default function Share() {
                           }}
                         >
                           <Share2 size={18} className="mr-1" />
-                          Share
+                          {t('share')}
                         </Button>
                         <Button
                           variant="ghost"
@@ -1532,7 +1532,7 @@ export default function Share() {
                           ) : (
                             <BookmarkPlus size={18} className="mr-1" />
                           )}
-                          Save
+                          {t('save')}
                         </Button>
                       </div>
                       <div>
@@ -1564,7 +1564,7 @@ export default function Share() {
                     <Card className="border-l-4 border-l-amber-400 ml-8">
                       <CardHeader className="pb-2">
                         <CardTitle className="text-sm text-gray-600">
-                          Comments
+                          {t('comments')}
                         </CardTitle>
                       </CardHeader>
                       <CardContent className="space-y-4">
@@ -1574,7 +1574,7 @@ export default function Share() {
                             {isCommentsLoading ? (
                               <div className="flex justify-center py-4">
                                 <p className="text-center text-gray-500 text-sm">
-                                  Loading comments...
+                                  {t('loadingComments')}
                                 </p>
                               </div>
                             ) : commentsData[post.id]?.length > 0 ? (
@@ -1635,13 +1635,10 @@ export default function Share() {
                                                 <DialogContent>
                                                   <DialogHeader>
                                                     <DialogTitle>
-                                                      Delete Comment?
+                                                      {t('deleteCommentTitle')}
                                                     </DialogTitle>
                                                     <DialogDescription>
-                                                      This action cannot be
-                                                      undone. This will
-                                                      permanently delete your
-                                                      comment.
+                                                      {t('deleteCommentDescription')}
                                                     </DialogDescription>
                                                   </DialogHeader>
                                                   <DialogFooter>
@@ -1656,7 +1653,7 @@ export default function Share() {
                                                           closeBtn.click();
                                                       }}
                                                     >
-                                                      Cancel
+                                                      {t('cancel')}
                                                     </Button>
                                                     <Button
                                                       variant="destructive"
@@ -1676,7 +1673,7 @@ export default function Share() {
                                                           closeBtn.click();
                                                       }}
                                                     >
-                                                      Delete
+                                                      {t('delete')}
                                                     </Button>
                                                   </DialogFooter>
                                                 </DialogContent>
@@ -1693,7 +1690,7 @@ export default function Share() {
                               ))
                             ) : (
                               <p className="text-center text-gray-500 text-sm py-4">
-                                No comments yet. Be the first to comment!
+                                {t('noCommentsYet')}
                               </p>
                             )}
                           </>
@@ -1719,7 +1716,7 @@ export default function Share() {
                             </Avatar>
                             <div className="flex-1 flex space-x-2">
                               <Textarea
-                                placeholder="Add a comment..."
+                                placeholder={t('addComment')}
                                 value={newComment}
                                 onChange={(e) => setNewComment(e.target.value)}
                                 className="text-sm min-h-[60px]"
@@ -1747,7 +1744,7 @@ export default function Share() {
                   className="mx-auto text-gray-300 mb-4"
                 />
                 <h3 className="text-lg font-medium text-gray-900 mb-1">
-                  No posts found
+                  {t('noPostsFound')}
                 </h3>
                 <p className="text-gray-500">
                   {filterTag && filterTag !== "all-tags"
